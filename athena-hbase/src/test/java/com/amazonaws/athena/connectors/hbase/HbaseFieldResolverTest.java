@@ -21,7 +21,7 @@ public class HbaseFieldResolverTest
         String family = "family";
         Field field = FieldBuilder.newBuilder("field1", Types.MinorType.VARCHAR.getType()).build();
         Result mockResult = mock(Result.class);
-        HbaseFieldResolver resolver = HbaseFieldResolver.resolver(family);
+        HbaseFieldResolver resolver = HbaseFieldResolver.resolver(false, family);
 
         when(mockResult.getValue(any(byte[].class), any(byte[].class))).thenReturn(expectedValue.getBytes());
         Object result = resolver.getFieldValue(field, mockResult);

@@ -20,7 +20,7 @@ You also need to provide one or more properties which define the HBase connectio
 
 ```sql
  select * from "hbase_instance_1".database.table 
- slect * from "hbase_instance_2.database.table
+ select * from "hbase_instance_2".database.table
  ```
 
 To support these two SQL statements we'd need to add two environment variables to our Lambda function:
@@ -33,9 +33,10 @@ You can also optionally use SecretsManager for part or all of the value for the 
 
 ### Setting Up Databases & Tables
 
-To enable a Glue Table for use with HBase, you simply need to have a Glue database and table that matches any HBase Namespace and Table that you'd like to supply supplemental metadata for (instead of relying on the HBase Connector's ability to infer schema). You can set the below table property from the Glue Console by editing the Table in question. The only other thing you need to do ensure you use the appropriate data types and, optionally, HBase column family naming conventions.
+To enable a Glue Table for use with HBase, you simply need to have a Glue database and table that matches any HBase Namespace and Table that you'd like to supply supplemental metadata for (instead of relying on the HBase Connector's ability to infer schema). The connector's in built schema inference only supports values serialized in HBase as Strings (e.g. String.valueOf(int)). You can enable a Glue table to be used for supplemental metadata by seting the below table properties from the Glue Console when editing the Table in question. The only other thing you need to do ensure you use the appropriate data types and, optionally, HBase column family naming conventions.
 
 1. **hbase-metadata-flag** - Flag indicating that the table can be used for supplemental meta-data by the Athena HBase Connector. The value is unimportant as long as this key is present in the properties of the table.
+1. **hbase-native-storage-flag** - This flag toggles the two modes of value serialization supported by the connector. By default (when this field is not present) the connector assumes all values are stored in HBase as strings. As such it will attempt to parse INT, BIGINT, DOUBLE, etc.. from HBase as Strings. If this field is set (the value of the table property doesn't matter, only its presence) on the table in Glue, the connector will switch to 'native' storage mode and attempt to read INT, BIGINT, BIT, and DOUBLE as bytes by using ByteBuffer.wrap(value).getInt(), ByteBuffer.wrap(value).getLong(), ByteBuffer.wrap(value).get(), and ByteBuffer.wrap(value).getDouble().
   
 When it comes to setting your columns, you have two choices for how you model HBase column families. The Athena HBase connector supports fully qualified (aka flattened) naming like "family:column" as well as using STRUCTS to model your column families. In the STRUCT model the name of the STRUCT field should match the column family and then any children of that STRUCT should match the names of the columns in that family. Since predicate push down and columnar reads are not yet fully supported for complex types like STRUCTs we recommend against using the STRUCT approach unless your usecase specifically requires the use of STRUCTS. The below image shows how we've configured a table in Glue using a combination of these approaches.
   
@@ -51,6 +52,7 @@ All HBase values are retrieved as the basic byte type. From there they are conve
 |bigint|BIGINT|
 |double|FLOAT8|
 |float|FLOAT4|
+|boolean|BIT|
 |binary|VARBINARY|
 |string|VARCHAR|
 

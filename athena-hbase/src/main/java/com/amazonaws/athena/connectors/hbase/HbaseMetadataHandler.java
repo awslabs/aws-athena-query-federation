@@ -32,6 +32,8 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +43,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static com.amazonaws.athena.connectors.hbase.HbaseSchemaUtils.toBytes;
 
 public class HbaseMetadataHandler
         extends GlueMetadataHandler
@@ -55,6 +59,7 @@ public class HbaseMetadataHandler
     private static final String SOURCE_TYPE = "hbase";
     private static final int NUM_ROWS_TO_SCAN = 10;
 
+    protected static final String HBASE_NATIVE_STORAGE_FLAG = "hbase-native-storage-flag";
     protected static final String HBASE_CONN_STR = "connStr";
     protected static final String START_KEY_FIELD = "start_key";
     protected static final String END_KEY_FIELD = "end_key";
@@ -202,6 +207,7 @@ public class HbaseMetadataHandler
         Set<Split> splits = new HashSet<>();
         Connection conn = getOrCreateConn(request);
         Admin admin = conn.getAdmin();
+
         //We can read each region in parallel
         for (HRegionInfo info : admin.getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
             Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
@@ -210,6 +216,7 @@ public class HbaseMetadataHandler
                     .add(END_KEY_FIELD, new String(info.getEndKey()))
                     .add(REGION_ID_FIELD, String.valueOf(info.getRegionId()))
                     .add(REGION_NAME_FIELD, info.getRegionNameAsString());
+
             splits.add(splitBuilder.build());
         }
 

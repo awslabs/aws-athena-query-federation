@@ -5,6 +5,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -26,14 +28,19 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.filter.CompareFilter;
+import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.END_KEY_FIELD;
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.HBASE_CONN_STR;
+import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.HBASE_NATIVE_STORAGE_FLAG;
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.START_KEY_FIELD;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -75,7 +82,9 @@ public class HbaseRecordHandler
         Schema projection = request.getSchema();
         Split split = request.getSplit();
         String conStr = split.getProperty(HBASE_CONN_STR);
+        boolean isNative = projection.getCustomMetadata().get(HBASE_NATIVE_STORAGE_FLAG) != null;
         Scan scan = new Scan(split.getProperty(START_KEY_FIELD).getBytes(), split.getProperty(END_KEY_FIELD).getBytes());
+        scan.setFilter(pushdownPredicate(isNative, request.getConstraints()));
 
         //setup the projection so we only pull columns/families that we need
         for (Field next : request.getSchema().getFields()) {
@@ -92,7 +101,7 @@ public class HbaseRecordHandler
                     for (Field field : projection.getFields()) {
                         FieldVector vector = block.getFieldVector(field.getName());
                         if (match) {
-                            match &= writeField(constraintEvaluator, vector, row, rowNum);
+                            match &= writeField(constraintEvaluator, vector, isNative, row, rowNum);
                         }
                     }
                     return match ? 1 : 0;
@@ -104,7 +113,7 @@ public class HbaseRecordHandler
         }
     }
 
-    private boolean writeField(ConstraintEvaluator constraintEvaluator, FieldVector vector, Result row, int rowNum)
+    private boolean writeField(ConstraintEvaluator constraintEvaluator, FieldVector vector, boolean isNative, Result row, int rowNum)
     {
         String fieldName = vector.getField().getName();
         ArrowType type = vector.getField().getType();
@@ -124,7 +133,7 @@ public class HbaseRecordHandler
                     //Column is actually a Column Family
                     BlockUtils.setComplexValue(vector,
                             rowNum,
-                            HbaseFieldResolver.resolver(fieldName),
+                            HbaseFieldResolver.resolver(isNative, fieldName),
                             row);
 
                     //Constraints on complex types are not supported yet
@@ -133,7 +142,7 @@ public class HbaseRecordHandler
                     //We expect the column name format to be <FAMILY>:<QUALIFIER>
                     String[] columnParts = HbaseSchemaUtils.extractColumnParts(fieldName);
                     byte[] rawValue = row.getValue(columnParts[0].getBytes(), columnParts[1].getBytes());
-                    Object value = HbaseSchemaUtils.coerceType(type, rawValue);
+                    Object value = HbaseSchemaUtils.coerceType(isNative, type, rawValue);
                     BlockUtils.setValue(vector, rowNum, value);
                     return constraintEvaluator.apply(fieldName, value);
             }
@@ -164,5 +173,20 @@ public class HbaseRecordHandler
                 }
                 scan.addColumn(nameParts[0].getBytes(UTF_8), nameParts[1].getBytes(UTF_8));
         }
+    }
+
+    private Filter pushdownPredicate(boolean isNative, Constraints constraints)
+    {
+        for (Map.Entry<String, ValueSet> next : constraints.getSummary().entrySet()) {
+            if (next.getValue().isSingleValue()) {
+                String[] colParts = HbaseSchemaUtils.extractColumnParts(next.getKey());
+                return new SingleColumnValueFilter(colParts[0].getBytes(),
+                        colParts[1].getBytes(),
+                        CompareFilter.CompareOp.EQUAL,
+                        HbaseSchemaUtils.toBytes(isNative, next.getValue().getSingleValue()));
+            }
+        }
+
+        return null;
     }
 }

@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connectors.hbase.HbaseSchemaUtils.coerceType;
+import static com.amazonaws.athena.connectors.hbase.HbaseSchemaUtils.toBytes;
 import static com.amazonaws.athena.connectors.hbase.TestUtils.makeResult;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -111,19 +113,37 @@ public class HbaseSchemaUtilsTest
     }
 
     @Test
-    public void coerceType()
+    public void coerceTypeTest()
     {
-        assertEquals("asf", HbaseSchemaUtils.coerceType(Types.MinorType.VARCHAR.getType(), "asf".getBytes()));
-        assertEquals("2.0", HbaseSchemaUtils.coerceType(Types.MinorType.VARCHAR.getType(), "2.0".getBytes()));
-        assertEquals(1, HbaseSchemaUtils.coerceType(Types.MinorType.INT.getType(), "1".getBytes()));
-        assertEquals(-1, HbaseSchemaUtils.coerceType(Types.MinorType.INT.getType(), "-1".getBytes()));
-        assertEquals(1L, HbaseSchemaUtils.coerceType(Types.MinorType.BIGINT.getType(), "1".getBytes()));
-        assertEquals(-1L, HbaseSchemaUtils.coerceType(Types.MinorType.BIGINT.getType(), "-1".getBytes()));
-        assertEquals(1.1F, HbaseSchemaUtils.coerceType(Types.MinorType.FLOAT4.getType(), "1.1".getBytes()));
-        assertEquals(-1.1F, HbaseSchemaUtils.coerceType(Types.MinorType.FLOAT4.getType(), "-1.1".getBytes()));
-        assertEquals(1.1D, HbaseSchemaUtils.coerceType(Types.MinorType.FLOAT8.getType(), "1.1".getBytes()));
-        assertEquals(-1.1D, HbaseSchemaUtils.coerceType(Types.MinorType.FLOAT8.getType(), "-1.1".getBytes()));
-        assertArrayEquals("-1.1".getBytes(), (byte[]) HbaseSchemaUtils.coerceType(Types.MinorType.VARBINARY.getType(), "-1.1".getBytes()));
+        boolean isNative = false;
+        assertEquals("asf", coerceType(isNative, Types.MinorType.VARCHAR.getType(), "asf".getBytes()));
+        assertEquals("2.0", coerceType(isNative, Types.MinorType.VARCHAR.getType(), "2.0".getBytes()));
+        assertEquals(1, coerceType(isNative, Types.MinorType.INT.getType(), "1".getBytes()));
+        assertEquals(-1, coerceType(isNative, Types.MinorType.INT.getType(), "-1".getBytes()));
+        assertEquals(1L, coerceType(isNative, Types.MinorType.BIGINT.getType(), "1".getBytes()));
+        assertEquals(-1L, coerceType(isNative, Types.MinorType.BIGINT.getType(), "-1".getBytes()));
+        assertEquals(1.1F, coerceType(isNative, Types.MinorType.FLOAT4.getType(), "1.1".getBytes()));
+        assertEquals(-1.1F, coerceType(isNative, Types.MinorType.FLOAT4.getType(), "-1.1".getBytes()));
+        assertEquals(1.1D, coerceType(isNative, Types.MinorType.FLOAT8.getType(), "1.1".getBytes()));
+        assertEquals(-1.1D, coerceType(isNative, Types.MinorType.FLOAT8.getType(), "-1.1".getBytes()));
+        assertArrayEquals("-1.1".getBytes(), (byte[]) coerceType(isNative, Types.MinorType.VARBINARY.getType(), "-1.1".getBytes()));
+    }
+
+    @Test
+    public void coerceTypeNativeTest()
+    {
+        boolean isNative = true;
+        assertEquals("asf", coerceType(isNative, Types.MinorType.VARCHAR.getType(), "asf".getBytes()));
+        assertEquals("2.0", coerceType(isNative, Types.MinorType.VARCHAR.getType(), "2.0".getBytes()));
+        assertEquals(1, coerceType(isNative, Types.MinorType.INT.getType(), toBytes(isNative, 1)));
+        assertEquals(-1, coerceType(isNative, Types.MinorType.INT.getType(), toBytes(isNative, -1)));
+        assertEquals(1L, coerceType(isNative, Types.MinorType.BIGINT.getType(), toBytes(isNative, 1L)));
+        assertEquals(-1L, coerceType(isNative, Types.MinorType.BIGINT.getType(), toBytes(isNative, -1L)));
+        assertEquals(1.1F, coerceType(isNative, Types.MinorType.FLOAT4.getType(), toBytes(isNative, 1.1F)));
+        assertEquals(-1.1F, coerceType(isNative, Types.MinorType.FLOAT4.getType(), toBytes(isNative, -1.1F)));
+        assertEquals(1.1D, coerceType(isNative, Types.MinorType.FLOAT8.getType(), toBytes(isNative, 1.1D)));
+        assertEquals(-1.1D, coerceType(isNative, Types.MinorType.FLOAT8.getType(), toBytes(isNative, -1.1D)));
+        assertArrayEquals("-1.1".getBytes(), (byte[]) coerceType(isNative, Types.MinorType.VARBINARY.getType(), "-1.1".getBytes()));
     }
 
     @Test

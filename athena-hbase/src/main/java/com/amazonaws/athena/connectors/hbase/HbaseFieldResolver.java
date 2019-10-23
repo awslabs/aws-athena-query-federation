@@ -9,15 +9,17 @@ public class HbaseFieldResolver
         implements FieldResolver
 {
     private final byte[] family;
+    private final boolean isNative;
 
-    public HbaseFieldResolver(byte[] family)
+    public HbaseFieldResolver(boolean isNative, byte[] family)
     {
+        this.isNative = isNative;
         this.family = family;
     }
 
-    public static HbaseFieldResolver resolver(String family)
+    public static HbaseFieldResolver resolver(boolean isNative, String family)
     {
-        return new HbaseFieldResolver(family.getBytes());
+        return new HbaseFieldResolver(isNative, family.getBytes());
     }
 
     @Override
@@ -29,6 +31,6 @@ public class HbaseFieldResolver
         }
 
         Result row = (Result) val;
-        return HbaseSchemaUtils.coerceType(field.getType(), row.getValue(family, field.getName().getBytes()));
+        return HbaseSchemaUtils.coerceType(isNative, field.getType(), row.getValue(family, field.getName().getBytes()));
     }
 }
