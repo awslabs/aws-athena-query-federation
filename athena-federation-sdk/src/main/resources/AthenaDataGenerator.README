@@ -1,0 +1,41 @@
+# AthenaDataGenerator
+
+This application demonstrates how to connector to a custom data source using Athena's Federation SDK for Lambda. The application consists of two Lambda functions which provide metadata and data to Athena.
+
+## Metadata
+
+The metadata function supports a single schema (aka database) called "custom-source".
+
+In this schema we have a single table called "fake_table" which has the following structure:
+
+```
+   Column    |                    Type                    | Extra | Comment
+-------------+--------------------------------------------+-------+---------
+ col1        | date                                       |       |
+ day         | integer                                    |       |
+ month       | integer                                    |       |
+ year        | integer                                    |       |
+ col3        | boolean                                    |       |
+ col4        | double                                     |       |
+ col5        | varchar                                    |       |
+ datemilli   | timestamp                                  |       |
+ int         | integer                                    |       |
+ tinyint     | tinyint                                    |       |
+ smallint    | smallint                                   |       |
+ bigint      | bigint                                     |       |
+ float4      | real                                       |       |
+ float8      | double                                     |       |
+ bit         | boolean                                    |       |
+ varchar     | varchar                                    |       |
+ varbinary   | varbinary                                  |       |
+ decimal     | decimal(10,2)                              |       |
+ decimallong | decimal(36,2)                              |       |
+ list        | array(row(varchar varchar, bigint bigint)) |       |
+ outerlist   | array(array(varchar))                      |       |
+ ```
+
+ ## Data
+
+ Generates alternating positive and negative values (where applicable) for each type based on the row number.
+
+ This example is capable of demonstrating peak throughput/parallelism of federation to Athena via Lambda to the tune of 102Gbps or 1530M rows/second.

@@ -1,0 +1,71 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaAwsCmdbConnector
+    Description: 'This connector enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL.'
+    Author: 'Amazon Athena'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - athena-federation
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name.'
+    Type: String
+  SpillBucket:
+    Description: 'The bucket where this function can spill data.'
+    Type: String
+    Default: athena-federation-spill
+  SpillPrefix:
+    Description: 'The bucket prefix where this function can spill large responses.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 90
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
+    Default: 'false'
+    Type: String
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+      FunctionName: !Ref AthenaCatalogName
+      Handler: "com.amazonaws.athena.connectors.aws.cmdb.AwsCmdbCompositeHandler"
+      CodeUri: "./target/athena-aws-cmdb-1.0.jar"
+      Description: "Enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL."
+      Runtime: java8
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - autoscaling:Describe*
+                - elasticloadbalancing:Describe*
+                - ec2:Describe*
+                - elasticmapreduce:Describe*
+                - elasticmapreduce:List*
+                - rds:Describe*
+                - rds:ListTagsForResource
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket

@@ -1,0 +1,199 @@
+package com.amazonaws.athena.connector.lambda.handlers;
+
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.SpillConfig;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.records.RecordRequest;
+import com.amazonaws.athena.connector.lambda.records.RecordRequestType;
+import com.amazonaws.athena.connector.lambda.records.RecordResponse;
+import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
+import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
+
+public abstract class RecordHandler
+        implements RequestStreamHandler
+{
+    private static final Logger logger = LoggerFactory.getLogger(RecordHandler.class);
+    private static String MAX_BLOCK_SIZE_BYTES = "MAX_BLOCK_SIZE_BYTES";
+    private static final int NUM_SPILL_THREADS = 2;
+    private final AmazonS3 amazonS3;
+    private final String sourceType;
+    private final CachableSecretsManager secretsManager;
+
+    /**
+     * @param sourceType Used to aid in logging diagnostic info when raising a support case.
+     */
+    public RecordHandler(String sourceType)
+    {
+        this.sourceType = sourceType;
+        this.amazonS3 = AmazonS3ClientBuilder.defaultClient();
+        this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
+    }
+
+    /**
+     * @param sourceType Used to aid in logging diagnostic info when raising a support case.
+     */
+    public RecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, String sourceType)
+    {
+        this.sourceType = sourceType;
+        this.amazonS3 = amazonS3;
+        this.secretsManager = new CachableSecretsManager(secretsManager);
+    }
+
+    /**
+     * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
+     * by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
+     * the function throws.
+     *
+     * @param rawString The string in which you'd like to replace SecretsManager placeholders.
+     * (e.g. ThisIsA${Secret}Here - The ${Secret} would be replaced with the contents of an SecretsManager
+     * secret called Secret. If no such secret is found, the function throws. If no ${} are found in
+     * the input string, nothing is replaced and the original string is returned.
+     */
+    protected String resolveSecrets(String rawString)
+    {
+        return secretsManager.resolveSecrets(rawString);
+    }
+
+    protected String getSecret(String secretName)
+    {
+        return secretsManager.getSecret(secretName);
+    }
+
+    final public void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
+            throws IOException
+    {
+        try (BlockAllocator allocator = new BlockAllocatorImpl()) {
+            ObjectMapper objectMapper = ObjectMapperFactory.create(allocator);
+            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
+                if (rawReq instanceof PingRequest) {
+                    try (PingResponse response = doPing((PingRequest) rawReq)) {
+                        assertNotNull(response);
+                        objectMapper.writeValue(outputStream, response);
+                    }
+                    return;
+                }
+
+                if (!(rawReq instanceof RecordRequest)) {
+                    throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
+                }
+
+                RecordRequest req = (RecordRequest) rawReq;
+                RecordRequestType type = req.getRequestType();
+                switch (type) {
+                    case READ_RECORDS:
+                        try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
+                            assertNotNull(response);
+                            objectMapper.writeValue(outputStream, response);
+                        }
+                        return;
+                    default:
+                        throw new IllegalArgumentException("Unknown request type " + type);
+                }
+            }
+            catch (Exception ex) {
+                logger.warn("handleRequest: Completed with an exception.", ex);
+                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+            }
+        }
+    }
+
+    public RecordResponse doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
+            throws Exception
+    {
+        logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
+        SpillConfig spillConfig = getSpillConfig(request);
+        try (S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema())) {
+
+            try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
+                    request.getSchema(),
+                    request.getConstraints())) {
+                readWithConstraint(constraintEvaluator, spiller, request);
+            }
+            catch (Exception ex) {
+                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+            }
+
+            if (!spiller.spilled()) {
+                return new ReadRecordsResponse(request.getCatalogName(), spiller.getBlock());
+            }
+            else {
+                return new RemoteReadRecordsResponse(request.getCatalogName(),
+                        request.getSchema(),
+                        spiller.getSpillLocations(),
+                        spillConfig.getEncryptionKey());
+            }
+        }
+    }
+
+    protected abstract void readWithConstraint(ConstraintEvaluator constraintEvaluator,
+            BlockSpiller spiller,
+            ReadRecordsRequest recordsRequest)
+            throws Exception;
+
+    protected SpillConfig getSpillConfig(ReadRecordsRequest request)
+    {
+        long maxBlockSize = request.getMaxBlockSize();
+        if (System.getenv(MAX_BLOCK_SIZE_BYTES) != null) {
+            maxBlockSize = Long.parseLong(System.getenv(MAX_BLOCK_SIZE_BYTES));
+        }
+
+        return SpillConfig.newBuilder()
+                .withSpillLocation(request.getSplit().getSpillLocation())
+                .withMaxBlockBytes(maxBlockSize)
+                .withMaxInlineBlockBytes(request.getMaxInlineBlockSize())
+                .withRequestId(request.getQueryId())
+                .withEncryptionKey(request.getSplit().getEncryptionKey())
+                .withNumSpillThreads(NUM_SPILL_THREADS)
+                .build();
+    }
+
+    private final PingResponse doPing(PingRequest request)
+    {
+        PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES);
+        try {
+            onPing(request);
+        }
+        catch (Exception ex) {
+            logger.warn("doPing: encountered an exception while delegating onPing.", ex);
+        }
+        return response;
+    }
+
+    protected void onPing(PingRequest request)
+    {
+        //NoOp
+    }
+
+    private void assertNotNull(FederationResponse response)
+    {
+        if (response == null) {
+            throw new RuntimeException("Response was null");
+        }
+    }
+}
+

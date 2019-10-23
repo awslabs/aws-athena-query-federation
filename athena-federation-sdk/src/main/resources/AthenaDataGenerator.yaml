@@ -1,0 +1,74 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+# Parameters are CloudFormation features to pass input
+# to your template when you create a stack
+Parameters:
+  AthenaCatalogName:
+    Description: "The name you will give to this catalog in Athena will be used as the function name prefix."
+    Type: String
+  SpillBucket:
+    Description: "The bucket where this function can spill data."
+    Type: String
+    Default: "athena-virtuoso-test"
+  SpillPrefix:
+    Description: "The bucket where this function can spill data."
+    Type: String
+    Default: "athena-spill"
+  MetadataTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 90
+    Type: Number
+  MetadataMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DataTimeout:
+      Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+      Default: 90
+      Type: Number
+  DataMemory:
+      Description: "Lambda memory in MB (min 128 - 3008 max)."
+      Default: 3008
+      Type: Number
+  RowsPerSplit:
+    Description: "The number of rows to generate per split. (rec. 4000 - 4000000)"
+    Default: 400000
+    Type: Number
+  DisableSpillEncryption:
+    Description: "If set to 'true' data spilled to S3 is encrypted with AES GCM"
+    Default: "false"
+    Type: String
+
+Resources:
+  MetadataConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+      FunctionName: !Sub "${AthenaCatalogName}-metadata"
+      Handler: "com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandler"
+      CodeUri: "s3://athena-federation-connectors/virtuoso-metadata.zip"
+      Description: "Generates metadata data for a single schema and table that is partitioned by year, month, day starting at year 2000."
+      Runtime: java8
+      Timeout: !Ref MetadataTimeout
+      MemorySize: !Ref MetadataMemory
+  DataConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          MAX_BLOCK_SIZE_BYTES: "8000000"
+          NUM_ROWS_PER_SPLIT: !Ref RowsPerSplit
+      FunctionName: !Sub "${AthenaCatalogName}-record"
+      Handler: "com.amazonaws.athena.connector.lambda.examples.ExampleRecordHandler"
+      CodeUri: "s3://athena-federation-connectors/virtuoso-record.zip"
+      Description: "Generates data from supplied metadata."
+      Runtime: java8
+      Timeout: !Ref DataTimeout
+      MemorySize: !Ref DataMemory
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket

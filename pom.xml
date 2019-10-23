@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.amazonaws</groupId>
+    <artifactId>aws-athena-query-federation</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0</version>
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <aws-sdk.version>1.11.490</aws-sdk.version>
+        <aws-athena-federation-sdk.version>2019.42.11</aws-athena-federation-sdk.version>
+        <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
+        <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
+        <mockito.version>1.10.19</mockito.version>
+        <junit.version>4.11</junit.version>
+    </properties>
+
+    <modules>
+        <module>athena-cloudwatch</module>
+        <module>athena-docdb</module>
+        <module>athena-redis</module>
+        <module>athena-bigquery</module>
+        <module>athena-aws-cmdb</module>
+        <module>athena-android</module>
+        <module>athena-dynamodb</module>
+        <module>athena-hbase</module>
+        <module>athena-cloudwatch-metrics</module>
+        <module>athena-example</module>
+        <module>athena-federation-sdk</module>
+        <module>athena-udfs</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j-log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-lambda-java-core</artifactId>
+            <version>${aws.lambda-java-core.version}</version>
+        </dependency>
+
+        <dependency>
+        <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+</project>
