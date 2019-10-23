@@ -1,7 +1,7 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaHbasesConnector
+    Name: AthenaHBaseConnector
     Description: 'This connector enables Amazon Athena to communicate with your HBase instance(s), making your HBase data accessible via SQL.'
     Author: 'Amazon Athena'
     SpdxLicenseId: Apache-2.0
@@ -45,6 +45,9 @@ Parameters:
   SecretNameOrPrefix:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. hbase-*).'
     Type: String
+  HBaseConnectionString:
+    Description: 'The HBase connection details to use by default in the format: master_hostname:zookeeper_port:hbase_port and optionally using SecretsManager (e.g. ${secret_name}).'
+    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -54,6 +57,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          default_hbase: !Ref HBaseConnectionString
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.hbase.HbaseCompositeHandler"
       CodeUri: "./target/athena-hbase-1.0.jar"

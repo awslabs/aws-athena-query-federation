@@ -21,7 +21,6 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
@@ -48,6 +47,7 @@ public class HbaseMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(HbaseMetadataHandler.class);
 
+    private static final String DEFAULT_HBASE = "default_hbase";
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack a redis endpoint.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
@@ -90,9 +90,19 @@ public class HbaseMetadataHandler
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
+    /**
+     * Retrieves the HBase connection details from an env variable matching the catalog name, if no such
+     * env variable exists we fall back to the default env variable defined by DEFAULT_HBASE.
+     */
     private String getConnStr(MetadataRequest request)
     {
-        return System.getenv(request.getCatalogName());
+        String conStr = System.getenv(request.getCatalogName());
+        if (conStr == null) {
+            logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
+                    request.getCatalogName(), DEFAULT_HBASE);
+            conStr = System.getenv(DEFAULT_HBASE);
+        }
+        return conStr;
     }
 
     @Override

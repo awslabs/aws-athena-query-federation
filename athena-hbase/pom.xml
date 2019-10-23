@@ -50,6 +50,21 @@
                         <goals>
                             <goal>shade</goal>
                         </goals>
+                        <configuration>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>org/apache/hadoop/yarn/webapp/**</exclude>
+                                        <exclude>org/apache/hadoop/mapred/**</exclude>
+                                        <exclude>org/apache/hadoop/mapreduce/**</exclude>
+                                        <exclude>org/apache/hadoop/yarn/**</exclude>
+                                        <exclude>org/apache/curator/**</exclude>
+                                        <exclude>org/apache/directory/**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

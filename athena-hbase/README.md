@@ -76,11 +76,11 @@ To use the Amazon Athena HBase Connector in your queries, navigate to AWS Server
 
 For Server-less Application Repository, run `sam publish --template packaged.yaml --region <aws_region>` from the athena-hbase directory and then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
-For a direct deployment to Lambda, you can use the below command from the athena-redis directory. Be sure to insert your S3 Bucket and Role ARN as indicated. You also need to go to the Lambda console to configure your VPC details so that Lambda function can access your redis instance(s) as well as S3.
+For a direct deployment to Lambda, you can use the below command from the athena-hbase directory. Be sure to insert your S3 Bucket and Role ARN as indicated. You also need to go to the Lambda console to configure your VPC details so that Lambda function can access your HBase instance(s) as well as S3.
 
 ```bash
 aws lambda create-function \
-        --function-name athena-redis \
+        --function-name athena-hbase \
         --runtime java8 \
         --timeout 900 \
         --memory-size 3008 \
@@ -92,7 +92,7 @@ aws lambda create-function \
 
 ## Performance
 
-The Athena HBase Connector will attempt to parallelize queries against your HBase instance by reading each region server in parrallel. Predicate Pushdown is performed within the Lambda function and, where possible, push down into HBase using filters.
+The Athena HBase Connector will attempt to parallelize queries against your HBase instance by reading each region server in parallel. Predicate Pushdown is performed within the Lambda function and, where possible, push down into HBase using filters.
 
 ## License
 
