@@ -134,7 +134,7 @@ You can use any IDE or even just comman line editor to write your connector. The
 
 #### Step 3: Install Development Tools (Pre-Requisites)
 
-This step may be optional if you are working on a development machine that already has Apache maven, the aws cli, and the aws sam build tool for Serverless Applications.
+This step may be optional if you are working on a development machine that already has Apache maven, the aws cli, and the aws sam build tool for Serverless Applications. If not, you can run  the `./prepare_dev_env.sh` script in the athena-example module director.
 
 ```bash
 
