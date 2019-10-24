@@ -162,11 +162,7 @@ Now run `mvn clean install` from the athena-federation-sdk directory within the 
             BucketName: !Ref DataBucket
 ```
 
-### Step 6: Build and Package Your New Connector
-
-1. Run `mvn clean install` in the aws-athena-query-federation/athena-example directory to build, test, and package our connector code.
-
-### Step 7: Deploy Your New Connector
+### Step 6: Package and Deploy Your New Connector
 
 We have two options for deploying our connector: directly to Lambda or via Serverless Application Repository. We'll do both below.
 
@@ -228,7 +224,7 @@ aws lambda create-function \
     --environment Variables={spill_bucket=<SPILL_BUCKET>}
 ```
 
-### Step 8: Run a Query!
+### Step 7: Run a Query!
 
 Ok, now we are ready to try running some queries using our new connector. Some good examples to try include (be sure to put in your actual database and table names):
 
