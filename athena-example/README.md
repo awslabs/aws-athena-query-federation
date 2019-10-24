@@ -134,38 +134,8 @@ You can use any IDE or even just comman line editor to write your connector. The
 
 #### Step 3: Install Development Tools (Pre-Requisites)
 
-This step may be optional if you are working on a development machine that already has Apache maven, the aws cli, and the aws sam build tool for Serverless Applications. If not, you can run  the `./prepare_dev_env.sh` script in the athena-example module director.
+This step may be optional if you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build tool for Serverless Applications. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the github project you checked out.
 
-```bash
-
-#Install Maven and Java 8
-sudo wget https://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
-sudo sed -i s/\$releasever/6/g /etc/yum.repos.d/epel-apache-maven.repo
-sudo yum install -y apache-maven
-sudo yum -y install java-1.8.0-openjdk-devel
-sudo update-alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
-sudo update-alternatives --set javac /usr/lib/jvm/java-1.8.0-openjdk.x86_64/bin/javac
-
-# If the above update-alternatives doesn't work and you don't know your path try 
-#  sudo update-alternatives --config java
-#  sudo update-alternatives --config javac
-
-
-#Install HomeBrew so we can install aws cli and aws-sam
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
-
-#Prepare the Brew environment
-test -d ~/.linuxbrew && eval $(~/.linuxbrew/bin/brew shellenv)
-test -d /home/linuxbrew/.linuxbrew && eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
-test -r ~/.bash_profile && echo "eval \$($(brew --prefix)/bin/brew shellenv)" >>~/.bash_profile
-echo "eval \$($(brew --prefix)/bin/brew shellenv)" >>~/.profile
-
-#Install the latest aws cli and sam tools (run these one at a time)
-brew tap aws/tap
-brew install awscli
-brew install aws-sam-cli
-
-```
 
 Now run `mvn clean install` from the athena-federation-sdk directory within the github project you checked out earlier.
 
@@ -176,29 +146,11 @@ Now run `mvn clean install` from the athena-federation-sdk directory within the 
 3. Complete the TODOs in ExampleMetadataHandler
 4. Complete the TODOs in ExampleRecordHandler
 5. Run the following command from the aws-athena-query-federation/athena-example directory to ensure your connector is valid.  `mvn clean install`
-6. Upload our sample data by running the following command from aws-athena-query-federation/athena-example directory.  `aws s3 cp ./sample_data.csv s3://BUCKET_NAME/2017/11/1/sample_data.csv`
+6. Upload our sample data by running the following command from aws-athena-query-federation/athena-example directory. Be sure to replace BUCKET_NAME with the name of the bucket your created earlier.  `aws s3 cp ./sample_data.csv s3://BUCKET_NAME/2017/11/1/sample_data.csv`
 
 ### Step 5: Setup Our Deployment Configs
 
-1. Create a new file in athena-example called `sar_bucket_policy.json` with the below S3 policy which we will use to grant Serverless App Repo permission to our new connector. Be sure to put in the name of your bucket, we'll create that bucket in a later step. Pick a unique name thats unlikely to be taken already.
-
-  ```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Service":  "serverlessrepo.amazonaws.com"
-            },
-            "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::BUCKET_NAME/*"
-        }
-    ]
-}
-```
-
-2. Edit athena-example.yaml to have appropriate policies for you usecase (e.g. For this tutorial the below policy for spilling to S3 is sufficient.)
+1. Review the permissions required by our connector by viewing athena-example.yaml. (e.g. For this tutorial the below policy for spilling to S3 and reading our sample data are sufficient.)
 
 ```yaml
       Policies:
@@ -210,13 +162,9 @@ Now run `mvn clean install` from the athena-federation-sdk directory within the 
             BucketName: !Ref DataBucket
 ```
 
-3. Grant Serverless Application Repository read access to that bucket so that it can get a copy of our connector when we publish it for use by other people in our AWS Account. Run 
-`aws s3api put-bucket-policy --bucket BUCKET_NAME --policy  file://sar_bucket_policy.json` but be sure to put your actual bucket name in the command.
-
 ### Step 6: Build and Package Your New Connector
 
-1. Run `mvn clean install` in the aws-athena-query-federation/athena-example directory
-2. Run `sam package --template-file athena-example.yaml --output-template-file packaged.yaml --s3-bucket BUCKET_NAME` from the aws-athena-query-federation/athena-example directory but be sure to put your actual bucket name in the command.
+1. Run `mvn clean install` in the aws-athena-query-federation/athena-example directory to build, test, and package our connector code.
 
 ### Step 7: Deploy Your New Connector
 
@@ -224,14 +172,14 @@ We have two options for deploying our connector: directly to Lambda or via Serve
 
 *Publish Your Connector To Serverless Application Repository*
 
-Run `sam publish --template packaged.yaml --region AWS_REGION` to publish the connector to the AWS Serverless Application Repository as a private application available to anyone in your AWS Account. This allows 1-click deployments of the connector. You can optionally make it public later. 
+Run `../tools/publish.sh S3_BUCKET_NAME athena-example` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form.
 
 Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/) to search for your application and deploy it before using it from Athena.
  
 
 *Publish Your Connector Directly To Lambda*
 
-In order to deploy our Lambda function we must first ensure that we have a role defined that we'd like our Lambda function to use. Below we have an example IAM policy for a Role that supports Spilling to S3 as well as reading information from Cloudwatch. We frequently use Cloudwatch as an example data source since it's API is relatively easily to understand and use in a connector.
+Alternatively, you can deploy our Lambda function directly. First we must first ensure that we have a role defined that we'd like our Lambda function to use. Below we have an example IAM policy for a Role that supports Spilling to S3 as well as reading information from Cloudwatch. We frequently use Cloudwatch as an example data source since it's API is relatively easily to understand and use in a connector.
 
 1. Create our new role for our Lambda function by going to the [AWS IAM Console](https://console.aws.amazon.com/iam/) and creating a role named 'athena-example-role' using the below policy json to create a policy for that role. Take note of the role arn as we will need it in the next step.
 
