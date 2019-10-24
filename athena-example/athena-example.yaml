@@ -22,11 +22,9 @@ Parameters:
   SpillBucket:
     Description: "The bucket where this function can spill large responses."
     Type: String
-    Default: "athena-federation-spill"
   DataBucket:
       Description: "The bucket where this tutorial's data lives."
       Type: String
-      Default: "athena-federation-spill"
   SpillPrefix:
     Description: "The bucket prefix where this function can spill large responses."
     Type: String

@@ -36,8 +36,9 @@ while true; do
     esac
 done
 
+echo "This script may add a bucket policy to $1 for Serverless App Repo if one is not already present."
 while true; do
-    read -p "This script may add a bucket policy to $1 for Serverless App Repo if one is not already present.\n Do you wish to proceed? (yes or no) " yn
+    read -p "Do you wish to proceed? (yes or no) " yn
     case $yn in
         [Yy]* ) echo "Proceeding..."; break;;
         [Nn]* ) exit;;
@@ -70,6 +71,6 @@ fi
 set -e
 mvn clean install
 
-sam package --template-file athena-cloudwatch.yaml --output-template-file packaged.yaml --s3-bucket $1
+sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1
 sam publish --template packaged.yaml
 

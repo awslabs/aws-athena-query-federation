@@ -134,8 +134,8 @@ You can use any IDE or even just comman line editor to write your connector. The
 
 #### Step 3: Install Development Tools (Pre-Requisites)
 
-This step may be optional if you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build tool for Serverless Applications. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the github project you checked out.
-
+1. This step may be optional if you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build tool for Serverless Applications. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the github project you checked out.
+2. To ensure your terminal can see the new tools we installed run `source ~/.profile` or open a fresh terminal.
 
 Now run `mvn clean install` from the athena-federation-sdk directory within the github project you checked out earlier.
 
