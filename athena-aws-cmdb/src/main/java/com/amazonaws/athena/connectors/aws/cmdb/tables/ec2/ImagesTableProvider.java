@@ -30,12 +30,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Maps your EC2 images (aka AMIs) to a table.
+ */
 public class ImagesTableProvider
         implements TableProvider
 {
+    private static final String DEFAULT_OWNER_ENV = "default_ec2_image_owner";
     private static final int MAX_IMAGES = 1000;
-    //TODO: move to env var
-    private static final String DEFAULT_OWNER = null;
+    //Sets a default owner filter (when not null) to reduce the number of irrelevant AMIs returned when you do not
+    //query for a specific owner.
+    private static final String DEFAULT_OWNER = System.getenv(DEFAULT_OWNER_ENV);
     private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
@@ -44,24 +49,41 @@ public class ImagesTableProvider
         this.ec2 = ec2;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "ec2";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "ec2_images");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls DescribeImagess on the AWS EC2 Client returning all images that match the supplied predicate and attempting
+     * to push down certain predicates (namely queries for specific volumes) to EC2.
+     *
+     * @note Because of the large number of public AMIs we also support using a default 'owner' filter if your query doesn't
+     * filter on owner itself. You can set this using an env variable on your Lambda function defined by DEFAULT_OWNER_ENV.
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
@@ -93,15 +115,24 @@ public class ImagesTableProvider
             if (count++ > MAX_IMAGES) {
                 throw new RuntimeException("Too many images returned, add an owner or id filter.");
             }
-            instanceToRow(fields, next, constraintEvaluator, spiller, recordsRequest);
+            instanceToRow(next, constraintEvaluator, spiller, fields);
         }
     }
 
-    private void instanceToRow(Map<String, Field> fields,
-            Image image,
+    /**
+     * Maps an EC2 Image (AMI) into a row in our Apache Arrow response block(s).
+     *
+     * @param image The EC2 Image (AMI) to map.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
+    private void instanceToRow(Image image,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
@@ -273,6 +304,9 @@ public class ImagesTableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("id")

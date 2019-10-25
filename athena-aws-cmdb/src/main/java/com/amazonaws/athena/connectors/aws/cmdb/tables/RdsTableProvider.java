@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Maps your RDS instances to a table.
+ */
 public class RdsTableProvider
         implements TableProvider
 {
@@ -45,27 +48,45 @@ public class RdsTableProvider
         this.rds = rds;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "rds";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "rds_instances");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls DescribeDBInstances on the AWS RDS Client returning all DB Instances that match the supplied predicate and attempting
+     * to push down certain predicates (namely queries for specific DB Instance) to EC2.
+     *
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
+        final Map<String, Field> fields = new HashMap<>();
+        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
+
         boolean done = false;
         DescribeDBInstancesRequest request = new DescribeDBInstancesRequest();
 
@@ -78,7 +99,7 @@ public class RdsTableProvider
             DescribeDBInstancesResult response = rds.describeDBInstances(request);
 
             for (DBInstance instance : response.getDBInstances()) {
-                instanceToRow(instance, constraintEvaluator, spiller, recordsRequest);
+                instanceToRow(instance, constraintEvaluator, spiller, fields);
             }
 
             request.setMarker(response.getMarker());
@@ -89,14 +110,21 @@ public class RdsTableProvider
         }
     }
 
+    /**
+     * Maps a DBInstance into a row in our Apache Arrow response block(s).
+     *
+     * @param instance The DBInstance to map.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
     private void instanceToRow(DBInstance instance,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        request.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -379,6 +407,9 @@ public class RdsTableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("instance_id")

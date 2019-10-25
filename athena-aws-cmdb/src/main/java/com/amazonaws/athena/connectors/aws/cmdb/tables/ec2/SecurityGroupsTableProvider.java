@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Maps your EC2 SecurityGroups to a table.
+ */
 public class SecurityGroupsTableProvider
         implements TableProvider
 {
@@ -43,27 +46,45 @@ public class SecurityGroupsTableProvider
         this.ec2 = ec2;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "ec2";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "security_groups");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls DescribeSecurityGroups on the AWS EC2 Client returning all SecurityGroup rules that match the supplied
+     * predicate and attempting to push down certain predicates (namely queries for specific SecurityGroups) to EC2.
+     *
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
+        final Map<String, Field> fields = new HashMap<>();
+        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
+
         boolean done = false;
         DescribeSecurityGroupsRequest request = new DescribeSecurityGroupsRequest();
 
@@ -80,13 +101,14 @@ public class SecurityGroupsTableProvider
         while (!done) {
             DescribeSecurityGroupsResult response = ec2.describeSecurityGroups(request);
 
+            //Each rule is mapped to a row in the response. SGs have INGRESS and EGRESS rules.
             for (SecurityGroup next : response.getSecurityGroups()) {
                 for (IpPermission nextPerm : next.getIpPermissions()) {
-                    instanceToRow(next, nextPerm, INGRESS, constraintEvaluator, spiller, recordsRequest);
+                    instanceToRow(next, nextPerm, INGRESS, constraintEvaluator, spiller, fields);
                 }
 
                 for (IpPermission nextPerm : next.getIpPermissionsEgress()) {
-                    instanceToRow(next, nextPerm, EGRESS, constraintEvaluator, spiller, recordsRequest);
+                    instanceToRow(next, nextPerm, EGRESS, constraintEvaluator, spiller, fields);
                 }
             }
 
@@ -98,14 +120,25 @@ public class SecurityGroupsTableProvider
         }
     }
 
-    private void instanceToRow(SecurityGroup securityGroup, IpPermission permission, String direction,
+    /**
+     * Maps an each SecurityGroup rule (aka IpPermission) to a row in the response.
+     *
+     * @param securityGroup The SecurityGroup that owns the permission entry.
+     * @param permission The permission entry (aka rule) to map.
+     * @param direction The direction (EGRESS or INGRESS) of the rule.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
+    private void instanceToRow(SecurityGroup securityGroup,
+            IpPermission permission,
+            String direction,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        request.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -187,6 +220,9 @@ public class SecurityGroupsTableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("id")

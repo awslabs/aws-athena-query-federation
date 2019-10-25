@@ -28,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Maps your EMR Clusters to a table.
+ */
 public class EmrClusterTableProvider
         implements TableProvider
 {
@@ -39,27 +42,45 @@ public class EmrClusterTableProvider
         this.emr = emr;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "emr";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "emr_clusters");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls ListClusters and DescribeCluster on the AWS EMR Client returning all clusters that match the supplied
+     * predicate and attempting to push down certain predicates (namely queries for specific cluster) to EC2.
+     *
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
+        final Map<String, Field> fields = new HashMap<>();
+        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
+
         boolean done = false;
         ListClustersRequest request = new ListClustersRequest();
 
@@ -72,7 +93,7 @@ public class EmrClusterTableProvider
                     DescribeClusterResult clusterResponse = emr.describeCluster(new DescribeClusterRequest().withClusterId(next.getId()));
                     cluster = clusterResponse.getCluster();
                 }
-                clusterToRow(next, cluster, constraintEvaluator, spiller, recordsRequest);
+                clusterToRow(next, cluster, constraintEvaluator, spiller, fields);
             }
 
             request.setMarker(response.getMarker());
@@ -83,14 +104,23 @@ public class EmrClusterTableProvider
         }
     }
 
-    private void clusterToRow(ClusterSummary clusterSummary, Cluster cluster,
+    /**
+     * Maps an EBS Volume into a row in our Apache Arrow response block(s).
+     *
+     * @param clusterSummary The CluserSummary for the provided Cluster.
+     * @param cluster The EMR Cluster to map.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
+    private void clusterToRow(ClusterSummary clusterSummary,
+            Cluster cluster,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        request.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -204,6 +234,9 @@ public class EmrClusterTableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("id")

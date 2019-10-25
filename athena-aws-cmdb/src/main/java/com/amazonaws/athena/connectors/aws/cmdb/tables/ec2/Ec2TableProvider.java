@@ -36,6 +36,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Maps your EC2 instances to a table.
+ */
 public class Ec2TableProvider
         implements TableProvider
 {
@@ -47,27 +50,45 @@ public class Ec2TableProvider
         this.ec2 = ec2;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "ec2";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "ec2_instances");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls DescribeInstances on the AWS EC2 Client returning all instances that match the supplied predicate and attempting
+     * to push down certain predicates (namely queries for specific ec2 instance) to EC2.
+     *
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
+        final Map<String, Field> fields = new HashMap<>();
+        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
+
         boolean done = false;
         DescribeInstancesRequest request = new DescribeInstancesRequest();
 
@@ -81,7 +102,7 @@ public class Ec2TableProvider
 
             for (Reservation reservation : response.getReservations()) {
                 for (Instance instance : reservation.getInstances()) {
-                    instanceToRow(instance, constraintEvaluator, spiller, recordsRequest);
+                    instanceToRow(instance, constraintEvaluator, spiller, fields);
                 }
             }
 
@@ -93,14 +114,21 @@ public class Ec2TableProvider
         }
     }
 
+    /**
+     * Maps an EC2 Instance into a row in our Apache Arrow response block(s).
+     *
+     * @param instance The EBS Volume to map.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
     private void instanceToRow(Instance instance,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        request.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -326,6 +354,9 @@ public class Ec2TableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("instanceId")

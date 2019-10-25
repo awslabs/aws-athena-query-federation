@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Maps your EC2 RouteTable entries (routes) to a table.
+ */
 public class RouteTableProvider
         implements TableProvider
 {
@@ -40,27 +43,45 @@ public class RouteTableProvider
         this.ec2 = ec2;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "ec2";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "routing_tables");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls DescribeRouteTables on the AWS EC2 Client returning all Routes that match the supplied predicate and attempting
+     * to push down certain predicates (namely queries for specific RoutingTables) to EC2.
+     *
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
+        final Map<String, Field> fields = new HashMap<>();
+        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
+
         boolean done = false;
         DescribeRouteTablesRequest request = new DescribeRouteTablesRequest();
 
@@ -74,7 +95,7 @@ public class RouteTableProvider
 
             for (RouteTable nextRouteTable : response.getRouteTables()) {
                 for (Route route : nextRouteTable.getRoutes()) {
-                    instanceToRow(nextRouteTable, route, constraintEvaluator, spiller, recordsRequest);
+                    instanceToRow(nextRouteTable, route, constraintEvaluator, spiller, fields);
                 }
             }
 
@@ -86,15 +107,23 @@ public class RouteTableProvider
         }
     }
 
+    /**
+     * Maps an EC2 Route into a row in our Apache Arrow response block(s).
+     *
+     * @param routeTable The RouteTable that owns the given Route.
+     * @param route The Route to map.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
     private void instanceToRow(RouteTable routeTable,
             Route route,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        request.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -222,6 +251,9 @@ public class RouteTableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("routeTableId")

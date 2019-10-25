@@ -28,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Maps your EC2 Subnets to a table.
+ */
 public class SubnetTableProvider
         implements TableProvider
 {
@@ -39,27 +42,44 @@ public class SubnetTableProvider
         this.ec2 = ec2;
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public String getSchema()
     {
         return "ec2";
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public TableName getTableName()
     {
         return new TableName(getSchema(), "subnets");
     }
 
+    /**
+     * @See TableProvider
+     */
     @Override
     public GetTableResponse getTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         return new GetTableResponse(getTableRequest.getCatalogName(), getTableName(), SCHEMA);
     }
 
+    /**
+     * Calls DescribeSubnets on the AWS EC2 Client returning all subnets that match the supplied predicate and attempting
+     * to push down certain predicates (namely queries for specific subnet) to EC2.
+     *
+     * @See TableProvider
+     */
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
+        final Map<String, Field> fields = new HashMap<>();
+        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
         DescribeSubnetsRequest request = new DescribeSubnetsRequest();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
@@ -69,18 +89,25 @@ public class SubnetTableProvider
 
         DescribeSubnetsResult response = ec2.describeSubnets(request);
         for (Subnet subnet : response.getSubnets()) {
-            instanceToRow(subnet, constraintEvaluator, spiller, recordsRequest);
+            instanceToRow(subnet, constraintEvaluator, spiller, fields);
         }
     }
 
+    /**
+     * Maps an EC2 Subnet into a row in our Apache Arrow response block(s).
+     *
+     * @param subnet The EC2 Subnet to map.
+     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
+     * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
+     * @param fields The set of fields that need to be projected.
+     * @note The current implementation is rather naive in how it maps fields. It leverages a static
+     * list of fields that we'd like to provide and then explicitly filters and converts each field.
+     */
     private void instanceToRow(Subnet subnet,
             ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
-            ReadRecordsRequest request)
+            Map<String, Field> fields)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        request.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -150,6 +177,9 @@ public class SubnetTableProvider
         });
     }
 
+    /**
+     * Defines the schema of this table.
+     */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
                 .addStringField("id")

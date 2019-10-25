@@ -24,6 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Acts as a factory for all supported TableProviders and also a source of meta-data about the
+ * schemas and tables that the loaded TableProviders support.
+ */
 public class TableProviderFactory
 {
     private Map<String, List<TableName>> schemas = new HashMap<>();
@@ -50,6 +54,12 @@ public class TableProviderFactory
         addProvider(new RdsTableProvider(rds));
     }
 
+    /**
+     * Adds a new TableProvider to the loaded set, if and only if, no existing TableProvider is known
+     * for the fully qualified table represented by the new TableProvider we are attempting to add.
+     *
+     * @param provider The TableProvider to add.
+     */
     private void addProvider(TableProvider provider)
     {
         if (tableProviders.putIfAbsent(provider.getTableName(), provider) != null) {
@@ -64,11 +74,22 @@ public class TableProviderFactory
         tables.add(provider.getTableName());
     }
 
+    /**
+     * Provides access to the mapping of loaded TableProviders by their fully qualified table names.
+     *
+     * @return Map of TableNames to their corresponding TableProvider.
+     */
     public Map<TableName, TableProvider> getTableProviders()
     {
         return tableProviders;
     }
 
+    /**
+     * Provides access to the mapping of TableNames for each schema name discovered during the TableProvider
+     * scann.
+     *
+     * @return Map of schema names to their corresponding list of fully qualified TableNames.
+     */
     public Map<String, List<TableName>> getSchemas()
     {
         return schemas;

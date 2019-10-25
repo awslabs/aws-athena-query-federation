@@ -12,6 +12,7 @@ The Athena AWS CMDB Connector provides several configuration options via Lambda 
 2. **spill_prefix** - (Optional) Defaults to sub-folder in your bucket called 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the above bucket that large responses are spilled to. You should configure an S3 lifecycle on this location to delete old spills after X days/Hours.
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
+5. **default_ec2_image_owner** - (Optional) When set, this controls the default ec2 image (aka AMI) owner used to filter AMIs. When this isn't set and your query against the ec2 images table does not include a filter for owner you will get a large number of results since the response will include all public images.
 
 ### Databases & Tables
 
@@ -45,11 +46,11 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-aws-cmdb dir, run `mvn clean install`.
-3. From the athena-aws-cmdb dir, run `sam package --template-file athena-aws-cmdb.yaml --output-template-file packaged.yaml --s3-bucket <your_lambda_source_bucket_name>`
-4. Deploy your application using either Server-less Application Repository or Lambda directly. Instructions below.
-
-For Server-less Application Repository, run `sam publish --template packaged.yaml --region <aws_region>` from the athena-cloudwatch directory and then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
-
+3. From the athena-aws-cmdb dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-aws-cmdb` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+4. Try running a query like the one below in Athena: 
+```sql
+select * from "lambda:<CATALOG_NAME>".ec2.ec2_instances limit 100
+```
 For a direct deployment to Lambda, you can use the below command from the athena-aws-cmdb directory. Be sure to insert your S3 Bucket and Role ARN as indicated.
 
 ```bash

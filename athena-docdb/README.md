@@ -4,33 +4,6 @@ This connector enables Amazon Athena to communicate with your DocumentDB instanc
 
 Unlike traditional relational data stores, DocumentDB collections do not have set schema. Each entry can have different fields and data types. While we are investigating the best way to support schema-on-read usecases for this connector, it presently supports two mechanisms for generating traditional table schema information. The default mechanism is for the connector to scan a small number of documents in your collection in order to form a union of all fields and coerce fields with non-overlap data types. This basic schema inference works well for collections that have mostly uniform entries. For more diverse collections, the connector supports retrieving meta-data from the Glue Data Catalog. If the connector sees a database and table which match your DocumentDB database and collection names it will use the corresponding Glue table for schema. We recommend creating your Glue table such that it is a superset of all fields you may want to access from your DocumentDB Collection.
 
-## Usage
-
-To use the Amazon Athena DocumentDB Connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps:
-
-1. (pre-requisite) Install maven on your development machine.
-2. (pre-requisite) Install the aws cli and sam tool on your development machine.
-3. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-3. From the athena-redis dir, run `mvn clean install`.
-4. From the athena-redis dir, run `sam package --template-file athena-docdb.yaml --output-template-file packaged.yaml --s3-bucket <your_lambda_source_bucket_name>`
-6. Deploy your application using either Server-less Application Repository or Lambda directly. Instructions below.
-
-For Serverless Application Repository, run `sam publish --template packaged.yaml --region <aws_region>` from the athena-redis directory and then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
-
-For a direct deployment to Lambda, you can use the below command from the athena-docdb directory. Be sure to insert you S3 Bucket an Role ARN when indicated. You also need to go to the Lambda console to configure your VPC details so that Lambda function can access your DocumentDB instance(s) as well as S3.
-
-```bash
-aws lambda create-function \
-        --function-name example-connector \
-        --runtime java8 \
-        --timeout 900 \
-        --memory-size 3008 \
-        --environment Variables={spill_bucket=<!!BUCKET_NAME!!>} \
-        --zip-file fileb://target/athena-docdb-1.0.jar \
-        --handler com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler \
-        --role "!!!<LAMBDA_ROLE_ARN>!!!" 
-```
-
 ### Parameters
 
 The Amazon Athena DocumentDB Connector exposes several configuration options via Lambda environment variables. More detail on the available parameters can be found below.
@@ -53,6 +26,38 @@ Note that param 2 uses an inline connection string with credentials. While Lambd
 
 Then I can run an Athena query like the below:
 `select * from docdb_1.database.collection` or `select * from docdb_2.database.collection`
+
+### Required Permissions
+
+Review the "Policies" section of the athena-docdb.yaml file for full details on the IAM Policies required by this connector. A brief summary is below.
+
+1. S3 Write Access - In order to successfully handle large queries, the connector requires write access to a location in S3. 
+2. SecretsManager Read Access - If you choose to store redis-endpoint details in SecretsManager you will need to grant the connector access to those secrets.
+3. Glue Data Catalog - Since DocumentDB does not have a meta-data store, the connector requires Read-Only access to Glue's DataCatalog for supplemental table schema information.
+4. VPC Access - In order to connect to your VPC for the purposes of communicating with your DocumentDB instance(s), the connector needs the ability to attach/detach an interface to the VPC.
+5. CloudWatch Logs - This is a somewhat implicit permission when deploying a Lambda function but it needs access to cloudwatch logs for storing logs.
+
+### Deploying The Connector
+
+To use this connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps or use the more detailed tutorial in the athena-example module:
+
+1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
+2. From the athena-docdb dir, run `mvn clean install`.
+3. From the athena-docdb dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-docdb` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+
+For a direct deployment to Lambda, you can use the below command from the athena-aws-cmdb directory. Be sure to insert your S3 Bucket and Role ARN as indicated.
+
+```bash
+aws lambda create-function \
+        --function-name athena-docdb \
+        --runtime java8 \
+        --timeout 900 \
+        --memory-size 3008 \
+        --zip-file fileb://target/athena-docdb-1.0.jar \
+        --handler com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler \
+        --role "!!!<LAMBDA_ROLE_ARN>!!!" \
+        --environment Variables={spill_bucket=<!!BUCKET_NAME!!>}
+```
 
 ## Performance
 

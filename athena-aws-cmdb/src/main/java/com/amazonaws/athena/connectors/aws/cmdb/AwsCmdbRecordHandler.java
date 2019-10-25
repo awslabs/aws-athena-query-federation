@@ -14,10 +14,21 @@ import org.apache.arrow.util.VisibleForTesting;
 
 import java.util.Map;
 
+/**
+ * Handles record requests for the Athena AWS CMDB Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Maps AWS Resources to SQL tables using a set of TableProviders constructed from a TableProviderFactory.
+ * 2. This class is largely a mux that delegates requests to the appropriate TableProvider based on the
+ * requested TableName.
+ */
 public class AwsCmdbRecordHandler
         extends RecordHandler
 {
-    private static final String sourceType = "cmdb";
+    private static final String SOURCE_TYPE = "cmdb";
+
+    //Map of available fully qualified TableNames to their respective TableProviders.
     private Map<TableName, TableProvider> tableProviders;
 
     public AwsCmdbRecordHandler()
@@ -28,10 +39,15 @@ public class AwsCmdbRecordHandler
     @VisibleForTesting
     protected AwsCmdbRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, TableProviderFactory tableProviderFactory)
     {
-        super(amazonS3, secretsManager, sourceType);
+        super(amazonS3, secretsManager, SOURCE_TYPE);
         tableProviders = tableProviderFactory.getTableProviders();
     }
 
+    /**
+     * Delegates to the TableProvider that is registered for the requested table.
+     *
+     * @see RecordHandler
+     */
     @Override
     protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {

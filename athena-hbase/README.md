@@ -74,7 +74,7 @@ To use the Amazon Athena HBase Connector in your queries, navigate to AWS Server
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-hbase dir, run `mvn clean install`.
-3. From the athena-hbase dir, run `../tools/publish.sh S3_BUCKET_NAME athena-hbase` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/) to search for your application and deploy it before using it from Athena.
+3. From the athena-hbase dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-hbase` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
 For a direct deployment to Lambda, you can use the below command from the athena-hbase directory. Be sure to insert your S3 Bucket and Role ARN as indicated. You also need to go to the Lambda console to configure your VPC details so that Lambda function can access your HBase instance(s) as well as S3.
 
