@@ -19,6 +19,27 @@
         <junit.version>4.11</junit.version>
     </properties>
 
+    <organization>
+        <name>Amazon Web Services</name>
+        <url>https://https://aws.amazon.com//</url>
+    </organization>
+
+    <inceptionYear>2019</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git@github.com:awslabs/aws-athena-query-federation.git</connection>
+        <url>https://github.com/awslabs/aws-athena-query-federation</url>
+        <tag>HEAD</tag>
+    </scm>
+
     <modules>
         <module>athena-cloudwatch</module>
         <module>athena-docdb</module>
@@ -48,7 +69,7 @@
         </dependency>
 
         <dependency>
-        <groupId>junit</groupId>
+            <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
@@ -60,7 +81,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 
     <build>
         <plugins>
@@ -129,6 +149,33 @@
                         <goals>
                             <goal>check</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>2.0.0</version>
+                <configuration>
+                    <verbose>false</verbose>
+                    <addSvnKeyWords>false</addSvnKeyWords>
+                    <addJavaLicenseAfterPackage>false</addJavaLicenseAfterPackage>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>first</id>
+                        <goals>
+                            <goal>update-file-header</goal>
+                        </goals>
+                        <phase>process-sources</phase>
+                        <configuration>
+                            <licenseName>apache_v2</licenseName>
+                            <roots>
+                                <root>src/main/java</root>
+                                <root>src/test</root>
+                            </roots>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

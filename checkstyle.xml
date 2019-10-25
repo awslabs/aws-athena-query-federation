@@ -12,10 +12,6 @@
         <property name="message" value="Line contains carriage return" />
     </module>
     <module name="RegexpMultiline">
-        <property name="format" value=" \n" />
-        <property name="message" value="Line has trailing whitespace" />
-    </module>
-    <module name="RegexpMultiline">
         <property name="format" value="\{\n\n" />
         <property name="message" value="Blank line after opening brace" />
     </module>

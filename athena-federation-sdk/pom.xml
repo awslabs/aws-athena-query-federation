@@ -17,6 +17,21 @@
         <slf4jVersion>1.7.1</slf4jVersion>
     </properties>
 
+    <organization>
+        <name>Amazon Web Services</name>
+        <url>https://https://aws.amazon.com//</url>
+    </organization>
+
+    <inceptionYear>2019</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
