@@ -2,7 +2,6 @@ package com.amazonaws.connectors.athena.example;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
@@ -16,11 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
 
 import static java.lang.String.format;
 
@@ -84,9 +79,10 @@ public class ExampleRecordHandler
          * TODO: Extract information about what we need to read from the split. If you are following the tutorial
          *  this is basically the partition column values for year, month, day.
          *
-         *         splitYear = split.getPropertyAsInt("year");
-         *         splitMonth = split.getPropertyAsInt("month");
-         *         splitDay = split.getPropertyAsInt("day");
+         splitYear = split.getPropertyAsInt("year");
+         splitMonth = split.getPropertyAsInt("month");
+         splitDay = split.getPropertyAsInt("day");
+         *
          */
 
         //TODO: set this to the bucket you are using for the tutorial
@@ -128,26 +124,28 @@ public class ExampleRecordHandler
                  *  evaluation into the source for even better performance. Note that the SDK does not current support
                  *  pushing down predicates on nested/complex.
                  *
-                 *   rowMatched &= constraints.apply("year", year) &&
-                 *         constraints.apply("month", month) &&
-                 *         constraints.apply("day", day) &&
-                 *         constraints.apply("account_id", accountId);
+                 rowMatched &= constraints.apply("year", year) &&
+                 constraints.apply("month", month) &&
+                 constraints.apply("day", day) &&
+                 constraints.apply("account_id", accountId);
+                 *
                  */
 
                 if (rowMatched) {
                     /**
                      * TODO: If our row matched all constraints write the data using the supplied Block.
                      *
-                     *  block.offerValue("year", rowNum, year);
-                     *  block.offerValue("month", rowNum, month);
-                     *  block.offerValue("day", rowNum, day);
+                     block.offerValue("year", rowNum, year);
+                     block.offerValue("month", rowNum, month);
+                     block.offerValue("day", rowNum, day);
+
+                     //For complex types like List and Struct, we can build a Map to conveniently set nested values
+                     Map<String, Object> eventMap = new HashMap<>();
+                     eventMap.put("id", transactionId);
+                     eventMap.put("completed", transactionComplete);
+
+                     block.offerComplexValue("transaction", rowNum, FieldResolver.DEFAULT, eventMap);
                      *
-                     *  //For complex types like List and Struct, we can build a Map to conveniently set nested values
-                     *  Map<String, Object> eventMap = new HashMap<>();
-                     *  eventMap.put("id", transactionId);
-                     *  eventMap.put("completed", transactionComplete);
-                     *
-                     *  block.offerComplexValue("transaction", rowNum, FieldResolver.DEFAULT, eventMap);
                      */
 
                     /**
@@ -155,8 +153,9 @@ public class ExampleRecordHandler
                      *  returning it to Athena. Note that this will mean you can only filter (where/having)
                      *  on the masked value from Athena.
                      *
-                     *  String maskedAcctId = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
-                     *  block.offerValue("account_id", rowNum, maskedAcctId);
+                     String maskedAcctId = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
+                     block.offerValue("account_id", rowNum, maskedAcctId);
+                     *
                      */
                 }
 

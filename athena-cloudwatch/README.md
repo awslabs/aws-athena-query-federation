@@ -37,11 +37,10 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-cloudwatch dir, run `mvn clean install`.
 3. From the athena-cloudwatch dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-cloudwatch` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
-4. Try running a query in Athena like: 
+4. Try running a query like the one below in Athena: 
 ```sql
 select * from "lambda:<CATALOG_NAME>"."/aws/lambda/<CATALOG_NAME>".all_log_streams limit 100
 ```
-
 
 For a direct deployment to Lambda, you can use the below command from the athena-cloudwatch directory. Be sure to insert your S3 Bucket and Role ARN as indicated.
 

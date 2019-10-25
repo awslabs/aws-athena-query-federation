@@ -16,45 +16,54 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.resourcemanager.ResourceManagerOptions;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
-class BigQueryUtils {
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
+class BigQueryUtils
+{
     //The secrets manager id that contains big queries creds.
     //These configure the spill information.
     private static final String ENV_BIG_QUERY_CREDS_SM_ID = "SECRET_MANAGER_BIG_QUERY_CREDS_ARN";
 
     private BigQueryUtils() {}
 
-    static Credentials getCredentialsFromSecretsManager() throws IOException {
+    static Credentials getCredentialsFromSecretsManager()
+            throws IOException
+    {
         AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
         GetSecretValueResult response = secretsManager.getSecretValue(new GetSecretValueRequest()
-            .withSecretId(getEnvBigQueryCredsSmId()));
-        return ServiceAccountCredentials.fromStream (new ByteArrayInputStream(response.getSecretString().getBytes()));
+                .withSecretId(getEnvBigQueryCredsSmId()));
+        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes()));
     }
 
-    static BigQuery getBigQueryClient() throws IOException {
+    static BigQuery getBigQueryClient()
+            throws IOException
+    {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
         return bigqueryBuilder.build().getService();
     }
 
-    static ResourceManager getResourceManagerClient() throws IOException {
+    static ResourceManager getResourceManagerClient()
+            throws IOException
+    {
         ResourceManagerOptions.Builder resourceManagerBuilder = ResourceManagerOptions.newBuilder();
         resourceManagerBuilder.setCredentials(getCredentialsFromSecretsManager());
         return resourceManagerBuilder.build().getService();
     }
 
-    static String getEnvBigQueryCredsSmId() {
+    static String getEnvBigQueryCredsSmId()
+    {
         return getEnvVar(ENV_BIG_QUERY_CREDS_SM_ID);
     }
 
-    static String getEnvVar(String envVar) {
+    static String getEnvVar(String envVar)
+    {
         String var = System.getenv(envVar);
         if (var == null || var.length() == 0) {
             throw new IllegalArgumentException("Lambda Environment Variable " + envVar + " has not been populated! ");
@@ -65,10 +74,12 @@ class BigQueryUtils {
     /**
      * BigQuery is case sensitive for its Project and Dataset Names. This function will return the first
      * case insensitive match.
+     *
      * @param projectName The dataset name we want to look up. The project name must be case correct.
      * @return A case correct dataset name.
      */
-    static String fixCaseForDatasetName(String projectName, String datasetName, BigQuery bigQuery) {
+    static String fixCaseForDatasetName(String projectName, String datasetName, BigQuery bigQuery)
+    {
         Page<Dataset> response = bigQuery.listDatasets(projectName);
         for (Dataset dataset : response.iterateAll()) {
             if (dataset.getDatasetId().getDataset().equalsIgnoreCase(datasetName)) {
@@ -77,10 +88,11 @@ class BigQueryUtils {
         }
 
         throw new IllegalArgumentException("Google Dataset with name " + datasetName +
-            " could not be found in Project " + projectName + " in GCP. ");
+                " could not be found in Project " + projectName + " in GCP. ");
     }
 
-    static String fixCaseForTableName(String projectName, String datasetName, String tableName, BigQuery bigQuery) {
+    static String fixCaseForTableName(String projectName, String datasetName, String tableName, BigQuery bigQuery)
+    {
         Page<Table> response = bigQuery.listTables(DatasetId.of(projectName, datasetName));
         for (Table table : response.iterateAll()) {
             if (table.getTableId().getTable().equalsIgnoreCase(tableName)) {
@@ -88,10 +100,11 @@ class BigQueryUtils {
             }
         }
         throw new IllegalArgumentException("Google Table with name " + datasetName +
-            " could not be found in Project " + projectName + " in GCP. ");
+                " could not be found in Project " + projectName + " in GCP. ");
     }
 
-    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, ArrowType.ArrowTypeID typeId) {
+    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, ArrowType.ArrowTypeID typeId)
+    {
         if (fieldValue == null || fieldValue.isNull()) {
             return null;
         }
@@ -99,7 +112,7 @@ class BigQueryUtils {
             case Timestamp:
                 return fieldValue.getTimestampValue();
             case Int:
-                return  fieldValue.getLongValue();
+                return fieldValue.getLongValue();
             case Decimal:
                 return fieldValue.getNumericValue();
             case Bool:
@@ -110,7 +123,7 @@ class BigQueryUtils {
                 return fieldValue.getStringValue();
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered: Field Name: " + fieldName +
-                    " Field Type: " + typeId.name());
+                        " Field Type: " + typeId.name());
                 //TODO: Support complex types.
         }
     }
@@ -162,6 +175,6 @@ class BigQueryUtils {
                 return new ArrowType.Utf8();
         }
         throw new IllegalArgumentException("Unable to map Google Type of StandardType: " + type.getStandardType().toString()
-            + " NonStandardType: " + type.name());
+                + " NonStandardType: " + type.name());
     }
 }

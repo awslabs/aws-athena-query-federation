@@ -28,8 +28,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public final class DDBTableUtils {
-
+public final class DDBTableUtils
+{
     private static final Logger logger = LoggerFactory.getLogger(DDBTableUtils.class);
 
     // for scan segmentation calculation
@@ -42,7 +42,8 @@ public final class DDBTableUtils {
 
     private DDBTableUtils() {}
 
-    public static DynamoDBTable getTable(String tableName, AmazonDynamoDB ddbClient) {
+    public static DynamoDBTable getTable(String tableName, AmazonDynamoDB ddbClient)
+    {
         DescribeTableRequest request = new DescribeTableRequest().withTableName(tableName);
         TableDescription table = ddbClient.describeTable(request).getTable();
 
@@ -71,7 +72,8 @@ public final class DDBTableUtils {
         return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
     }
 
-    private static KeyNames getKeys(List<KeySchemaElement> keys) {
+    private static KeyNames getKeys(List<KeySchemaElement> keys)
+    {
         String hashKey = null;
         String rangeKey = null;
         for (KeySchemaElement key : keys) {
@@ -85,25 +87,6 @@ public final class DDBTableUtils {
         return new KeyNames(hashKey, rangeKey);
     }
 
-    // TODO handle case where different attributes in different records may have different types
-    private static class KeyNames {
-
-        private String hashKey;
-        private String rangeKey;
-        private KeyNames(String hashKey, String rangeKey) {
-            this.hashKey = hashKey;
-            this.rangeKey = rangeKey;
-        }
-
-        private String getHashKey() {
-            return hashKey;
-        }
-
-        private Optional<String> getRangeKey() {
-            return Optional.ofNullable(rangeKey);
-        }
-
-    }
     public static DynamoDBTable getBestIndexForPredicates(DynamoDBTable table, Map<String, ValueSet> constraintSummary)
     {
         Set<String> columnNames = constraintSummary.keySet();
@@ -175,7 +158,8 @@ public final class DDBTableUtils {
         return ImmutableList.of();
     }
 
-    public static Schema peekTableForSchema(String tableName, AmazonDynamoDB ddbClient) {
+    public static Schema peekTableForSchema(String tableName, AmazonDynamoDB ddbClient)
+    {
         ScanRequest scanRequest = new ScanRequest().withTableName(tableName).withLimit(SCHEMA_INFERENCE_NUM_RECORDS);
         ScanResult scanResult = ddbClient.scan(scanRequest);
         List<Map<String, AttributeValue>> items = scanResult.getItems();
@@ -211,5 +195,28 @@ public final class DDBTableUtils {
 
         logger.debug("Using computed number of segments: {}", numSegments);
         return numSegments;
+    }
+
+    // TODO handle case where different attributes in different records may have different types
+    private static class KeyNames
+    {
+        private String hashKey;
+        private String rangeKey;
+
+        private KeyNames(String hashKey, String rangeKey)
+        {
+            this.hashKey = hashKey;
+            this.rangeKey = rangeKey;
+        }
+
+        private String getHashKey()
+        {
+            return hashKey;
+        }
+
+        private Optional<String> getRangeKey()
+        {
+            return Optional.ofNullable(rangeKey);
+        }
     }
 }

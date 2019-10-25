@@ -18,7 +18,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,10 +57,11 @@ public class ExampleMetadataHandler
 
     /**
      * Used to get the list of schemas (aka databases) that this source contains.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog they are querying.
      * @return A ListSchemasResponse which primarily contains a Set<String> of schema names and a catalog name
-     *          corresponding the Athena catalog that was queried.
+     * corresponding the Athena catalog that was queried.
      */
     @Override
     protected ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
@@ -73,7 +73,8 @@ public class ExampleMetadataHandler
         /**
          * TODO: Add schemas, example below
          *
-         *  schemas.add("schema1");
+         schemas.add("schema1");
+         *
          */
 
         return new ListSchemasResponse(request.getCatalogName(), schemas);
@@ -81,10 +82,11 @@ public class ExampleMetadataHandler
 
     /**
      * Used to get the list of tables that this source contains.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
-     *          catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
+     * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
     protected ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
@@ -96,7 +98,8 @@ public class ExampleMetadataHandler
         /**
          * TODO: Add tables for the requested schema, example below
          *
-         * tables.add(new TableName(request.getSchemaName(), "table1"));
+         tables.add(new TableName(request.getSchemaName(), "table1"));
+         *
          */
 
         return new ListTablesResponse(request.getCatalogName(), tables);
@@ -104,13 +107,14 @@ public class ExampleMetadataHandler
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog, database, and table they are querying.
      * @return A GetTableResponse which primarily contains:
-     *          1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
-     *          2. A Set<String> of partition column names (or empty if the table isn't partitioned).
-     *          3. A TableName object confirming the schema and table name the response is for.
-     *          4. A catalog name corresponding the Athena catalog that was queried.
+     * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
+     * 2. A Set<String> of partition column names (or empty if the table isn't partitioned).
+     * 3. A TableName object confirming the schema and table name the response is for.
+     * 4. A catalog name corresponding the Athena catalog that was queried.
      */
     @Override
     protected GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
@@ -122,9 +126,10 @@ public class ExampleMetadataHandler
         /**
          * TODO: Add partitions columns, example below.
          *
-         *  partitionColNames.add("year");
-         *  partitionColNames.add("month");
-         *  partitionColNames.add("day");
+         partitionColNames.add("year");
+         partitionColNames.add("month");
+         partitionColNames.add("day");
+         *
          */
 
         SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
@@ -132,24 +137,25 @@ public class ExampleMetadataHandler
         /**
          * TODO: Generate a schema for the requested table.
          *
-         *  tableSchemaBuilder.addIntField("year")
-         *                 .addIntField("month")
-         *                 .addIntField("day")
-         *                 .addStringField("account_id")
-         *                 .addStructField("transaction")
-         *                 .addChildField("transaction", "id", Types.MinorType.INT.getType())
-         *                 .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
-         *                 //Metadata who's name matches a column name
-         *                 //is interpreted as the description of that
-         *                 //column when you run "show tables" queries.
-         *                 .addMetadata("year", "The year that the payment took place in.")
-         *                 .addMetadata("month", "The month that the payment took place in.")
-         *                 .addMetadata("day", "The day that the payment took place in.")
-         *                 .addMetadata("account_id", "The account_id used for this payment.")
-         *                 .addMetadata("transaction", "The payment transaction details.")
-         *                 //This metadata field is for our own use, Athena will ignore and pass along fields it doesn't expect.
-         *                 //we will use this later when we implement doGetTableLayout(...)
-         *                 .addMetadata("partitionCols", "year,month,day");
+         tableSchemaBuilder.addIntField("year")
+         .addIntField("month")
+         .addIntField("day")
+         .addStringField("account_id")
+         .addStructField("transaction")
+         .addChildField("transaction", "id", Types.MinorType.INT.getType())
+         .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
+         //Metadata who's name matches a column name
+         //is interpreted as the description of that
+         //column when you run "show tables" queries.
+         .addMetadata("year", "The year that the payment took place in.")
+         .addMetadata("month", "The month that the payment took place in.")
+         .addMetadata("day", "The day that the payment took place in.")
+         .addMetadata("account_id", "The account_id used for this payment.")
+         .addMetadata("transaction", "The payment transaction details.")
+         //This metadata field is for our own use, Athena will ignore and pass along fields it doesn't expect.
+         //we will use this later when we implement doGetTableLayout(...)
+         .addMetadata("partitionCols", "year,month,day");
+         *
          */
 
         return new GetTableResponse(request.getCatalogName(),
@@ -160,14 +166,15 @@ public class ExampleMetadataHandler
 
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @return A GetTableLayoutResponse which primarily contains:
-     *          1. An Apache Arrow Block with 0 or more partitions to read. 0 partitions implies there are 0 rows to read.
-     *          2. Set<String> of partition column names which should correspond to columns in your Apache Arrow Block.
+     * 1. An Apache Arrow Block with 0 or more partitions to read. 0 partitions implies there are 0 rows to read.
+     * 2. Set<String> of partition column names which should correspond to columns in your Apache Arrow Block.
      * @note Partitions are opaque to Amazon Athena in that it does not understand their contents, just that it must call
-     *       doGetSplits(...) for each partition you return in order to determine which reads to perform and if those reads
-     *       can be parallelized. This means the contents of this response are more for you than they are for Athena.
+     * doGetSplits(...) for each partition you return in order to determine which reads to perform and if those reads
+     * can be parallelized. This means the contents of this response are more for you than they are for Athena.
      */
     @Override
     protected GetTableLayoutResponse doGetTableLayout(BlockAllocator allocator, GetTableLayoutRequest request)
@@ -185,9 +192,9 @@ public class ExampleMetadataHandler
          *   we added this info as a property on the table's schema. We can retrieve that
          *   metadata property and use it here. This can save you extra round-trips to your meta-store.
          *
-         *         for(String nextCol : request.getProperties().get("partitionCols").split(",")){
-         *             partitionColNames.add(nextCol);
-         *         }
+         for(String nextCol : request.getProperties().get("partitionCols").split(",")){
+         partitionColNames.add(nextCol);
+         }
          */
 
         /**
@@ -196,32 +203,34 @@ public class ExampleMetadataHandler
          *   are the partition columns but in a real integration we'd probably include information
          *   about where the partition is stored. (e.g. location in S3 or hosting server)
          *
-         *   schemBuilder.addIntField("year")
-         *                 .addIntField("month")
-         *                 .addIntField("day");
+         schemBuilder.addIntField("year")
+         .addIntField("month")
+         .addIntField("day");
+         *
          */
 
         //Create the block that will be used in our response
         Schema partitionSchema = schemBuilder.build();
         Block partitions = allocator.createBlock(partitionSchema);
 
-        int rowNum = 0;
+        int numPartitions = 0;
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, partitionSchema, request.getConstraints())) {
             for (int year = 2000; year < 2030; year++) {
                 if (evaluator.apply("year", year)) {
                     for (int month = 1; month < 13; month++) {
-                        //TODO: Add partition pruning for the 'month' field (hint: use the example from above for 'year'
+                        //TODO: Add partition pruning for the 'month' field (hint: copy & modify the evaluator if-clause above for 'year')
                         for (int day = 1; day < 31; day++) {
-                            //TODO: Add partition pruning for the 'day' field (hint: use the example from above for 'year'
+                            //TODO: Add partition pruning for the 'day' field (hint: copy & modify the evaluator if-clause above for 'year')
 
                             /**
                              * TODO: If the partition represented by this year,month,day passed all constraints then
                              *  add it to our partitions block.
                              *
-                             *     partitions.setValue("year", rowNum, year);
-                             *     partitions.setValue("month", rowNum, month);
-                             *     partitions.setValue("day", rowNum, day);
-                             *     rowNum++;
+                             partitions.setValue("year", rowNum, year);
+                             partitions.setValue("month", rowNum, month);
+                             partitions.setValue("day", rowNum, day);
+                             numPartitions++;
+                             *
                              */
                         }
                     }
@@ -232,24 +241,26 @@ public class ExampleMetadataHandler
         /**
          * TODO: Set the number of rows (aka partitions) we are returning.
          *
-         *  partitions.setRowCount(rowNum);
+         partitions.setRowCount(numPartitions);
+         *
          */
 
-        logger.info("doGetTableLayout: exit - " + rowNum);
+        logger.info("doGetTableLayout: exit - " + numPartitions);
         return new GetTableLayoutResponse(catalogName, tableName, partitions, partitionColNames);
     }
 
     /**
      * Used to split-up the reads required to scan the requested batch of partition(s).
+     *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details of the catalog, database, table, andpartition(s) being queried as well as
-     *                any filter predicate.
+     * any filter predicate.
      * @return A GetSplitsResponse which primarily contains:
-     *          1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
-     *          2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
+     * 1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
+     * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
      * @note A Split is a mostly opaque object to Amazon Athena. Amazon Athena will use the optional SpillLocation and
-     *       optional EncryptionKey for pipelined reads but all properties you set on the Split are passed to your read
-     *       function to help you perform the read.
+     * optional EncryptionKey for pipelined reads but all properties you set on the Split are passed to your read
+     * function to help you perform the read.
      */
     @Override
     protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
@@ -278,13 +289,14 @@ public class ExampleMetadataHandler
              *   for your use when Athena calls your readWithContraints(...) function to perform
              *   the read. In this example we just need to know the partition details (year, month, day).
              *
-             *   Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-             *                     .add("year", String.valueOf(year.readInteger()))
-             *                     .add("month", String.valueOf(month.readInteger()))
-             *                     .add("day", String.valueOf(day.readInteger()))
-             *                     .build();
+             Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+             .add("year", String.valueOf(year.readInteger()))
+             .add("month", String.valueOf(month.readInteger()))
+             .add("day", String.valueOf(day.readInteger()))
+             .build();
+
+             splits.add(split);
              *
-             *    splits.add(split);
              */
         }
 

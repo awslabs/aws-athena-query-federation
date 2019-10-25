@@ -39,86 +39,7 @@ import java.util.stream.Collectors;
 public class Ec2TableProvider
         implements TableProvider
 {
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("instanceId")
-                .addStringField("imageId")
-                .addStringField("instanceType")
-                .addStringField("platform")
-                .addStringField("privateDnsName")
-                .addStringField("privateIpAddress")
-                .addStringField("publicDnsName")
-                .addStringField("publicIpAddress")
-                .addStringField("subnetId")
-                .addStringField("vpcId")
-                .addStringField("architecture")
-                .addStringField("instanceLifecycle")
-                .addStringField("rootDeviceName")
-                .addStringField("rootDeviceType")
-                .addStringField("spotInstanceRequestId")
-                .addStringField("virtualizationType")
-                .addStringField("keyName")
-                .addStringField("kernelId")
-                .addStringField("capacityReservationId")
-                .addField("launchTime", Types.MinorType.DATEMILLI.getType())
-                .addStructField("state")
-                .addChildField("state", "name", Types.MinorType.VARCHAR.getType())
-                .addChildField("state", "code", Types.MinorType.INT.getType())
-                .addStructField("stateReason")
-                .addChildField("stateReason", "message", Types.MinorType.VARCHAR.getType())
-                .addChildField("stateReason", "code", Types.MinorType.VARCHAR.getType())
-
-                //Example of a List of Structs
-                .addField(
-                        FieldBuilder.newBuilder("networkInterfaces", new ArrowType.List())
-                                .addField(
-                                        FieldBuilder.newBuilder("interface", Types.MinorType.STRUCT.getType())
-                                                .addStringField("status")
-                                                .addStringField("subnet")
-                                                .addStringField("vpc")
-                                                .addStringField("mac")
-                                                .addStringField("private_dns")
-                                                .addStringField("private_ip")
-                                                .addListField("security_groups", Types.MinorType.VARCHAR.getType())
-                                                .addStringField("interface_id")
-                                                .build())
-                                .build())
-                .addBitField("ebsOptimized")
-                .addListField("securityGroups", Types.MinorType.VARCHAR.getType())
-                .addListField("securityGroupNames", Types.MinorType.VARCHAR.getType())
-                .addListField("ebsVolumes", Types.MinorType.VARCHAR.getType())
-                .addMetadata("instanceId", "EC2 Instance id.")
-                .addMetadata("imageId", "The id of the AMI used to boot the instance.")
-                .addMetadata("instanceType", "The EC2 instance type,")
-                .addMetadata("platform", "The platform of the instance (e.g. Linux)")
-                .addMetadata("privateDnsName", "The private dns name of the instance.")
-                .addMetadata("privateIpAddress", "The private ip address of the instance.")
-                .addMetadata("publicDnsName", "The public dns name of the instance.")
-                .addMetadata("publicIpAddress", "The public ip address of the instance.")
-                .addMetadata("subnetId", "The subnet id that the instance was launched in.")
-                .addMetadata("vpcId", "The id of the VPC that the instance was launched in.")
-                .addMetadata("architecture", "The architecture of the instance (e.g. x86).")
-                .addMetadata("instanceLifecycle", "The lifecycle state of the instance.")
-                .addMetadata("rootDeviceName", "The name of the root device that the instance booted from.")
-                .addMetadata("rootDeviceType", "The type of the root device that the instance booted from.")
-                .addMetadata("spotInstanceRequestId", "Spot Request ID if the instance was launched via spot. ")
-                .addMetadata("virtualizationType", "The type of virtualization used by the instance (e.g. HVM)")
-                .addMetadata("keyName", "The name of the ec2 instance from the name tag.")
-                .addMetadata("kernelId", "The id of the kernel used in the AMI that booted the instance.")
-                .addMetadata("capacityReservationId", "Capacity reservation id that this instance was launched against.")
-                .addMetadata("launchTime", "The time that the instance was launched at.")
-                .addMetadata("state", "The state of the ec2 instance.")
-                .addMetadata("stateReason", "The reason for the 'state' associated with the instance.")
-                .addMetadata("ebsOptimized", "True if the instance is EBS optimized.")
-                .addMetadata("networkInterfaces", "The list of the network interfaces on the instance.")
-                .addMetadata("securityGroups", "The list of security group (ids) attached to this instance.")
-                .addMetadata("securityGroupNames", "The list of security group (names) attached to this instance.")
-                .addMetadata("ebsVolumes", "The list of ebs volume (ids) attached to this instance.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public Ec2TableProvider(AmazonEC2 ec2)
@@ -147,7 +68,6 @@ public class Ec2TableProvider
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
-
         boolean done = false;
         DescribeInstancesRequest request = new DescribeInstancesRequest();
 
@@ -235,7 +155,8 @@ public class Ec2TableProvider
                     }
                     else if (field.getName().equals("private_dns")) {
                         return ((InstanceNetworkInterface) val).getPrivateDnsName();
-                    }else if (field.getName().equals("private_ip")) {
+                    }
+                    else if (field.getName().equals("private_ip")) {
                         return ((InstanceNetworkInterface) val).getPrivateIpAddress();
                     }
                     else if (field.getName().equals("security_groups")) {
@@ -403,5 +324,83 @@ public class Ec2TableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("instanceId")
+                .addStringField("imageId")
+                .addStringField("instanceType")
+                .addStringField("platform")
+                .addStringField("privateDnsName")
+                .addStringField("privateIpAddress")
+                .addStringField("publicDnsName")
+                .addStringField("publicIpAddress")
+                .addStringField("subnetId")
+                .addStringField("vpcId")
+                .addStringField("architecture")
+                .addStringField("instanceLifecycle")
+                .addStringField("rootDeviceName")
+                .addStringField("rootDeviceType")
+                .addStringField("spotInstanceRequestId")
+                .addStringField("virtualizationType")
+                .addStringField("keyName")
+                .addStringField("kernelId")
+                .addStringField("capacityReservationId")
+                .addField("launchTime", Types.MinorType.DATEMILLI.getType())
+                .addStructField("state")
+                .addChildField("state", "name", Types.MinorType.VARCHAR.getType())
+                .addChildField("state", "code", Types.MinorType.INT.getType())
+                .addStructField("stateReason")
+                .addChildField("stateReason", "message", Types.MinorType.VARCHAR.getType())
+                .addChildField("stateReason", "code", Types.MinorType.VARCHAR.getType())
+
+                //Example of a List of Structs
+                .addField(
+                        FieldBuilder.newBuilder("networkInterfaces", new ArrowType.List())
+                                .addField(
+                                        FieldBuilder.newBuilder("interface", Types.MinorType.STRUCT.getType())
+                                                .addStringField("status")
+                                                .addStringField("subnet")
+                                                .addStringField("vpc")
+                                                .addStringField("mac")
+                                                .addStringField("private_dns")
+                                                .addStringField("private_ip")
+                                                .addListField("security_groups", Types.MinorType.VARCHAR.getType())
+                                                .addStringField("interface_id")
+                                                .build())
+                                .build())
+                .addBitField("ebsOptimized")
+                .addListField("securityGroups", Types.MinorType.VARCHAR.getType())
+                .addListField("securityGroupNames", Types.MinorType.VARCHAR.getType())
+                .addListField("ebsVolumes", Types.MinorType.VARCHAR.getType())
+                .addMetadata("instanceId", "EC2 Instance id.")
+                .addMetadata("imageId", "The id of the AMI used to boot the instance.")
+                .addMetadata("instanceType", "The EC2 instance type,")
+                .addMetadata("platform", "The platform of the instance (e.g. Linux)")
+                .addMetadata("privateDnsName", "The private dns name of the instance.")
+                .addMetadata("privateIpAddress", "The private ip address of the instance.")
+                .addMetadata("publicDnsName", "The public dns name of the instance.")
+                .addMetadata("publicIpAddress", "The public ip address of the instance.")
+                .addMetadata("subnetId", "The subnet id that the instance was launched in.")
+                .addMetadata("vpcId", "The id of the VPC that the instance was launched in.")
+                .addMetadata("architecture", "The architecture of the instance (e.g. x86).")
+                .addMetadata("instanceLifecycle", "The lifecycle state of the instance.")
+                .addMetadata("rootDeviceName", "The name of the root device that the instance booted from.")
+                .addMetadata("rootDeviceType", "The type of the root device that the instance booted from.")
+                .addMetadata("spotInstanceRequestId", "Spot Request ID if the instance was launched via spot. ")
+                .addMetadata("virtualizationType", "The type of virtualization used by the instance (e.g. HVM)")
+                .addMetadata("keyName", "The name of the ec2 instance from the name tag.")
+                .addMetadata("kernelId", "The id of the kernel used in the AMI that booted the instance.")
+                .addMetadata("capacityReservationId", "Capacity reservation id that this instance was launched against.")
+                .addMetadata("launchTime", "The time that the instance was launched at.")
+                .addMetadata("state", "The state of the ec2 instance.")
+                .addMetadata("stateReason", "The reason for the 'state' associated with the instance.")
+                .addMetadata("ebsOptimized", "True if the instance is EBS optimized.")
+                .addMetadata("networkInterfaces", "The list of the network interfaces on the instance.")
+                .addMetadata("securityGroups", "The list of security group (ids) attached to this instance.")
+                .addMetadata("securityGroupNames", "The list of security group (names) attached to this instance.")
+                .addMetadata("ebsVolumes", "The list of ebs volume (ids) attached to this instance.")
+                .build();
     }
 }

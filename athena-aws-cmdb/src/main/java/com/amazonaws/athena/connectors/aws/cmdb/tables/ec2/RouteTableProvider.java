@@ -32,51 +32,7 @@ import java.util.stream.Collectors;
 public class RouteTableProvider
         implements TableProvider
 {
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("routeTableId")
-                .addStringField("owner")
-                .addStringField("vpc")
-                .addListField("associations", Types.MinorType.VARCHAR.getType())
-                .addListField("tags", Types.MinorType.VARCHAR.getType())
-                .addListField("propagatingVgws", Types.MinorType.VARCHAR.getType())
-                .addStringField("dst_cidr")
-                .addStringField("dst_cidr_v6")
-                .addStringField("dst_prefix_list")
-                .addStringField("egress_igw")
-                .addStringField("gateway")
-                .addStringField("instanceId")
-                .addStringField("instance_owner")
-                .addStringField("nat_gateway")
-                .addStringField("interface")
-                .addStringField("origin")
-                .addStringField("state")
-                .addStringField("transit_gateway")
-                .addStringField("vpc_peering_con")
-                .addMetadata("routeTableId", "Id of the route table the route belongs to.")
-                .addMetadata("owner", "Owner of the route table.")
-                .addMetadata("vpc", "VPC the route table is associated with.")
-                .addMetadata("associations", "List of associations for this route table.")
-                .addMetadata("tags", "Tags on the route table.")
-                .addMetadata("propagatingVgws", "Vgws the route table propogates through.")
-                .addMetadata("dst_cidr", "Destination IPv4 CIDR block for the route.")
-                .addMetadata("dst_cidr_v6", "Destination IPv6 CIDR block for the route.")
-                .addMetadata("dst_prefix_list", "Destination prefix list for the route.")
-                .addMetadata("egress_igw", "Egress gateway for the route.")
-                .addMetadata("gateway", "Gateway for the route.")
-                .addMetadata("instanceId", "Instance id of the route.")
-                .addMetadata("instance_owner", "Owner of the route.")
-                .addMetadata("nat_gateway", "NAT gateway used by the route.")
-                .addMetadata("interface", "Interface associated with the route.")
-                .addMetadata("origin", "Origin of the route.")
-                .addMetadata("state", "State of the route.")
-                .addMetadata("transit_gateway", "Transit Gateway associated with the route.")
-                .addMetadata("vpc_peering_con", "VPC Peering connection associated with the route.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public RouteTableProvider(AmazonEC2 ec2)
@@ -105,7 +61,6 @@ public class RouteTableProvider
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
-
         boolean done = false;
         DescribeRouteTablesRequest request = new DescribeRouteTablesRequest();
 
@@ -265,5 +220,48 @@ public class RouteTableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("routeTableId")
+                .addStringField("owner")
+                .addStringField("vpc")
+                .addListField("associations", Types.MinorType.VARCHAR.getType())
+                .addListField("tags", Types.MinorType.VARCHAR.getType())
+                .addListField("propagatingVgws", Types.MinorType.VARCHAR.getType())
+                .addStringField("dst_cidr")
+                .addStringField("dst_cidr_v6")
+                .addStringField("dst_prefix_list")
+                .addStringField("egress_igw")
+                .addStringField("gateway")
+                .addStringField("instanceId")
+                .addStringField("instance_owner")
+                .addStringField("nat_gateway")
+                .addStringField("interface")
+                .addStringField("origin")
+                .addStringField("state")
+                .addStringField("transit_gateway")
+                .addStringField("vpc_peering_con")
+                .addMetadata("routeTableId", "Id of the route table the route belongs to.")
+                .addMetadata("owner", "Owner of the route table.")
+                .addMetadata("vpc", "VPC the route table is associated with.")
+                .addMetadata("associations", "List of associations for this route table.")
+                .addMetadata("tags", "Tags on the route table.")
+                .addMetadata("propagatingVgws", "Vgws the route table propogates through.")
+                .addMetadata("dst_cidr", "Destination IPv4 CIDR block for the route.")
+                .addMetadata("dst_cidr_v6", "Destination IPv6 CIDR block for the route.")
+                .addMetadata("dst_prefix_list", "Destination prefix list for the route.")
+                .addMetadata("egress_igw", "Egress gateway for the route.")
+                .addMetadata("gateway", "Gateway for the route.")
+                .addMetadata("instanceId", "Instance id of the route.")
+                .addMetadata("instance_owner", "Owner of the route.")
+                .addMetadata("nat_gateway", "NAT gateway used by the route.")
+                .addMetadata("interface", "Interface associated with the route.")
+                .addMetadata("origin", "Origin of the route.")
+                .addMetadata("state", "State of the route.")
+                .addMetadata("transit_gateway", "Transit Gateway associated with the route.")
+                .addMetadata("vpc_peering_con", "VPC Peering connection associated with the route.")
+                .build();
     }
 }

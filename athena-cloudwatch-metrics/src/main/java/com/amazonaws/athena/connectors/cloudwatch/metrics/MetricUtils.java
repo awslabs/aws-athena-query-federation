@@ -23,14 +23,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.DIMENSION_NAME_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.DIMENSION_VALUE_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.METRIC_NAME_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.NAMESPACE_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.PERIOD_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.STATISTIC_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.TIMESTAMP_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_NAME_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_VALUE_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.TIMESTAMP_FIELD;
 
+/**
+ * Helper which prepares and filters Cloudwatch Metrics requests.
+ */
 public class MetricUtils
 {
     private static final Logger logger = LoggerFactory.getLogger(MetricUtils.class);
@@ -49,7 +52,6 @@ public class MetricUtils
      */
     protected static boolean applyMetricConstraints(ConstraintEvaluator evaluator, Metric metric, String statistic)
     {
-
         if (!evaluator.apply(NAMESPACE_FIELD, metric.getNamespace())) {
             return false;
         }
@@ -58,7 +60,7 @@ public class MetricUtils
             return false;
         }
 
-        if (!evaluator.apply(STATISTIC_FIELD, statistic)) {
+        if (statistic != null && !evaluator.apply(STATISTIC_FIELD, statistic)) {
             return false;
         }
 
@@ -77,7 +79,10 @@ public class MetricUtils
         return false;
     }
 
-    protected static void pushDownConstraint(Constraints constraints, ListMetricsRequest listMetricsRequest)
+    /**
+     * Attempts to push the supplied predicate constraints onto the Cloudwatch Metrics request.
+     */
+    protected static void pushDownPredicate(Constraints constraints, ListMetricsRequest listMetricsRequest)
     {
         Map<String, ValueSet> summary = constraints.getSummary();
 
@@ -102,8 +107,16 @@ public class MetricUtils
         }
     }
 
-    protected static GetMetricDataRequest makeGetMetricsRequest(Split split, List<Dimension> dimensions, ReadRecordsRequest readRecordsRequest)
+    /**
+     * Creates a Cloudwatch Metrics sample data request from the provided inputs
+     *
+     * @param readRecordsRequest The RecordReadRequest to make into a Cloudwatch Metrics Data request.
+     * @return The Cloudwatch Metrics Data request that matches the requested read operation.
+     */
+    protected static GetMetricDataRequest makeGetMetricDataRequest(ReadRecordsRequest readRecordsRequest)
     {
+        Split split = readRecordsRequest.getSplit();
+        List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
         GetMetricDataRequest dataRequest = new GetMetricDataRequest();
         com.amazonaws.services.cloudwatch.model.Metric metric = new com.amazonaws.services.cloudwatch.model.Metric();
         metric.setNamespace(split.getProperty(NAMESPACE_FIELD));

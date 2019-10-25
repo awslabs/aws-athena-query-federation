@@ -31,7 +31,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static java.util.stream.Collectors.toList;
 
-public class QueryUtils
+public final class QueryUtils
 {
     private static final String OR_OP = "$or";
     private static final String AND_OP = "$and";
@@ -47,6 +47,10 @@ public class QueryUtils
     private static final String LTE_OP = "$lte";
     private static final String IN_OP = "$in";
     private static final String NOTIN_OP = "$nin";
+
+    private QueryUtils()
+    {
+    }
 
     public static Document makeProjection(Schema schema)
     {

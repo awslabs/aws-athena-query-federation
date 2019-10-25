@@ -122,17 +122,17 @@ public class MyRecordHandler
 You can use any IDE or even just comman line editor to write your connector. The below steps show you how to use an AWS Cloud9 IDE running on EC2 to get started but most of the steps are applicable to any linux based development machine.
 
 
-#### Step 1: Create your Cloud9 Instance
+### Step 1: Create your Cloud9 Instance
 
 1. Open the AWS Console and navigate to the [Cloud9 Service or Click Here](https://console.aws.amazon.com/cloud9/)
 2. Click 'Create Environment' and follow the steps to create a new instance using a new EC2 Instance (we recommeded m4.large) running Amazon Linux. 
 
 
-#### Step 2: Download The SDK + Connectors
+### Step 2: Download The SDK + Connectors
 
 1. At your Cloud9 terminal run `git clone https://github.com/awslabs/aws-athena-query-federation.git` to get a copy of the Amazon Athena Query Federation SDK, Connector Suite, and Example Connector.
 
-#### Step 3: Install Development Tools (Pre-Requisites)
+### Step 3: Install Development Tools (Pre-Requisites)
 
 1. This step may be optional if you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build tool for Serverless Applications. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the github project you checked out.
 2. To ensure your terminal can see the new tools we installed run `source ~/.profile` or open a fresh terminal.
@@ -143,8 +143,8 @@ Now run `mvn clean install` from the athena-federation-sdk directory within the 
 
 1. Create an s3 bucket, that we can use for spill and to upload some sample data using the following command `aws s3 mb s3://BUCKET_NAME` but be sure to put your actual bucket name in the command and taht you pick something that is unlikely to already exist.
 2. (If using Cloud9) Navigate to the aws-athena-query-federation/athena-example folder on the left nav. This is the code you extracted back in Step 2.
-3. Complete the TODOs in ExampleMetadataHandler
-4. Complete the TODOs in ExampleRecordHandler
+3. Complete the TODOs in ExampleMetadataHandler by uncommenting the provided example code and providing missing code where indicated.
+4. Complete the TODOs in ExampleRecordHandler by uncommenting the provided example code and providing missing code where indicated.
 5. Run the following command from the aws-athena-query-federation/athena-example directory to ensure your connector is valid.  `mvn clean install`
 6. Upload our sample data by running the following command from aws-athena-query-federation/athena-example directory. Be sure to replace BUCKET_NAME with the name of the bucket your created earlier.  `aws s3 cp ./sample_data.csv s3://BUCKET_NAME/2017/11/1/sample_data.csv`
 

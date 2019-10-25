@@ -1,9 +1,5 @@
 package com.amazonaws.connectors.athena.bigquery;
 
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForDatasetName;
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForTableName;
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.getObjectFromFieldValue;
-
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -27,17 +23,20 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.StringJoiner;
-
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.StringJoiner;
+
+import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForDatasetName;
+import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.getObjectFromFieldValue;
 
 /**
  * This record handler is an example of how you can implement a lambda that calls bigquery and pulls data.
@@ -47,11 +46,9 @@ import org.slf4j.LoggerFactory;
 public class BigQueryRecordHandler
         extends RecordHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
-
-    private static final String sourceType = "bigquery";
     public static final String PROJECT_NAME = "BQ_PROJECT_NAME";
-
+    private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
+    private static final String sourceType = "bigquery";
     private final BigQuery bigQueryClient;
 
     public BigQueryRecordHandler()
@@ -233,8 +230,12 @@ public class BigQueryRecordHandler
             case FloatingPoint:
                 return value.toString();
             case Bool:
-                if ((Boolean) value) { return "true"; }
-                else { return "false"; }
+                if ((Boolean) value) {
+                    return "true";
+                }
+                else {
+                    return "false";
+                }
             case Utf8:
                 return "'" + value.toString() + "'";
             default:

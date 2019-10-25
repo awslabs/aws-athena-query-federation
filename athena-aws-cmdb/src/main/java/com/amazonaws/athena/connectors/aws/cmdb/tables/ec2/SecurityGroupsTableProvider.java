@@ -35,35 +35,7 @@ public class SecurityGroupsTableProvider
     private static final String INGRESS = "ingress";
     private static final String EGRESS = "egress";
 
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("id")
-                .addStringField("name")
-                .addStringField("description")
-                .addIntField("from_port")
-                .addIntField("to_port")
-                .addStringField("protocol")
-                .addStringField("direction")
-                .addListField("ipv4_ranges", Types.MinorType.VARCHAR.getType())
-                .addListField("ipv6_ranges", Types.MinorType.VARCHAR.getType())
-                .addListField("prefixLists", Types.MinorType.VARCHAR.getType())
-                .addListField("userIdGroups", Types.MinorType.VARCHAR.getType())
-                .addMetadata("id", "Security Group ID.")
-                .addMetadata("name", "Name of the security group.")
-                .addMetadata("description", "Description of the security group.")
-                .addMetadata("from_port", "Beginging of the port range covered by this security group.")
-                .addMetadata("to_port", "Ending of the port range covered by this security group.")
-                .addMetadata("protocol", "The network protocol covered by this security group.")
-                .addMetadata("direction", "Notes if the rule applies inbound (ingress) or outbound (egress).")
-                .addMetadata("ipv4_ranges", "The ip v4 ranges covered by this security group.")
-                .addMetadata("ipv6_ranges", "The ip v6 ranges covered by this security group.")
-                .addMetadata("prefixLists", "The prefix lists covered by this security group.")
-                .addMetadata("userIdGroups", "The user id groups covered by this security group.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public SecurityGroupsTableProvider(AmazonEC2 ec2)
@@ -92,7 +64,6 @@ public class SecurityGroupsTableProvider
     @Override
     public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
-
         boolean done = false;
         DescribeSecurityGroupsRequest request = new DescribeSecurityGroupsRequest();
 
@@ -210,10 +181,36 @@ public class SecurityGroupsTableProvider
                         .map(next -> next.getUserId() + ":" + next.getVpcPeeringConnectionId() + ":" + next.getDescription())
                         .collect(Collectors.toList());
                 BlockUtils.setComplexValue(vector, row, FieldResolver.DEFAULT, values);
-
             }
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("id")
+                .addStringField("name")
+                .addStringField("description")
+                .addIntField("from_port")
+                .addIntField("to_port")
+                .addStringField("protocol")
+                .addStringField("direction")
+                .addListField("ipv4_ranges", Types.MinorType.VARCHAR.getType())
+                .addListField("ipv6_ranges", Types.MinorType.VARCHAR.getType())
+                .addListField("prefixLists", Types.MinorType.VARCHAR.getType())
+                .addListField("userIdGroups", Types.MinorType.VARCHAR.getType())
+                .addMetadata("id", "Security Group ID.")
+                .addMetadata("name", "Name of the security group.")
+                .addMetadata("description", "Description of the security group.")
+                .addMetadata("from_port", "Beginging of the port range covered by this security group.")
+                .addMetadata("to_port", "Ending of the port range covered by this security group.")
+                .addMetadata("protocol", "The network protocol covered by this security group.")
+                .addMetadata("direction", "Notes if the rule applies inbound (ingress) or outbound (egress).")
+                .addMetadata("ipv4_ranges", "The ip v4 ranges covered by this security group.")
+                .addMetadata("ipv6_ranges", "The ip v6 ranges covered by this security group.")
+                .addMetadata("prefixLists", "The prefix lists covered by this security group.")
+                .addMetadata("userIdGroups", "The user id groups covered by this security group.")
+                .build();
     }
 }

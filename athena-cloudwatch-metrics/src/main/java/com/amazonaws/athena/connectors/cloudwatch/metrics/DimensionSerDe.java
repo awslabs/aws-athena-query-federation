@@ -9,6 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Used to serialize and deserialize Cloudwatch Metrics Dimension objects. This is used
+ * when creating and processing Splits.
+ */
 public class DimensionSerDe
 {
     protected static final String SERIALZIE_DIM_FIELD_NAME = "d";
@@ -16,6 +20,12 @@ public class DimensionSerDe
 
     private DimensionSerDe() {}
 
+    /**
+     * Serializes the provided List of Dimensions.
+     *
+     * @param dim The list of dimensions to serialize.
+     * @return A String containing the serialized list of Dimensions.
+     */
     public static String serialize(List<Dimension> dim)
     {
         try {
@@ -26,6 +36,12 @@ public class DimensionSerDe
         }
     }
 
+    /**
+     * Deserializes the provided String into a List of Dimensions.
+     *
+     * @param serializeDim A serialized list of Dimensions.
+     * @return The List of Dimensions represented by the serialized string.
+     */
     public static List<Dimension> deserialize(String serializeDim)
     {
         try {
@@ -36,6 +52,9 @@ public class DimensionSerDe
         }
     }
 
+    /**
+     * Helper which allows us to use Jackson's Object Mapper to serialize a List of Dimensions.
+     */
     private static class DimensionHolder
     {
         private final List<Dimension> dimensions;

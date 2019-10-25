@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-public class QueryResponse {
+public class QueryResponse
+{
     private final String deviceId;
     private final String queryId;
     private final String name;
@@ -19,7 +20,8 @@ public class QueryResponse {
             @JsonProperty("name") String name,
             @JsonProperty("echoValue") String echoValue,
             @JsonProperty("values") List<String> values,
-            @JsonProperty("random") int random) {
+            @JsonProperty("random") int random)
+    {
         this.deviceId = deviceId;
         this.queryId = queryId;
         this.name = name;
@@ -28,7 +30,8 @@ public class QueryResponse {
         this.random = random;
     }
 
-    private QueryResponse(Builder builder) {
+    private QueryResponse(Builder builder)
+    {
         queryId = builder.queryId;
         deviceId = builder.deviceId;
         name = builder.name;
@@ -37,38 +40,50 @@ public class QueryResponse {
         random = builder.random;
     }
 
+    public static Builder newBuilder()
+    {
+        return new Builder();
+    }
+
     @JsonProperty("deviceId")
-    public String getDeviceId() {
+    public String getDeviceId()
+    {
         return deviceId;
     }
 
     @JsonProperty("queryId")
-    public String getQueryId() {
+    public String getQueryId()
+    {
         return queryId;
     }
 
     @JsonProperty("name")
-    public String getName() {
+    public String getName()
+    {
         return name;
     }
 
     @JsonProperty("echoValue")
-    public String getEchoValue() {
+    public String getEchoValue()
+    {
         return echoValue;
     }
 
     @JsonProperty("values")
-    public List<String> getValues() {
+    public List<String> getValues()
+    {
         return values;
     }
 
     @JsonProperty("random")
-    public int getRandom() {
+    public int getRandom()
+    {
         return random;
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return "QueryResponse{" +
                 "deviceId='" + deviceId + '\'' +
                 ", queryId='" + queryId + '\'' +
@@ -79,11 +94,8 @@ public class QueryResponse {
                 '}';
     }
 
-    public static Builder newBuilder() {
-        return new Builder();
-    }
-
-    public static final class Builder {
+    public static final class Builder
+    {
         private String deviceId;
         private String queryId;
         private String name;
@@ -91,40 +103,48 @@ public class QueryResponse {
         private List<String> values;
         private int random;
 
-        private Builder() {
+        private Builder()
+        {
         }
 
-        public Builder withDeviceId(String val) {
+        public Builder withDeviceId(String val)
+        {
             deviceId = val;
             return this;
         }
 
-        public Builder withQueryId(String val) {
+        public Builder withQueryId(String val)
+        {
             queryId = val;
             return this;
         }
 
-        public Builder withEchoValue(String val) {
+        public Builder withEchoValue(String val)
+        {
             echoValue = val;
             return this;
         }
 
-        public Builder withName(String val) {
+        public Builder withName(String val)
+        {
             name = val;
             return this;
         }
 
-        public Builder withValues(List<String> val) {
+        public Builder withValues(List<String> val)
+        {
             values = val;
             return this;
         }
 
-        public Builder withRandom(int val) {
+        public Builder withRandom(int val)
+        {
             random = val;
             return this;
         }
 
-        public QueryResponse build() {
+        public QueryResponse build()
+        {
             return new QueryResponse(this);
         }
     }

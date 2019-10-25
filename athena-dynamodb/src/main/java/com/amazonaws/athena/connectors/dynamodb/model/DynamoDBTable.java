@@ -1,7 +1,6 @@
 package com.amazonaws.athena.connectors.dynamodb.model;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.List;
 import java.util.Objects;

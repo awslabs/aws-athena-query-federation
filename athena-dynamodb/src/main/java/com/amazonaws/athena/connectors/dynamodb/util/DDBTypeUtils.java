@@ -1,6 +1,5 @@
 package com.amazonaws.athena.connectors.dynamodb.util;
 
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -10,12 +9,13 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public final class DDBTypeUtils {
+public final class DDBTypeUtils
+{
+    private DDBTypeUtils() {}
 
     public static Field getArrowField(String key, Object value)
     {

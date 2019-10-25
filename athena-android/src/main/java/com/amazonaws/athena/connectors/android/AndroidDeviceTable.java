@@ -46,67 +46,83 @@ public class AndroidDeviceTable
         return schema;
     }
 
-    public String getQueryMinResultsField(){
+    public String getQueryMinResultsField()
+    {
         return "query_min_results";
     }
 
-    public String getQueryTimeout(){
+    public String getQueryTimeout()
+    {
         return "query_timeout";
     }
 
-    public String getDeviceIdField(){
+    public String getDeviceIdField()
+    {
         return "device_id";
     }
 
-    public String getLastUpdatedField(){
+    public String getLastUpdatedField()
+    {
         return "last_updated";
     }
 
-    public String getNameField(){
+    public String getNameField()
+    {
         return "name";
     }
 
-    public String getEchoValueField(){
+    public String getEchoValueField()
+    {
         return "echo_value";
     }
 
-    public String getResultField(){
+    public String getResultField()
+    {
         return "result_field";
     }
 
-    public String getScoreField(){
+    public String getScoreField()
+    {
         return "score";
     }
 
-    public FieldVector getQueryMinResultsField(Block block){
+    public FieldVector getQueryMinResultsField(Block block)
+    {
         return block.getFieldVector("query_min_results");
     }
 
-    public FieldVector getQueryTimeout(Block block){
+    public FieldVector getQueryTimeout(Block block)
+    {
         return block.getFieldVector("query_timeout");
     }
 
-    public FieldVector getDeviceIdField(Block block){
+    public FieldVector getDeviceIdField(Block block)
+    {
         return block.getFieldVector("device_id");
     }
 
-    public FieldVector getNameField(Block block){
+    public FieldVector getNameField(Block block)
+    {
         return block.getFieldVector("name");
     }
 
-    public FieldVector getLastUpdatedField(Block block){
+    public FieldVector getLastUpdatedField(Block block)
+    {
         return block.getFieldVector("last_updated");
     }
 
-    public FieldVector getEchoValueField(Block block){
+    public FieldVector getEchoValueField(Block block)
+    {
         return block.getFieldVector("echo_value");
     }
 
-    public FieldVector getResultField(Block block){
+    public FieldVector getResultField(Block block)
+    {
         return block.getFieldVector("result_field");
     }
 
-    public FieldVector getScoreField(Block block){
+    public FieldVector getScoreField(Block block)
+    {
         return block.getFieldVector("score");
     }
 }

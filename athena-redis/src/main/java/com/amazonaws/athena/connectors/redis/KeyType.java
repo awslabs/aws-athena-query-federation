@@ -23,7 +23,7 @@ public enum KeyType
      */
     ZSET("zset");
 
-    private static Map<String, KeyType> TYPE_MAP = new HashMap<>();
+    private static final Map<String, KeyType> TYPE_MAP = new HashMap<>();
 
     static {
         for (KeyType next : KeyType.values()) {

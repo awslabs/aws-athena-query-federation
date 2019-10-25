@@ -31,33 +31,7 @@ import java.util.stream.Collectors;
 public class SubnetTableProvider
         implements TableProvider
 {
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("id")
-                .addStringField("availability_zone")
-                .addIntField("available_ip_count")
-                .addStringField("cidr_block")
-                .addBitField("default_for_az")
-                .addBitField("map_public_ip")
-                .addStringField("owner")
-                .addStringField("state")
-                .addListField("tags", Types.MinorType.VARCHAR.getType())
-                .addStringField("vpc")
-                .addMetadata("id", "Subnet Id")
-                .addMetadata("availability_zone", "Availability zone the subnet is in.")
-                .addMetadata("available_ip_count", "Number of available IPs in the subnet.")
-                .addMetadata("cidr_block", "The CIDR block that the subnet uses to allocate addresses.")
-                .addMetadata("default_for_az", "True if this is the default subnet for the AZ.")
-                .addMetadata("map_public_ip", "True if public addresses are signed by default in this subnet.")
-                .addMetadata("owner", "Owner of the subnet.")
-                .addMetadata("state", "The state of the subnet.")
-                .addMetadata("vpc", "The VPC the subnet is part of.")
-                .addMetadata("tags", "Tags associated with the volume.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public SubnetTableProvider(AmazonEC2 ec2)
@@ -174,5 +148,30 @@ public class SubnetTableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("id")
+                .addStringField("availability_zone")
+                .addIntField("available_ip_count")
+                .addStringField("cidr_block")
+                .addBitField("default_for_az")
+                .addBitField("map_public_ip")
+                .addStringField("owner")
+                .addStringField("state")
+                .addListField("tags", Types.MinorType.VARCHAR.getType())
+                .addStringField("vpc")
+                .addMetadata("id", "Subnet Id")
+                .addMetadata("availability_zone", "Availability zone the subnet is in.")
+                .addMetadata("available_ip_count", "Number of available IPs in the subnet.")
+                .addMetadata("cidr_block", "The CIDR block that the subnet uses to allocate addresses.")
+                .addMetadata("default_for_az", "True if this is the default subnet for the AZ.")
+                .addMetadata("map_public_ip", "True if public addresses are signed by default in this subnet.")
+                .addMetadata("owner", "Owner of the subnet.")
+                .addMetadata("state", "The state of the subnet.")
+                .addMetadata("vpc", "The VPC the subnet is part of.")
+                .addMetadata("tags", "Tags associated with the volume.")
+                .build();
     }
 }

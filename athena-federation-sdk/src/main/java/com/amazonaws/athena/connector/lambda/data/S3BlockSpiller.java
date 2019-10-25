@@ -41,6 +41,7 @@ public class S3BlockSpiller
     private final BlockAllocator allocator;
     private final SpillConfig spillConfig;
     private final Schema schema;
+    private final long maxRowsPerCall;
 
     private final List<SpillLocation> spillLocations = new ArrayList<>();
     private final AtomicReference<Block> inProgressBlock = new AtomicReference<>();
@@ -62,6 +63,15 @@ public class S3BlockSpiller
 
     public S3BlockSpiller(AmazonS3 amazonS3, SpillConfig spillConfig, BlockAllocator allocator, Schema schema)
     {
+        this(amazonS3, spillConfig, allocator, schema, 100);
+    }
+
+    public S3BlockSpiller(AmazonS3 amazonS3,
+            SpillConfig spillConfig,
+            BlockAllocator allocator,
+            Schema schema,
+            int maxRowsPerCall)
+    {
         this.amazonS3 = requireNonNull(amazonS3, "amazonS3 was null");
         this.spillConfig = requireNonNull(spillConfig, "spillConfig was null");
         this.allocator = requireNonNull(allocator, "allocator was null");
@@ -69,6 +79,7 @@ public class S3BlockSpiller
         this.blockCrypto = (spillConfig.getEncryptionKey() != null) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
         asyncSpillPool = (spillConfig.getNumSpillThreads() <= 0) ? null :
                 Executors.newFixedThreadPool(spillConfig.getNumSpillThreads());
+        this.maxRowsPerCall = maxRowsPerCall;
     }
 
     public void writeRows(RowWriter rowWriter)
@@ -80,6 +91,10 @@ public class S3BlockSpiller
 
         int rows = rowWriter.writeRows(block, rowCount);
 
+        if (rows > maxRowsPerCall) {
+            throw new RuntimeException("Call generated more than " + maxRowsPerCall + "rows. Generating " +
+                    "too many rows per call to writeRows(...) can result in blocks that exceed the max size.");
+        }
         if (rows > 0) {
             block.setRowCount(rowCount + rows);
         }

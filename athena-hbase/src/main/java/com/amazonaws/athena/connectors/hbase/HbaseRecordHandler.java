@@ -8,7 +8,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -20,10 +19,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
@@ -44,6 +40,15 @@ import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.HBASE_N
 import static com.amazonaws.athena.connectors.hbase.HbaseMetadataHandler.START_KEY_FIELD;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+/**
+ * Handles data read record requests for the Athena HBase Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Supporting String and native 'byte[]' storage.
+ * 2. Attempts to resolve sensitive configuration fields such as HBase connection string via SecretsManager so that you can
+ * substitute variables with values from by doing something like hostname:port:password=${my_secret}
+ */
 public class HbaseRecordHandler
         extends RecordHandler
 {
@@ -75,6 +80,11 @@ public class HbaseRecordHandler
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
+    /**
+     * Scans HBase using the scan settings set on the requested Split by HbaseMetadataHandler.
+     *
+     * @see RecordHandler
+     */
     @Override
     protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
             throws IOException
@@ -83,12 +93,16 @@ public class HbaseRecordHandler
         Split split = request.getSplit();
         String conStr = split.getProperty(HBASE_CONN_STR);
         boolean isNative = projection.getCustomMetadata().get(HBASE_NATIVE_STORAGE_FLAG) != null;
+
+        //setup the scan so that we only read the key range associated with the region represented by our Split.
         Scan scan = new Scan(split.getProperty(START_KEY_FIELD).getBytes(), split.getProperty(END_KEY_FIELD).getBytes());
+
+        //attempts to push down a partial predicate using HBase Filters
         scan.setFilter(pushdownPredicate(isNative, request.getConstraints()));
 
         //setup the projection so we only pull columns/families that we need
         for (Field next : request.getSchema().getFields()) {
-            convertField(scan, next);
+            addToProjection(scan, next);
         }
 
         Connection conn = getOrCreateConn(conStr);
@@ -113,13 +127,24 @@ public class HbaseRecordHandler
         }
     }
 
+    /**
+     * Used to filter and write field values from the HBase scan to the response block.
+     *
+     * @param constraintEvaluator Used to applied constraints (predicates) to field values before writing them.
+     * @param vector The Apache Arrow vector for the field we need to write.
+     * @param isNative Boolean indicating if the HBase value is stored as a String (false) or as Native byte[] (true).
+     * @param row The HBase row from which we should extract a value for the field denoted by vector.
+     * @param rowNum The rowNumber to write into on the vector.
+     * @return True if the value passed the ConstraintEvaluator's test.
+     */
     private boolean writeField(ConstraintEvaluator constraintEvaluator, FieldVector vector, boolean isNative, Result row, int rowNum)
     {
         String fieldName = vector.getField().getName();
         ArrowType type = vector.getField().getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
         try {
-            //Is this field the special 'row' field
+            //Is this field the special 'row' field that can be used to group column families that may
+            //have been spread across different region servers if they are needed in the same query.
             if (HbaseSchemaUtils.ROW_COLUMN_NAME.equals(fieldName)) {
                 String value = Bytes.toString(row.getRow());
                 BlockUtils.setValue(vector,
@@ -130,7 +155,7 @@ public class HbaseRecordHandler
 
             switch (minorType) {
                 case STRUCT:
-                    //Column is actually a Column Family
+                    //Column is actually a Column Family stored as a STRUCT.
                     BlockUtils.setComplexValue(vector,
                             rowNum,
                             HbaseFieldResolver.resolver(isNative, fieldName),
@@ -152,9 +177,15 @@ public class HbaseRecordHandler
         }
     }
 
-    private void convertField(Scan scan, Field field)
+    /**
+     * Addes the specified Apache Arrow field to the Scan to satisfy the requested projection.
+     *
+     * @param scan The scan object that will be used to read data from HBase.
+     * @param field The field to be added to the scan.
+     */
+    private void addToProjection(Scan scan, Field field)
     {
-        //ignore the special 'row' column
+        //ignore the special 'row' column since we get that by default.
         if (HbaseSchemaUtils.ROW_COLUMN_NAME.equalsIgnoreCase(field.getName())) {
             return;
         }
@@ -175,6 +206,15 @@ public class HbaseRecordHandler
         }
     }
 
+    /**
+     * Attempts to push down at basic Filter predicate into HBase.
+     *
+     * @param isNative True if the values are stored in HBase using native byte[] vs being serialized as Strings.
+     * @param constraints The constraints that we can attempt to push into HBase as part of the scan.
+     * @return A filter if we found a predicate we can push down, null otherwise/
+     * @note Currently this method only supports constraints that can be represented by HBase's SingleColumnValueFilter
+     * and CompareOp of EQUAL. In the future we can add > and < for certain field types.
+     */
     private Filter pushdownPredicate(boolean isNative, Constraints constraints)
     {
         for (Map.Entry<String, ValueSet> next : constraints.getSummary().entrySet()) {

@@ -16,8 +16,8 @@ import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryResult;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
@@ -53,13 +53,14 @@ public class DynamoDBRecordHandler
 
     public DynamoDBRecordHandler()
     {
-        this(AmazonDynamoDBClientBuilder.standard().build());
+        super(sourceType);
+        this.ddbClient = AmazonDynamoDBClientBuilder.standard().build();
     }
 
     @VisibleForTesting
-    DynamoDBRecordHandler(AmazonDynamoDB ddbClient)
+    DynamoDBRecordHandler(AmazonDynamoDB ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, String sourceType)
     {
-        super(sourceType);
+        super(amazonS3, secretsManager, sourceType);
         this.ddbClient = ddbClient;
     }
 
@@ -137,7 +138,6 @@ public class DynamoDBRecordHandler
         Map<String, AttributeValue> expressionAttributeValues = ImmutableMap.of(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
         return new Iterator<Map<String, AttributeValue>>()
         {
-
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();
 
@@ -185,7 +185,6 @@ public class DynamoDBRecordHandler
         int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
         return new Iterator<Map<String, AttributeValue>>()
         {
-
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();
 

@@ -6,11 +6,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
-import org.apache.commons.lang.BooleanUtils;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellScanner;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -18,25 +14,41 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.PageFilter;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hbase.util.Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+/**
+ * Collection of helpful utilities that handle HBase schema inference, type, and naming conversion.
+ */
 public class HbaseSchemaUtils
 {
-    private static final Logger logger = LoggerFactory.getLogger(HbaseSchemaUtils.class);
+    //Field name for the special 'row' column which represets the HBase key used to store a given row.
     protected static final String ROW_COLUMN_NAME = "row";
+    //The HBase namespce qualifier character which commonly separates namespaces and column families from tables and columns.
     protected static final String NAMESPACE_QUALIFIER = ":";
+    private static final Logger logger = LoggerFactory.getLogger(HbaseSchemaUtils.class);
 
     private HbaseSchemaUtils() {}
 
+    /**
+     * This method will produce an Apache Arrow Schema for the given TableName and HBase connection
+     * by scanning up to the requested number of rows and using basic schema inference to determine
+     * data types.
+     *
+     * @param client The HBase connection to use for the scan operation.
+     * @param tableName The HBase TableName for which to produce an Apache Arrow Schema.
+     * @param numToScan The number of records to scan as part of producing the Schema.
+     * @return An Apache Arrow Schema representing the schema of the HBase table.
+     * @note The resulting schema is a union of the schema of every row that is scanned. Any time two rows
+     * have a field with the same name but different inferred type the code will default the type of
+     * that field in the resulting schema to a VARCHAR. This approach is not perfect and can struggle
+     * to produce a usable schema if the table has a significant mix of entities.
+     */
     public static Schema inferSchema(Connection client, TableName tableName, int numToScan)
     {
         Map<String, Map<String, ArrowType>> schemaInference = new HashMap<>();
@@ -54,8 +66,13 @@ public class HbaseSchemaUtils
                         schemaInference.put(family, schemaForFamily);
                     }
 
+                    //Get the previously inferred type for this column if we've seen it on a past row
                     ArrowType prevInferredType = schemaForFamily.get(column);
+
+                    //Infer the type of the column from the value on the current row.
                     Types.MinorType inferredType = inferType(keyValue.getValue());
+
+                    //Check if the previous and currently inferred types match
                     if (prevInferredType != null && Types.getMinorTypeForArrowType(prevInferredType) != inferredType) {
                         logger.info("inferSchema: Type changed detected for field, using VARCHAR - family: {} col: {} previousType: {} newType: {}",
                                 family, column, prevInferredType, inferredType);
@@ -69,6 +86,7 @@ public class HbaseSchemaUtils
                 }
             }
 
+            //Used the union of all row's to produce our resultant Apache Arrow Schema.
             SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
             for (Map.Entry<String, Map<String, ArrowType>> nextFamily : schemaInference.entrySet()) {
                 String family = nextFamily.getKey();
@@ -84,16 +102,38 @@ public class HbaseSchemaUtils
         }
     }
 
+    /**
+     * Helper which goes from an Athena Federation SDK TableName to an HBase table name string.
+     *
+     * @param tableName An Athena Federation SDK TableName.
+     * @return The corresponding HBase table name string.
+     */
     public static String getQualifiedTableName(TableName tableName)
     {
         return tableName.getSchemaName() + NAMESPACE_QUALIFIER + tableName.getTableName();
     }
 
+    /**
+     * Helper which goes from an Athena Federation SDK TableName to an HBase TableName.
+     *
+     * @param tableName An Athena Federation SDK TableName.
+     * @return The corresponding HBase TableName.
+     */
     public static org.apache.hadoop.hbase.TableName getQualifiedTable(TableName tableName)
     {
         return org.apache.hadoop.hbase.TableName.valueOf(tableName.getSchemaName() + NAMESPACE_QUALIFIER + tableName.getTableName());
     }
 
+    /**
+     * Given a value from HBase attempt to infer it's type.
+     *
+     * @param value An HBase value.
+     * @return The Apache Arrow Minor Type most closely associated with the provided value.
+     * @note This method of inference is very naive and only works if the values are stored in HBase
+     * as Strings. It uses VARCHAR as its fallback if it can't not parse our the value to
+     * one of the other supported inferred types. It is expected that customers of this connector
+     * may want to customize this logic or rely on explicit Schema in Glue.
+     */
     public static Types.MinorType inferType(byte[] value)
     {
         String strVal = Bytes.toString(value);
@@ -114,6 +154,14 @@ public class HbaseSchemaUtils
         return Types.MinorType.VARCHAR;
     }
 
+    /**
+     * Helper that can coerce the given HBase value to the requested Apache Arrow type.
+     *
+     * @param isNative If True, the HBase value is stored using native bytes. If False, the value is serialized as a String.
+     * @param type The Apache Arrow Type that the value should be coerced to before returning.
+     * @param value The HBase value to coerce.
+     * @return The coerced value which is now allowed with the provided Apache Arrow type.
+     */
     public static Object coerceType(boolean isNative, ArrowType type, byte[] value)
     {
         if (value == null) {
@@ -146,14 +194,29 @@ public class HbaseSchemaUtils
         }
     }
 
+    /**
+     * Helper which can go from a Glue/Apache Arrow column name to its HBase family + column.
+     *
+     * @param glueColumnName The input column name in format "family:column".
+     * @return
+     */
     public static String[] extractColumnParts(String glueColumnName)
     {
         return glueColumnName.split(NAMESPACE_QUALIFIER);
     }
 
+    /**
+     * Used to convert from Apache Arrow typed values to HBase values.
+     *
+     * @param isNative If True, the HBase value should be stored using native bytes.
+     * If False, the value should be serialized as a String before storing it.
+     * @param value The value to convert.
+     * @return The HBase byte representation of the value.
+     * @note This is commonly used when attempting to push constraints into HBase which requires converting a small
+     * number of values from Apache Arrow's Type system to HBase compatible representations for comparisons.
+     */
     public static byte[] toBytes(boolean isNative, Object value)
     {
-
         if (value == null || value instanceof byte[]) {
             return (byte[]) value;
         }

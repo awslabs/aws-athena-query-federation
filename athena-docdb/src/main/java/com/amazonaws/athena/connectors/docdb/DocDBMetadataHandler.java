@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCursor;
@@ -89,7 +88,6 @@ public class DocDBMetadataHandler
         List<String> schemas = new ArrayList<>();
         MongoClient client = getOrCreateClient(request);
         try (MongoCursor<String> itr = client.listDatabaseNames().iterator()) {
-
             while (itr.hasNext()) {
                 schemas.add(itr.next());
             }

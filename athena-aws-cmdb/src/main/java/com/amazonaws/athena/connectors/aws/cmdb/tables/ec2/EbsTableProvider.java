@@ -32,43 +32,7 @@ import java.util.stream.Collectors;
 public class EbsTableProvider
         implements TableProvider
 {
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("id")
-                .addStringField("type")
-                .addStringField("target")
-                .addStringField("attached_device")
-                .addStringField("attachment_state")
-                .addField("attachment_time", Types.MinorType.DATEMILLI.getType())
-                .addStringField("availability_zone")
-                .addField("created_time", Types.MinorType.DATEMILLI.getType())
-                .addBitField("is_encrypted")
-                .addStringField("kms_key_id")
-                .addIntField("size")
-                .addIntField("iops")
-                .addStringField("snapshot_id")
-                .addStringField("state")
-                .addListField("tags", Types.MinorType.VARCHAR.getType())
-                .addMetadata("id", "EBS Volume Id")
-                .addMetadata("type", "EBS Volume Type")
-                .addMetadata("target", "EC2 Instance Id that this volume is attached to.")
-                .addMetadata("attached_device", "Device name where this EBS volume is attached.")
-                .addMetadata("attachment_state", "The state of the volume attachement.")
-                .addMetadata("attachment_time", "The time this volume was attached to its target.")
-                .addMetadata("availability_zone", "The AZ that this EBS Volume is in.")
-                .addMetadata("created_time", "The date time that the volume was created.")
-                .addMetadata("is_encrypted", "True if the volume is encrypted with KMS managed key.")
-                .addMetadata("kms_key_id", "The KMS key id used to encrypt this volume.")
-                .addMetadata("size", "The size in GBs of this volume.")
-                .addMetadata("iops", "Provisioned IOPs supported by this volume.")
-                .addMetadata("snapshot_id", "ID of the last snapshot for this volume.")
-                .addMetadata("state", "State of the EBS Volume.")
-                .addMetadata("tags", "Tags associated with the volume.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public EbsTableProvider(AmazonEC2 ec2)
@@ -225,5 +189,40 @@ public class EbsTableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("id")
+                .addStringField("type")
+                .addStringField("target")
+                .addStringField("attached_device")
+                .addStringField("attachment_state")
+                .addField("attachment_time", Types.MinorType.DATEMILLI.getType())
+                .addStringField("availability_zone")
+                .addField("created_time", Types.MinorType.DATEMILLI.getType())
+                .addBitField("is_encrypted")
+                .addStringField("kms_key_id")
+                .addIntField("size")
+                .addIntField("iops")
+                .addStringField("snapshot_id")
+                .addStringField("state")
+                .addListField("tags", Types.MinorType.VARCHAR.getType())
+                .addMetadata("id", "EBS Volume Id")
+                .addMetadata("type", "EBS Volume Type")
+                .addMetadata("target", "EC2 Instance Id that this volume is attached to.")
+                .addMetadata("attached_device", "Device name where this EBS volume is attached.")
+                .addMetadata("attachment_state", "The state of the volume attachement.")
+                .addMetadata("attachment_time", "The time this volume was attached to its target.")
+                .addMetadata("availability_zone", "The AZ that this EBS Volume is in.")
+                .addMetadata("created_time", "The date time that the volume was created.")
+                .addMetadata("is_encrypted", "True if the volume is encrypted with KMS managed key.")
+                .addMetadata("kms_key_id", "The KMS key id used to encrypt this volume.")
+                .addMetadata("size", "The size in GBs of this volume.")
+                .addMetadata("iops", "Provisioned IOPs supported by this volume.")
+                .addMetadata("snapshot_id", "ID of the last snapshot for this volume.")
+                .addMetadata("state", "State of the EBS Volume.")
+                .addMetadata("tags", "Tags associated with the volume.")
+                .build();
     }
 }

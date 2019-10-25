@@ -8,6 +8,9 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -32,24 +35,36 @@ import java.util.List;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.data.FieldResolver.DEFAULT;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.DIMENSIONS_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.DIMENSION_NAME_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.DIMENSION_VALUE_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.METRIC_NAME_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.METRIC_SAMPLES_TABLE_NAME;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.METRIC_TABLE_NAME;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.NAMESPACE_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.PERIOD_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.STATISTICS;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.STATISTIC_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.TIMESTAMP_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.VALUE_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSIONS_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_NAME_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_VALUE_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.TIMESTAMP_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.VALUE_FIELD;
 
+/**
+ * Handles data read record requests for the Athena Cloudwatch Metrics Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Reads and maps Cloudwatch Metrics and Metric Samples.
+ * 2. Attempts to push down time range predicates into Cloudwatch Metrics.
+ */
 public class MetricsRecordHandler
         extends RecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetricsRecordHandler.class);
-    private static final String sourceType = "metrics";
+
+    //Used to log diagnostic info about this connector
+    private static final String SOURCE_TYPE = "metrics";
+    //Schema for the metrics table.
+    private static final Table METRIC_TABLE = new MetricsTable();
+    //Schema for the metric_samples table.
+    private static final Table METRIC_DATA_TABLE = new MetricSamplesTable();
 
     private final AmazonS3 amazonS3;
     private final AmazonCloudWatch metrics;
@@ -64,26 +79,34 @@ public class MetricsRecordHandler
     @VisibleForTesting
     protected MetricsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonCloudWatch metrics)
     {
-        super(amazonS3, secretsManager, sourceType);
+        super(amazonS3, secretsManager, SOURCE_TYPE);
         this.amazonS3 = amazonS3;
         this.metrics = metrics;
     }
 
+    /**
+     * Scans Cloudwatch Metrics for the list of available metrics or the samples for a specific metric.
+     *
+     * @see RecordHandler
+     */
     @Override
     protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {
-        if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE_NAME)) {
+        if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE.getName())) {
             readMetricsWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
         }
-        else if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_SAMPLES_TABLE_NAME)) {
+        else if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_DATA_TABLE.getName())) {
             readMetricSamplesWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
         }
     }
 
+    /**
+     * Handles retrieving the list of available metrics when the METRICS_TABLE is queried by listing metrics in Cloudwatch Metrics.
+     */
     private void readMetricsWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
     {
         ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-        MetricUtils.pushDownConstraint(request.getConstraints(), listMetricsRequest);
+        MetricUtils.pushDownPredicate(request.getConstraints(), listMetricsRequest);
         String prevToken;
         Set<String> requiredFields = new HashSet<>();
         request.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
@@ -150,11 +173,14 @@ public class MetricsRecordHandler
         while (listMetricsRequest.getNextToken() != null && !listMetricsRequest.getNextToken().equalsIgnoreCase(prevToken));
     }
 
+    /**
+     * Handles retrieving the samples for a specific metric from Cloudwatch Metrics.
+     */
     private void readMetricSamplesWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
     {
         Split split = request.getSplit();
         List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
-        GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricsRequest(split, dimensions, request);
+        GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricDataRequest(request);
 
         String prevToken;
         Set<String> requiredFields = new HashSet<>();

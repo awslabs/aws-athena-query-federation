@@ -34,11 +34,23 @@ public class HbaseConnectionFactory
         setClientConfig("zookeeper.recovery.retry", "2");
     }
 
+    /**
+     * Used to set HBase client config options that should be applied to all future connections.
+     *
+     * @param name The name of the property (e.g. hbase.rpc.timeout).
+     * @param value The value of the property to set on the HBase client config object before construction.
+     */
     public void setClientConfig(String name, String value)
     {
         defaultClientConfig.put(name, value);
     }
 
+    /**
+     * Provides access to the current HBase client config options used during connection construction.
+     *
+     * @return Map<String ,   String> where the Key is the config name and the value is the config value.
+     * @note This can be helpful when logging diagnostic info.
+     */
     public Map<String, String> getClientConfigs()
     {
         return Collections.unmodifiableMap(defaultClientConfig);
@@ -111,6 +123,12 @@ public class HbaseConnectionFactory
         return false;
     }
 
+    /**
+     * Injects a connection into the client cache.
+     *
+     * @param conStr The connection string (aka the cache key)
+     * @param conn The connection to inject into the client cache, most often a Mock used in testing.
+     */
     @VisibleForTesting
     protected void addConnection(String conStr, Connection conn)
     {

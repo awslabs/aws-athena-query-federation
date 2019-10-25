@@ -28,6 +28,14 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Handles data read record requests for the Athena Cloudwatch Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Reads and maps Cloudwatch Logs data for a specific LogStream (split)
+ * 2. Attempts to push down time range predicates into Cloudwatch.
+ */
 public class CloudwatchRecordHandler
         extends RecordHandler
 {
@@ -52,6 +60,11 @@ public class CloudwatchRecordHandler
         this.awsLogs = awsLogs;
     }
 
+    /**
+     * Scans Cloudwatch Logs using the LogStream and optional Time stamp filters.
+     *
+     * @see RecordHandler
+     */
     @Override
     protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
@@ -80,7 +93,6 @@ public class CloudwatchRecordHandler
             recordsRequest.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
 
             for (OutputLogEvent ole : logEventsResult.getEvents()) {
-
                 spiller.writeRows((Block block, int rowNum) -> {
                     //perform predicate pushdown on supported fields
                     boolean matched = constraintEvaluator.apply(CloudwatchMetadataHandler.LOG_STREAM_FIELD, split.getProperty(CloudwatchMetadataHandler.LOG_STREAM_FIELD))
@@ -114,6 +126,14 @@ public class CloudwatchRecordHandler
         while (continuationToken != null);
     }
 
+    /**
+     * Attempts to push down predicates into Cloudwatch Logs by decorating the Cloudwatch Logs request.
+     *
+     * @param constraints The constraints for the read as provided by Athena based on the customer's query.
+     * @param request The Cloudwatch Logs request to inject predicates to.
+     * @return The decorated Cloudwatch Logs request.
+     * @note This impl currently only pushing down SortedRangeSet filters (>=, =<, between) on the log time column.
+     */
     private GetLogEventsRequest pushDownConstraints(Constraints constraints, GetLogEventsRequest request)
     {
         ValueSet timeConstraint = constraints.getSummary().get(CloudwatchMetadataHandler.LOG_TIME_FIELD);

@@ -3,8 +3,6 @@ package com.amazonaws.athena.connectors.cloudwatch.metrics;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
@@ -22,6 +20,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricSamplesTable;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.MetricsTable;
+import com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
@@ -30,7 +31,6 @@ import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,33 +42,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
+
+/**
+ * Handles metadata requests for the Athena Cloudwatch Metrics Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Provides two tables (metrics and metric_samples) for accessing Cloudwatch Metrics data via the "default" schema.
+ * 2. Supports Predicate Pushdown into Cloudwatch Metrics for most fields.
+ * 3. If multiple Metrics (namespace, metric, dimension(s), and statistic) are requested, they can be read in parallel.
+ */
 public class MetricsMetadataHandler
         extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetricsMetadataHandler.class);
-    private static final String sourceType = "metrics";
-    protected static final String METRIC_TABLE_NAME = "metrics";
-    protected static final String METRIC_SAMPLES_TABLE_NAME = "metric_samples";
-    protected static final List<String> STATISTICS = new ArrayList<>();
-    private static final Schema METRIC_TABLE;
-    private static final Schema METRIC_DATA_TABLE;
-    private static final Map<String, Schema> TABLES = new HashMap<>();
-    private static final int DEFAULT_PERIOD = 60;
 
+    //Used to log diagnostic info about this connector
+    private static final String SOURCE_TYPE = "metrics";
+
+    //List of available statistics (AVERAGE, p90, etc...).
+    protected static final List<String> STATISTICS = new ArrayList<>();
+    //The schema (aka database) supported by this connector
     protected static final String SCHEMA_NAME = "default";
-    protected static final String METRIC_NAME_FIELD = "metric_name";
-    protected static final String NAMESPACE_FIELD = "namespace";
-    protected static final String DIMENSIONS_FIELD = "dimensions";
-    protected static final String DIMENSION_NAME_FIELD = "dim_name";
-    protected static final String DIMENSION_VALUE_FIELD = "dim_value";
-    protected static final String TIMESTAMP_FIELD = "timestamp";
-    protected static final String VALUE_FIELD = "value";
-    protected static final String STATISTIC_FIELD = "statistic";
-    protected static final String PERIOD_FIELD = "period";
+    //Schema for the metrics table
+    private static final Table METRIC_TABLE;
+    //Schema for the metric_samples table.
+    private static final Table METRIC_DATA_TABLE;
+    //Name of the table which contains details of available metrics.
+    private static final String METRIC_TABLE_NAME;
+    //Name of the table which contains metric samples.
+    private static final String METRIC_SAMPLES_TABLE_NAME;
+    //Lookup table for resolving table name to Schema.
+    private static final Map<String, Table> TABLES = new HashMap<>();
+    //The default metric period to query (60 seconds)
+    private static final int DEFAULT_PERIOD_SEC = 60;
 
     private final AmazonCloudWatch metrics;
 
     static {
+        //The statistics supported by Cloudwatch Metrics by default
         STATISTICS.add("Average");
         STATISTICS.add("Minimum");
         STATISTICS.add("Maximum");
@@ -80,59 +96,17 @@ public class MetricsMetadataHandler
         STATISTICS.add("p50");
         STATISTICS.add("p10");
 
-        METRIC_TABLE = new SchemaBuilder().newBuilder()
-                .addStringField(NAMESPACE_FIELD)
-                .addStringField(METRIC_NAME_FIELD)
-                .addField(FieldBuilder.newBuilder(DIMENSIONS_FIELD, Types.MinorType.LIST.getType())
-                        .addField(FieldBuilder.newBuilder(DIMENSIONS_FIELD, Types.MinorType.STRUCT.getType())
-                                .addStringField(DIMENSION_NAME_FIELD)
-                                .addStringField(DIMENSION_VALUE_FIELD)
-                                .build())
-                        .build())
-                .addStringField(DIMENSION_NAME_FIELD)
-                .addStringField(DIMENSION_VALUE_FIELD)
-                .addListField(STATISTIC_FIELD, Types.MinorType.VARCHAR.getType())
-                .addMetadata(NAMESPACE_FIELD, "Metric namespace")
-                .addMetadata(METRIC_NAME_FIELD, "Metric name")
-                .addMetadata(STATISTIC_FIELD, "List of statistics available for this metric (e.g. Maximum, Minimum, Average, Sample Count)")
-                .addMetadata(DIMENSIONS_FIELD, "Array of Dimensions for the given metric.")
-                .addMetadata(DIMENSION_NAME_FIELD, "Shortcut field that flattens dimension to allow easier filtering for metrics that contain the dimension name. This field is left blank unless used in the where clause.")
-                .addMetadata(DIMENSION_VALUE_FIELD, "Shortcut field that flattens  dimension to allow easier filtering for metrics that contain the dimension value. This field is left blank unless used in the where clause.")
-                .build();
-
-        METRIC_DATA_TABLE = new SchemaBuilder().newBuilder()
-                .addStringField(NAMESPACE_FIELD)
-                .addStringField(METRIC_NAME_FIELD)
-                .addField(FieldBuilder.newBuilder(DIMENSIONS_FIELD, Types.MinorType.LIST.getType())
-                        .addField(FieldBuilder.newBuilder(DIMENSIONS_FIELD, Types.MinorType.STRUCT.getType())
-                                .addStringField(DIMENSION_NAME_FIELD)
-                                .addStringField(DIMENSION_VALUE_FIELD)
-                                .build())
-                        .build())
-                .addStringField(DIMENSION_NAME_FIELD)
-                .addStringField(DIMENSION_VALUE_FIELD)
-                .addIntField(PERIOD_FIELD)
-                .addBigIntField(TIMESTAMP_FIELD)
-                .addFloat8Field(VALUE_FIELD)
-                .addStringField(STATISTIC_FIELD)
-                .addMetadata(NAMESPACE_FIELD, "Metric namespace")
-                .addMetadata(METRIC_NAME_FIELD, "Metric name")
-                .addMetadata(DIMENSIONS_FIELD, "Array of Dimensions for the given metric.")
-                .addMetadata(DIMENSION_NAME_FIELD, "Shortcut field that flattens dimension to allow easier filtering on a single dimension name. This field is left blank unless used in the where clause")
-                .addMetadata(DIMENSION_VALUE_FIELD, "Shortcut field that flattens  dimension to allow easier filtering on a single dimension value. This field is left blank unless used in the where clause.")
-                .addMetadata(STATISTIC_FIELD, "Statistics type of this value (e.g. Maximum, Minimum, Average, Sample Count)")
-                .addMetadata(TIMESTAMP_FIELD, "The epoch time (in seconds) the value is for.")
-                .addMetadata(PERIOD_FIELD, "The period, in seconds, for the metric (e.g. 60 seconds, 120 seconds)")
-                .addMetadata(VALUE_FIELD, "The value for the sample.")
-                .build();
-
+        METRIC_TABLE = new MetricsTable();
+        METRIC_DATA_TABLE = new MetricSamplesTable();
+        METRIC_TABLE_NAME = METRIC_TABLE.getName();
+        METRIC_SAMPLES_TABLE_NAME = METRIC_DATA_TABLE.getName();
         TABLES.put(METRIC_TABLE_NAME, METRIC_TABLE);
         TABLES.put(METRIC_SAMPLES_TABLE_NAME, METRIC_DATA_TABLE);
     }
 
     public MetricsMetadataHandler()
     {
-        super(sourceType);
+        super(SOURCE_TYPE);
         metrics = AmazonCloudWatchClientBuilder.standard().build();
     }
 
@@ -143,16 +117,26 @@ public class MetricsMetadataHandler
             String spillBucket,
             String spillPrefix)
     {
-        super(keyFactory, secretsManager, sourceType, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, SOURCE_TYPE, spillBucket, spillPrefix);
         this.metrics = metrics;
     }
 
+    /**
+     * Only supports a single, static, schema defined by SCHEMA_NAME.
+     *
+     * @see MetadataHandler
+     */
     @Override
     protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         return new ListSchemasResponse(listSchemasRequest.getCatalogName(), Collections.singletonList(SCHEMA_NAME));
     }
 
+    /**
+     * Supports a set of static tables defined by: TABLES
+     *
+     * @see MetadataHandler
+     */
     @Override
     protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
@@ -161,19 +145,35 @@ public class MetricsMetadataHandler
         return new ListTablesResponse(listTablesRequest.getCatalogName(), tables);
     }
 
+    /**
+     * Returns the details of the requested static table.
+     *
+     * @see MetadataHandler
+     */
     @Override
     protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
-        Schema schema = TABLES.get(getTableRequest.getTableName().getTableName());
-        if (schema == null || !SCHEMA_NAME.equalsIgnoreCase(getTableRequest.getTableName().getSchemaName())) {
-            throw new IllegalArgumentException("Unknown table " + getTableRequest.getTableName());
-        }
-        return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), schema);
+        validateTable(getTableRequest.getTableName());
+        Table table = TABLES.get(getTableRequest.getTableName().getTableName());
+        return new GetTableResponse(getTableRequest.getCatalogName(),
+                getTableRequest.getTableName(),
+                table.getSchema(),
+                table.getPartitionColumns());
     }
 
+    /**
+     * Returns single 'partition' since Cloudwatch Metric's APIs do not support the kind of filtering we need to do
+     * reasonably scoped partition pruning. Instead we do the pruning at Split generation time and return a single
+     * partition here. The down side to doing it at Split generation time is that we sacrifice parallelizing Split
+     * generation. However this is not a significant performance detrement to this connector since we can
+     * generate Splits rather quickly and easily.
+     *
+     * @see MetadataHandler
+     */
     @Override
     protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest getTableLayoutRequest)
     {
+        validateTable(getTableLayoutRequest.getTableName());
         //Even though Cloudwatch Metrics are partitioned by NameSpace and Dimension, there are no performant APIs
         //for generating the list of available partitions. Instead we handle that logic as part of doGetSplits
         //which is pipelined with the table scans.
@@ -184,21 +184,28 @@ public class MetricsMetadataHandler
     /**
      * Each 'metric' in cloudwatch is uniquely identified by a quad of Namespace, List<Dimension>, MetricName, Statistic. As such
      * we can parallelize each metric as a unique split.
+     *
+     * @see MetadataHandler
      */
     @Override
     protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
+            throws Exception
     {
-        if (getSplitsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE_NAME)) {
+        validateTable(getSplitsRequest.getTableName());
+
+        //Handle requests for the METRIC_TABLE which requires only 1 split to list available metrics.
+        if (METRIC_TABLE_NAME.equals(getSplitsRequest.getTableName().getTableName())) {
             //The request is just for meta-data about what metrics exist.
             Split metricsSplit = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey()).build();
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), metricsSplit);
         }
 
+        //handle generating splits for reading actual metrics data.
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(blockAllocator,
-                METRIC_DATA_TABLE,
+                METRIC_DATA_TABLE.getSchema(),
                 getSplitsRequest.getConstraints())) {
             ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
-            MetricUtils.pushDownConstraint(getSplitsRequest.getConstraints(), listMetricsRequest);
+            MetricUtils.pushDownPredicate(getSplitsRequest.getConstraints(), listMetricsRequest);
             listMetricsRequest.setNextToken(getSplitsRequest.getContinuationToken());
 
             String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
@@ -226,11 +233,11 @@ public class MetricsMetadataHandler
 
             return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, continuationToken);
         }
-        catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
     }
 
+    /**
+     * Resolved the metric period to query, using a default if no period constraint is found.
+     */
     private String getPeriodFromConstraint(Constraints constraints)
     {
         ValueSet period = constraints.getSummary().get(PERIOD_FIELD);
@@ -238,6 +245,20 @@ public class MetricsMetadataHandler
             return String.valueOf(period.getSingleValue());
         }
 
-        return String.valueOf(DEFAULT_PERIOD);
+        return String.valueOf(DEFAULT_PERIOD_SEC);
+    }
+
+    /**
+     * Validates that the requested schema and table exist in our static set of supported tables.
+     */
+    private void validateTable(TableName tableName)
+    {
+        if (!SCHEMA_NAME.equals(tableName.getSchemaName())) {
+            throw new RuntimeException("Unknown table " + tableName);
+        }
+
+        if (TABLES.get(tableName.getTableName()) == null) {
+            throw new RuntimeException("Unknown table " + tableName);
+        }
     }
 }

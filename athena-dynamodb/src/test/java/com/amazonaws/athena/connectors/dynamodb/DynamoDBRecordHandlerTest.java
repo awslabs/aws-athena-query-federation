@@ -13,6 +13,8 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableMap;
 import org.junit.After;
@@ -28,6 +30,7 @@ import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class DynamoDBRecordHandlerTest
         extends TestBase
@@ -50,7 +53,7 @@ public class DynamoDBRecordHandlerTest
     public void setup()
     {
         allocator = new BlockAllocatorImpl();
-        handler = new DynamoDBRecordHandler(ddbClient);
+        handler = new DynamoDBRecordHandler(ddbClient, mock(AmazonS3.class), mock(AWSSecretsManager.class), "source_type");
     }
 
     @After

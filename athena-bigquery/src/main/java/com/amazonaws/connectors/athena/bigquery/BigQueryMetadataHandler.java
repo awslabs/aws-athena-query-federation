@@ -1,12 +1,7 @@
 package com.amazonaws.connectors.athena.bigquery;
 
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForDatasetName;
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForTableName;
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.translateToArrowType;
-
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -33,26 +28,28 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.resourcemanager.ResourceManager;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+
+import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForDatasetName;
+import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.translateToArrowType;
+
 public class BigQueryMetadataHandler
         extends MetadataHandler
 {
+    public static final String PROJECT_NAME = "BQ_PROJECT_NAME";
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
     private static final String sourceType = "bigquery";
     private static final long MAX_RESULTS = 10_000;
-    public static final String PROJECT_NAME = "BQ_PROJECT_NAME";
-
     private final BigQuery bigQuery;
     private final ResourceManager resourceManager;
 
@@ -63,20 +60,20 @@ public class BigQueryMetadataHandler
                 BigQueryUtils.getResourceManagerClient());
     }
 
-    private String getProjectName(MetadataRequest request)
-    {
-        if (System.getenv(PROJECT_NAME) != null) {
-            return System.getenv(PROJECT_NAME);
-        }
-        return request.getCatalogName();
-    }
-
     @VisibleForTesting
     BigQueryMetadataHandler(BigQuery bigQuery, ResourceManager resourceManager)
     {
         super(sourceType);
         this.bigQuery = bigQuery;
         this.resourceManager = resourceManager;
+    }
+
+    private String getProjectName(MetadataRequest request)
+    {
+        if (System.getenv(PROJECT_NAME) != null) {
+            return System.getenv(PROJECT_NAME);
+        }
+        return request.getCatalogName();
     }
 
     @Override

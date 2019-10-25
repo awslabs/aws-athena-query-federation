@@ -85,11 +85,10 @@ public class AndroidRecordHandler
 
     private void readResultsFromSqs(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {
-
         final Map<String, Field> fields = new HashMap<>();
         readRecordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
 
-        ReceiveMessageRequest receive_request = new ReceiveMessageRequest()
+        ReceiveMessageRequest receiveRequest = new ReceiveMessageRequest()
                 .withQueueUrl(queueUrl)
                 .withWaitTimeSeconds(1);
 
@@ -108,7 +107,7 @@ public class AndroidRecordHandler
         ReceiveMessageResult receiveMessageResult;
         List<DeleteMessageBatchRequestEntry> msgsToAck = new ArrayList<>();
         do {
-            receiveMessageResult = amazonSQS.receiveMessage(receive_request);
+            receiveMessageResult = amazonSQS.receiveMessage(receiveRequest);
             for (com.amazonaws.services.sqs.model.Message next : receiveMessageResult.getMessages()) {
                 try {
                     QueryResponse queryResponse = mapper.readValue(next.getBody(), QueryResponse.class);

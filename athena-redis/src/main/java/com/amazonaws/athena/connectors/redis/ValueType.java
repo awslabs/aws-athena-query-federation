@@ -23,7 +23,7 @@ public enum ValueType
      */
     HASH("hash");
 
-    private static Map<String, ValueType> TYPE_MAP = new HashMap<>();
+    private static final Map<String, ValueType> TYPE_MAP = new HashMap<>();
 
     static {
         for (ValueType next : ValueType.values()) {

@@ -31,29 +31,7 @@ import java.util.stream.Collectors;
 public class VpcTableProvider
         implements TableProvider
 {
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("id")
-                .addStringField("cidr_block")
-                .addStringField("dhcp_opts")
-                .addStringField("tenancy")
-                .addStringField("owner")
-                .addStringField("state")
-                .addBitField("is_default")
-                .addListField("tags", Types.MinorType.VARCHAR.getType())
-                .addMetadata("id", "VPC Id")
-                .addMetadata("cidr_block", "CIDR block used to vend IPs for the VPC.")
-                .addMetadata("dhcp_opts", "DHCP options used for DNS resolution in the VPC.")
-                .addMetadata("tenancy", "EC2 Instance tenancy of this VPC (e.g. dedicated)")
-                .addMetadata("owner", "The owner of the VPC.")
-                .addMetadata("state", "The state of the VPC.")
-                .addMetadata("is_default", "True if the VPC is the default VPC.")
-                .addMetadata("tags", "Tags associated with the volume.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public VpcTableProvider(AmazonEC2 ec2)
@@ -158,5 +136,26 @@ public class VpcTableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("id")
+                .addStringField("cidr_block")
+                .addStringField("dhcp_opts")
+                .addStringField("tenancy")
+                .addStringField("owner")
+                .addStringField("state")
+                .addBitField("is_default")
+                .addListField("tags", Types.MinorType.VARCHAR.getType())
+                .addMetadata("id", "VPC Id")
+                .addMetadata("cidr_block", "CIDR block used to vend IPs for the VPC.")
+                .addMetadata("dhcp_opts", "DHCP options used for DNS resolution in the VPC.")
+                .addMetadata("tenancy", "EC2 Instance tenancy of this VPC (e.g. dedicated)")
+                .addMetadata("owner", "The owner of the VPC.")
+                .addMetadata("state", "The state of the VPC.")
+                .addMetadata("is_default", "True if the VPC is the default VPC.")
+                .addMetadata("tags", "Tags associated with the volume.")
+                .build();
     }
 }

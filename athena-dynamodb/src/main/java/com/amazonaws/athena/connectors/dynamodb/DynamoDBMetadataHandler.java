@@ -64,13 +64,11 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 public class DynamoDBMetadataHandler
         extends GlueMetadataHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
-    private static final String sourceType = "ddb";
-
-    private static final String GLUE_ENV = "disable_glue";
     static final String DEFAULT_SCHEMA = "default";
     static final int MAX_SPLITS_PER_REQUEST = 1000;
-
+    private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
+    private static final String sourceType = "ddb";
+    private static final String GLUE_ENV = "disable_glue";
     private final AmazonDynamoDB ddbClient;
     private final AWSGlue glueClient;
 

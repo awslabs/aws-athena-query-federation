@@ -31,45 +31,7 @@ import java.util.stream.Collectors;
 public class EmrClusterTableProvider
         implements TableProvider
 {
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("id")
-                .addStringField("name")
-                .addIntField("instance_hours")
-                .addStringField("state")
-                .addStringField("state_code")
-                .addStringField("state_msg")
-                .addStringField("autoscaling_role")
-                .addStringField("custom_ami")
-                .addStringField("instance_collection_type")
-                .addStringField("log_uri")
-                .addStringField("master_public_dns")
-                .addStringField("release_label")
-                .addStringField("running_ami")
-                .addStringField("scale_down_behavior")
-                .addStringField("service_role")
-                .addListField("applications", Types.MinorType.VARCHAR.getType())
-                .addListField("tags", Types.MinorType.VARCHAR.getType())
-                .addMetadata("id", "Cluster Id")
-                .addMetadata("name", "Cluster Name")
-                .addMetadata("state", "State of the cluster.")
-                .addMetadata("state_code", "Code associated with the state of the cluster.")
-                .addMetadata("state_msg", "Message associated with the state of the cluster.")
-                .addMetadata("autoscaling_role", "AutoScaling role used by the cluster.")
-                .addMetadata("custom_ami", "Custom AMI used by the cluster (if any)")
-                .addMetadata("instance_collection_type", "Instance collection type used by the cluster.")
-                .addMetadata("log_uri", "URI where debug logs can be found for the cluster.")
-                .addMetadata("master_public_dns", "Public DNS name of the master node.")
-                .addMetadata("release_label", "EMR release label the cluster is running.")
-                .addMetadata("running_ami", "AMI the cluster are running.")
-                .addMetadata("scale_down_behavior", "Scale down behavoir of the cluster.")
-                .addMetadata("applications", "The EMR applications installed on the cluster.")
-                .addMetadata("tags", "Tags associated with the volume.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonElasticMapReduce emr;
 
     public EmrClusterTableProvider(AmazonElasticMapReduce emr)
@@ -105,7 +67,6 @@ public class EmrClusterTableProvider
             ListClustersResult response = emr.listClusters(request);
 
             for (ClusterSummary next : response.getClusters()) {
-
                 Cluster cluster = null;
                 if (!next.getStatus().getState().toLowerCase().contains("terminated")) {
                     DescribeClusterResult clusterResponse = emr.describeCluster(new DescribeClusterRequest().withClusterId(next.getId()));
@@ -241,5 +202,42 @@ public class EmrClusterTableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("id")
+                .addStringField("name")
+                .addIntField("instance_hours")
+                .addStringField("state")
+                .addStringField("state_code")
+                .addStringField("state_msg")
+                .addStringField("autoscaling_role")
+                .addStringField("custom_ami")
+                .addStringField("instance_collection_type")
+                .addStringField("log_uri")
+                .addStringField("master_public_dns")
+                .addStringField("release_label")
+                .addStringField("running_ami")
+                .addStringField("scale_down_behavior")
+                .addStringField("service_role")
+                .addListField("applications", Types.MinorType.VARCHAR.getType())
+                .addListField("tags", Types.MinorType.VARCHAR.getType())
+                .addMetadata("id", "Cluster Id")
+                .addMetadata("name", "Cluster Name")
+                .addMetadata("state", "State of the cluster.")
+                .addMetadata("state_code", "Code associated with the state of the cluster.")
+                .addMetadata("state_msg", "Message associated with the state of the cluster.")
+                .addMetadata("autoscaling_role", "AutoScaling role used by the cluster.")
+                .addMetadata("custom_ami", "Custom AMI used by the cluster (if any)")
+                .addMetadata("instance_collection_type", "Instance collection type used by the cluster.")
+                .addMetadata("log_uri", "URI where debug logs can be found for the cluster.")
+                .addMetadata("master_public_dns", "Public DNS name of the master node.")
+                .addMetadata("release_label", "EMR release label the cluster is running.")
+                .addMetadata("running_ami", "AMI the cluster are running.")
+                .addMetadata("scale_down_behavior", "Scale down behavoir of the cluster.")
+                .addMetadata("applications", "The EMR applications installed on the cluster.")
+                .addMetadata("tags", "Tags associated with the volume.")
+                .build();
     }
 }

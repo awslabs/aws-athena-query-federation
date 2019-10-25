@@ -14,7 +14,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
@@ -25,6 +27,7 @@ import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.After;
@@ -74,7 +77,12 @@ public class GlueMetadataHandlerTest
     public void setUp()
             throws Exception
     {
-        handler = new GlueMetadataHandler(mockGlue, "glue-test")
+        handler = new GlueMetadataHandler(mockGlue,
+                new LocalKeyFactory(),
+                mock(AWSSecretsManager.class),
+                "glue-test",
+                "spill-bucket",
+                "spill-prefix")
         {
             @Override
             protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)

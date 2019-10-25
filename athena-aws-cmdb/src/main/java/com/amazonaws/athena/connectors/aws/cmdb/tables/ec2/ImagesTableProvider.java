@@ -36,75 +36,7 @@ public class ImagesTableProvider
     private static final int MAX_IMAGES = 1000;
     //TODO: move to env var
     private static final String DEFAULT_OWNER = null;
-    private static Schema SCHEMA;
-
-    static {
-        SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("id")
-                .addStringField("architecture")
-                .addStringField("created")
-                .addStringField("description")
-                .addStringField("hypervisor")
-                .addStringField("location")
-                .addStringField("type")
-                .addStringField("kernel")
-                .addStringField("name")
-                .addStringField("owner")
-                .addStringField("platform")
-                .addStringField("ramdisk")
-                .addStringField("root_device")
-                .addStringField("root_type")
-                .addStringField("srvio_net")
-                .addStringField("state")
-                .addStringField("virt_type")
-                .addBitField("is_public")
-                .addField(
-                        FieldBuilder.newBuilder("tags", new ArrowType.List())
-                                .addField(
-                                        FieldBuilder.newBuilder("tag", Types.MinorType.STRUCT.getType())
-                                                .addStringField("key")
-                                                .addStringField("value")
-                                                .build())
-                                .build())
-                .addField(
-                        FieldBuilder.newBuilder("block_devices", new ArrowType.List())
-                                .addField(
-                                        FieldBuilder.newBuilder("device", Types.MinorType.STRUCT.getType())
-                                                .addStringField("dev_name")
-                                                .addStringField("no_device")
-                                                .addStringField("virt_name")
-                                                .addField(
-                                                        FieldBuilder.newBuilder("ebs", Types.MinorType.STRUCT.getType())
-                                                                .addIntField("ebs_size")
-                                                                .addIntField("ebs_iops")
-                                                                .addStringField("ebs_type")
-                                                                .addStringField("ebs_kms_key")
-                                                                .build())
-                                                .build())
-                                .build())
-                .addMetadata("id", "The id of the image.")
-                .addMetadata("architecture", "The architecture required to run the image.")
-                .addMetadata("created", "The date and time the image was created.")
-                .addMetadata("description", "The description associated with the image.")
-                .addMetadata("hypervisor", "The type of hypervisor required by the image.")
-                .addMetadata("location", "The location of the image.")
-                .addMetadata("type", "The type of image.")
-                .addMetadata("kernel", "The kernel used by the image.")
-                .addMetadata("name", "The name of the image.")
-                .addMetadata("owner", "The owner of the image.")
-                .addMetadata("platform", "The platform required by the image.")
-                .addMetadata("ramdisk", "Detailed of the ram disk used by the image.")
-                .addMetadata("root_device", "The root device used by the image.")
-                .addMetadata("root_type", "The type of root device required by the image.")
-                .addMetadata("srvio_net", "Details of srvio network support in the image.")
-                .addMetadata("state", "The state of the image.")
-                .addMetadata("virt_type", "The type of virtualization supported by the image.")
-                .addMetadata("is_public", "True if the image is publically available.")
-                .addMetadata("tags", "Tags associated with the image.")
-                .addMetadata("block_devices", "Block devices required by the image.")
-                .build();
-    }
-
+    private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
     public ImagesTableProvider(AmazonEC2 ec2)
@@ -171,7 +103,6 @@ public class ImagesTableProvider
             BlockSpiller spiller,
             ReadRecordsRequest request)
     {
-
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
@@ -340,5 +271,72 @@ public class ImagesTableProvider
 
             return matched ? 1 : 0;
         });
+    }
+
+    static {
+        SCHEMA = SchemaBuilder.newBuilder()
+                .addStringField("id")
+                .addStringField("architecture")
+                .addStringField("created")
+                .addStringField("description")
+                .addStringField("hypervisor")
+                .addStringField("location")
+                .addStringField("type")
+                .addStringField("kernel")
+                .addStringField("name")
+                .addStringField("owner")
+                .addStringField("platform")
+                .addStringField("ramdisk")
+                .addStringField("root_device")
+                .addStringField("root_type")
+                .addStringField("srvio_net")
+                .addStringField("state")
+                .addStringField("virt_type")
+                .addBitField("is_public")
+                .addField(
+                        FieldBuilder.newBuilder("tags", new ArrowType.List())
+                                .addField(
+                                        FieldBuilder.newBuilder("tag", Types.MinorType.STRUCT.getType())
+                                                .addStringField("key")
+                                                .addStringField("value")
+                                                .build())
+                                .build())
+                .addField(
+                        FieldBuilder.newBuilder("block_devices", new ArrowType.List())
+                                .addField(
+                                        FieldBuilder.newBuilder("device", Types.MinorType.STRUCT.getType())
+                                                .addStringField("dev_name")
+                                                .addStringField("no_device")
+                                                .addStringField("virt_name")
+                                                .addField(
+                                                        FieldBuilder.newBuilder("ebs", Types.MinorType.STRUCT.getType())
+                                                                .addIntField("ebs_size")
+                                                                .addIntField("ebs_iops")
+                                                                .addStringField("ebs_type")
+                                                                .addStringField("ebs_kms_key")
+                                                                .build())
+                                                .build())
+                                .build())
+                .addMetadata("id", "The id of the image.")
+                .addMetadata("architecture", "The architecture required to run the image.")
+                .addMetadata("created", "The date and time the image was created.")
+                .addMetadata("description", "The description associated with the image.")
+                .addMetadata("hypervisor", "The type of hypervisor required by the image.")
+                .addMetadata("location", "The location of the image.")
+                .addMetadata("type", "The type of image.")
+                .addMetadata("kernel", "The kernel used by the image.")
+                .addMetadata("name", "The name of the image.")
+                .addMetadata("owner", "The owner of the image.")
+                .addMetadata("platform", "The platform required by the image.")
+                .addMetadata("ramdisk", "Detailed of the ram disk used by the image.")
+                .addMetadata("root_device", "The root device used by the image.")
+                .addMetadata("root_type", "The type of root device required by the image.")
+                .addMetadata("srvio_net", "Details of srvio network support in the image.")
+                .addMetadata("state", "The state of the image.")
+                .addMetadata("virt_type", "The type of virtualization supported by the image.")
+                .addMetadata("is_public", "True if the image is publically available.")
+                .addMetadata("tags", "Tags associated with the image.")
+                .addMetadata("block_devices", "Block devices required by the image.")
+                .build();
     }
 }

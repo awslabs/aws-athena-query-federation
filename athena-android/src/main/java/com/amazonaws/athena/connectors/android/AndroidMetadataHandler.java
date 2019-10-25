@@ -31,7 +31,10 @@ public class AndroidMetadataHandler
     private static final String sourceType = "android";
     private static final AndroidDeviceTable androidDeviceTable = new AndroidDeviceTable();
 
-    public AndroidMetadataHandler() {super(sourceType);}
+    public AndroidMetadataHandler()
+    {
+        super(sourceType);
+    }
 
     @VisibleForTesting
     protected AndroidMetadataHandler(

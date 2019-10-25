@@ -15,7 +15,7 @@ The Athena Cloudwatch Metrics Connector exposes several configuration options vi
 
 ### Databases & Tables
 
-The Athena Cloudwatch Metrics Connector maps your Namespaces, Dimensions, Metrics, and Metric Values into two tables.
+The Athena Cloudwatch Metrics Connector maps your Namespaces, Dimensions, Metrics, and Metric Values into two tables in a single schema called "default".
 
 1. **metrics** - This table contains the available metrics as uniquely defined by a triple of namespace, set<dimension>, name. More specifically, this table contains the following columns.
 
@@ -49,10 +49,23 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-cloudwatch dir, run `mvn clean install`.
-3. From the athena-cloudwatch dir, run `sam package --template-file athena-cloudwatch-metrics.yaml --output-template-file packaged.yaml --s3-bucket <your_lambda_source_bucket_name>`
-4. Deploy your application using either Server-less Application Repository or Lambda directly. Instructions below.
+3. From the athena-cloudwatch dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-cloudwatch-metrics` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+4. Try running a query like the one below in Athena: 
+```sql
+-- Get the list of available metrics
+select * from "lambda:<CATALOG_NAME>"."default".metrics limit 100
 
-For Server-less Application Repository, run `sam publish --template packaged.yaml --region <aws_region>` from the athena-cloudwatch-metrics directory and then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+-- Query the last 3 days of AWS/Lambda Invocations metrics
+SELECT * 
+FROM   "lambda:<CATALOG_NAME>"."default".metric_samples 
+WHERE  metric_name = 'Invocations' 
+       AND namespace = 'AWS/Lambda' 
+       AND statistic IN ( 'p90', 'Average' ) 
+       AND period = 60 
+       AND timestamp BETWEEN To_unixtime(Now() - INTERVAL '3' day) AND 
+                             To_unixtime(Now()) 
+LIMIT  100; 
+```
 
 For a direct deployment to Lambda, you can use the below command from the athena-cloudwatch-metrics directory. Be sure to insert your S3 Bucket and Role ARN as indicated.
 

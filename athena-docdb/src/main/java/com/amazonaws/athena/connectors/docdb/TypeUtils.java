@@ -18,7 +18,6 @@ public class TypeUtils
      */
     public static Object coerce(Field field, Object origVal)
     {
-
         if (origVal == null) {
             return origVal;
         }

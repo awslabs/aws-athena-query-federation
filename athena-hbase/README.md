@@ -15,8 +15,9 @@ The Athena HBase Connector supports several configuration options via Lambda env
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 5. **disable_glue** - (Optional) If present, with any valye, the connector will no longer attempt to retrieve supplemental metadata from Glue.
+6. **default_hbase** If present, this HBase connection string (e.g. master_hostname:zookeeper_port:hbase_port) is used when there is not a catalog specific environment variable (as explained below).
 
-You also need to provide one or more properties which define the HBase connection details for the HBase instance(s) you'd like this connector to use. You can do this by setting a Lambda environment variable that corresponds to the catalog name you'd like to use in Athena. For example, if I'd like to query two different HBase instances from Athena in the below queries:
+You can also provide one or more properties which define the HBase connection details for the HBase instance(s) you'd like this connector to use. You can do this by setting a Lambda environment variable that corresponds to the catalog name you'd like to use in Athena. For example, if I'd like to query two different HBase instances from Athena in the below queries:
 
 ```sql
  select * from "hbase_instance_1".database.table 
@@ -73,10 +74,7 @@ To use the Amazon Athena HBase Connector in your queries, navigate to AWS Server
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-hbase dir, run `mvn clean install`.
-3. From the athena-hbase dir, run `sam package --template-file athena-hbase.yaml --output-template-file packaged.yaml --s3-bucket <your_lambda_source_bucket_name>`
-4. Deploy your application using either Server-less Application Repository or Lambda directly. Instructions below.
-
-For Server-less Application Repository, run `sam publish --template packaged.yaml --region <aws_region>` from the athena-hbase directory and then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+3. From the athena-hbase dir, run `../tools/publish.sh S3_BUCKET_NAME athena-hbase` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/) to search for your application and deploy it before using it from Athena.
 
 For a direct deployment to Lambda, you can use the below command from the athena-hbase directory. Be sure to insert your S3 Bucket and Role ARN as indicated. You also need to go to the Lambda console to configure your VPC details so that Lambda function can access your HBase instance(s) as well as S3.
 

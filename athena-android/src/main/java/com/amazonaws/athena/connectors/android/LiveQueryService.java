@@ -18,7 +18,8 @@ public class LiveQueryService
     private static final String PUSH_MSG_FIELD = "query_request";
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public LiveQueryService(String authConfig, String databaseUrl){
+    public LiveQueryService(String authConfig, String databaseUrl)
+    {
         try {
             InputStream inputStream = new ByteArrayInputStream(authConfig.getBytes());
             FirebaseOptions options = new FirebaseOptions.Builder()
@@ -45,5 +46,4 @@ public class LiveQueryService
             throw new RuntimeException(ex);
         }
     }
-
 }

@@ -25,8 +25,10 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataService;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperUtil;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -44,6 +46,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
 
 public class ExampleMetadataHandlerTest
 {
@@ -296,7 +299,7 @@ public class ExampleMetadataHandlerTest
         public LocalHandler(BlockAllocatorImpl allocator)
         {
             this.allocator = allocator;
-            handler = new ExampleMetadataHandler();
+            handler = new ExampleMetadataHandler(new LocalKeyFactory(), mock(AWSSecretsManager.class), "spill-bucket", "spill-prefix");
         }
 
         public void setEncryption(boolean enableEncryption)

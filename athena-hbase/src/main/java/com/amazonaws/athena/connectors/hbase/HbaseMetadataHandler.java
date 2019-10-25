@@ -32,8 +32,6 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,28 +42,49 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.amazonaws.athena.connectors.hbase.HbaseSchemaUtils.toBytes;
-
+/**
+ * Handles metadata requests for the Athena HBase Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Uses a Glue table property (hbase-metadata-flag) to indicate that the table (whose name matched the HBase table
+ * name) can indeed be used to supplement metadata from HBase itself.
+ * 2. Uses a Glue table property (hbase-native-storage-flag) to indicate that the table is stored in HBase
+ * using native byte storage (e.g. int as 4 BYTES instead of int serialized as a String).
+ * 3. Attempts to resolve sensitive fields such as HBase connection strings via SecretsManager so that you can substitute
+ * variables with values from by doing something like hostname:port:password=${my_secret}
+ */
 public class HbaseMetadataHandler
         extends GlueMetadataHandler
 {
+    //FLAG used to indicate the given table is stored using HBase native formatting not as strings
+    protected static final String HBASE_NATIVE_STORAGE_FLAG = "hbase-native-storage-flag";
+    //Field name used to store the connection string as a property on Split objects.
+    protected static final String HBASE_CONN_STR = "connStr";
+    //Field name used to store the HBase scan start key as a property on Split objects.
+    protected static final String START_KEY_FIELD = "start_key";
+    //Field name used to store the HBase scan end key as a property on Split objects.
+    protected static final String END_KEY_FIELD = "end_key";
+    //Field name used to store the HBase region id as a property on Split objects.
+    protected static final String REGION_ID_FIELD = "region_id";
+    //Field name used to store the HBase region name as a property on Split objects.
+    protected static final String REGION_NAME_FIELD = "region_name";
     private static final Logger logger = LoggerFactory.getLogger(HbaseMetadataHandler.class);
-
+    //The Env variable name used to store the default HBase connection string if no catalog specific
+    //env variable is set.
     private static final String DEFAULT_HBASE = "default_hbase";
+    //The Glue table property that indicates that a table matching the name of an HBase table
+    //is indeed enabled for use by this connector.
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack a redis endpoint.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
+    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplimental
+    //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV_VAR = "disable_glue";
+    //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
+    //The number of rows to scan when attempting to infer schema from an HBase table.
     private static final int NUM_ROWS_TO_SCAN = 10;
-
-    protected static final String HBASE_NATIVE_STORAGE_FLAG = "hbase-native-storage-flag";
-    protected static final String HBASE_CONN_STR = "connStr";
-    protected static final String START_KEY_FIELD = "start_key";
-    protected static final String END_KEY_FIELD = "end_key";
-    protected static final String REGION_ID_FIELD = "region_id";
-    protected static final String REGION_NAME_FIELD = "region_name";
-
     private final AWSGlue awsGlue;
     private final HbaseConnectionFactory connectionFactory;
 
@@ -110,6 +129,11 @@ public class HbaseMetadataHandler
         return conStr;
     }
 
+    /**
+     * List namespaces in your HBase instance treating each as a 'schema' (aka database)
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
             throws IOException
@@ -125,6 +149,12 @@ public class HbaseMetadataHandler
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
+    /**
+     * List tables in the requested schema in your HBase instance treating the requested schema as an HBase
+     * namespace.
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws IOException
@@ -142,6 +172,14 @@ public class HbaseMetadataHandler
         return new ListTablesResponse(request.getCatalogName(), tableNames);
     }
 
+    /**
+     * If Glue is enabled as a source of supplemental metadata we look up the requested Schema/Table in Glue and
+     * filters out any results that don't have the HBASE_METADATA_FLAG set. If no matching results were found in Glue,
+     * then we resort to inferring the schema of the HBase table using HbaseSchemaUtils.inferSchema(...). If there
+     * is no such table in HBase the operation will fail.
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
             throws Exception
@@ -183,6 +221,8 @@ public class HbaseMetadataHandler
     /**
      * Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
      * 1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
+     *
+     * @see GlueMetadataHandler
      */
     @Override
     protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
@@ -199,6 +239,8 @@ public class HbaseMetadataHandler
 
     /**
      * If the table is spread across multiple region servers, then we parallelize the scan by making each region server a split.
+     *
+     * @see GlueMetadataHandler
      */
     @Override
     protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
@@ -223,10 +265,12 @@ public class HbaseMetadataHandler
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
     }
 
+    /**
+     * @see GlueMetadataHandler
+     */
     @Override
     protected Field convertField(String name, String glueType)
     {
         return GlueFieldLexer.lex(name, glueType);
     }
 }
-
