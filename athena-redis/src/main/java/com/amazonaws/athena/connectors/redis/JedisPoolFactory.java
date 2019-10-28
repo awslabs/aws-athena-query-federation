@@ -49,7 +49,7 @@ public class JedisPoolFactory
      * @param conStr Redis connection details, format is expected to be host:port or host:port:password_token
      * @return A Jedis connection if the connection succeeded, else the function will throw.
      */
-    public Jedis getOrCreateConn(String conStr)
+    public synchronized Jedis getOrCreateConn(String conStr)
     {
         JedisPool pool = clientCache.get(conStr);
         if (pool == null) {

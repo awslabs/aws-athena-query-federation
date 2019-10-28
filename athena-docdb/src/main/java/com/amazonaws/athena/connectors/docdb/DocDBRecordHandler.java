@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -33,7 +34,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -45,52 +45,74 @@ import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
+
+/**
+ * Handles data read record requests for the Athena DocumentDB Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Attempts to resolve sensitive configuration fields such as HBase connection string via SecretsManager so that you can
+ * substitute variables with values from by doing something like hostname:port:password=${my_secret}
+ */
 public class DocDBRecordHandler
         extends RecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(DocDBRecordHandler.class);
 
+    //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
+    //Controls the page size for fetching batches of documents from the MongoDB client.
     private static final int MONGO_QUERY_BATCH_SIZE = 100;
 
-    private final Map<String, MongoClient> clientCache;
-    private final AmazonS3 amazonS3;
+    private final DocDBConnectionFactory connectionFactory;
 
     public DocDBRecordHandler()
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), new HashMap<>());
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), new DocDBConnectionFactory());
     }
 
     @VisibleForTesting
-    protected DocDBRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, Map<String, MongoClient> clientCache)
+    protected DocDBRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, DocDBConnectionFactory connectionFactory)
     {
         super(amazonS3, secretsManager, SOURCE_TYPE);
-        this.amazonS3 = amazonS3;
-        this.clientCache = clientCache;
+        this.connectionFactory = connectionFactory;
     }
 
-    private MongoClient getOrCreateClient(ReadRecordsRequest request)
+    /**
+     * Gets the special DOCDB_CONN_STR property from the provided split and uses its contents to getOrCreate
+     * a MongoDB client connection.
+     *
+     * @param split The split to that we need to read and this the DocDB instance to connecto ro.
+     * @return A MongoClient connected to the request DB instance.
+     * @note This method attempts to resolve any SecretsManager secrets that are using in the connection string and denoted
+     * by ${secret_name}.
+     */
+    private MongoClient getOrCreateConn(Split split)
     {
-        String catalog = request.getCatalogName();
-        MongoClient result = clientCache.get(catalog);
-        if (result == null) {
-            result = MongoClients.create(System.getenv(catalog));
-            clientCache.put(catalog, result);
+        String conStr = split.getProperty(DOCDB_CONN_STR);
+        if (conStr == null) {
+            throw new RuntimeException(DOCDB_CONN_STR + " Split property is null! Unable to create connection.");
         }
-        return result;
+        String endpoint = resolveSecrets(conStr);
+        return connectionFactory.getOrCreateConn(endpoint);
     }
 
+    /**
+     * Scans DocumentDB using the scan settings set on the requested Split by DocDBeMetadataHandler.
+     *
+     * @see RecordHandler
+     */
     @Override
     protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
         TableName tableName = recordsRequest.getTableName();
         Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
 
-        MongoClient client = getOrCreateClient(recordsRequest);
+        MongoClient client = getOrCreateConn(recordsRequest.getSplit());
         MongoDatabase db = client.getDatabase(tableName.getSchemaName());
         MongoCollection<Document> table = db.getCollection(tableName.getTableName());
 

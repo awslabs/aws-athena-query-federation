@@ -26,8 +26,8 @@ You can also provide one or more properties which define the HBase connection de
 
 To support these two SQL statements we'd need to add two environment variables to our Lambda function:
 
-1. **hbase_instance_1** - The value should the the HBase connection details in the format of: master_hostname:zookeeper_port:hbase_port
-2. **hbase_instance_2** - The value should the the HBase connection details in the format of: master_hostname:zookeeper_port:hbase_port
+1. **hbase_instance_1** - The value should be the HBase connection details in the format of: master_hostname:zookeeper_port:hbase_port
+2. **hbase_instance_2** - The value should be the HBase connection details in the format of: master_hostname:zookeeper_port:hbase_port
 
 You can also optionally use SecretsManager for part or all of the value for the preceeding connection details. For example, if I set a Lambda environment variable for  **hbase_instance_1** to be "${hbase_host_1}:${hbase_zookeeper_port_1}:${hbase_master_port_1}" the Athena Federation SDK will automatically attempt to retrieve a secret from AWS SecretsManager named "hbase_host_1" and inject that value in place of "${hbase_host_1}". It wil do the same for the other secrets: hbase_zookeeper_port_1, hbase_master_port_1. Basically anything between ${...} is attempted as a secret in SecretsManager. If no such secret exists, the text isn't replaced.
 

@@ -73,6 +73,7 @@ public class HbaseRecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(HbaseRecordHandler.class);
 
+    //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
 
     private final AmazonS3 amazonS3;

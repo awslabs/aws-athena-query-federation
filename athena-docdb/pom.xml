@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>athena-mongodb</artifactId>
+    <artifactId>athena-docdb</artifactId>
 
     <dependencies>
         <dependency>

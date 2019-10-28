@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -40,6 +40,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Collection of helpful utilities that handle DocumentDB schema inference, type, and naming conversion.
+ */
 public class SchemaUtils
 {
     private static final Logger logger = LoggerFactory.getLogger(SchemaUtils.class);
@@ -47,12 +50,19 @@ public class SchemaUtils
     private SchemaUtils() {}
 
     /**
-     * Used to infer the schema from a sampling of documents.
+     * This method will produce an Apache Arrow Schema for the given TableName and DocumentDB connection
+     * by scanning up to the requested number of rows and using basic schema inference to determine
+     * data types.
      *
-     * @param client
-     * @param table
-     * @param numObjToSample The number of documents to sample when inferring the schema.
-     * @return The inferred schema.
+     * @param client The DocumentDB connection to use for the scan operation.
+     * @param table The DocumentDB TableName for which to produce an Apache Arrow Schema.
+     * @param numObjToSample The number of records to scan as part of producing the Schema.
+     * @return An Apache Arrow Schema representing the schema of the HBase table.
+     * @note The resulting schema is a union of the schema of every row that is scanned. Presently the code does not
+     * attempt to resolve conflicts if unique field has different types across documents. It is recommend that you
+     * use AWS Glue to define a schema for tables which may have such conflicts. In the future we may enhance this method
+     * to use a reasonable default (like String) and coerce heterogeneous fields to avoid query failure but forcing
+     * explicit handling by defining Schema in AWS Glue is likely a better approach.
      */
     public static Schema inferSchema(MongoClient client, TableName table, int numObjToSample)
     {
@@ -79,6 +89,13 @@ public class SchemaUtils
         }
     }
 
+    /**
+     * Infers the type of a single DocumentDB document field.
+     *
+     * @param key The key of the field we are attempting to infer.
+     * @param value A value from the key whose type we are attempting to infer.
+     * @return The Apache Arrow field definition of the inferred key/value.
+     */
     public static Field getArrowField(String key, Object value)
     {
         if (value instanceof String) {

@@ -95,9 +95,9 @@ public class HbaseMetadataHandler
     //The Glue table property that indicates that a table matching the name of an HBase table
     //is indeed enabled for use by this connector.
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
-    //Used to filter out Glue tables which lack a redis endpoint.
+    //Used to filter out Glue tables which lack HBase metadata flag.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplimental
+    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
     //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV_VAR = "disable_glue";
     //Used to denote the 'type' of this connector for diagnostic purposes.

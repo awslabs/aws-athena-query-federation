@@ -59,7 +59,7 @@ public class HbaseConnectionFactory
      * @param name The name of the property (e.g. hbase.rpc.timeout).
      * @param value The value of the property to set on the HBase client config object before construction.
      */
-    public void setClientConfig(String name, String value)
+    public synchronized void setClientConfig(String name, String value)
     {
         defaultClientConfig.put(name, value);
     }
@@ -70,7 +70,7 @@ public class HbaseConnectionFactory
      * @return Map<String ,   String> where the Key is the config name and the value is the config value.
      * @note This can be helpful when logging diagnostic info.
      */
-    public Map<String, String> getClientConfigs()
+    public synchronized Map<String, String> getClientConfigs()
     {
         return Collections.unmodifiableMap(defaultClientConfig);
     }
@@ -81,9 +81,9 @@ public class HbaseConnectionFactory
      * @param conStr HBase connection details, format is expected to be host:zookeeper_port:master_port
      * @return An HBase connection if the connection succeeded, else the function will throw.
      */
-    public Connection getOrCreateConn(String conStr)
+    public synchronized Connection getOrCreateConn(String conStr)
     {
-        logger.info("getOrCreateConn: enter[{}]", conStr);
+        logger.info("getOrCreateConn: enter");
         Connection conn = clientCache.get(conStr);
 
         if (conn == null || !connectionTest(conn)) {
@@ -149,7 +149,7 @@ public class HbaseConnectionFactory
      * @param conn The connection to inject into the client cache, most often a Mock used in testing.
      */
     @VisibleForTesting
-    protected void addConnection(String conStr, Connection conn)
+    protected synchronized void addConnection(String conStr, Connection conn)
     {
         clientCache.put(conStr, conn);
     }

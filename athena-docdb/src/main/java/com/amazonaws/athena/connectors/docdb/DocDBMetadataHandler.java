@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -41,9 +41,9 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
+import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCursor;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
@@ -53,33 +53,56 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Handles metadata requests for the Athena DocumentDB Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Uses a Glue table property (docfb-metadata-flag) to indicate that the table (whose name matched the DocDB collection
+ * name) can indeed be used to supplement metadata from DocDB itself.
+ * 2. Attempts to resolve sensitive fields such as DocDB connection strings via SecretsManager so that you can substitute
+ * variables with values from by doing something like:
+ * mongodb://${docdb_instance_1_creds}@myhostname.com:123/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0
+ */
 public class DocDBMetadataHandler
         extends GlueMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(DocDBMetadataHandler.class);
 
+    //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
+    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
+    //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV_VAR = "disable_glue";
-    private static final int SCHEMA_INFERRENCE_NUM_DOCS = 4;
+    //Field name used to store the connection string as a property on Split objects.
+    protected static final String DOCDB_CONN_STR = "connStr";
+    //The Env variable name used to store the default DocDB connection string if no catalog specific
+    //env variable is set.
+    private static final String DEFAULT_DOCDB = "default_docdb";
+    //The Glue table property that indicates that a table matching the name of an DocDB table
+    //is indeed enabled for use by this connector.
+    private static final String DOCDB_METADATA_FLAG = "docdb-metadata-flag";
+    //Used to filter out Glue tables which lack a docdb metadata flag.
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(DOCDB_METADATA_FLAG);
+    //The number of documents to scan when attempting to infer schema from an DocDB collection.
+    private static final int SCHEMA_INFERRENCE_NUM_DOCS = 10;
 
     private final AWSGlue glue;
-    private final Map<String, MongoClient> clientCache;
+    private final DocDBConnectionFactory connectionFactory;
 
     public DocDBMetadataHandler()
     {
         super((System.getenv(GLUE_ENV_VAR) == null) ? AWSGlueClientBuilder.standard().build() : null, SOURCE_TYPE);
         glue = getAwsGlue();
-        clientCache = new HashMap<>();
+        connectionFactory = new DocDBConnectionFactory();
     }
 
     @VisibleForTesting
     protected DocDBMetadataHandler(AWSGlue glue,
-            Map<String, MongoClient> clientCache,
+            DocDBConnectionFactory connectionFactory,
             EncryptionKeyFactory keyFactory,
             AWSSecretsManager secretsManager,
             String spillBucket,
@@ -87,25 +110,40 @@ public class DocDBMetadataHandler
     {
         super(glue, keyFactory, secretsManager, SOURCE_TYPE, spillBucket, spillPrefix);
         this.glue = glue;
-        this.clientCache = clientCache;
+        this.connectionFactory = connectionFactory;
     }
 
-    private MongoClient getOrCreateClient(MetadataRequest request)
+    private MongoClient getOrCreateConn(MetadataRequest request)
     {
-        String catalog = request.getCatalogName();
-        MongoClient result = clientCache.get(catalog);
-        if (result == null) {
-            result = MongoClients.create(System.getenv(catalog));
-            clientCache.put(catalog, result);
-        }
-        return result;
+        String endpoint = resolveSecrets(getConnStr(request));
+        return connectionFactory.getOrCreateConn(endpoint);
     }
 
+    /**
+     * Retrieves the DocDB connection details from an env variable matching the catalog name, if no such
+     * env variable exists we fall back to the default env variable defined by DEFAULT_DOCDB.
+     */
+    private String getConnStr(MetadataRequest request)
+    {
+        String conStr = System.getenv(request.getCatalogName());
+        if (conStr == null) {
+            logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
+                    request.getCatalogName(), DEFAULT_DOCDB);
+            conStr = System.getenv(DEFAULT_DOCDB);
+        }
+        return conStr;
+    }
+
+    /**
+     * List databases in your DocumentDB instance treating each as a 'schema' (aka database)
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
     {
         List<String> schemas = new ArrayList<>();
-        MongoClient client = getOrCreateClient(request);
+        MongoClient client = getOrCreateConn(request);
         try (MongoCursor<String> itr = client.listDatabaseNames().iterator()) {
             while (itr.hasNext()) {
                 schemas.add(itr.next());
@@ -115,10 +153,16 @@ public class DocDBMetadataHandler
         }
     }
 
+    /**
+     * List collections in the requested schema in your DocumentDB instance treating the requested schema as an DocumentDB
+     * database.
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
-        MongoClient client = getOrCreateClient(request);
+        MongoClient client = getOrCreateConn(request);
         List<TableName> tables = new ArrayList<>();
 
         try (MongoCursor<String> itr = client.getDatabase(request.getSchemaName()).listCollectionNames().iterator()) {
@@ -130,25 +174,47 @@ public class DocDBMetadataHandler
         }
     }
 
+    /**
+     * If Glue is enabled as a source of supplemental metadata we look up the requested Schema/Table in Glue and
+     * filters out any results that don't have the DOCDB_METADATA_FLAG set. If no matching results were found in Glue,
+     * then we resort to inferring the schema of the DocumentDB collection using SchemaUtils.inferSchema(...). If there
+     * is no such table in DocumentDB the operation will fail.
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
+            throws Exception
     {
+        logger.info("doGetTable: enter", request.getTableName());
+        Schema schema = null;
         try {
             if (glue != null) {
-                return super.doGetTable(blockAllocator, request);
+                schema = super.doGetTable(blockAllocator, request, TABLE_FILTER).getSchema();
+                logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
         }
-        catch (Exception ex) {
-            logger.warn("doGetTable: Unable to retrieve table[{}] from AWSGlue.", request.getTableName(), ex);
+        catch (RuntimeException ex) {
+            logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
+                    request.getTableName().getSchemaName(),
+                    request.getTableName().getTableName(),
+                    ex);
         }
 
-        MongoClient client = getOrCreateClient(request);
-        TableName tableName = request.getTableName();
-        Schema schema = SchemaUtils.inferSchema(client, tableName, SCHEMA_INFERRENCE_NUM_DOCS);
-
-        return new GetTableResponse(request.getCatalogName(), tableName, schema);
+        if (schema == null) {
+            logger.info("doGetTable: Inferring schema for table[{}].", request.getTableName());
+            MongoClient client = getOrCreateConn(request);
+            schema = SchemaUtils.inferSchema(client, request.getTableName(), SCHEMA_INFERRENCE_NUM_DOCS);
+        }
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
     }
 
+    /**
+     * Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
+     * 1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
     {
@@ -158,6 +224,12 @@ public class DocDBMetadataHandler
         return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions, new HashSet<>());
     }
 
+    /**
+     * Since our connector does not support parallel scans we generate a single Split and include the connection details
+     * as a property on the split so that the RecordHandler has easy access to it.
+     *
+     * @see GlueMetadataHandler
+     */
     @Override
     protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
     {
@@ -166,9 +238,14 @@ public class DocDBMetadataHandler
 
         //Since our connector does not support parallel reads we return a fixed split.
         return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey()).build());
+                Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .add(DOCDB_CONN_STR, getConnStr(request))
+                        .build());
     }
 
+    /**
+     * @see GlueMetadataHandler
+     */
     @Override
     protected Field convertField(String name, String glueType)
     {

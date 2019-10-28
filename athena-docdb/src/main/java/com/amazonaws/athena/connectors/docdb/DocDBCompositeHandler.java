@@ -21,6 +21,10 @@ package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
+/**
+ * Boilerplate composite handler that allows us to use a single Lambda function for both
+ * Metadata and Data. In this case we just compose DocDBMetadataHandler and DocDBRecordHandler.
+ */
 public class DocDBCompositeHandler
         extends CompositeHandler
 {

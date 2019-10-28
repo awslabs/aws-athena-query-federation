@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -75,6 +75,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -91,6 +92,7 @@ public class DocDBRecordHandlerTest
 
     private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
     private String catalog = "default";
+    private String conStr = "connectionString";
     private DocDBRecordHandler handler;
     private BlockAllocator allocator;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
@@ -98,6 +100,9 @@ public class DocDBRecordHandlerTest
     private S3BlockSpillReader spillReader;
     private Schema schemaForRead;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
+
+    @Mock
+    private DocDBConnectionFactory connectionFactory;
 
     @Mock
     private MongoClient mockClient;
@@ -135,8 +140,7 @@ public class DocDBRecordHandlerTest
                 .addListField("list", Types.MinorType.VARCHAR.getType())
                 .build();
 
-        Map<String, MongoClient> clientCache = new HashMap<>();
-        clientCache.put(catalog, mockClient);
+        when(connectionFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
 
         allocator = new BlockAllocatorImpl();
 
@@ -174,7 +178,7 @@ public class DocDBRecordHandlerTest
                     }
                 });
 
-        handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, clientCache);
+        handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, connectionFactory);
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         logger.info("setUpBefore - exit");
@@ -251,7 +255,7 @@ public class DocDBRecordHandlerTest
                 "queryId-" + System.currentTimeMillis(),
                 new TableName(schema, table),
                 schemaForRead,
-                Split.newBuilder(splitLoc, keyFactory.create()).build(),
+                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, conStr).build(),
                 new Constraints(constraintsMap),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
@@ -317,7 +321,7 @@ public class DocDBRecordHandlerTest
                 "queryId-" + System.currentTimeMillis(),
                 new TableName(schema, table),
                 schemaForRead,
-                Split.newBuilder(splitLoc, keyFactory.create()).add("col1", "1").build(),
+                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, conStr).build(),
                 new Constraints(constraintsMap),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L

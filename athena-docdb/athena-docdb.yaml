@@ -2,8 +2,6 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: AthenaDocumentDBConnector
-    Description: This connector enables Amazon Athena to communicate with your DocumentDB instance(s), making your DocumentDB data accessible via SQL.
     Author: Amazon Athena
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -52,9 +50,6 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Sub "${AthenaCatalogName}-connector"
-      Handler: "com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler"
-      CodeUri: "./target/athena-docdb-1.0.jar"
-      Description: "Enables Amazon Athena to communicate with DocumentDB, making your DocumentDB data accessible via SQL."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
@@ -63,3 +58,102 @@ Resources:
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
             BucketName: !Ref SpillBucket
+
+
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaDocumentDBConnector
+    Description: This connector enables Amazon Athena to communicate with your DocumentDB instance(s), making your DocumentDB data accessible via SQL.
+    Author: 'Amazon Athena'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - athena-federation
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 1.0.0
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name.'
+    Type: String
+  SpillBucket:
+    Description: 'The bucket where this function can spill data.'
+    Type: String
+    Default: athena-federation-spill
+  SpillPrefix:
+    Description: 'The bucket prefix where this function can spill large responses.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 90
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
+    Default: 'false'
+    Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  SecretNameOrPrefix:
+    Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. hbase-*).'
+    Type: String
+  DocDBConnectionString:
+    Description: 'The DocDB connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
+    Type: String
+    Default: "e.g. mongodb://<username>:<password>@<hostname>:<port>/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0"
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          default_docdb: !Ref DocDBConnectionString
+      FunctionName: !Ref AthenaCatalogName
+      Handler: "com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler"
+      CodeUri: "./target/athena-docdb-1.0.jar"
+      Description: "Enables Amazon Athena to communicate with DocumentDB, making your DocumentDB data accessible via SQL."
+      Runtime: java8
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds

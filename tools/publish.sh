@@ -12,10 +12,20 @@ cat << EOF
 # 6. Published the connector to you private Serverless Application Repository where you can 1-click deploy it.
 EOF
 
-if [ "$#" -ne 2 ]; then
-    echo "\n\nERROR: Script requires 2 arguments \n"
+while true; do
+    read -p "Do you wish to proceed? (yes or no) " yn
+    case $yn in
+        [Yy]* ) echo "Proceeding..."; break;;
+        [Nn]* ) exit;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
+if [ "$#" -lt 2 ]; then
+    echo "\n\nERROR: Script requires 3 arguments \n"
     echo "\n1. S3_BUCKET used for publishing artifacts to Lambda/Serverless App Repo.\n"
     echo "\n2. The connector module to publish (e.g. athena-exmaple or athena-cloudwatch) \n"
+    echo "\n3. The AS REGION to target (e.g. us-east-1 or us-east-2) \n"
     echo "\n\n USAGE from the module's directory: ../tools/publish.sh my_s3_bucket athena-example \n"
     exit;
 fi
@@ -27,27 +37,25 @@ else
   cd $2
 fi
 
-while true; do
-    read -p "Do you wish to proceed? (yes or no) " yn
-    case $yn in
-        [Yy]* ) echo "Proceeding..."; break;;
-        [Nn]* ) exit;;
-        * ) echo "Please answer yes or no.";;
-    esac
-done
+REGION=$3
+if [ -z "$REGION" ]
+then
+      REGION="us-east-1"
+fi
 
-echo "This script may add a bucket policy to $1 for Serverless App Repo if one is not already present."
-while true; do
-    read -p "Do you wish to proceed? (yes or no) " yn
-    case $yn in
-        [Yy]* ) echo "Proceeding..."; break;;
-        [Nn]* ) exit;;
-        * ) echo "Please answer yes or no.";;
-    esac
-done
+echo "Using AWS Region $REGION"
 
-if ! aws s3api get-bucket-policy --bucket athena-federation-demo-1 | grep 'Statement' ; then
-    echo "No bucket policy is set, adding Serverless Application Repository Bucket Policy"
+
+if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' ; then
+    echo "No bucket policy is set on $1 , would you like to add a Serverless Application Repository Bucket Policy?"
+    while true; do
+        read -p "Do you wish to proceed? (yes or no) " yn
+        case $yn in
+            [Yy]* ) echo "Proceeding..."; break;;
+            [Nn]* ) echo "Skipping bucket policy, not that this may result in failed attempts to publish to Serverless Application Repository"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
 
 cat > sar_bucket_policy.json <<- EOM
 {
@@ -65,12 +73,12 @@ cat > sar_bucket_policy.json <<- EOM
     }
 EOM
     set -e
-    aws s3api put-bucket-policy --bucket $1 --policy  file://sar_bucket_policy.json
+    aws s3api put-bucket-policy --bucket $1 --region $REGION --policy  file://sar_bucket_policy.json
 fi
 
 set -e
 mvn clean install
 
-sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1
-sam publish --template packaged.yaml
+sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1 --region $REGION
+sam publish --template packaged.yaml --region $REGION
 

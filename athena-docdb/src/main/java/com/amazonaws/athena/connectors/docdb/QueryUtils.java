@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,7 +37,6 @@ package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
@@ -50,6 +49,12 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static java.util.stream.Collectors.toList;
 
+/**
+ * Collection of helper methods which build Documents for use in DocumentDB queries, including:
+ * 1. Projections
+ * 2. Predicates
+ * 3. Queries (a collection of predicates)
+ */
 public final class QueryUtils
 {
     private static final String OR_OP = "$or";
@@ -71,6 +76,13 @@ public final class QueryUtils
     {
     }
 
+    /**
+     * Given a Schema create a projection document which can be used to request only specific Document fields
+     * from DocumentDB.
+     *
+     * @param schema The schema containing the requested projection.
+     * @return A Document matching the requested field projections.
+     */
     public static Document makeProjection(Schema schema)
     {
         Document output = new Document();
@@ -80,6 +92,14 @@ public final class QueryUtils
         return output;
     }
 
+    /**
+     * Given a set of Constraints and the projection Schema, create the Query Document that can be used to
+     * push predicates into DocumentDB.
+     *
+     * @param schema The schema containing the requested projection.
+     * @param constraintSummary The set of constraints to apply to the query.
+     * @return The Document to use as the query.
+     */
     public static Document makeQuery(Schema schema, Map<String, ValueSet> constraintSummary)
     {
         Document query = new Document();
@@ -90,10 +110,16 @@ public final class QueryUtils
         return query;
     }
 
+    /**
+     * Converts a single field constraint into a Document for use in a DocumentDB query.
+     *
+     * @param field The field for the given ValueSet constraint.
+     * @param constraint The constraint to apply to the given field.
+     * @return A Document describing the constraint for pushing down into DocumentDB.
+     */
     public static Document makePredicate(Field field, ValueSet constraint)
     {
         String name = field.getName();
-        ArrowType type = field.getType();
 
         if (constraint.isNone()) {
             return documentOf(name, isNullPredicate());
