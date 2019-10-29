@@ -25,7 +25,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -49,7 +48,6 @@ public class MetricSamplesTable
 {
     private final Schema schema;
     private final String name;
-    private final Set<String> partitionCols;
 
     public MetricSamplesTable()
     {
@@ -79,14 +77,6 @@ public class MetricSamplesTable
                 .addMetadata(VALUE_FIELD, "The value for the sample.")
                 .build();
 
-        partitionCols = new HashSet<>();
-        partitionCols.add(NAMESPACE_FIELD);
-        partitionCols.add(METRIC_NAME_FIELD);
-        partitionCols.add(DIMENSION_NAME_FIELD);
-        partitionCols.add(DIMENSION_VALUE_FIELD);
-        partitionCols.add(PERIOD_FIELD);
-        partitionCols.add(STATISTIC_FIELD);
-
         name = "metric_samples";
     }
 
@@ -105,6 +95,6 @@ public class MetricSamplesTable
     @Override
     public Set<String> getPartitionColumns()
     {
-        return Collections.unmodifiableSet(partitionCols);
+        return Collections.emptySet();
     }
 }
