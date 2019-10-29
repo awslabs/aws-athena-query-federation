@@ -186,7 +186,6 @@ public class S3BlockSpiller
              */
             Block block = inProgressBlock.get();
             if (block.getRowCount() > 0) {
-
                 logger.info("getSpillLocations: Spilling final block with {} rows and {} bytes and config {} bytes",
                         new Object[] {block.getRowCount(), block.getSize(), spillConfig.getMaxBlockBytes()});
 

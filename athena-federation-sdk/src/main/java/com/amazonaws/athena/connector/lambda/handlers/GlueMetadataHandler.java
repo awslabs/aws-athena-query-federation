@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,8 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -49,7 +47,6 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -94,7 +91,7 @@ public abstract class GlueMetadataHandler
     }
 
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
             throws Exception
     {
         return doListSchemaNames(blockAllocator, request, null);
@@ -126,7 +123,7 @@ public abstract class GlueMetadataHandler
     }
 
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws Exception
     {
         return doListTables(blockAllocator, request, null);
@@ -159,7 +156,7 @@ public abstract class GlueMetadataHandler
     }
 
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
             throws Exception
     {
         return doGetTable(blockAllocator, request, null);
@@ -201,11 +198,7 @@ public abstract class GlueMetadataHandler
     }
 
     @Override
-    protected abstract GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
-            throws Exception;
-
-    @Override
-    protected abstract GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
+    public abstract GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
             throws Exception;
 
     protected Field convertField(String name, String glueType)

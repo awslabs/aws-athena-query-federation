@@ -44,7 +44,6 @@ public class ContinuationToken
 
     public static ContinuationToken decode(String token)
     {
-
         if (token != null) {
             //if we have a continuation token, lets decode it. The format of this token is owned by this class
             String[] tokenParts = token.split(CONTINUATION_TOKEN_DIVIDER);

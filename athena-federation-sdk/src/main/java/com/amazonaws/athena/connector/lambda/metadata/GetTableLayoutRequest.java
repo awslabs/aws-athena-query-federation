@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.metadata;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,8 +27,11 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
+import org.apache.arrow.vector.types.pojo.Schema;
 
-import java.util.Map;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,7 +40,8 @@ public class GetTableLayoutRequest
 {
     private final TableName tableName;
     private final Constraints constraints;
-    private final Map<String, String> properties;
+    private final Schema schema;
+    private final Set<String> partitionCols;
 
     @JsonCreator
     public GetTableLayoutRequest(@JsonProperty("identity") FederatedIdentity identity,
@@ -45,12 +49,15 @@ public class GetTableLayoutRequest
             @JsonProperty("catalogName") String catalogName,
             @JsonProperty("tableName") TableName tableName,
             @JsonProperty("constraints") Constraints constraints,
-            @JsonProperty("properties") Map<String, String> properties)
+            @JsonProperty("schema") Schema schema,
+            @JsonProperty("partitionCols") Set<String> partitionCols)
     {
         super(identity, MetadataRequestType.GET_TABLE_LAYOUT, queryId, catalogName);
+        requireNonNull(partitionCols, "partitionCols is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
         this.constraints = requireNonNull(constraints, "constraints is null");
-        this.properties = requireNonNull(properties, "properties is null");
+        this.schema = requireNonNull(schema, "schema is null");
+        this.partitionCols = Collections.unmodifiableSet(new HashSet<>(partitionCols));
     }
 
     public TableName getTableName()
@@ -63,12 +70,14 @@ public class GetTableLayoutRequest
         return constraints;
     }
 
-    /**
-     * Contains the properties associated with this table as provided by the Schema on GetTableResult.
-     */
-    public Map<String, String> getProperties()
+    public Schema getSchema()
     {
-        return properties;
+        return schema;
+    }
+
+    public Set<String> getPartitionCols()
+    {
+        return partitionCols;
     }
 
     @Override
@@ -84,14 +93,19 @@ public class GetTableLayoutRequest
     @Override
     public boolean equals(Object o)
     {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         GetTableLayoutRequest that = (GetTableLayoutRequest) o;
 
         return Objects.equal(this.tableName, that.tableName) &&
                 Objects.equal(this.constraints, that.constraints) &&
-                Objects.equal(this.properties, that.properties) &&
+                Objects.equal(this.schema, that.schema) &&
+                Objects.equal(this.partitionCols, that.partitionCols) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
                 Objects.equal(this.getCatalogName(), that.getCatalogName());
     }
@@ -99,7 +113,6 @@ public class GetTableLayoutRequest
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(tableName, constraints, properties, getRequestType(), getCatalogName());
+        return Objects.hashCode(tableName, constraints, schema, partitionCols, getRequestType(), getCatalogName());
     }
 }
-

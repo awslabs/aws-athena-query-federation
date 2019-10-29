@@ -125,7 +125,6 @@ public class SchemaBuilder
 
     public Schema build()
     {
-
         for (FieldBuilder next : nestedFieldBuilderMap.values()) {
             fields.add(next.build());
         }

@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -58,7 +58,7 @@ public abstract class RecordHandler
         implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(RecordHandler.class);
-    private static String MAX_BLOCK_SIZE_BYTES = "MAX_BLOCK_SIZE_BYTES";
+    private static final String MAX_BLOCK_SIZE_BYTES = "MAX_BLOCK_SIZE_BYTES";
     private static final int NUM_SPILL_THREADS = 2;
     private final AmazonS3 amazonS3;
     private final String sourceType;
@@ -104,7 +104,7 @@ public abstract class RecordHandler
         return secretsManager.getSecret(secretName);
     }
 
-    final public void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
+    public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
@@ -122,18 +122,7 @@ public abstract class RecordHandler
                     throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
                 }
 
-                RecordRequest req = (RecordRequest) rawReq;
-                RecordRequestType type = req.getRequestType();
-                switch (type) {
-                    case READ_RECORDS:
-                        try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
-                            assertNotNull(response);
-                            objectMapper.writeValue(outputStream, response);
-                        }
-                        return;
-                    default:
-                        throw new IllegalArgumentException("Unknown request type " + type);
-                }
+                doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
             }
             catch (Exception ex) {
                 logger.warn("handleRequest: Completed with an exception.", ex);
@@ -142,21 +131,35 @@ public abstract class RecordHandler
         }
     }
 
+    protected final void doHandleRequest(BlockAllocator allocator,
+            ObjectMapper objectMapper,
+            RecordRequest req,
+            OutputStream outputStream)
+            throws Exception
+    {
+        RecordRequestType type = req.getRequestType();
+        switch (type) {
+            case READ_RECORDS:
+                try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
+            default:
+                throw new IllegalArgumentException("Unknown request type " + type);
+        }
+    }
+
     public RecordResponse doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
             throws Exception
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
         SpillConfig spillConfig = getSpillConfig(request);
-        try (S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema())) {
-
-            try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
-                    request.getSchema(),
-                    request.getConstraints())) {
-                readWithConstraint(constraintEvaluator, spiller, request);
-            }
-            catch (Exception ex) {
-                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
-            }
+        try (S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema());
+                ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
+                        request.getSchema(),
+                        request.getConstraints())) {
+            readWithConstraint(constraintEvaluator, spiller, request);
 
             if (!spiller.spilled()) {
                 return new ReadRecordsResponse(request.getCatalogName(), spiller.getBlock());
@@ -216,4 +219,3 @@ public abstract class RecordHandler
         }
     }
 }
-

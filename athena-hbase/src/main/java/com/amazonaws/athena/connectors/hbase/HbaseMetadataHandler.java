@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,16 +19,15 @@
  */
 package com.amazonaws.athena.connectors.hbase;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -154,7 +153,7 @@ public class HbaseMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
             throws IOException
     {
         Connection conn = getOrCreateConn(request);
@@ -175,7 +174,7 @@ public class HbaseMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws IOException
     {
         Connection conn = getOrCreateConn(request);
@@ -200,7 +199,7 @@ public class HbaseMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
             throws Exception
     {
         logger.info("doGetTable: enter", request.getTableName());
@@ -238,22 +237,17 @@ public class HbaseMetadataHandler
     }
 
     /**
-     * Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
+     * Our table doesn't support complex layouts or partitioning so leave this as a NoOp and the SDK will notice that we
+     * do not have any partition columns, nor have we set an custom fields using enhancePartitionSchema(...), and as a
+     * result the SDK will generate a single place holder partition for us. This is because we need to convey that there is at least
      * 1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
      *
      * @see GlueMetadataHandler
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
     {
-        //Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
-        //1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
-        Block partitions = BlockUtils.newBlock(blockAllocator,
-                "partitionId",
-                Types.MinorType.INT.getType(),
-                0);
-
-        return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions, new HashSet<>());
+        //NoOp
     }
 
     /**
@@ -262,7 +256,7 @@ public class HbaseMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
             throws IOException
     {
         Set<Split> splits = new HashSet<>();

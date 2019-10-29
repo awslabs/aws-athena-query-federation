@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,17 +21,17 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -52,7 +52,6 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -63,6 +62,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -113,7 +113,7 @@ public class DynamoDBMetadataHandler
     }
 
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
             throws Exception
     {
         if (glueClient != null) {
@@ -132,7 +132,7 @@ public class DynamoDBMetadataHandler
     TODO add table whitelist
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
             throws Exception
     {
         // LinkedHashSet for consistent ordering
@@ -165,7 +165,7 @@ public class DynamoDBMetadataHandler
     }
 
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
             throws Exception
     {
         if (glueClient != null) {
@@ -186,57 +186,72 @@ public class DynamoDBMetadataHandler
     /*
     TODO calculate filter expressions here to avoid recalculating them at the split level
      */
+
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator allocator, GetTableLayoutRequest request)
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
         DynamoDBTable index = DDBTableUtils.getBestIndexForPredicates(table, summary);
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        SchemaBuilder partitionsSchemaBuilder = SchemaBuilder.newBuilder();
-        partitionsSchemaBuilder.addMetadata(PROVISIONED_READ_CAPACITY_METADATA, String.valueOf(table.getProvisionedReadCapacity()));
-        Block partitions = null;
-        List<Object> hashKeyValues = ImmutableList.of();
-        if (hashKeyValueSet != null) {
-            hashKeyValues = DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet);
-            if (!hashKeyValues.isEmpty()) {
-                // can "partition" on hash key
-                partitionsSchemaBuilder.addField(hashKeyName, hashKeyValueSet.getType());
-                partitionsSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
-                index.getRangeKey().ifPresent((rangeKeyName) -> partitionsSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName));
-                partitionsSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
-                if (!table.equals(index)) {
-                    partitionsSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
-                }
-                Schema partitionsSchema = partitionsSchemaBuilder.build();
-                partitions = allocator.createBlock(partitionsSchema);
-                int partitionCount = 0;
-                for (Object hashKeyValue : hashKeyValues) {
-                    BlockUtils.setValue(partitions.getFieldVector(hashKeyName), partitionCount++, hashKeyValue);
-                }
-                partitions.setRowCount(partitionCount);
+        partitionSchemaBuilder.addMetadata(PROVISIONED_READ_CAPACITY_METADATA, String.valueOf(table.getProvisionedReadCapacity()));
+        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+
+        if (!hashKeyValues.isEmpty()) {
+            // can "partition" on hash key
+            partitionSchemaBuilder.addField(hashKeyName, hashKeyValueSet.getType());
+            partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
+            index.getRangeKey().ifPresent((rangeKeyName) -> partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName));
+            partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
+            if (!table.equals(index)) {
+                partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
             }
         }
-        // always fall back to a scan
-        if (partitions == null) {
-            partitionsSchemaBuilder.addField(SEGMENT_COUNT_METADATA, Types.MinorType.INT.getType());
-            partitionsSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, SCAN_PARTITION_TYPE);
-            Schema partitionsSchema = partitionsSchemaBuilder.build();
-
-            // need to return at least one partition so stick the segment count in it
-            partitions = allocator.createBlock(partitionsSchema);
-            int segmentCount = DDBTableUtils.getNumSegments(table.getProvisionedReadCapacity(), table.getApproxTableSizeInBytes());
-            BlockUtils.setValue(partitions.getFieldVector(SEGMENT_COUNT_METADATA), 0, segmentCount);
-            partitions.setRowCount(1);
+        else {
+            // always fall back to a scan
+            partitionSchemaBuilder.addField(SEGMENT_COUNT_METADATA, Types.MinorType.INT.getType());
+            partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, SCAN_PARTITION_TYPE);
         }
-
-        return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions,
-                hashKeyValues.isEmpty() ? ImmutableSet.of() : ImmutableSet.of(hashKeyName));
     }
 
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
+    {
+        DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);
+        Map<String, ValueSet> summary = request.getConstraints().getSummary();
+        DynamoDBTable index = DDBTableUtils.getBestIndexForPredicates(table, summary);
+        String hashKeyName = index.getHashKey();
+        ValueSet hashKeyValueSet = summary.get(hashKeyName);
+        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+
+        if (!hashKeyValues.isEmpty()) {
+            hashKeyValues = DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet);
+            if (!hashKeyValues.isEmpty()) {
+                // can "partition" on hash key
+                for (Object hashKeyValue : hashKeyValues) {
+                    blockWriter.writeRows((Block block, int rowNum) -> {
+                        block.setValue(hashKeyName, rowNum, hashKeyValue);
+                        //we added 1 partition per hashkey value
+                        return 1;
+                    });
+                }
+            }
+        }
+        else {
+            // always fall back to a scan, need to return at least one partition so stick the segment count in it
+            int segmentCount = DDBTableUtils.getNumSegments(table.getProvisionedReadCapacity(), table.getApproxTableSizeInBytes());
+            blockWriter.writeRows((Block block, int rowNum) -> {
+                block.setValue(SEGMENT_COUNT_METADATA, rowNum, segmentCount);
+                //we added 1 partition per hashkey value
+                return 1;
+            });
+        }
+    }
+
+    @Override
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -55,12 +55,14 @@ import redis.clients.jedis.ScanResult;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_ENDPOINT_PROP;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.ZSET_KEYS_TABLE_PROP;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
@@ -121,17 +123,17 @@ public class RedisMetadataHandlerTest
 
     @Test
     public void doGetTableLayout()
+            throws Exception
     {
         logger.info("doGetTableLayout - enter");
 
-        Map<String, String> props = new HashMap<>();
-        props.put("key1", "value1");
-        props.put("key2", "value2");
+        Schema schema = SchemaBuilder.newBuilder().build();
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity, "queryId", "default",
                 new TableName("schema1", "table1"),
                 new Constraints(new HashMap<>()),
-                props);
+                schema,
+                new HashSet<>());
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
@@ -142,7 +144,7 @@ public class RedisMetadataHandlerTest
         }
 
         assertTrue(partitions.getRowCount() > 0);
-        assertEquals(props, partitions.getMetaData());
+        assertEquals(4, partitions.getFields().size());
 
         logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
     }
@@ -179,12 +181,17 @@ public class RedisMetadataHandlerTest
 
         Schema schema = SchemaBuilder.newBuilder()
                 .addField("partitionId", Types.MinorType.INT.getType())
-                .addMetadata(ZSET_KEYS_TABLE_PROP, prefixes)
-                .addMetadata(REDIS_ENDPOINT_PROP, endpoint)
+                .addStringField(REDIS_ENDPOINT_PROP)
+                .addStringField(VALUE_TYPE_TABLE_PROP)
+                .addStringField(KEY_PREFIX_TABLE_PROP)
+                .addStringField(ZSET_KEYS_TABLE_PROP)
                 .build();
 
         Block partitions = allocator.createBlock(schema);
-        BlockUtils.setValue(partitions.getFieldVector("partitionId"), 0, 0);
+        partitions.setValue(REDIS_ENDPOINT_PROP, 0, endpoint);
+        partitions.setValue(VALUE_TYPE_TABLE_PROP, 0, null);
+        partitions.setValue(KEY_PREFIX_TABLE_PROP, 0, null);
+        partitions.setValue(ZSET_KEYS_TABLE_PROP, 0, prefixes);
         partitions.setRowCount(1);
 
         String continuationToken = null;
@@ -222,15 +229,19 @@ public class RedisMetadataHandlerTest
     {
         logger.info("doGetSplitsPrefix: enter");
 
-        List<String> partitionCols = new ArrayList<>();
-
         Schema schema = SchemaBuilder.newBuilder()
                 .addField("partitionId", Types.MinorType.INT.getType())
-                .addMetadata(KEY_PREFIX_TABLE_PROP, "prefix1-*,prefix2-*, prefix3-*")
+                .addStringField(REDIS_ENDPOINT_PROP)
+                .addStringField(VALUE_TYPE_TABLE_PROP)
+                .addStringField(KEY_PREFIX_TABLE_PROP)
+                .addStringField(ZSET_KEYS_TABLE_PROP)
                 .build();
 
         Block partitions = allocator.createBlock(schema);
-        BlockUtils.setValue(partitions.getFieldVector("partitionId"), 0, 0);
+        partitions.setValue(REDIS_ENDPOINT_PROP, 0, endpoint);
+        partitions.setValue(VALUE_TYPE_TABLE_PROP, 0, null);
+        partitions.setValue(KEY_PREFIX_TABLE_PROP, 0, "prefix1-*,prefix2-*, prefix3-*");
+        partitions.setValue(ZSET_KEYS_TABLE_PROP, 0, null);
         partitions.setRowCount(1);
 
         String continuationToken = null;
@@ -239,7 +250,7 @@ public class RedisMetadataHandlerTest
                 "catalog_name",
                 new TableName("schema", "table_name"),
                 partitions,
-                partitionCols,
+                new ArrayList<>(),
                 new Constraints(new HashMap<>()),
                 null);
 

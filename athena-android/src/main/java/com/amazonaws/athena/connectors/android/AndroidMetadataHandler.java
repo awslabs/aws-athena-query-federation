@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,16 +19,15 @@
  */
 package com.amazonaws.athena.connectors.android;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -39,10 +38,8 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 
 import java.util.Collections;
-import java.util.HashSet;
 
 public class AndroidMetadataHandler
         extends MetadataHandler
@@ -66,21 +63,21 @@ public class AndroidMetadataHandler
     }
 
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         String schemaName = androidDeviceTable.getTableName().getSchemaName();
         return new ListSchemasResponse(listSchemasRequest.getCatalogName(), Collections.singletonList(schemaName));
     }
 
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         return new ListTablesResponse(listTablesRequest.getCatalogName(),
                 Collections.singletonList(androidDeviceTable.getTableName()));
     }
 
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         if (!androidDeviceTable.getTableName().equals(getTableRequest.getTableName())) {
             throw new RuntimeException("Unknown table " + getTableRequest.getTableName());
@@ -92,21 +89,14 @@ public class AndroidMetadataHandler
     }
 
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        Block partitions = BlockUtils.newBlock(blockAllocator,
-                "partitionId",
-                Types.MinorType.INT.getType(),
-                0);
-
-        return new GetTableLayoutResponse(request.getCatalogName(),
-                request.getTableName(),
-                partitions,
-                new HashSet<>());
+        //NoOp since we don't support partitioning
     }
 
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         //Every split needs a unique spill location.
         SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);

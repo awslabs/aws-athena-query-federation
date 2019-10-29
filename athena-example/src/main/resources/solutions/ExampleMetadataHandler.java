@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ package com.amazonaws.connectors.athena.example;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -163,63 +164,38 @@ public class ExampleMetadataHandler
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
      *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param constraintEvaluator Used to apply partition pruning constraints.
+     * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
-     * @return A GetTableLayoutResponse which primarily contains:
-     * 1. An Apache Arrow Block with 0 or more partitions to read. 0 partitions implies there are 0 rows to read.
-     * 2. Set<String> of partition column names which should correspond to columns in your Apache Arrow Block.
-     * @note Partitions are opaque to Amazon Athena in that it does not understand their contents, just that it must call
-     * doGetSplits(...) for each partition you return in order to determine which reads to perform and if those reads
-     * can be parallelized. This means the contents of this response are more for you than they are for Athena.
+     * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
+     * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
+     * partition data are ignored by Athena but passed on to calls on GetSplits.
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator allocator, GetTableLayoutRequest request)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
-        logger.info("doGetTableLayout: enter - " + request);
+        for (int year = 2000; year < 2030; year++) {
+            if (constraintEvaluator.apply("year", year)) {
+                for (int month = 1; month < 13; month++) {
+                    //TODO: Add partition pruning for the 'month' field (hint: copy & modify the evaluator if-clause above for 'year')
+                    for (int day = 1; day < 31; day++) {
+                        //TODO: Add partition pruning for the 'day' field (hint: copy & modify the evaluator if-clause above for 'year')
 
-        String catalogName = request.getCatalogName();
-        TableName tableName = request.getTableName();
-        SchemaBuilder schemBuilder = SchemaBuilder.newBuilder();
-        Set<String> partitionColNames = new HashSet<>();
-
-        for (String nextCol : request.getProperties().get("partitionCols").split(",")) {
-            partitionColNames.add(nextCol);
-        }
-
-        schemBuilder.addIntField("year")
-                .addIntField("month")
-                .addIntField("day");
-
-        //Create the block that will be used in our response
-        Schema partitionSchema = schemBuilder.build();
-        Block partitions = allocator.createBlock(partitionSchema);
-
-        int numPartitions = 0;
-        try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, partitionSchema, request.getConstraints())) {
-            for (int year = 2000; year < 2030; year++) {
-                if (evaluator.apply("year", year)) {
-                    for (int month = 1; month < 13; month++) {
-                        if (evaluator.apply("month", month)) {
-                            //TODO: Add partition pruning for the 'month' field (hint: copy & modify the evaluator if-clause above for 'year')
-                            for (int day = 1; day < 31; day++) {
-                                if (evaluator.apply("day", day)) {
-                                    partitions.setValue("year", rowNum, year);
-                                    partitions.setValue("month", rowNum, month);
-                                    partitions.setValue("day", rowNum, day);
-                                    numPartitions++;
-                                }
-                            }
-                        }
+                        /**
+                         * TODO: If the partition represented by this year,month,day passed all constraints then
+                         *  add it to our partitions block.
+                         *
+                         partitions.setValue("year", rowNum, year);
+                         partitions.setValue("month", rowNum, month);
+                         partitions.setValue("day", rowNum, day);
+                         numPartitions++;
+                         *
+                         */
                     }
                 }
             }
         }
-
-        partitions.setRowCount(numPartitions);
-
-        logger.info("doGetTableLayout: exit - " + numPartitions);
-        return new GetTableLayoutResponse(catalogName, tableName, partitions, partitionColNames);
     }
 
     /**

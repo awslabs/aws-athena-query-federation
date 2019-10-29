@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,9 +19,8 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
@@ -31,7 +30,6 @@ import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -49,7 +47,6 @@ import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,7 +143,7 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         return new ListSchemasResponse(listSchemasRequest.getCatalogName(), Collections.singletonList(SCHEMA_NAME));
     }
@@ -157,7 +154,7 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         List<TableName> tables = new ArrayList<>();
         TABLES.keySet().stream().forEach(next -> tables.add(new TableName(SCHEMA_NAME, next)));
@@ -170,7 +167,7 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         validateTable(getTableRequest.getTableName());
         Table table = TABLES.get(getTableRequest.getTableName().getTableName());
@@ -181,7 +178,9 @@ public class MetricsMetadataHandler
     }
 
     /**
-     * Returns single 'partition' since Cloudwatch Metric's APIs do not support the kind of filtering we need to do
+     * Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp and the SDK will
+     * automatically generate a single placeholder partition for us since Athena needs at least 1 partition returned
+     * if there is potetnailly any data to read. We do this because Cloudwatch Metric's APIs do not support the kind of filtering we need to do
      * reasonably scoped partition pruning. Instead we do the pruning at Split generation time and return a single
      * partition here. The down side to doing it at Split generation time is that we sacrifice parallelizing Split
      * generation. However this is not a significant performance detrement to this connector since we can
@@ -190,14 +189,11 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest getTableLayoutRequest)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        validateTable(getTableLayoutRequest.getTableName());
-        //Even though Cloudwatch Metrics are partitioned by NameSpace and Dimension, there are no performant APIs
-        //for generating the list of available partitions. Instead we handle that logic as part of doGetSplits
-        //which is pipelined with the table scans.
-        Block partitions = BlockUtils.newBlock(blockAllocator, "partitionId", Types.MinorType.INT.getType(), 0);
-        return new GetTableLayoutResponse(getTableLayoutRequest.getCatalogName(), getTableLayoutRequest.getTableName(), partitions, new HashSet<>());
+        validateTable(request.getTableName());
+        //NoOp as we do not support partitioning.
     }
 
     /**
@@ -207,7 +203,7 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
             throws Exception
     {
         validateTable(getSplitsRequest.getTableName());

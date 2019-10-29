@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.examples;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -61,8 +61,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static org.junit.Assert.*;
@@ -72,17 +74,18 @@ public class ExampleMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ExampleMetadataHandlerTest.class);
 
-    //Used to run test suite against real lambda vs just local code path. The main difference here is
-    //that locally very little serialization takes place.
-    private static MetadataService metadataService;
     private BlockAllocatorImpl allocator;
+    private ExampleMetadataHandler metadataHandler;
 
     @Before
     public void setUp()
     {
         logger.info("setUpBefore - enter");
         allocator = new BlockAllocatorImpl();
-        metadataService = new LocalHandler(allocator);
+        metadataHandler = new ExampleMetadataHandler(new LocalKeyFactory(),
+                mock(AWSSecretsManager.class),
+                "spill-bucket",
+                "spill-prefix");
         logger.info("setUpBefore - exit");
     }
 
@@ -104,7 +107,7 @@ public class ExampleMetadataHandlerTest
         logger.info("doListSchemas - enter");
         ListSchemasRequest req = new ListSchemasRequest(IdentityUtil.fakeIdentity(), "queryId", "default");
         ObjectMapperUtil.assertSerialization(req, req.getClass());
-        ListSchemasResponse res = (ListSchemasResponse) metadataService.getMetadata(req);
+        ListSchemasResponse res = metadataHandler.doListSchemaNames(allocator, req);
         ObjectMapperUtil.assertSerialization(res, res.getClass());
         logger.info("doListSchemas - {}", res.getSchemas());
         assertFalse(res.getSchemas().isEmpty());
@@ -117,7 +120,7 @@ public class ExampleMetadataHandlerTest
         logger.info("doListTables - enter");
         ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(), "queryId", "default", null);
         ObjectMapperUtil.assertSerialization(req, req.getClass());
-        ListTablesResponse res = (ListTablesResponse) metadataService.getMetadata(req);
+        ListTablesResponse res = metadataHandler.doListTables(allocator, req);
         ObjectMapperUtil.assertSerialization(res, res.getClass());
         logger.info("doListTables - {}", res.getTables());
         assertFalse(res.getTables().isEmpty());
@@ -131,7 +134,7 @@ public class ExampleMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
                 new TableName("custom_source", "fake_table"));
         ObjectMapperUtil.assertSerialization(req, req.getClass());
-        GetTableResponse res = (GetTableResponse) metadataService.getMetadata(req);
+        GetTableResponse res = metadataHandler.doGetTable(allocator, req);
         ObjectMapperUtil.assertSerialization(res, res.getClass());
         assertTrue(res.getSchema().getFields().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
@@ -146,7 +149,7 @@ public class ExampleMetadataHandlerTest
             logger.info("doGetTableFail - enter");
             GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
                     new TableName("lambda", "fake"));
-            metadataService.getMetadata(req);
+            metadataHandler.doGetTable(allocator, req);
         }
         catch (Exception ex) {
             logger.info("doGetTableFail: ", ex);
@@ -164,6 +167,17 @@ public class ExampleMetadataHandlerTest
             throws Exception
     {
         logger.info("doGetTableLayout - enter");
+
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addIntField("month")
+                .addIntField("year")
+                .build();
+
+        Set<String> partitionCols = new HashSet<>();
+        partitionCols.add("day");
+        partitionCols.add("month");
+        partitionCols.add("year");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
@@ -183,10 +197,11 @@ public class ExampleMetadataHandlerTest
             req = new GetTableLayoutRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
                     new TableName("schema1", "table1"),
                     new Constraints(constraintsMap),
-                    new HashMap<>());
+                    tableSchema,
+                    partitionCols);
             ObjectMapperUtil.assertSerialization(req, req.getClass());
 
-            res = (GetTableLayoutResponse) metadataService.getMetadata(req);
+            res = metadataHandler.doGetTableLayout(allocator, req);
             ObjectMapperUtil.assertSerialization(res, res.getClass());
 
             logger.info("doGetTableLayout - {}", res);
@@ -268,13 +283,10 @@ public class ExampleMetadataHandlerTest
             ObjectMapperUtil.assertSerialization(req, req.getClass());
 
             logger.info("doGetSplits: req[{}]", req);
+            metadataHandler.setEncryption(numContinuations % 2 == 0);
+            logger.info("doGetSplits: Toggle encryption " + (numContinuations % 2 == 0));
 
-            if (metadataService instanceof LocalHandler) {
-                ((LocalHandler) metadataService).setEncryption(numContinuations % 2 == 0);
-                logger.info("doGetSplits: Toggle encryption " + (numContinuations % 2 == 0));
-            }
-
-            MetadataResponse rawResponse = metadataService.getMetadata(req);
+            MetadataResponse rawResponse = metadataHandler.doGetSplits(allocator, req);
             ObjectMapperUtil.assertSerialization(rawResponse, rawResponse.getClass());
             assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
@@ -308,59 +320,5 @@ public class ExampleMetadataHandlerTest
         assertTrue(numContinuations > 0);
 
         logger.info("doGetSplits: exit");
-    }
-
-    private static class LocalHandler
-            implements MetadataService
-    {
-        private ExampleMetadataHandler handler;
-        private final BlockAllocatorImpl allocator;
-
-        public LocalHandler(BlockAllocatorImpl allocator)
-        {
-            this.allocator = allocator;
-            handler = new ExampleMetadataHandler(new LocalKeyFactory(), mock(AWSSecretsManager.class), "spill-bucket", "spill-prefix");
-        }
-
-        public void setEncryption(boolean enableEncryption)
-        {
-            handler.setEncryption(enableEncryption);
-        }
-
-        @Override
-        public MetadataResponse getMetadata(MetadataRequest request)
-        {
-
-            try {
-                switch (request.getRequestType()) {
-                    case GET_TABLE_LAYOUT:
-                        try (GetTableLayoutRequest req = (GetTableLayoutRequest) request) {
-                            return handler.doGetTableLayout(allocator, req);
-                        }
-                    case GET_TABLE:
-                        try (GetTableRequest req = (GetTableRequest) request) {
-                            return handler.doGetTable(allocator, req);
-                        }
-                    case LIST_TABLES:
-                        try (ListTablesRequest req = (ListTablesRequest) request) {
-                            return handler.doListTables(allocator, req);
-                        }
-                    case LIST_SCHEMAS:
-                        try (ListSchemasRequest req = (ListSchemasRequest) request) {
-                            return handler.doListSchemaNames(allocator, req);
-                        }
-                    case GET_SPLITS:
-                        //don't close the request object because it gets reused for pagination by the caller
-                        //this is an artifact of being a test and produce/consumer in same jvm using same allocator
-                        return handler.doGetSplits(allocator, (GetSplitsRequest) request);
-
-                    default:
-                        throw new RuntimeException("Unknown request type " + request.getRequestType());
-                }
-            }
-            catch (Exception ex) {
-                throw new RuntimeException(ex);
-            }
-        }
     }
 }

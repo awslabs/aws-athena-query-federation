@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.domain;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import static java.util.Objects.requireNonNull;
+
 public class Split
 {
     private final SpillLocation spillLocation;
@@ -42,6 +44,7 @@ public class Split
             @JsonProperty("encryptionKey") EncryptionKey encryptionKey,
             @JsonProperty("properties") Map<String, String> properties)
     {
+        requireNonNull(properties, "properties is null");
         this.spillLocation = spillLocation;
         this.encryptionKey = encryptionKey;
         this.properties = Collections.unmodifiableMap(properties);
@@ -105,8 +108,12 @@ public class Split
     @Override
     public boolean equals(Object o)
     {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         Split split = (Split) o;
         return Objects.equals(spillLocation, split.spillLocation) &&
                 Objects.equals(encryptionKey, split.encryptionKey) &&

@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,8 +20,14 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.SimpleBlockWriter;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -40,11 +46,11 @@ import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -52,6 +58,9 @@ import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +75,7 @@ public abstract class MetadataHandler
         implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetadataHandler.class);
+    private static final String PARTITION_ID_COL = "partitionId";
     private static final String DISABLE_ENCRYPTION = "true";
     private static final String DEFAULT_SPILL_PREFIX = "athena-federation-spill";
     protected static final String SPILL_BUCKET_ENV = "spill_bucket";
@@ -152,7 +162,7 @@ public abstract class MetadataHandler
                 .build();
     }
 
-    final public void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
+    public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
@@ -169,43 +179,7 @@ public abstract class MetadataHandler
                 if (!(rawReq instanceof MetadataRequest)) {
                     throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
                 }
-
-                MetadataRequest req = (MetadataRequest) rawReq;
-                MetadataRequestType type = req.getRequestType();
-                switch (type) {
-                    case LIST_SCHEMAS:
-                        try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {
-                            assertNotNull(response);
-                            objectMapper.writeValue(outputStream, response);
-                        }
-                        return;
-                    case LIST_TABLES:
-                        try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
-                            assertNotNull(response);
-                            objectMapper.writeValue(outputStream, response);
-                        }
-                        return;
-                    case GET_TABLE:
-                        try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
-                            assertNotNull(response);
-                            objectMapper.writeValue(outputStream, response);
-                        }
-                        return;
-                    case GET_TABLE_LAYOUT:
-                        try (GetTableLayoutResponse response = doGetTableLayout(allocator, (GetTableLayoutRequest) req)) {
-                            assertNotNull(response);
-                            objectMapper.writeValue(outputStream, response);
-                        }
-                        return;
-                    case GET_SPLITS:
-                        try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
-                            assertNotNull(response);
-                            objectMapper.writeValue(outputStream, response);
-                        }
-                        return;
-                    default:
-                        throw new IllegalArgumentException("Unknown request type " + type);
-                }
+                doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
             }
             catch (Exception ex) {
                 logger.warn("handleRequest: Completed with an exception.", ex);
@@ -214,22 +188,120 @@ public abstract class MetadataHandler
         }
     }
 
-    protected abstract ListSchemasResponse doListSchemaNames(final BlockAllocator allocator, final ListSchemasRequest request)
+    protected final void doHandleRequest(BlockAllocator allocator,
+            ObjectMapper objectMapper,
+            MetadataRequest req,
+            OutputStream outputStream)
+            throws Exception
+    {
+        MetadataRequestType type = req.getRequestType();
+        switch (type) {
+            case LIST_SCHEMAS:
+                try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
+            case LIST_TABLES:
+                try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
+            case GET_TABLE:
+                try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
+            case GET_TABLE_LAYOUT:
+                try (GetTableLayoutResponse response = doGetTableLayout(allocator, (GetTableLayoutRequest) req)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
+            case GET_SPLITS:
+                try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+                return;
+            default:
+                throw new IllegalArgumentException("Unknown request type " + type);
+        }
+    }
+
+    public abstract ListSchemasResponse doListSchemaNames(final BlockAllocator allocator, final ListSchemasRequest request)
             throws Exception;
 
-    protected abstract ListTablesResponse doListTables(final BlockAllocator allocator, final ListTablesRequest request)
+    public abstract ListTablesResponse doListTables(final BlockAllocator allocator, final ListTablesRequest request)
             throws Exception;
 
-    protected abstract GetTableResponse doGetTable(final BlockAllocator allocator, final GetTableRequest request)
+    public abstract GetTableResponse doGetTable(final BlockAllocator allocator, final GetTableRequest request)
             throws Exception;
 
-    protected abstract GetTableLayoutResponse doGetTableLayout(final BlockAllocator allocator, final GetTableLayoutRequest request)
+    public GetTableLayoutResponse doGetTableLayout(final BlockAllocator allocator, final GetTableLayoutRequest request)
+            throws Exception
+    {
+        SchemaBuilder constraintSchema = new SchemaBuilder().newBuilder();
+        SchemaBuilder partitionSchemaBuilder = new SchemaBuilder().newBuilder();
+
+        /**
+         * Add our partition columns to the response schema so the engine knows how to interpret the list of
+         * partitions we are going to return.
+         */
+        for (String nextPartCol : request.getPartitionCols()) {
+            Field partitionCol = request.getSchema().findField(nextPartCol);
+            partitionSchemaBuilder.addField(nextPartCol, partitionCol.getType());
+            constraintSchema.addField(nextPartCol, partitionCol.getType());
+        }
+
+        enhancePartitionSchema(partitionSchemaBuilder, request);
+        Schema partitionSchema = partitionSchemaBuilder.build();
+
+        if (partitionSchema.getFields().isEmpty() && partitionSchema.getCustomMetadata().isEmpty()) {
+            //Even though our table doesn't support complex layouts, partitioning or metadata, we need to convey that there is at least
+            //1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
+            Block partitions = BlockUtils.newBlock(allocator, PARTITION_ID_COL, Types.MinorType.INT.getType(), 1);
+            return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);
+        }
+
+        /**
+         * Now use the constraint that was in the request to do some partition pruning. Here we are just
+         * generating some fake values for the partitions but in a real implementation you'd use your metastore
+         * or knowledge of the actual table's physical layout to do this.
+         */
+        try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
+                constraintSchema.build(),
+                request.getConstraints())) {
+            Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
+            SimpleBlockWriter blockWriter = new SimpleBlockWriter(partitions);
+            getPartitions(constraintEvaluator, blockWriter, request);
+            return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);
+        }
+    }
+
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    {
+        //You can add additional fields to the partition schema which are ignored by Athena
+        //but will be passed on to called to GetSplits(...). This can be handy when you
+        //want to avoid extra round trips to your metastore. For example, when you generate
+        //the partition list you may have easy access to the storage details (e.g. S3 location)
+        //of the partition. Athena doesn't need the S3 location but when Athena calls you
+        //to generate the Splits for the partition, having the S3 location would save you
+        //extra work. For that reason you can add a field to the partition schema which
+        //contains the s3 location.
+    }
+
+    public abstract void getPartitions(final ConstraintEvaluator constraintEvaluator,
+            final BlockWriter blockWriter,
+            final GetTableLayoutRequest request)
             throws Exception;
 
-    protected abstract GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public abstract GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
             throws Exception;
 
-    private final PingResponse doPing(PingRequest request)
+    public PingResponse doPing(PingRequest request)
     {
         PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES);
         try {
@@ -241,7 +313,7 @@ public abstract class MetadataHandler
         return response;
     }
 
-    protected void onPing(PingRequest request)
+    public void onPing(PingRequest request)
     {
         //NoOp
     }

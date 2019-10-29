@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,18 +19,17 @@
  */
 package com.amazonaws.connectors.athena.bigquery;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -48,14 +47,12 @@ import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.resourcemanager.ResourceManager;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForDatasetName;
@@ -96,7 +93,7 @@ public class BigQueryMetadataHandler
     }
 
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
@@ -118,7 +115,7 @@ public class BigQueryMetadataHandler
     }
 
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
                 listTablesRequest.getSchemaName());
@@ -144,7 +141,7 @@ public class BigQueryMetadataHandler
     }
 
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         logger.info("doGetTable called with request {}:{}", getProjectName(getTableRequest),
                 getTableRequest.getTableName());
@@ -155,25 +152,20 @@ public class BigQueryMetadataHandler
                 getTableRequest.getTableName(), tableSchema);
     }
 
+    /**
+     * Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp.
+     *
+     * @see MetadataHandler
+     */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest getTableLayoutRequest)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        logger.info("doGetTableLayout: Called for Table: {}:{} ", getProjectName(getTableLayoutRequest),
-                getTableLayoutRequest.getTableName());
-
-        //TODO:: Call GetTableSchema to determine if this table is partitioned or not. If it is partitioned, then we want to return
-        //the partition. BigQuery ONLY supports time partitions. Not exactly sure how that would be defined (as a timestamp or a long?)
-        Block partitions = BlockUtils.newBlock(blockAllocator, "partitionId", Types.MinorType.INT.getType(), 0);
-        partitions.setRowCount(1);
-
-        String projectName = getProjectName(getTableLayoutRequest);
-        String datasetName = getTableLayoutRequest.getTableName().getSchemaName();
-        return new GetTableLayoutResponse(projectName, new TableName(datasetName, getTableLayoutRequest.getTableName().getTableName()),
-                partitions, new HashSet<>());
+        //NoOp as we do not support partitioning.
     }
 
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         if (logger.isInfoEnabled()) {
             logger.info("DoGetSplits: {}.{} Part Cols: {}", request.getSchema(), request.getTableName(),

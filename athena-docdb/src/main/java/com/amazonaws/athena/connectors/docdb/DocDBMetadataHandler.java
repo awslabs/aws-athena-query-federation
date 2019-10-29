@@ -19,17 +19,16 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -46,14 +45,12 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCursor;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -140,7 +137,7 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
     {
         List<String> schemas = new ArrayList<>();
         MongoClient client = getOrCreateConn(request);
@@ -160,7 +157,7 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
         MongoClient client = getOrCreateConn(request);
         List<TableName> tables = new ArrayList<>();
@@ -183,7 +180,7 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
             throws Exception
     {
         logger.info("doGetTable: enter", request.getTableName());
@@ -210,18 +207,15 @@ public class DocDBMetadataHandler
     }
 
     /**
-     * Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
-     * 1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
+     * Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp.
      *
      * @see GlueMetadataHandler
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        //Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
-        //1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
-        Block partitions = BlockUtils.newBlock(blockAllocator, "partitionId", Types.MinorType.INT.getType(), 0);
-        return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions, new HashSet<>());
+        //NoOp as we do not support partitioning.
     }
 
     /**
@@ -231,7 +225,7 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
     {
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);

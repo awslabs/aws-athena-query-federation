@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.dynamodb;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -183,6 +184,7 @@ public class DynamoDBMetadataHandlerTest
 
     @Test
     public void doGetTableLayoutScan()
+            throws Exception
     {
         logger.info("doGetTableLayoutScan: enter");
 
@@ -195,7 +197,8 @@ public class DynamoDBMetadataHandlerTest
                 TEST_CATALOG_NAME,
                 new TableName(TEST_CATALOG_NAME, TEST_TABLE),
                 new Constraints(constraintsMap),
-                new HashMap<>());
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET);
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
@@ -211,6 +214,7 @@ public class DynamoDBMetadataHandlerTest
 
     @Test
     public void doGetTableLayoutQueryIndex()
+            throws Exception
     {
         logger.info("doGetTableLayoutQueryIndex: enter");
         Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -229,7 +233,9 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap), ImmutableMap.of()));
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
 
         logger.info("doGetTableLayout schema - {}", res.getSchema());
         logger.info("doGetTableLayout partitions - {}", res.getPartitions());
@@ -243,6 +249,7 @@ public class DynamoDBMetadataHandlerTest
 
     @Test
     public void doGetSplitsScan()
+            throws Exception
     {
         logger.info("doGetSplitsScan: enter");
 
@@ -250,7 +257,9 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(ImmutableMap.of()), ImmutableMap.of()));
+                new Constraints(ImmutableMap.of()),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
 
         GetSplitsRequest req = new GetSplitsRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,
@@ -280,6 +289,7 @@ public class DynamoDBMetadataHandlerTest
 
     @Test
     public void doGetSplitsQuery()
+            throws Exception
     {
         logger.info("doGetSplitsQuery: enter");
 
@@ -293,7 +303,9 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap), ImmutableMap.of()));
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
 
         GetSplitsRequest req = new GetSplitsRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,

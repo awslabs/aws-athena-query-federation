@@ -1,4 +1,4 @@
-package com.amazonaws.athena.connector.lambda.examples;
+package com.amazonaws.athena.connector.lambda.handlers;
 
 /*-
  * #%L
@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.examples;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.examples;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -29,6 +30,10 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandlerTest;
+import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -41,6 +46,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.amazonaws.services.s3.AmazonS3;
@@ -53,6 +61,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.swing.ComponentInputMap;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -67,14 +77,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ExampleUnifiedHandlerTest
+public class CompositeHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ExampleMetadataHandlerTest.class);
 
-    private AmazonS3 mockS3;
-    private ExampleMetadataHandler mockMetadataHandler;
-    private ExampleRecordHandler mockRecordHandler;
-    private ExampleUnifiedHandler unifiedHandler;
+    private MetadataHandler mockMetadataHandler;
+    private RecordHandler mockRecordHandler;
+    private CompositeHandler compositeHandler;
     private BlockAllocatorImpl allocator;
     private ObjectMapper objectMapper;
     private Schema schemaForRead;
@@ -85,14 +94,17 @@ public class ExampleUnifiedHandlerTest
     {
         allocator = new BlockAllocatorImpl();
         objectMapper = ObjectMapperFactory.create(allocator);
-        mockS3 = mock(AmazonS3.class);
-        mockMetadataHandler = mock(ExampleMetadataHandler.class);
+        mockMetadataHandler = mock(MetadataHandler.class);
+        mockRecordHandler = mock(RecordHandler.class);
+
+        schemaForRead = SchemaBuilder.newBuilder()
+                .addField("col1", new ArrowType.Int(32, true))
+                .build();
 
         when(mockMetadataHandler.doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class)))
                 .thenReturn(new GetTableLayoutResponse("catalog",
                         new TableName("schema", "table"),
-                        BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L),
-                        new HashSet<>()));
+                        BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
 
         when(mockMetadataHandler.doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
                 .thenReturn(new ListTablesResponse("catalog",
@@ -109,11 +121,14 @@ public class ExampleUnifiedHandlerTest
         when(mockMetadataHandler.doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class)))
                 .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
 
-        mockRecordHandler = mock(ExampleRecordHandler.class);
-        unifiedHandler = new ExampleUnifiedHandler(mockS3, mockMetadataHandler, mockRecordHandler);
-        schemaForRead = SchemaBuilder.newBuilder()
-                .addField("col1", new ArrowType.Int(32, true))
-                .build();
+        when(mockMetadataHandler.doPing(any(PingRequest.class)))
+                .thenReturn(new PingResponse("catalog", "queryId", "type", 23));
+
+        when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
+                .thenReturn(new ReadRecordsResponse("catalog",
+                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
+
+        compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
 
     @After
@@ -143,9 +158,9 @@ public class ExampleUnifiedHandlerTest
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
-        unifiedHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockRecordHandler, times(1))
-                .readWithConstraint(any(ConstraintEvaluator.class), any(BlockSpiller.class), any(ReadRecordsRequest.class));
+                .doReadRecords(any(BlockAllocator.class), any(ReadRecordsRequest.class));
         logger.info("readRecords - exit");
     }
 
@@ -156,7 +171,7 @@ public class ExampleUnifiedHandlerTest
         logger.info("doListSchemas - enter");
         ListSchemasRequest req = mock(ListSchemasRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_SCHEMAS);
-        unifiedHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class));
         logger.info("doListSchemas - exit");
     }
@@ -168,7 +183,7 @@ public class ExampleUnifiedHandlerTest
         logger.info("doListTables - enter");
         ListTablesRequest req = mock(ListTablesRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
-        unifiedHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class));
         logger.info("doListTables - exit");
     }
@@ -180,7 +195,7 @@ public class ExampleUnifiedHandlerTest
         logger.info("doGetTable - enter");
         GetTableRequest req = mock(GetTableRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE);
-        unifiedHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class));
         logger.info("doGetTable - exit");
     }
@@ -192,7 +207,7 @@ public class ExampleUnifiedHandlerTest
         logger.info("doGetTableLayout - enter");
         GetTableLayoutRequest req = mock(GetTableLayoutRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE_LAYOUT);
-        unifiedHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class));
         logger.info("doGetTableLayout - exit");
     }
@@ -204,8 +219,21 @@ public class ExampleUnifiedHandlerTest
         logger.info("doGetSplits - enter");
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
-        unifiedHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
         logger.info("doGetSplits - exit");
+    }
+
+    @Test
+    public void doPing()
+            throws Exception
+    {
+        logger.info("doPing - enter");
+        PingRequest req = mock(PingRequest.class);
+        when(req.getCatalogName()).thenReturn("catalog");
+        when(req.getQueryId()).thenReturn("queryId");
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        verify(mockMetadataHandler, times(1)).doPing(any(PingRequest.class));
+        logger.info("doPing - exit");
     }
 }

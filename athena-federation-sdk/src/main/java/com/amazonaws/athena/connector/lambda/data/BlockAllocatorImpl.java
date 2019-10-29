@@ -78,7 +78,6 @@ public class BlockAllocatorImpl
             blocks.add(block);
         }
         catch (Exception ex) {
-
             if (block != null) {
                 try {
                     block.close();

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,15 +22,16 @@ package com.amazonaws.athena.connectors.redis;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -45,9 +46,10 @@ import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.complex.reader.VarCharReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -148,7 +150,8 @@ public class RedisMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request) throws Exception
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
+            throws Exception
     {
         return doListSchemaNames(blockAllocator, request, DB_FILTER);
     }
@@ -157,7 +160,8 @@ public class RedisMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request) throws Exception
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
+            throws Exception
     {
         return super.doListTables(blockAllocator, request, TABLE_FILTER);
     }
@@ -167,7 +171,8 @@ public class RedisMetadataHandler
      * metadata and columns.
      */
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request)
+            throws Exception
     {
         GetTableResponse response = super.doGetTable(blockAllocator, request);
 
@@ -184,26 +189,32 @@ public class RedisMetadataHandler
         return new GetTableResponse(response.getCatalogName(), response.getTableName(), schemaBuilder.build());
     }
 
+    @Override
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    {
+        partitionSchemaBuilder.addStringField(REDIS_ENDPOINT_PROP)
+                .addStringField(VALUE_TYPE_TABLE_PROP)
+                .addStringField(KEY_PREFIX_TABLE_PROP)
+                .addStringField(ZSET_KEYS_TABLE_PROP);
+    }
+
     /**
      * Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
      * 1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
+     * We also use this 1 partition to carry settings that we will need in order to generate splits.
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
-                .addField("partitionId", Types.MinorType.INT.getType());
-
-        //Make sure the meta-data from the table is available on the partition because we will want it when we convert
-        //the partition to splits in doGetSplits
-        request.getProperties().entrySet().forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
-
-        Block partitions = blockAllocator.createBlock(schemaBuilder.build());
-
-        BlockUtils.setValue(partitions.getFieldVector("partitionId"), 0, 0);
-        partitions.setRowCount(1);
-
-        return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions, new HashSet<>());
+        Map<String, String> properties = request.getSchema().getCustomMetadata();
+        blockWriter.writeRows((Block block, int rowNum) -> {
+            block.setValue(REDIS_ENDPOINT_PROP, rowNum, properties.get(REDIS_ENDPOINT_PROP));
+            block.setValue(VALUE_TYPE_TABLE_PROP, rowNum, properties.get(VALUE_TYPE_TABLE_PROP));
+            block.setValue(KEY_PREFIX_TABLE_PROP, rowNum, properties.get(KEY_PREFIX_TABLE_PROP));
+            block.setValue(ZSET_KEYS_TABLE_PROP, rowNum, properties.get(ZSET_KEYS_TABLE_PROP));
+            return 1;
+        });
     }
 
     /**
@@ -213,28 +224,29 @@ public class RedisMetadataHandler
      * into a max of N split that we have configured to generate as defined by REDIS_MAX_SPLITS.
      */
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
     {
         if (request.getPartitions().getRowCount() != 1) {
             throw new RuntimeException("Unexpected number of partitions encountered.");
         }
 
-        Schema schema = request.getSchema();
-        String redisEndpoint = schema.getCustomMetadata().get(REDIS_ENDPOINT_PROP);
-        String redisValueType = schema.getCustomMetadata().get(VALUE_TYPE_TABLE_PROP);
+        Block partitions = request.getPartitions();
+        String redisEndpoint = getValue(partitions, 0, REDIS_ENDPOINT_PROP);
+        String redisValueType = getValue(partitions, 0, VALUE_TYPE_TABLE_PROP);
 
-        logger.info("doGetSplits: Preparing splits for {}", schema.getCustomMetadata());
+        logger.info("doGetSplits: Preparing splits for {}", BlockUtils.rowToString(partitions, 0));
 
         KeyType keyType = null;
         Set<String> splitInputs = new HashSet<>();
 
-        if (schema.getCustomMetadata().get(KEY_PREFIX_TABLE_PROP) != null) {
+        String keyPrefix = getValue(partitions, 0, KEY_PREFIX_TABLE_PROP);
+        if (keyPrefix != null) {
             //Add the prefixes to the list and set the key type.
-            splitInputs.addAll(Arrays.asList(schema.getCustomMetadata().get(KEY_PREFIX_TABLE_PROP).split(KEY_PREFIX_SEPERATOR)));
+            splitInputs.addAll(Arrays.asList(keyPrefix.split(KEY_PREFIX_SEPERATOR)));
             keyType = KeyType.PREFIX;
         }
         else {
-            String[] partitionPrefixes = schema.getCustomMetadata().get(ZSET_KEYS_TABLE_PROP).split(KEY_PREFIX_SEPERATOR);
+            String[] partitionPrefixes = getValue(partitions, 0, ZSET_KEYS_TABLE_PROP).split(KEY_PREFIX_SEPERATOR);
 
             ScanResult<String> keyCursor = null;
             //Add all the values in the ZSETs ad keys to scan
@@ -257,6 +269,7 @@ public class RedisMetadataHandler
 
     /**
      * For a given key prefix this method attempts to break up all the matching keys into N buckets (aka N splits).
+     *
      * @param request
      * @param endpoint The redis endpoint to query.
      * @param keyPrefix The key prefix to scan.
@@ -336,5 +349,17 @@ public class RedisMetadataHandler
     protected Field convertField(String name, String type)
     {
         return FieldBuilder.newBuilder(name, DefaultGlueType.fromId(type).getArrowType()).build();
+    }
+
+    private String getValue(Block block, int row, String fieldName)
+    {
+        VarCharReader reader = block.getFieldReader(fieldName);
+        reader.setPosition(row);
+        if (reader.isSet()) {
+            Text result = reader.readText();
+            return (result == null) ? null : result.toString();
+        }
+
+        return null;
     }
 }

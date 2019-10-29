@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.metadata;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,8 +29,6 @@ import com.google.common.base.Objects;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.beans.Transient;
-import java.util.Collections;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,21 +37,17 @@ public class GetTableLayoutResponse
 {
     private final TableName tableName;
     private final Block partitions;
-    private final Set<String> partitionCols;
 
     @JsonCreator
     public GetTableLayoutResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("tableName") TableName tableName,
-            @JsonProperty("partitions") Block partitions,
-            @JsonProperty("partitionCols") Set<String> partitionCols)
+            @JsonProperty("partitions") Block partitions)
     {
         super(MetadataRequestType.GET_TABLE_LAYOUT, catalogName);
         requireNonNull(tableName, "tableName is null");
         requireNonNull(partitions, "partitions is null");
-        requireNonNull(partitionCols, "partitionCols is null");
         this.tableName = tableName;
         this.partitions = partitions;
-        this.partitionCols = Collections.unmodifiableSet(partitionCols);
     }
 
     @JsonProperty
@@ -69,12 +63,6 @@ public class GetTableLayoutResponse
     }
 
     @JsonProperty
-    public Set<String> getPartitionCols()
-    {
-        return partitionCols;
-    }
-
-    @JsonProperty
     public Block getPartitions()
     {
         return partitions;
@@ -85,10 +73,8 @@ public class GetTableLayoutResponse
     {
         return MoreObjects.toStringHelper(this)
                 .add("tableName", tableName)
-                .add("partitionCols", partitionCols)
                 .add("requestType", getRequestType())
                 .add("catalogName", getCatalogName())
-                .add("partitions", partitions)
                 .toString();
     }
 
@@ -102,14 +88,17 @@ public class GetTableLayoutResponse
     @Override
     public boolean equals(Object o)
     {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         GetTableLayoutResponse that = (GetTableLayoutResponse) o;
 
         return Objects.equal(this.tableName, that.tableName) &&
                 Objects.equal(this.partitions, that.partitions) &&
-                Objects.equal(this.partitionCols, that.partitionCols) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
                 Objects.equal(this.getCatalogName(), that.getCatalogName());
     }
@@ -117,6 +106,6 @@ public class GetTableLayoutResponse
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(tableName, partitions, partitionCols, getRequestType(), getCatalogName());
+        return Objects.hashCode(tableName, partitions, getRequestType(), getCatalogName());
     }
 }

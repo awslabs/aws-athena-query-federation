@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.examples;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,24 +22,23 @@ package com.amazonaws.athena.connector.lambda.examples;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
@@ -52,7 +51,6 @@ import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,8 +73,8 @@ public class ExampleMetadataHandler
     //of splits. This helps avoid hitting the Lambda response size limit.
     protected static final int MAX_SPLITS_PER_REQUEST = 300;
 
-    protected static String PARTITION_LOCATION = "location";
-    protected static String SERDE = "serde";
+    protected static final String PARTITION_LOCATION = "location";
+    protected static final String SERDE = "serde";
 
     private final int simulateThrottle;
     private boolean encryptionEnabled = true;
@@ -111,7 +109,7 @@ public class ExampleMetadataHandler
     }
 
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
         logCaller(request);
         List<String> schemas = new ArrayList<>();
@@ -120,7 +118,7 @@ public class ExampleMetadataHandler
     }
 
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
         logCaller(request);
         List<TableName> tables = new ArrayList<>();
@@ -133,7 +131,7 @@ public class ExampleMetadataHandler
     }
 
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
     {
         logCaller(request);
         if (!request.getTableName().getSchemaName().equals(ExampleTable.schemaName) ||
@@ -149,93 +147,60 @@ public class ExampleMetadataHandler
     }
 
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator allocator, GetTableLayoutRequest request)
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    {
+        /**
+         * Add any additional fields we might need to our partition response schema.
+         * These additional fields are ignored by Athena but will be passed to GetSplits(...)
+         * when Athena calls our lambda function to plan the distributed read of our partitions.
+         */
+        partitionSchemaBuilder.addField(PARTITION_LOCATION, new ArrowType.Utf8())
+                .addField(SERDE, new ArrowType.Utf8());
+    }
+
+    @Override
+    public void getPartitions(ConstraintEvaluator constraintEvaluator,
+            BlockWriter writer,
+            GetTableLayoutRequest request)
     {
         logCaller(request);
-        /**
-         * Define the schema for the block of partitions we are about to send. Minimally this should
-         * include each of the partitions columns and any other meta-data you will need in order
-         * to actually read the data of that partition. For example for a hive table having three int
-         * partitions and storing data in S3 the schema might be:
-         *  col1, string
-         *  col2, string
-         *  col3, string
-         *  location, string
-         *  serde, string
-         *
-         *  The first three columns in the schema uniquely identify the partition and allow the engine to
-         *  do added partition pruning (if applicable). The location is ignored by the engine but will be supplied
-         *  to your connector when we call your lambda to actually read the data in that partition. The same
-         *  is true for serde which defines the format of the data in the partition.
-         */
-        SchemaBuilder partitionSchemaBuilder = new SchemaBuilder().newBuilder()
-                .addField("location", new ArrowType.Utf8())
-                .addField("serde", new ArrowType.Utf8())
-                .addMetadata("prop1", "val1")
-                .addMetadata("prop2", "val2")
-                .addMetadata("prop3", "val3");
-
-        /**
-         * Add our partition columns to the response schema so the engine knows how to interpret the list of
-         * partitions we are going to return.
-         */
-        Set<String> partitionCols = new HashSet<>();
-        for (String nextPartCol : ExampleTable.schema.getCustomMetadata().get("partitionCols").split(",")) {
-            partitionCols.add(nextPartCol);
-            Field partitionCol = ExampleTable.schema.findField(nextPartCol);
-            partitionSchemaBuilder.addField(nextPartCol, partitionCol.getType());
-        }
-
-        Schema partitionSchema = partitionSchemaBuilder.build();
-        Block partitions = allocator.createBlock(partitionSchema);
 
         /**
          * Now use the constraint that was in the request to do some partition pruning. Here we are just
          * generating some fake values for the partitions but in a real implementation you'd use your metastore
          * or knowledge of the actual table's physical layout to do this.
          */
-        try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
-                partitions.getSchema(),
-                request.getConstraints())) {
-            int partitionCount = 0;
-            for (int day = 0; day < 30; day++) {
-                if (constraintEvaluator.apply("day", day)) {
-                    for (int month = 0; month < 12; month++) {
-                        if (constraintEvaluator.apply("month", month)) {
-                            for (int year = 1990; year < 2020; year++) {
-                                if (constraintEvaluator.apply("year", year)) {
-                                    //This partition meets all constraints, add it to our partitions blocks.
-                                    BlockUtils.setValue(partitions.getFieldVector("day"), partitionCount, day);
-                                    BlockUtils.setValue(partitions.getFieldVector("month"), partitionCount, month);
-                                    BlockUtils.setValue(partitions.getFieldVector("year"), partitionCount, year);
+        for (int year = 1990; year < 2020; year++) {
+            if (constraintEvaluator.apply("year", year)) {
+                for (int month = 0; month < 12; month++) {
+                    if (constraintEvaluator.apply("month", month)) {
+                        for (int day = 0; day < 30; day++) {
+                            if (constraintEvaluator.apply("day", day)) {
+                                final int dayVal = day;
+                                final int monthVal = month;
+                                final int yearVal = year;
+                                writer.writeRows((Block block, int rowNum) -> {
+                                    //these are our partition columns and were defined by the call to doGetTable(...)
+                                    block.setValue("day", rowNum, dayVal);
+                                    block.setValue("month", rowNum, monthVal);
+                                    block.setValue("year", rowNum, yearVal);
 
-                                    //These next two columns are used by our connector to read data in the partition identified
-                                    //by the above columns
-                                    BlockUtils.setValue(partitions.getFieldVector(PARTITION_LOCATION),
-                                            partitionCount,
-                                            "s3://" + partitionCols);
-                                    BlockUtils.setValue(partitions.getFieldVector(SERDE), partitionCount, "TextInputFormat");
-                                    partitionCount++;
-                                }
+                                    //these are additional field we added by overriding enhancePartitionSchema(...)
+                                    block.setValue(PARTITION_LOCATION, rowNum, "s3://" + request.getPartitionCols());
+                                    block.setValue(SERDE, rowNum, "TextInputFormat");
+                                    //we wrote 1 row
+                                    return 1;
+                                });
                             }
                         }
                     }
                 }
             }
-
-            //Since we are using Apache Arrow as the base serialization for all typed data we need to set the row count
-            partitions.setRowCount(partitionCount);
-
-            return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions, partitionCols);
-        }
-        catch (Exception ex) {
-            logger.error("doGetTableLayout: Error", ex);
-            throw new RuntimeException(ex);
         }
     }
 
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         logCaller(request);
         logger.info("doGetSplits: spill location " + makeSpillLocation(request));
@@ -265,7 +230,6 @@ public class ExampleMetadataHandler
             //Do something to decide if this partition needs to be subdivided into multiple, possibly concurrent,
             //table scan operations (aka splits)
             for (int curPart = partContd; curPart < NUM_PARTS_PER_SPLIT; curPart++) {
-
                 if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                     //We exceeded the number of split we want to return in a single request, return and provide
                     //a continuation token.
@@ -314,7 +278,7 @@ public class ExampleMetadataHandler
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
     }
 
-    protected void onPing(PingRequest request)
+    public void onPing(PingRequest request)
     {
         logCaller(request);
     }

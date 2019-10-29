@@ -686,7 +686,6 @@ public class BlockUtils
 
     public static String fieldToString(FieldReader reader)
     {
-
         switch (reader.getMinorType()) {
             case DATEDAY:
                 return String.valueOf(reader.readInteger());

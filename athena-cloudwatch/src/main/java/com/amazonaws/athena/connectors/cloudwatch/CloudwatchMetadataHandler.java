@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.cloudwatch;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -31,7 +31,6 @@ import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -133,7 +132,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         DescribeLogGroupsRequest request = new DescribeLogGroupsRequest();
         DescribeLogGroupsResult result;
@@ -158,7 +157,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         DescribeLogStreamsRequest request = new DescribeLogStreamsRequest(listTablesRequest.getSchemaName());
         DescribeLogStreamsResult result;
@@ -188,7 +187,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         TableName tableName = getTableRequest.getTableName();
         validateTable(tableName);
@@ -233,63 +232,54 @@ public class CloudwatchMetadataHandler
     }
 
     /**
+     * We add one additional field to the partition schema. This field is used for our own purposes and ignored
+     * by Athena but it will get passed to calls to GetSplits(...) which is where we will set it on our Split
+     * without the need to call Cloudwatch a second time.
+     *
+     * @see MetadataHandler
+     */
+    @Override
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    {
+        partitionSchemaBuilder.addField(LOG_STREAM_SIZE_FIELD, new ArrowType.Int(64, true));
+    }
+
+    /**
      * Gets the list of LogStreams that need to be scanned to satisfy the requested table. In most cases this will be just
-     * 1 LogStream and this result in just 1 partition. If, however, the request is for the special ALL_LOG_STREAMS view
+     * 1 LogStream and this results in just 1 partition. If, however, the request is for the special ALL_LOG_STREAMS view
      * then all LogStreams in the requested LogGroup (schema) are queried and turned into partitions 1:1.
      *
      * @note This method applies partition pruning based on the log_stream field.
      * @see MetadataHandler
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest getTableLayoutRequest)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        TableName tableName = getTableLayoutRequest.getTableName();
+        TableName tableName = request.getTableName();
 
-        Schema partitionsSchema = SchemaBuilder.newBuilder()
-                .addField(LOG_STREAM_FIELD, Types.MinorType.VARCHAR.getType())
-                .addField(LOG_STREAM_SIZE_FIELD, new ArrowType.Int(64, true))
-                .addMetadata("partitionCols", LOG_STREAM_FIELD)
-                .build();
-
-        DescribeLogStreamsRequest request = new DescribeLogStreamsRequest(tableName.getSchemaName());
+        DescribeLogStreamsRequest cwRequest = new DescribeLogStreamsRequest(tableName.getSchemaName());
         if (!ALL_LOG_STREAMS_TABLE.equals(tableName.getTableName())) {
-            request.setLogStreamNamePrefix(tableName.getTableName());
+            cwRequest.setLogStreamNamePrefix(tableName.getTableName());
         }
 
         DescribeLogStreamsResult result;
-        int partitionCount = 0;
-
-        Block partitions = blockAllocator.createBlock(partitionsSchema);
-        try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(blockAllocator,
-                partitions.getSchema(),
-                getTableLayoutRequest.getConstraints())) {
-            do {
-                result = awsLogs.describeLogStreams(request);
-                for (LogStream next : result.getLogStreams()) {
-                    //Each log stream that matches any possible partition pruning should be added to the partition list.
-                    if (constraintEvaluator.apply(LOG_STREAM_FIELD, next.getLogStreamName())) {
-                        BlockUtils.setValue(partitions.getFieldVector(LOG_STREAM_FIELD), partitionCount, next.getLogStreamName());
-                        BlockUtils.setValue(partitions.getFieldVector(LOG_STREAM_SIZE_FIELD), partitionCount, next.getStoredBytes());
-                        partitionCount++;
-                    }
+        do {
+            result = awsLogs.describeLogStreams(cwRequest);
+            for (LogStream next : result.getLogStreams()) {
+                //Each log stream that matches any possible partition pruning should be added to the partition list.
+                if (constraintEvaluator.apply(LOG_STREAM_FIELD, next.getLogStreamName())) {
+                    blockWriter.writeRows((Block block, int rowNum) -> {
+                        block.setValue(LOG_STREAM_FIELD, rowNum, next.getLogStreamName());
+                        block.setValue(LOG_STREAM_SIZE_FIELD, rowNum, next.getStoredBytes());
+                        //we wrote 1 row so we return 1
+                        return 1;
+                    });
                 }
-                request.setNextToken(result.getNextToken());
             }
-            while (result.getNextToken() != null);
-
-            partitions.setRowCount(partitionCount);
+            cwRequest.setNextToken(result.getNextToken());
         }
-        catch (Exception ex) {
-            logger.error("doGetTableLayout: Error", ex);
-            throw new RuntimeException(ex);
-        }
-
-        logger.info("doGetTableLayout: Found {} partitions.", partitionCount);
-
-        return new GetTableLayoutResponse(getTableLayoutRequest.getCatalogName(),
-                getTableLayoutRequest.getTableName(),
-                partitions,
-                Collections.singleton(LOG_STREAM_FIELD));
+        while (result.getNextToken() != null);
     }
 
     /**
@@ -299,7 +289,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();

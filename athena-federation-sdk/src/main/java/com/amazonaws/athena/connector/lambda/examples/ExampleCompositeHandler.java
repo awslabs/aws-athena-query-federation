@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.examples;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,19 +21,12 @@ package com.amazonaws.athena.connector.lambda.examples;
  */
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import com.amazonaws.services.s3.AmazonS3;
 
 public class ExampleCompositeHandler
         extends CompositeHandler
 {
-    /**
-     * used to aid in debugging. Athena will use this name in conjunction with your catalog id
-     * to correlate relevant query errors.
-     */
-    private static final String SOURCE_TYPE = "custom";
-
-    public ExampleCompositeHandler(AmazonS3 amazonS3, String sourceType)
+    public ExampleCompositeHandler()
     {
-        super(new ExampleMetadataHandler(), new ExampleRecordHandler(), SOURCE_TYPE);
+        super(new ExampleMetadataHandler(), new ExampleRecordHandler());
     }
 }

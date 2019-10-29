@@ -154,6 +154,5 @@ public class AllOrNoneValueSet
     public void close()
             throws Exception
     {
-
     }
 }

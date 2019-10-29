@@ -28,10 +28,8 @@ import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 public class RedisCompositeHandler
         extends CompositeHandler
 {
-    private static final String SOURCE_TYPE = "redis";
-
     public RedisCompositeHandler()
     {
-        super(new RedisMetadataHandler(), new RedisRecordHandler(), SOURCE_TYPE);
+        super(new RedisMetadataHandler(), new RedisRecordHandler());
     }
 }

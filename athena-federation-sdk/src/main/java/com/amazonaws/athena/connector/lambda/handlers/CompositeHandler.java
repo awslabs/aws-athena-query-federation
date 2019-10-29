@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,81 +21,78 @@ package com.amazonaws.athena.connector.lambda.handlers;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import org.apache.arrow.util.VisibleForTesting;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connector.lambda.records.RecordRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class CompositeHandler
-        extends UnifiedHandler
+        implements RequestStreamHandler
 {
+    private static final Logger logger = LoggerFactory.getLogger(CompositeHandler.class);
     private final MetadataHandler metadataHandler;
     private final RecordHandler recordHandler;
 
-    public CompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler, String sourceType)
+    public CompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler)
     {
-        this(AmazonS3ClientBuilder.standard().build(), metadataHandler, recordHandler, sourceType);
-    }
-
-    @VisibleForTesting
-    protected CompositeHandler(AmazonS3 amazonS3, MetadataHandler metadataHandler, RecordHandler recordHandler, String sourceType)
-    {
-        super(amazonS3, sourceType);
         this.metadataHandler = metadataHandler;
         this.recordHandler = recordHandler;
     }
 
-    @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
-            throws Exception
+    public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
+            throws IOException
     {
-        recordHandler.readWithConstraint(constraintEvaluator, spiller, recordsRequest);
+        try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
+            ObjectMapper objectMapper = ObjectMapperFactory.create(allocator);
+            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
+                handleRequest(allocator, rawReq, outputStream, objectMapper);
+            }
+        }
+        catch (Exception ex) {
+            logger.warn("handleRequest: Completed with an exception.", ex);
+            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
+        }
     }
 
-    @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+    public final void handleRequest(BlockAllocator allocator, FederationRequest rawReq, OutputStream outputStream, ObjectMapper objectMapper)
             throws Exception
     {
-        return metadataHandler.doListSchemaNames(allocator, request);
+        if (rawReq instanceof PingRequest) {
+            try (PingResponse response = metadataHandler.doPing((PingRequest) rawReq)) {
+                assertNotNull(response);
+                objectMapper.writeValue(outputStream, response);
+            }
+            return;
+        }
+
+        if (rawReq instanceof MetadataRequest) {
+            metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
+        }
+        else if (rawReq instanceof RecordRequest) {
+            recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
+        }
+        else {
+            throw new IllegalArgumentException("Unknown request class " + rawReq.getClass());
+        }
     }
 
-    @Override
-    protected ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
-            throws Exception
+    private void assertNotNull(FederationResponse response)
     {
-        return metadataHandler.doListTables(allocator, request);
-    }
-
-    @Override
-    protected GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
-            throws Exception
-    {
-        return metadataHandler.doGetTable(allocator, request);
-    }
-
-    @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator allocator, GetTableLayoutRequest request)
-            throws Exception
-    {
-        return metadataHandler.doGetTableLayout(allocator, request);
-    }
-
-    @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
-            throws Exception
-    {
-        return metadataHandler.doGetSplits(allocator, request);
+        if (response == null) {
+            throw new RuntimeException("Response was null");
+        }
     }
 }

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,14 +20,16 @@
 package com.amazonaws.athena.connectors.aws.cmdb;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -88,7 +90,7 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas.keySet());
     }
@@ -99,7 +101,7 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         return new ListTablesResponse(listTablesRequest.getCatalogName(), schemas.get(listTablesRequest.getSchemaName()));
     }
@@ -110,7 +112,7 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
         TableProvider tableProvider = tableProviders.get(getTableRequest.getTableName());
         if (tableProvider == null) {
@@ -125,13 +127,13 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest getTableLayoutRequest)
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
-        TableProvider tableProvider = tableProviders.get(getTableLayoutRequest.getTableName());
+        TableProvider tableProvider = tableProviders.get(request.getTableName());
         if (tableProvider == null) {
-            throw new RuntimeException("Unknown table " + getTableLayoutRequest.getTableName());
+            throw new RuntimeException("Unknown table " + request.getTableName());
         }
-        return tableProvider.getTableLayout(blockAllocator, getTableLayoutRequest);
+        tableProvider.enhancePartitionSchema(partitionSchemaBuilder, request);
     }
 
     /**
@@ -140,7 +142,23 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    protected GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
+    {
+        TableProvider tableProvider = tableProviders.get(request.getTableName());
+        if (tableProvider == null) {
+            throw new RuntimeException("Unknown table " + request.getTableName());
+        }
+        tableProvider.getPartitions(constraintEvaluator, blockWriter, request);
+    }
+
+    /**
+     * Delegates to the TableProvider that is registered for the requested table.
+     *
+     * @see MetadataHandler
+     */
+    @Override
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         TableProvider tableProvider = tableProviders.get(getSplitsRequest.getTableName());
         if (tableProvider == null) {

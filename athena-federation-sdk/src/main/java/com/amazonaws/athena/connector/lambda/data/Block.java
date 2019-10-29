@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -85,6 +85,7 @@ public class Block
     /**
      * Attempts to set the provided value for the given field name and row. If the Block's schema does not
      * contain such a field, this method does nothing and returns false.
+     *
      * @param fieldName
      * @param row
      * @param value
@@ -103,6 +104,7 @@ public class Block
     /**
      * Attempts to set the provided value for the given field name and row. If the Block's schema does not
      * contain such a field, this method does nothing and returns false.
+     *
      * @param fieldName
      * @param row
      * @param value
@@ -197,8 +199,12 @@ public class Block
     @Override
     public boolean equals(Object o)
     {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         Block that = (Block) o;
 
@@ -239,8 +245,12 @@ public class Block
 
     public boolean equalsAsSet(Object o)
     {
-        if (this == o) { return true; }
-        if (o == null || getClass() != o.getClass()) { return false; }
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         Block that = (Block) o;
 

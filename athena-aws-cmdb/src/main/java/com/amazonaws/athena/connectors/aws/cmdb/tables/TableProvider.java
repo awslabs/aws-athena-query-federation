@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,20 +19,16 @@
  */
 package com.amazonaws.athena.connectors.aws.cmdb.tables;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import org.apache.arrow.vector.types.Types;
-
-import java.util.HashSet;
 
 /**
  * Defines the functionality required to supply the metadata and data required for the Athena AWS CMDB connector to
@@ -67,12 +63,20 @@ public interface TableProvider
      *
      * @See MetadataHandler
      */
-    default GetTableLayoutResponse getTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
+    default void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            throws Exception
     {
-        //Even though our table doesn't support complex layouts or partitioning, we need to convey that there is at least
-        //1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
-        Block partitions = BlockUtils.newBlock(blockAllocator, "partitionId", Types.MinorType.INT.getType(), 0);
-        return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions, new HashSet<>());
+        //NoOp as we do not support partitioning.
+    }
+
+    /**
+     * Default implementation does not enhance the partition results schema
+     *
+     * @See MetadataHandler
+     */
+    default void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    {
+        //NoOp as we do not support partitioning or added partition data
     }
 
     /**

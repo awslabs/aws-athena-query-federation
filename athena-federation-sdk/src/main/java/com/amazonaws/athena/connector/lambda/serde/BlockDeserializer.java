@@ -22,7 +22,6 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
 import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
 import com.amazonaws.athena.connector.lambda.data.SchemaSerDe;

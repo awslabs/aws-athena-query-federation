@@ -42,7 +42,6 @@ import static java.util.Objects.requireNonNull;
 public class SortedRangeSet
         implements ValueSet
 {
-
     private final ArrowType type;
     private final NavigableMap<Marker, Range> lowIndexedRanges;
 

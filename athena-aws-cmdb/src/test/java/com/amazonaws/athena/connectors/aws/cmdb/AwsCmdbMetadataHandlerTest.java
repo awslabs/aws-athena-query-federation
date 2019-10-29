@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,7 +22,8 @@ package com.amazonaws.athena.connectors.aws.cmdb;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -53,9 +54,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -90,8 +91,7 @@ public class AwsCmdbMetadataHandlerTest
     @Mock
     private TableProvider mockTableProvider3;
 
-    @Mock
-    private BlockAllocator mockAllocator;
+    private BlockAllocator blockAllocator;
 
     @Mock
     private Block mockBlock;
@@ -105,6 +105,7 @@ public class AwsCmdbMetadataHandlerTest
     public void setUp()
             throws Exception
     {
+        blockAllocator = new BlockAllocatorImpl();
         Map<TableName, TableProvider> tableProviderMap = new HashMap<>();
         tableProviderMap.putIfAbsent(new TableName("schema1", "table1"), mockTableProvider1);
         tableProviderMap.putIfAbsent(new TableName("schema1", "table2"), mockTableProvider2);
@@ -132,13 +133,14 @@ public class AwsCmdbMetadataHandlerTest
     public void tearDown()
             throws Exception
     {
+        blockAllocator.close();
     }
 
     @Test
     public void doListSchemaNames()
     {
         ListSchemasRequest request = new ListSchemasRequest(identity, queryId, catalog);
-        ListSchemasResponse response = handler.doListSchemaNames(mockAllocator, request);
+        ListSchemasResponse response = handler.doListSchemaNames(blockAllocator, request);
 
         assertEquals(2, response.getSchemas().size());
         assertTrue(response.getSchemas().contains("schema1"));
@@ -149,7 +151,7 @@ public class AwsCmdbMetadataHandlerTest
     public void doListTables()
     {
         ListTablesRequest request = new ListTablesRequest(identity, queryId, catalog, "schema1");
-        ListTablesResponse response = handler.doListTables(mockAllocator, request);
+        ListTablesResponse response = handler.doListTables(blockAllocator, request);
 
         assertEquals(2, response.getTables().size());
         assertTrue(response.getTables().contains(new TableName("schema1", "table1")));
@@ -161,26 +163,27 @@ public class AwsCmdbMetadataHandlerTest
     {
         GetTableRequest request = new GetTableRequest(identity, queryId, catalog, new TableName("schema1", "table1"));
 
-        when(mockTableProvider1.getTable(eq(mockAllocator), eq(request))).thenReturn(mock(GetTableResponse.class));
-        GetTableResponse response = handler.doGetTable(mockAllocator, request);
+        when(mockTableProvider1.getTable(eq(blockAllocator), eq(request))).thenReturn(mock(GetTableResponse.class));
+        GetTableResponse response = handler.doGetTable(blockAllocator, request);
 
         assertNotNull(response);
-        verify(mockTableProvider1, times(1)).getTable(eq(mockAllocator), eq(request));
+        verify(mockTableProvider1, times(1)).getTable(eq(blockAllocator), eq(request));
     }
 
     @Test
     public void doGetTableLayout()
+            throws Exception
     {
         GetTableLayoutRequest request = new GetTableLayoutRequest(identity, queryId, catalog,
                 new TableName("schema1", "table1"),
                 mockConstraints,
-                Collections.emptyMap());
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET);
 
-        when(mockTableProvider1.getTableLayout(eq(mockAllocator), eq(request))).thenReturn(mock(GetTableLayoutResponse.class));
-        GetTableLayoutResponse response = handler.doGetTableLayout(mockAllocator, request);
+        GetTableLayoutResponse response = handler.doGetTableLayout(blockAllocator, request);
 
         assertNotNull(response);
-        verify(mockTableProvider1, times(1)).getTableLayout(eq(mockAllocator), eq(request));
+        assertEquals(1, response.getPartitions().getRowCount());
     }
 
     @Test
@@ -193,7 +196,7 @@ public class AwsCmdbMetadataHandlerTest
                 new Constraints(new HashMap<>()),
                 null);
 
-        GetSplitsResponse response = handler.doGetSplits(mockAllocator, request);
+        GetSplitsResponse response = handler.doGetSplits(blockAllocator, request);
 
         assertNotNull(response);
     }

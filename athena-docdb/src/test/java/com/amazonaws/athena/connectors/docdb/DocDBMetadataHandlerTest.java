@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -47,6 +48,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
 import org.junit.After;
 import org.junit.Before;
@@ -58,6 +60,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -236,15 +239,18 @@ public class DocDBMetadataHandlerTest
 
     @Test
     public void doGetTableLayout()
+            throws Exception
     {
         logger.info("doGetTableLayout - enter");
 
+        Schema schema = SchemaBuilder.newBuilder().build();
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
                 "queryId",
                 "default",
                 new TableName("schema1", "table1"),
                 new Constraints(new HashMap<>()),
-                new HashMap<>());
+                schema,
+                Collections.EMPTY_SET);
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
