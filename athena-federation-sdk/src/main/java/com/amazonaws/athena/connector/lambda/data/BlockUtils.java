@@ -63,7 +63,6 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-//TODO: Add all types
 public class BlockUtils
 {
     private static final MutableDateTime EPOCH = new MutableDateTime();

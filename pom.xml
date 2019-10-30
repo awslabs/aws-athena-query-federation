@@ -53,6 +53,7 @@
         <module>athena-example</module>
         <module>athena-federation-sdk</module>
         <module>athena-udfs</module>
+        <module>athena-tpcds</module>
     </modules>
 
     <dependencies>
