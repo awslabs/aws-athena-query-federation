@@ -37,6 +37,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -203,14 +204,21 @@ public class ExampleMetadataHandler
                     for (int day = 1; day < 31; day++) {
                         //TODO: Add partition pruning for the 'day' field (hint: copy & modify the evaluator if-clause above for 'year')
 
+                        final int yearVal = year;
+                        final int monthVal = month;
+                        final int dayVal = day;
+
                         /**
                          * TODO: If the partition represented by this year,month,day passed all constraints then
                          *  add it to our partitions block.
                          *
-                         partitions.setValue("year", rowNum, year);
-                         partitions.setValue("month", rowNum, month);
-                         partitions.setValue("day", rowNum, day);
-                         numPartitions++;
+                         blockWriter.writeRows((Block block, int row) -> {
+                             block.setValue("year", row, yearVal);
+                             block.setValue("month", row, monthVal);
+                             block.setValue("day", row, dayVal);
+                             //we write 1 row during this call so we return 1
+                             return 1;
+                         });
                          *
                          */
                     }

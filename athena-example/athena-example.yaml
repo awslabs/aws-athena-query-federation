@@ -51,6 +51,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
+          data_bucket: !Ref DataBucket
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.example.ExampleCompositeHandler"
       CodeUri: "./target/athena-example-1.0.jar"

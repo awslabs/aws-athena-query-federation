@@ -30,6 +30,10 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 
+/**
+ * This utility class can be used to implement a comparator for various Apache Arrow typed values. It is mostly
+ * used as part of our testing harness and notably does not support certain complex types (e.g. STRUCTs).
+ */
 public class ArrowTypeComparator
 {
     private static final Logger logger = LoggerFactory.getLogger(ArrowTypeComparator.class);

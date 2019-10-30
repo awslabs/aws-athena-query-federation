@@ -43,9 +43,17 @@ import static com.amazonaws.athena.connector.lambda.data.BlockUtils.fieldToStrin
 import static java.util.Objects.requireNonNull;
 
 /**
- * Most aspects of this implementation favor using less memory, often at the expense of extra CPU (more looping, etc...).
- * This is because many of the operations like equality are used rarely and only by
- * code paths that have a small number of rows.
+ * This class is used to provide a convenient interface for working (reading/writing) Apache Arrow Batches. As such
+ * this class is mostly a holder for an Apache Arrow Schema and the associated VectorSchema (used for read/write).
+ * The class also includes helper functions for easily loading/unloading data in the form of Arrow Batches.
+ *
+ * @note While using this class as a holder to encapsulate nuances of Apache Arrow can simplify your programming model
+ * and make it easier to get started, using setValue(...), setComplexValue(...), and any of the related helpers to
+ * write data to the Apache Arrow structures is less performant than using Apache Arrow's native interfaces. If your usecase
+ * and source data can be read in a columnar fashion you can achieve significantly (50% - 200%) better performance by
+ * avoiding setValue(...) and setComplexValue(...). In our testing conversion to Apache Arrow was not a significant
+ * bottleneck and instead represented extra latency which could be hidden through parallelism and pipelining. This is why
+ * we opted to offer these convenience methods.
  */
 public class Block
         extends SchemaAware
@@ -53,10 +61,23 @@ public class Block
 {
     private static final Logger logger = LoggerFactory.getLogger(Block.class);
 
-    private final String allocatorId;   //not included in equality
+    //Used to identify which BlockAllocator owns the underlying memory resources used in this Block for debugging purposes.
+    //Not included in equality or hashcode.
+    private final String allocatorId;
+    //The schema of the block
     private final Schema schema;
+    //The VectorSchemaRoot which can be used to read/write values to/from the underlying Apache Arrow buffers that
+    //for the Arrow Batch of rows.
     private final VectorSchemaRoot vectorSchema;
 
+    /**
+     * Used by a BlockAllocator to construct a block by setting the key values that a Block 'holds'. Most of the meaningful
+     * construction actually takes place within the BlockAllocator that calls this constructor.
+     *
+     * @param allocatorId Identifier of the BlockAllocator that owns the Block's memory resources.
+     * @param schema The schema of the data that can be read/written to the provided VectorSchema.
+     * @param vectorSchema Used to read/write values from the Apache Arrow memory buffers owned by this object.
+     */
     protected Block(String allocatorId, Schema schema, VectorSchemaRoot vectorSchema)
     {
         requireNonNull(allocatorId, "allocatorId is null");
@@ -77,19 +98,39 @@ public class Block
         return schema;
     }
 
+    /**
+     * Writes the provided value to the specified field on the specified row. This method does _not_ update the
+     * row count on the underlying Apache Arrow VectorSchema. You must call setRowCount(...) to ensure the values
+     * your have written are considered 'valid rows' and thus available when you attempt to serialize this Block. This
+     * method replies on BlockUtils' field conversion/coercion logic to convert the provided value into a type that
+     * matches Apache Arrow's supported serialization format. For more details on coercion please see @BlockUtils
+     *
+     * @param fieldName The name of the field you wish to write to.
+     * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
+     * @param value The value you wish to write.
+     * @note This method will throw an NPE if you call with with a non-existent field. You can use offerValue(...)
+     * to ignore non-existent fields. This can be useful when you are writing results and want to avoid checking
+     * if a field has been requested. One such example is when a query projects only a subset of columns and your
+     * underlying data store is not columnar.
+     */
     public void setValue(String fieldName, int row, Object value)
     {
         BlockUtils.setValue(getFieldVector(fieldName), row, value);
     }
 
     /**
-     * Attempts to set the provided value for the given field name and row. If the Block's schema does not
-     * contain such a field, this method does nothing and returns false.
+     * Attempts to write the provided value to the specified field on the specified row. This method does _not_ update the
+     * row count on the underlying Apache Arrow VectorSchema. You must call setRowCount(...) to ensure the values
+     * your have written are considered 'valid rows' and thus available when you attempt to serialize this Block. This
+     * method replies on BlockUtils' field conversion/coercion logic to convert the provided value into a type that
+     * matches Apache Arrow's supported serialization format. For more details on coercion please see @BlockUtils
      *
-     * @param fieldName
-     * @param row
-     * @param value
-     * @return
+     * @param fieldName The name of the field you wish to write to.
+     * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
+     * @param value The value you wish to write.
+     * @return True if the field was present and thus the value set, False if the provided fieldName did not match
+     * a field in the Block's Schema.
+     * @note This method will take no action if the provided fieldName is not a valid field in this Block's Schema.
      */
     public boolean offerValue(String fieldName, int row, Object value)
     {

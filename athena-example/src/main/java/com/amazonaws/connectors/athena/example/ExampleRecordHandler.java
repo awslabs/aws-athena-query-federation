@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ package com.amazonaws.connectors.athena.example;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
@@ -35,6 +36,8 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.lang.String.format;
 
@@ -104,8 +107,14 @@ public class ExampleRecordHandler
          *
          */
 
-        //TODO: set this to the bucket you are using for the tutorial
-        String dataBucket = "";
+        String dataBucket = null;
+        /**
+         * TODO: Get the data bucket from the env variable set by athena-example.yaml
+         *
+         dataBucket = System.getenv("data_bucket");
+         *
+         */
+
         String dataKey = format("%s/%s/%s/sample_data.csv", splitYear, splitMonth, splitDay);
 
         BufferedReader s3Reader = openS3File(dataBucket, dataKey);
