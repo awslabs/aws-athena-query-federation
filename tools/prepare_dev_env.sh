@@ -25,11 +25,12 @@ while true; do
 done
 
 set -e
-sudo wget https://repos.fedorapeople.org/repos/dchen/apache-maven/epel-apache-maven.repo -O /etc/yum.repos.d/epel-apache-maven.repo
-sudo sed -i s/\$releasever/6/g /etc/yum.repos.d/epel-apache-maven.repo
-sudo yum install -y apache-maven
-sudo yum -y install java-1.8.0-openjdk-devel
+sudo wget https://archive.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-maven-3.5.4-bin.tar.gz -O /tmp/apache-maven-3.5.4-bin.tar.gz
+sudo tar xf /tmp/apache-maven-3.5.4-bin.tar.gz -C /opt
+echo "export M2_HOME=/opt/apache-maven-3.5.4" >> ~/.profile
+echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
 
+sudo yum -y install java-1.8.0-openjdk-devel
 sudo update-alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
 sudo update-alternatives --set javac /usr/lib/jvm/java-1.8.0-openjdk.x86_64/bin/javac
 
