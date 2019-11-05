@@ -24,14 +24,35 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 
 import java.util.List;
 
+/**
+ * Used to write blocks which may require chunking and optionally spilling via a secondary communication channel.
+ */
 public interface BlockSpiller
         extends BlockWriter
 {
+    /**
+     * Indicates if any part of the response written thus far has been spilled.
+     *
+     * @return True if at least 1 block has spilled, False otherwise.
+     */
     boolean spilled();
 
+    /**
+     * Provides access to the single buffered block in the event that spilled() is false.
+     *
+     * @return
+     */
     Block getBlock();
 
+    /**
+     * Provides access to the manifest of SpillLocation(s) if spilled is true.
+     *
+     * @return
+     */
     List<SpillLocation> getSpillLocations();
 
+    /**
+     * Frees any resources associated with the BlockSpiller.
+     */
     void close();
 }

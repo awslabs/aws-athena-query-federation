@@ -52,7 +52,6 @@
         <module>athena-cloudwatch-metrics</module>
         <module>athena-example</module>
         <module>athena-federation-sdk</module>
-        <module>athena-udfs</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>
     </modules>

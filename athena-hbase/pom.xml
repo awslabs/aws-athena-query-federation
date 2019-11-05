@@ -61,6 +61,9 @@
                                         <exclude>org/apache/hadoop/yarn/**</exclude>
                                         <exclude>org/apache/curator/**</exclude>
                                         <exclude>org/apache/directory/**</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

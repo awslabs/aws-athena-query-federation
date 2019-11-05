@@ -45,6 +45,7 @@ public class ArrowTypeComparator
         return compare(reader.getField().getType(), lhs, rhs);
     }
 
+    //TODO: Add support for Struct
     public static int compare(ArrowType arrowType, Object lhs, Object rhs)
     {
         if (lhs == null && rhs == null) {

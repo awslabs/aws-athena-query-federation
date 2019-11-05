@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.data;
 
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -63,21 +64,54 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * This utility class abstracts many facets of reading and writing values into Apache Arrow's FieldReader and FieldVector
+ * objects.
+ *
+ * @note This class encourages a row wise approach to writing results. These interfaces are often viewed as simpler than
+ * the would be columnar equivalents. Even though many of the systems that we've integrated with using this SDK do not
+ * themselves support columnar access patterns, there is value in offering a a variant of these mechanisms that provide
+ * the skeleton for columnar writing/reading of results.
+ * <p>
+ * The current SDK version takes the approach that experts can drop into 'native' Apache Arrow mode and simply not use
+ * this abstraction. This approach of making common things easy and still enabling access to a 'power user' mode is
+ * one we'd like to stick with but we'd also like to make it easier for customers that can/want a more columnar
+ * experience/performance to be able to do so more easily.
+ * <p>
+ * In general the abstractions provided by this utility class also come with a performance hit when compared with native,
+ * columnar, Apache Arrow access patterns. The performance overhead primarily results from Object overhead related to boxing
+ * and/or type conversion. The second source of overhead is the constant lookup and branching of field types, vectors, readers,
+ * etc.. Some of this second category of overhead can be mitigated by being mindful of how you use this class but a more
+ * ideal solution would be to offer an interface that steers you in a better direction.
+ * <p>
+ * An issue has been opened to track the creation of a columnar variant of this utility:
+ * https://github.com/awslabs/aws-athena-query-federation/issues/1
+ */
 public class BlockUtils
 {
-    private static final MutableDateTime EPOCH = new MutableDateTime();
-
-    static {
-        EPOCH.setDate(0);
-    }
-
-    private BlockUtils() {}
-
+    /**
+     * Creates a new Block with a single column and populated with the provided values.
+     *
+     * @param allocator The BlockAllocator to use when creating the Block.
+     * @param columnName The name of the single column in the Block's Schema.
+     * @param type The Apache Arrow Type of the column.
+     * @param values The values to write to the new Block. Each value will be its own row.
+     * @return The newly created Block with a single column Schema at populated with the provided values.
+     */
     public static Block newBlock(BlockAllocator allocator, String columnName, ArrowType type, Object... values)
     {
         return newBlock(allocator, columnName, type, Arrays.asList(values));
     }
 
+    /**
+     * Creates a new Block with a single column and populated with the provided values.
+     *
+     * @param allocator The BlockAllocator to use when creating the Block.
+     * @param columnName The name of the single column in the Block's Schema.
+     * @param type The Apache Arrow Type of the column.
+     * @param values The values to write to the new Block. Each value will be its own row.
+     * @return The newly created Block with a single column Schema at populated with the provided values.
+     */
     public static Block newBlock(BlockAllocator allocator, String columnName, ArrowType type, Collection<Object> values)
     {
         SchemaBuilder schemaBuilder = new SchemaBuilder();
@@ -97,6 +131,14 @@ public class BlockUtils
         return block;
     }
 
+    /**
+     * Creates a new, empty, Block with a single column.
+     *
+     * @param allocator The BlockAllocator to use when creating the Block.
+     * @param columnName The name of the single column in the Block's Schema.
+     * @param type The Apache Arrow Type of the column.
+     * @return The newly created, empty, Block with a single column Schema.
+     */
     public static Block newEmptyBlock(BlockAllocator allocator, String columnName, ArrowType type)
     {
         SchemaBuilder schemaBuilder = new SchemaBuilder();
@@ -105,135 +147,9 @@ public class BlockUtils
         return allocator.createBlock(schema);
     }
 
-    private static void setNullValue(FieldVector vector, int pos)
-    {
-        //TODO: add all types
-        switch (vector.getMinorType()) {
-            case FLOAT8:
-                ((Float8Vector) vector).setNull(pos);
-                break;
-            case FLOAT4:
-                ((Float4Vector) vector).setNull(pos);
-                break;
-            case INT:
-                ((IntVector) vector).setNull(pos);
-                break;
-            case TINYINT:
-                ((TinyIntVector) vector).setNull(pos);
-                break;
-            case SMALLINT:
-                ((SmallIntVector) vector).setNull(pos);
-                break;
-            case UINT1:
-                ((UInt1Vector) vector).setNull(pos);
-                break;
-            case UINT2:
-                ((UInt2Vector) vector).setNull(pos);
-                break;
-            case UINT4:
-                ((UInt4Vector) vector).setNull(pos);
-                break;
-            case UINT8:
-                ((UInt8Vector) vector).setNull(pos);
-                break;
-            case BIGINT:
-                ((BigIntVector) vector).setNull(pos);
-                break;
-            case VARBINARY:
-                ((VarBinaryVector) vector).setNull(pos);
-                break;
-            case DECIMAL:
-                ((DecimalVector) vector).setNull(pos);
-                break;
-            case VARCHAR:
-                ((VarCharVector) vector).setNull(pos);
-                break;
-            case BIT:
-                ((BitVector) vector).setNull(pos);
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
-        }
-    }
-
-    protected static void writeList(BufferAllocator allocator,
-            FieldWriter writer,
-            Field field,
-            int pos,
-            Iterator value,
-            FieldResolver resolver)
-    {
-        Field child = null;
-        if (field.getChildren() != null && !field.getChildren().isEmpty()) {
-            child = field.getChildren().get(0);
-        }
-
-        writer.startList();
-        Iterator itr = value;
-        while (itr.hasNext()) {
-            Object val = itr.next();
-            if (val != null) {
-                switch (Types.getMinorTypeForArrowType(child.getType())) {
-                    case LIST:
-                        try {
-                            writeList(allocator, (FieldWriter) writer.list(), child, pos, ((List) val).iterator(), resolver);
-                        }
-                        catch (Exception ex) {
-                            throw ex;
-                        }
-                        break;
-                    case STRUCT:
-                        writeStruct(allocator, writer.struct(), child, pos, val, resolver);
-                        break;
-                    default:
-                        writeListValue(writer, child.getType(), allocator, val);
-                        break;
-                }
-            }
-        }
-        writer.endList();
-    }
-
-    protected static void writeStruct(BufferAllocator allocator,
-            StructWriter writer,
-            Field field,
-            int pos,
-            Object value,
-            FieldResolver resolver)
-    {
-        if (value == null) {
-            return;
-        }
-        writer.start();
-        for (Field nextChild : field.getChildren()) {
-            Object childValue = resolver.getFieldValue(nextChild, value);
-            switch (Types.getMinorTypeForArrowType(nextChild.getType())) {
-                case LIST:
-                    writeList(allocator,
-                            (FieldWriter) writer.list(nextChild.getName()),
-                            nextChild,
-                            pos,
-                            ((List) childValue).iterator(),
-                            resolver);
-                    break;
-                case STRUCT:
-                    writeStruct(allocator,
-                            writer.struct(nextChild.getName()),
-                            nextChild,
-                            pos,
-                            childValue,
-                            resolver);
-                    break;
-                default:
-                    writeStructValue(writer, nextChild, allocator, childValue);
-                    break;
-            }
-        }
-        writer.end();
-    }
-
     /**
      * Used to set complex values (Struct, List, etc...) on the provided FieldVector.
+     *
      * @param vector The FieldVector into which we should write the provided value.
      * @param pos The row number that the value should be written to.
      * @param resolver The FieldResolver that can be used to map your value to the complex type (mostly for Structs, Maps).
@@ -274,6 +190,7 @@ public class BlockUtils
 
     /**
      * Used to set values (Int, BigInt, Bit, etc...) on the provided FieldVector.
+     *
      * @param vector The FieldVector into which we should write the provided value.
      * @param pos The row number that the value should be written to.
      * @param value The value to write.
@@ -391,7 +308,335 @@ public class BlockUtils
         }
     }
 
-    //It is extremely annoying that ListWriter and StructWriter don't share a useful ancestor despite having identical methods...hence the DRY violation of this method
+    /**
+     * Used to convert a specific row in the provided Block to a human readable string. This is useful for diagnostic
+     * logging.
+     *
+     * @param block The Block to read the row from.
+     * @param row The row number to read.
+     * @return The human readable String representation of the requested row.
+     */
+    public static String rowToString(Block block, int row)
+    {
+        if (row > block.getRowCount()) {
+            throw new IllegalArgumentException(row + " exceeds available rows " + block.getRowCount());
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (FieldReader nextReader : block.getFieldReaders()) {
+            try {
+                nextReader.setPosition(row);
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append("[");
+                sb.append(nextReader.getField().getName());
+                sb.append(" : ");
+                sb.append(fieldToString(nextReader));
+                sb.append("]");
+            }
+            catch (RuntimeException ex) {
+                throw new RuntimeException("Error processing field " + nextReader.getField().getName(), ex);
+            }
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Used to convert a single cell for the given FieldReader to a human readable string.
+     *
+     * @param reader The FieldReader from which we should read the current cell. This means the position to be read should
+     * have been set on the reader before calling this method.
+     * @return The human readable String representation of the value at the FieldReaders current position.
+     */
+    public static String fieldToString(FieldReader reader)
+    {
+        switch (reader.getMinorType()) {
+            case DATEDAY:
+                return String.valueOf(reader.readInteger());
+            case DATEMILLI:
+                return String.valueOf(reader.readLocalDateTime());
+            case FLOAT8:
+            case FLOAT4:
+            case UINT4:
+            case UINT8:
+            case INT:
+            case BIGINT:
+            case VARCHAR:
+            case BIT:
+                return String.valueOf(reader.readObject());
+            case DECIMAL:
+                return String.valueOf(reader.readBigDecimal());
+            case SMALLINT:
+                return String.valueOf(reader.readShort());
+            case TINYINT:
+            case UINT1:
+                return Integer.valueOf(reader.readByte()).toString();
+            case UINT2:
+                return Integer.valueOf(reader.readCharacter()).toString();
+            case VARBINARY:
+                return bytesToHex(reader.readByteArray());
+            case STRUCT:
+                StringBuilder sb = new StringBuilder();
+                sb.append("{");
+                for (Field child : reader.getField().getChildren()) {
+                    if (sb.length() > 3) {
+                        sb.append(",");
+                    }
+                    sb.append("[");
+                    sb.append(child.getName());
+                    sb.append(" : ");
+                    sb.append(fieldToString(reader.reader(child.getName())));
+                    sb.append("]");
+                }
+                sb.append("}");
+                return sb.toString();
+            case LIST:
+                StringBuilder sbList = new StringBuilder();
+                sbList.append("{");
+                while (reader.next()) {
+                    if (sbList.length() > 1) {
+                        sbList.append(",");
+                    }
+                    sbList.append(fieldToString(reader.reader()));
+                }
+                sbList.append("}");
+                return sbList.toString();
+            default:
+                Object obj = reader.readObject();
+                return reader.getMinorType() + " - " + ((obj != null) ? obj.getClass().toString() : "null") +
+                        "[ " + String.valueOf(obj) + " ]";
+        }
+    }
+
+    /**
+     * In some filtering situations it can be useful to 'unset' a row as an indication to a later processing stage
+     * that the row is irrelevant. The mechanism by which we 'unset' a row is actually field type specific and as such
+     * this method is not supported for all field types.
+     *
+     * @param row The row number to unset in the provided Block.
+     * @param block The Block where we'd like to unset the specified row.
+     */
+    public static void unsetRow(int row, Block block)
+    {
+        for (FieldVector vector : block.getFieldVectors()) {
+            switch (vector.getMinorType()) {
+                case FLOAT8:
+                    ((Float8Vector) vector).setNull(row);
+                    break;
+                case INT:
+                    ((IntVector) vector).setNull(row);
+                    break;
+                case UINT2:
+                    ((UInt2Vector) vector).setNull(row);
+                    break;
+                case BIGINT:
+                    ((BigIntVector) vector).setNull(row);
+                    break;
+                case VARCHAR:
+                    ((VarCharVector) vector).setNull(row);
+                    break;
+                case BIT:
+                    ((BitVector) vector).setNull(row);
+                    break;
+                case STRUCT:
+                    ((StructVector) vector).setNull(row);
+                    break;
+                case LIST:
+                    UnionListWriter writer = ((ListVector) vector).getWriter();
+                    writer.setPosition(row);
+                    writer.startList();
+                    writer.endList();
+                    writer.setValueCount(0);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
+            }
+        }
+    }
+
+    /**
+     * Copies a inclusive range of rows from one block to another.
+     *
+     * @param srcBlock The source Block to copy the range of rows from.
+     * @param dstBlock The destination Block to copy the range of rows to.
+     * @param firstRow The first row we'd like to copy.
+     * @param lastRow The last row we'd like to copy.
+     * @return The number of rows that were copied.
+     */
+    public static int copyRows(Block srcBlock, Block dstBlock, int firstRow, int lastRow)
+    {
+        if (firstRow > lastRow || lastRow > srcBlock.getRowCount() - 1) {
+            throw new RuntimeException("src has " + srcBlock.getRowCount()
+                    + " but requested copy of " + firstRow + " to " + lastRow);
+        }
+
+        for (FieldReader src : srcBlock.getFieldReaders()) {
+            int dstOffset = dstBlock.getRowCount();
+            for (int i = firstRow; i <= lastRow; i++) {
+                FieldVector dst = dstBlock.getFieldVector(src.getField().getName());
+                src.setPosition(i);
+                setValue(dst, dstOffset++, src.readObject());
+            }
+        }
+
+        int rowsCopied = 1 + (lastRow - firstRow);
+        dstBlock.setRowCount(dstBlock.getRowCount() + rowsCopied);
+        return rowsCopied;
+    }
+
+    /**
+     * Checks if a row is null by checking that all fields in that row are null (aka not set).
+     *
+     * @param block The Block we'd like to check.
+     * @param row The row number we'd like to check.
+     * @return True if the entire row is null (aka all fields null/unset), False if any field has a non-null value.
+     */
+    public static boolean isNullRow(Block block, int row)
+    {
+        if (row > block.getRowCount() - 1) {
+            throw new RuntimeException("block has " + block.getRowCount()
+                    + " rows but requested to check " + row);
+        }
+
+        //If any column is non-null then return false
+        for (FieldReader src : block.getFieldReaders()) {
+            src.setPosition(row);
+            if (src.isSet()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Used to write a List value.
+     *
+     * @param allocator The BlockAllocator which can be used to generate Apache Arrow Buffers for types
+     * which require conversion to an Arrow Buffer before they can be written using the FieldWriter.
+     * @param writer The FieldWriter for the List field we'd like to write into.
+     * @param field The Schema details of the List Field we are writing into.
+     * @param pos The position (row) in the Apache Arrow batch we are writing to.
+     * @param value An iterator to the collection of values we want to write into the row.
+     * @param resolver The field resolver that can be used to extract individual values from the value iterator.
+     */
+    @VisibleForTesting
+    protected static void writeList(BufferAllocator allocator,
+            FieldWriter writer,
+            Field field,
+            int pos,
+            Iterator value,
+            FieldResolver resolver)
+    {
+        //Apache Arrow List types have a single 'special' child field which gives us the concrete type of the values
+        //stored in the list.
+        Field child = null;
+        if (field.getChildren() != null && !field.getChildren().isEmpty()) {
+            child = field.getChildren().get(0);
+        }
+
+        //Mark the beginning of the list, this is essentially how Apache Arrow handles the variable length nature
+        //of lists.
+        writer.startList();
+
+        Iterator itr = value;
+        while (itr.hasNext()) {
+            //For each item in the iterator, attempt to write it to the list.
+            Object val = itr.next();
+            if (val != null) {
+                switch (Types.getMinorTypeForArrowType(child.getType())) {
+                    case LIST:
+                        try {
+                            writeList(allocator, (FieldWriter) writer.list(), child, pos, ((List) val).iterator(), resolver);
+                        }
+                        catch (Exception ex) {
+                            throw ex;
+                        }
+                        break;
+                    case STRUCT:
+                        writeStruct(allocator, writer.struct(), child, pos, val, resolver);
+                        break;
+                    default:
+                        writeListValue(writer, child.getType(), allocator, val);
+                        break;
+                }
+            }
+        }
+        writer.endList();
+    }
+
+    /**
+     * Used to write a Struct value.
+     *
+     * @param allocator The BlockAllocator which can be used to generate Apache Arrow Buffers for types
+     * which require conversion to an Arrow Buffer before they can be written using the FieldWriter.
+     * @param writer The FieldWriter for the Struct field we'd like to write into.
+     * @param field The Schema details of the Struct Field we are writing into.
+     * @param pos The position (row) in the Apache Arrow batch we are writing to.
+     * @param value The value we'd like to write as a struct.
+     * @param resolver The field resolver that can be used to extract individual Struct fields from the value.
+     */
+    @VisibleForTesting
+    protected static void writeStruct(BufferAllocator allocator,
+            StructWriter writer,
+            Field field,
+            int pos,
+            Object value,
+            FieldResolver resolver)
+    {
+        //We expect null writes to have been handled earlier so this is a no-op.
+        if (value == null) {
+            return;
+        }
+
+        //Indicate the beginning of the struct value, this is how Apache Arrow handles the variable length of Struct types.
+        writer.start();
+        for (Field nextChild : field.getChildren()) {
+            //For each child field that comprises the struct, attempt to extract and write the corresponding value
+            //using the FieldResolver.
+            Object childValue = resolver.getFieldValue(nextChild, value);
+            switch (Types.getMinorTypeForArrowType(nextChild.getType())) {
+                case LIST:
+                    writeList(allocator,
+                            (FieldWriter) writer.list(nextChild.getName()),
+                            nextChild,
+                            pos,
+                            ((List) childValue).iterator(),
+                            resolver);
+                    break;
+                case STRUCT:
+                    writeStruct(allocator,
+                            writer.struct(nextChild.getName()),
+                            nextChild,
+                            pos,
+                            childValue,
+                            resolver);
+                    break;
+                default:
+                    writeStructValue(writer, nextChild, allocator, childValue);
+                    break;
+            }
+        }
+        writer.end();
+    }
+
+    /**
+     * Used to write an individual value into a List field, multiple calls to this method per-cell are expected in order
+     * to write the N values of a list of size N.
+     *
+     * @param writer The FieldWriter (already positioned at the row and list entry number) that we want to write into.
+     * @param type The concrete type of the List's values.
+     * @param allocator The BlockAllocator that can be used for allocating Arrow Buffers for fields which require conversion
+     * to Arrow Buff before being written.
+     * @param value The value to write.
+     * @note This method and its Struct complement violate the DRY mantra because ListWriter and StructWriter don't share
+     * a meaningful ancestor despite having identical methods. This requires us to either further wrap and abstract the writer
+     * or duplicate come code. In a future release we hope to have contributed a better option to Apache Arrow which allows
+     * us to simplify this method.
+     */
+    @VisibleForTesting
     protected static void writeListValue(FieldWriter writer, ArrowType type, BufferAllocator allocator, Object value)
     {
         try {
@@ -521,7 +766,21 @@ public class BlockUtils
         }
     }
 
-    //It is extremely annoying that ListWriter and StructWriter don't share a useful ancestor despite having identical methods...hence the DRY violation of this method
+    /**
+     * Used to write a value into a specific child field within a Struct. Multiple calls to this method per-cell are
+     * expected in order to write to all N fields of a Struct.
+     *
+     * @param writer The FieldWriter (already positioned at the row and list entry number) that we want to write into.
+     * @param field The child field we are attempting to write into.
+     * @param allocator The BlockAllocator that can be used for allocating Arrow Buffers for fields which require conversion
+     * to Arrow Buff before being written.
+     * @param value The value to write.
+     * @note This method and its List complement violate the DRY mantra because ListWriter and StructWriter don't share
+     * a meaningful ancestor despite having identical methods. This requires us to either further wrap and abstract the writer
+     * or duplicate come code. In a future release we hope to have contributed a better option to Apache Arrow which allows
+     * us to simplify this method.
+     */
+    @VisibleForTesting
     protected static void writeStructValue(StructWriter writer, Field field, BufferAllocator allocator, Object value)
     {
         if (value == null) {
@@ -530,7 +789,6 @@ public class BlockUtils
 
         ArrowType type = field.getType();
         try {
-            //TODO: add all types
             switch (Types.getMinorTypeForArrowType(type)) {
                 case DATEMILLI:
                     if (value instanceof Date) {
@@ -656,175 +914,75 @@ public class BlockUtils
         }
     }
 
-    public static String rowToString(Block block, int row)
-    {
-        if (row > block.getRowCount()) {
-            throw new IllegalArgumentException(row + " exceeds available rows " + block.getRowCount());
-        }
-
-        StringBuilder sb = new StringBuilder();
-        for (FieldReader nextReader : block.getFieldReaders()) {
-            try {
-                nextReader.setPosition(row);
-                if (sb.length() > 0) {
-                    sb.append(", ");
-                }
-                sb.append("[");
-                sb.append(nextReader.getField().getName());
-                sb.append(" : ");
-                sb.append(fieldToString(nextReader));
-                sb.append("]");
-            }
-            catch (RuntimeException ex) {
-                throw new RuntimeException("Error processing field " + nextReader.getField().getName(), ex);
-            }
-        }
-
-        return sb.toString();
-    }
-
-    public static String fieldToString(FieldReader reader)
-    {
-        switch (reader.getMinorType()) {
-            case DATEDAY:
-                return String.valueOf(reader.readInteger());
-            case DATEMILLI:
-                return String.valueOf(reader.readLocalDateTime());
-            case FLOAT8:
-            case FLOAT4:
-            case UINT4:
-            case UINT8:
-            case INT:
-            case BIGINT:
-            case VARCHAR:
-            case BIT:
-                return String.valueOf(reader.readObject());
-            case DECIMAL:
-                return String.valueOf(reader.readBigDecimal());
-            case SMALLINT:
-                return String.valueOf(reader.readShort());
-            case TINYINT:
-            case UINT1:
-                return Integer.valueOf(reader.readByte()).toString();
-            case UINT2:
-                return Integer.valueOf(reader.readCharacter()).toString();
-            case VARBINARY:
-                return bytesToHex(reader.readByteArray());
-            case STRUCT:
-                StringBuilder sb = new StringBuilder();
-                sb.append("{");
-                for (Field child : reader.getField().getChildren()) {
-                    if (sb.length() > 3) {
-                        sb.append(",");
-                    }
-                    sb.append("[");
-                    sb.append(child.getName());
-                    sb.append(" : ");
-                    sb.append(fieldToString(reader.reader(child.getName())));
-                    sb.append("]");
-                }
-                sb.append("}");
-                return sb.toString();
-            case LIST:
-                StringBuilder sbList = new StringBuilder();
-                sbList.append("{");
-                while (reader.next()) {
-                    if (sbList.length() > 1) {
-                        sbList.append(",");
-                    }
-                    sbList.append(fieldToString(reader.reader()));
-                }
-                sbList.append("}");
-                return sbList.toString();
-            default:
-                Object obj = reader.readObject();
-                return reader.getMinorType() + " - " + ((obj != null) ? obj.getClass().toString() : "null") +
-                        "[ " + String.valueOf(obj) + " ]";
-        }
-    }
-
-    public static void unsetRow(int row, Block block)
-    {
-        for (FieldVector vector : block.getFieldVectors()) {
-            switch (vector.getMinorType()) {
-                case FLOAT8:
-                    ((Float8Vector) vector).setNull(row);
-                    break;
-                case INT:
-                    ((IntVector) vector).setNull(row);
-                    break;
-                case UINT2:
-                    ((UInt2Vector) vector).setNull(row);
-                    break;
-                case BIGINT:
-                    ((BigIntVector) vector).setNull(row);
-                    break;
-                case VARCHAR:
-                    ((VarCharVector) vector).setNull(row);
-                    break;
-                case BIT:
-                    ((BitVector) vector).setNull(row);
-                    break;
-                case STRUCT:
-                    ((StructVector) vector).setNull(row);
-                    break;
-                case LIST:
-                    UnionListWriter writer = ((ListVector) vector).getWriter();
-                    writer.setPosition(row);
-                    writer.startList();
-                    writer.endList();
-                    writer.setValueCount(0);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
-            }
-        }
-    }
-
     /**
-     * @param srcBlock
-     * @param dstBlock
-     * @param firstRow Inclusive
-     * @param lastRow Inclusive
+     * Used to mark a particular cell as null.
+     *
+     * @param vector The FieldVector to write the null value to.
+     * @param pos The position (row) in the FieldVector to mark as null.
      */
-    public static int copyRows(Block srcBlock, Block dstBlock, int firstRow, int lastRow)
+    private static void setNullValue(FieldVector vector, int pos)
     {
-        if (firstRow > lastRow || lastRow > srcBlock.getRowCount() - 1) {
-            throw new RuntimeException("src has " + srcBlock.getRowCount()
-                    + " but requested copy of " + firstRow + " to " + lastRow);
+        switch (vector.getMinorType()) {
+            case DATEMILLI:
+                ((DateMilliVector) vector).setNull(pos);
+                break;
+            case DATEDAY:
+                ((DateDayVector) vector).setNull(pos);
+                break;
+            case FLOAT8:
+                ((Float8Vector) vector).setNull(pos);
+                break;
+            case FLOAT4:
+                ((Float4Vector) vector).setNull(pos);
+                break;
+            case INT:
+                ((IntVector) vector).setNull(pos);
+                break;
+            case TINYINT:
+                ((TinyIntVector) vector).setNull(pos);
+                break;
+            case SMALLINT:
+                ((SmallIntVector) vector).setNull(pos);
+                break;
+            case UINT1:
+                ((UInt1Vector) vector).setNull(pos);
+                break;
+            case UINT2:
+                ((UInt2Vector) vector).setNull(pos);
+                break;
+            case UINT4:
+                ((UInt4Vector) vector).setNull(pos);
+                break;
+            case UINT8:
+                ((UInt8Vector) vector).setNull(pos);
+                break;
+            case BIGINT:
+                ((BigIntVector) vector).setNull(pos);
+                break;
+            case VARBINARY:
+                ((VarBinaryVector) vector).setNull(pos);
+                break;
+            case DECIMAL:
+                ((DecimalVector) vector).setNull(pos);
+                break;
+            case VARCHAR:
+                ((VarCharVector) vector).setNull(pos);
+                break;
+            case BIT:
+                ((BitVector) vector).setNull(pos);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown type " + vector.getMinorType());
         }
-
-        for (FieldReader src : srcBlock.getFieldReaders()) {
-            int dstOffset = dstBlock.getRowCount();
-            for (int i = firstRow; i <= lastRow; i++) {
-                FieldVector dst = dstBlock.getFieldVector(src.getField().getName());
-                src.setPosition(i);
-                setValue(dst, dstOffset++, src.readObject());
-            }
-        }
-
-        int rowsCopied = 1 + (lastRow - firstRow);
-        dstBlock.setRowCount(dstBlock.getRowCount() + rowsCopied);
-        return rowsCopied;
     }
 
-    public static boolean isNullRow(Block block, int row)
-    {
-        if (row > block.getRowCount() - 1) {
-            throw new RuntimeException("block has " + block.getRowCount()
-                    + " rows but requested to check " + row);
-        }
+    private static final MutableDateTime EPOCH = new MutableDateTime();
 
-        //If any column is non-null then return false
-        for (FieldReader src : block.getFieldReaders()) {
-            src.setPosition(row);
-            if (src.isSet()) {
-                return false;
-            }
-        }
-
-        return true;
+    static {
+        EPOCH.setDate(0);
     }
+
+    private BlockUtils() {}
 
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 

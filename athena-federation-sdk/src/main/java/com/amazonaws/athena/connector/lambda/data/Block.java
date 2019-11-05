@@ -54,6 +54,11 @@ import static java.util.Objects.requireNonNull;
  * avoiding setValue(...) and setComplexValue(...). In our testing conversion to Apache Arrow was not a significant
  * bottleneck and instead represented extra latency which could be hidden through parallelism and pipelining. This is why
  * we opted to offer these convenience methods.
+ * <p>
+ * Remember to always close your Block(s) when you are done with them. If you are using a BlockAllocator it is still
+ * recommended that you close() Blocks explicitly wherever possible vs. depending on BlockAllocator.close() to free
+ * resources. Closing Blocks earlier will reduce peak memory demands and reduce the chance that you exhaust your Apache
+ * Arrow memory pool.
  */
 public class Block
         extends SchemaAware
@@ -161,32 +166,73 @@ public class Block
         return false;
     }
 
+    /**
+     * Provides access to the Apache Arrow Vector Schema when direct access to Apache Arrow is required.
+     *
+     * @return The Apache Arrow Vector Schema.
+     */
     protected VectorSchemaRoot getVectorSchema()
     {
         return vectorSchema;
     }
 
+    /**
+     * Sets the valid row count on the underlying Apache Arrow Vector Schema.
+     *
+     * @param rowCount The row count to set.
+     * @Note If you do not set this value then block may not serialize correctly (too few rows) or rows may
+     * not be readable.
+     */
     public void setRowCount(int rowCount)
     {
         vectorSchema.setRowCount(rowCount);
     }
 
+    /**
+     * Returns the current row count as set by calling setRowCount(...)
+     *
+     * @return The current valud row count for the Apache Arrow Vector Schema.
+     */
     public int getRowCount()
     {
         return vectorSchema.getRowCount();
     }
 
-    //TODO: How will this work for nested fields? I think it works naturally
+    /**
+     * Provides access to the Apache Arrow FieldReader for the given field name.
+     *
+     * @param fieldName The name of the field to retrieve.
+     * @return The FieldReader that can be used to read values from the Block for the specified field.
+     * @note This method throws NPE if the requested field name is not a valid field name in the block's Schema.
+     * Additionally, for accessing nested field you must request the parent field and then call reader(String fieldName)
+     * on the parent FieldReader. You can find some examples of how to use Apache Arrow for complex/nested types in
+     * the UnitTest for this class or BlockUtils.java.
+     */
     public FieldReader getFieldReader(String fieldName)
     {
         return vectorSchema.getVector(fieldName).getReader();
     }
 
+    /**
+     * Provides access to the Apache Arrow FieldVector which can be used to write values for the given field name.
+     *
+     * @param fieldName The name of the field to retrieve.
+     * @return The FieldVector that can be used to read values from the Block for the specified field or NULL if the field
+     * is not in this Block's Schema.
+     * @note Additionally, for accessing nested field you must request the parent field and then call the apprioriate
+     * method (based on type) to get the child field's FieldVector. You can find some examples of how to use Apache Arrow
+     * for complex/nested types in the UnitTest for this class or BlockUtils.java.
+     */
     public FieldVector getFieldVector(String fieldName)
     {
         return vectorSchema.getVector(fieldName);
     }
 
+    /**
+     * Provides access to the list of all top-level FieldReaders in this Block.
+     *
+     * @return List<FieldReader> containing the top-level FieldReaders for this block.
+     */
     public List<FieldReader> getFieldReaders()
     {
         List<FieldReader> readers = new ArrayList<>();
@@ -196,6 +242,15 @@ public class Block
         return readers;
     }
 
+    /**
+     * Calculates the current used size in 'bytes' for all Apache Arrow Buffers that comprise the row data for
+     * this Block.
+     *
+     * @return The used bytes of row data in this Block.
+     * @note This value is likley smaller than the actually memory held by this Block as it only counts the 'used' portion
+     * of the pre-allocated Apache Arrow Buffers. It is generally safer to think about this value as the size of the Block
+     * if you serialize it and thus is useful for controlling the size of the Block responses sent to Athena.
+     */
     @Transient
     public long getSize()
     {
@@ -206,17 +261,35 @@ public class Block
         return size;
     }
 
+    /**
+     * Provides access to the list of all top-level FieldVectors in this Block.
+     *
+     * @return List<FieldVectors> containing the top-level FieldVectors for this block.
+     */
     public List<FieldVector> getFieldVectors()
     {
         return vectorSchema.getFieldVectors();
     }
 
+    /**
+     * Used to unload the Apache Arrow data in this Block in preparation for Serialization.
+     *
+     * @return An ArrowRecordBatch containing all row data in this Block for use in serializing the Block.
+     */
     public ArrowRecordBatch getRecordBatch()
     {
         VectorUnloader vectorUnloader = new VectorUnloader(vectorSchema);
         return vectorUnloader.getRecordBatch();
     }
 
+    /**
+     * Used to load Apache Arrow data into this Block after it has been deserialized.
+     *
+     * @param batch An ArrowRecordBatch containing all row data you'd like to load into this Block.
+     * @note The batch is closed after being loaded to avoid memory leaks or data corruption since the buffers
+     * associated with the batch are now owned by this Block. Closing the batch essentially decrements the referrence
+     * count in the Arrow Allocator.
+     */
     public void loadRecordBatch(ArrowRecordBatch batch)
     {
         VectorLoader vectorLoader = new VectorLoader(vectorSchema);
@@ -224,6 +297,11 @@ public class Block
         batch.close();
     }
 
+    /**
+     * Frees all Apache Arrow Buffers and resources associated with this block.
+     *
+     * @throws Exception
+     */
     @Override
     public void close()
             throws Exception
@@ -237,6 +315,11 @@ public class Block
         return schema;
     }
 
+    /**
+     * Provides some basic equality checking for a Block. This method has some draw backs in that is isn't a deep equality
+     * and will not work for some large complex blocks. At present this method is useful for testing purposes but may be refactored
+     * in a future release.
+     */
     @Override
     public boolean equals(Object o)
     {
@@ -257,7 +340,6 @@ public class Block
             return false;
         }
 
-        //TODO: Test with nested types
         try {
             for (Field next : this.schema.getFields()) {
                 FieldReader thisReader = vectorSchema.getVector(next.getName()).getReader();
@@ -284,6 +366,11 @@ public class Block
         return true;
     }
 
+    /**
+     * Provides some basic equality checking for a Block ignoring ordering. This method has some draw backs in that is
+     * isn't a deep equality and will not work for some large complex blocks. At present this method is useful for testing
+     * purposes but may be refactored in a future release.
+     */
     public boolean equalsAsSet(Object o)
     {
         if (this == o) {
@@ -303,7 +390,6 @@ public class Block
             return false;
         }
 
-        //TODO: Test with nested types
         try {
             for (Field next : this.schema.getFields()) {
                 FieldReader thisReader = vectorSchema.getVector(next.getName()).getReader();
@@ -333,6 +419,11 @@ public class Block
         return true;
     }
 
+    /**
+     * Provides some basic hashcode capabilities for the Block. This method has some draw backs in that it is difficult
+     * to maintain as we add new types and becomes error prone when and slow if missused. This challenge is compounded
+     * when understanding the right/wrong ways to use this are not easy to convey.
+     */
     @Override
     public int hashCode()
     {
@@ -341,7 +432,6 @@ public class Block
             hashcode = hashcode + Objects.hashCode(next);
         }
 
-        //TODO: Test with nested types
         for (Field next : this.schema.getFields()) {
             FieldReader thisReader = vectorSchema.getVector(next.getName()).getReader();
             for (int i = 0; i < this.vectorSchema.getRowCount(); i++) {

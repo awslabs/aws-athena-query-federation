@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -94,9 +94,27 @@ public class SchemaBuilder
         return this;
     }
 
+    public SchemaBuilder addTinyIntField(String fieldName)
+    {
+        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.TINYINT.getType()), null));
+        return this;
+    }
+
+    public SchemaBuilder addSmallIntField(String fieldName)
+    {
+        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.SMALLINT.getType()), null));
+        return this;
+    }
+
     public SchemaBuilder addFloat8Field(String fieldName)
     {
         fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null));
+        return this;
+    }
+
+    public SchemaBuilder addFloat4Field(String fieldName)
+    {
+        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null));
         return this;
     }
 
@@ -109,6 +127,24 @@ public class SchemaBuilder
     public SchemaBuilder addBitField(String fieldName)
     {
         fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.BIT.getType()), null));
+        return this;
+    }
+
+    public SchemaBuilder addDecimalField(String fieldName, int precision, int scale)
+    {
+        fields.add(new Field(fieldName, FieldType.nullable(new ArrowType.Decimal(precision, scale)), null));
+        return this;
+    }
+
+    public SchemaBuilder addDateDayField(String fieldName)
+    {
+        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.DATEDAY.getType()), null));
+        return this;
+    }
+
+    public SchemaBuilder addDateMilliField(String fieldName)
+    {
+        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null));
         return this;
     }
 

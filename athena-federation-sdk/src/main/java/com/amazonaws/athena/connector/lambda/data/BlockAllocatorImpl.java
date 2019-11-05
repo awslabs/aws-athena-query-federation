@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,6 +23,7 @@ package com.amazonaws.athena.connector.lambda.data;
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
@@ -36,34 +37,64 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Basic BlockAllocator which uses reference counting to perform garbage collection of Apache Arrow resources.
+ *
+ * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+ */
 public class BlockAllocatorImpl
         implements BlockAllocator
 {
     private static final Logger logger = LoggerFactory.getLogger(BlockAllocatorImpl.class);
 
+    //Identifier for this block allocator, mostly used by BlockAllocatorRegistry.
     private final String id;
+    //The Apache Arrow Buffer Allocator that we are wrapping with reference counting and clean up.
     private final BufferAllocator rootAllocator;
+    //The Blocks that have been allocated via this BlockAllocator
     private final List<Block> blocks = new ArrayList<>();
+    //The record batches that have been allocated via this BlockAllocator
     private final List<ArrowRecordBatch> recordBatches = new ArrayList<>();
+    //The arrow buffers that have been allocated via this BlockAllocator
     private final List<ArrowBuf> arrowBufs = new ArrayList<>();
+    //Flag inficating if this allocator has been closed.
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
+    /**
+     * Default constructor.
+     */
     public BlockAllocatorImpl()
     {
         this(UUID.randomUUID().toString(), Integer.MAX_VALUE);
     }
 
+    /**
+     * Constructs a BlockAllocatorImpl with the given id.
+     *
+     * @param id The id used to identify this BlockAllocatorImpl
+     */
     public BlockAllocatorImpl(String id)
     {
         this(id, Integer.MAX_VALUE);
     }
 
+    /**
+     * Constructs a BlockAllocatorImpl with the given id and memory byte limit.
+     *
+     * @param id The id used to identify this BlockAllocatorImpl
+     * @param memoryLimit The max memory, in bytes, that this BlockAllocator is allows to use.
+     */
     public BlockAllocatorImpl(String id, long memoryLimit)
     {
         this.rootAllocator = new RootAllocator(memoryLimit);
         this.id = id;
     }
 
+    /**
+     * Creates a block and registers it for later clean up if the block isn't explicitly closed by the caller.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+     */
     public synchronized Block createBlock(Schema schema)
     {
         Block block = null;
@@ -100,6 +131,11 @@ public class BlockAllocatorImpl
         return block;
     }
 
+    /**
+     * Creates an ArrowBuf and registers it for later clean up if the ArrowBuff isn't explicitly closed by the caller.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+     */
     public ArrowBuf createBuffer(int size)
     {
         ArrowBuf buffer = null;
@@ -117,7 +153,10 @@ public class BlockAllocatorImpl
     }
 
     /**
-     * Allows atomic generation and registration to avoid GC race conditions.
+     * Creates an ArrowRecordBatch and registers it for later clean up if the ArrowRecordBatch isn't explicitly closed
+     * by the caller.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
      */
     public synchronized ArrowRecordBatch registerBatch(BatchGenerator generator)
     {
@@ -139,12 +178,21 @@ public class BlockAllocatorImpl
         }
     }
 
+    /**
+     * Provides access to the underlying Apache Arrow Allocator.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+     */
     protected synchronized BufferAllocator getRawAllocator()
     {
         logger.debug("getRawAllocator: enter");
         return rootAllocator;
     }
 
+    /**
+     * Attempts to close all Blocks allocated by this BlockAllocator.
+     */
+    @VisibleForTesting
     protected synchronized void closeBlocks()
     {
         logger.debug("closeBlocks: {}", blocks.size());
@@ -159,6 +207,10 @@ public class BlockAllocatorImpl
         blocks.clear();
     }
 
+    /**
+     * Attempts to close all buffers allocated by this BlockAllocator.
+     */
+    @VisibleForTesting
     protected synchronized void closeBuffers()
     {
         logger.debug("closeBuffers: {}", arrowBufs.size());
@@ -173,6 +225,10 @@ public class BlockAllocatorImpl
         arrowBufs.clear();
     }
 
+    /**
+     * Attempts to close all batches allocated by this BlockAllocator.
+     */
+    @VisibleForTesting
     protected synchronized void closeBatches()
     {
         logger.debug("closeBatches: {}", recordBatches.size());
@@ -187,11 +243,25 @@ public class BlockAllocatorImpl
         recordBatches.clear();
     }
 
+    /**
+     * Returns number of bytes in the Apache Arrow Pool that are used. This is not the same as the actual
+     * reserved memory usage you may be familiar with from your operating system.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+     */
     public long getUsage()
     {
         return rootAllocator.getAllocatedMemory();
     }
 
+    /**
+     * Closes all Apache Arrow Resources allocated via this BlockAllocator and then attempts to
+     * close the underlying Apache Arrow Allocator which would actually free memory. This operation may
+     * fail if the underlying Apache Arrow Allocator was used to allocate resources without registering
+     * them to this BlockAllocator and those resources were not freed prior to calling close.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+     */
     @Override
     public synchronized void close()
     {
@@ -204,6 +274,11 @@ public class BlockAllocatorImpl
         }
     }
 
+    /**
+     * Indicates if this BlockAllocator has been closed.
+     *
+     * @see com.amazonaws.athena.connector.lambda.data.BlockAllocator
+     */
     @Override
     public boolean isClosed()
     {
