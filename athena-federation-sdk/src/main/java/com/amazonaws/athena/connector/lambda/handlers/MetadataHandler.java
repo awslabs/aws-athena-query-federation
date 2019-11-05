@@ -71,6 +71,12 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
 
+/**
+ * @note All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or
+ * mixed case will not be accessible in queries and will be lower cased by Athena's engine to ensure consistency across
+ * sources. As such you may need to handle this when integrating with a source that supports mixed case. As an example,
+ * you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
+ */
 public abstract class MetadataHandler
         implements RequestStreamHandler
 {
@@ -194,34 +200,40 @@ public abstract class MetadataHandler
             OutputStream outputStream)
             throws Exception
     {
+        logger.info("doHandleRequest: request[{}]", req);
         MetadataRequestType type = req.getRequestType();
         switch (type) {
             case LIST_SCHEMAS:
                 try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
             case LIST_TABLES:
                 try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
             case GET_TABLE:
                 try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
             case GET_TABLE_LAYOUT:
                 try (GetTableLayoutResponse response = doGetTableLayout(allocator, (GetTableLayoutRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
             case GET_SPLITS:
                 try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     objectMapper.writeValue(outputStream, response);
                 }

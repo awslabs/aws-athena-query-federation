@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -52,8 +53,10 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 import static com.amazonaws.athena.connector.lambda.data.FieldResolver.DEFAULT;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsMetadataHandler.STATISTICS;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSIONS_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_NAME_FIELD;
@@ -85,6 +88,8 @@ public class MetricsRecordHandler
     //Schema for the metric_samples table.
     private static final Table METRIC_DATA_TABLE = new MetricSamplesTable();
 
+    //Used to handle throttling events by applying AIMD congestion control
+    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
     private final AmazonS3 amazonS3;
     private final AmazonCloudWatch metrics;
 
@@ -110,7 +115,9 @@ public class MetricsRecordHandler
      */
     @Override
     protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
+            throws TimeoutException
     {
+        invoker.setBlockSpiller(blockSpiller);
         if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE.getName())) {
             readMetricsWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
         }
@@ -123,6 +130,7 @@ public class MetricsRecordHandler
      * Handles retrieving the list of available metrics when the METRICS_TABLE is queried by listing metrics in Cloudwatch Metrics.
      */
     private void readMetricsWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
+            throws TimeoutException
     {
         ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
         MetricUtils.pushDownPredicate(request.getConstraints(), listMetricsRequest);
@@ -133,7 +141,7 @@ public class MetricsRecordHandler
         ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
         do {
             prevToken = listMetricsRequest.getNextToken();
-            ListMetricsResult result = metrics.listMetrics(listMetricsRequest);
+            ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
             for (Metric nextMetric : result.getMetrics()) {
                 blockSpiller.writeRows((Block block, int row) -> {
                     boolean matches = MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, null);
@@ -196,6 +204,7 @@ public class MetricsRecordHandler
      * Handles retrieving the samples for a specific metric from Cloudwatch Metrics.
      */
     private void readMetricSamplesWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
+            throws TimeoutException
     {
         Split split = request.getSplit();
         List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
@@ -208,7 +217,7 @@ public class MetricsRecordHandler
         ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
         do {
             prevToken = dataRequest.getNextToken();
-            GetMetricDataResult result = metrics.getMetricData(dataRequest);
+            GetMetricDataResult result = invoker.invoke(() -> metrics.getMetricData(dataRequest));
             for (MetricDataResult nextMetric : result.getMetricDataResults()) {
                 List<Date> timestamps = nextMetric.getTimestamps();
                 List<Double> values = nextMetric.getValues();

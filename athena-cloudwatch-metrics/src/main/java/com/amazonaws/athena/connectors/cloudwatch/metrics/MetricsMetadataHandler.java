@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -58,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
@@ -96,6 +98,8 @@ public class MetricsMetadataHandler
     private static final Map<String, Table> TABLES = new HashMap<>();
     //The default metric period to query (60 seconds)
     private static final int DEFAULT_PERIOD_SEC = 60;
+    //Used to handle throttling events by applying AIMD congestion control
+    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
 
     private final AmazonCloudWatch metrics;
 
@@ -225,7 +229,7 @@ public class MetricsMetadataHandler
 
             String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
             Set<Split> splits = new HashSet<>();
-            ListMetricsResult result = metrics.listMetrics(listMetricsRequest);
+            ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
             for (Metric nextMetric : result.getMetrics()) {
                 for (String nextStatistic : STATISTICS) {
                     if (MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, nextStatistic)) {

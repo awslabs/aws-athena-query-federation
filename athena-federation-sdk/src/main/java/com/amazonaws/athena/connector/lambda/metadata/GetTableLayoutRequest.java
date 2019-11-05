@@ -91,6 +91,17 @@ public class GetTableLayoutRequest
     }
 
     @Override
+    public String toString()
+    {
+        return "GetTableLayoutRequest{" +
+                "tableName=" + tableName +
+                ", constraints=" + constraints +
+                ", schema=" + schema +
+                ", partitionCols=" + partitionCols +
+                '}';
+    }
+
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {

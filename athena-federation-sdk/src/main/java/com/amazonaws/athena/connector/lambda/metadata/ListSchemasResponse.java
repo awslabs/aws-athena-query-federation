@@ -57,6 +57,14 @@ public class ListSchemasResponse
     }
 
     @Override
+    public String toString()
+    {
+        return "ListSchemasResponse{" +
+                "schemas=" + schemas +
+                '}';
+    }
+
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {

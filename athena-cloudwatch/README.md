@@ -13,6 +13,14 @@ The Athena Cloudwatch Connector exposes several configuration options via Lambda
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 
+The connector also supports AIMD Congestion Control for handling throttling events from Cloudwatch via the Athena Query Federation SDK's ThrottlingInvoker construct. You can tweak the default throttling behavior by setting any of the below (optional) environment variables:
+
+1. **throttle_initial_delay_ms** - (Default: 10ms) This is the initial call delay applied after the first congestion event.
+1. **throttle_max_delay_ms** - (Default: 1000ms) This is the max delay between calls. You can derive TPS by dividing it into 1000ms.
+1. **throttle_decrease_factor** - (Default: 0.5) This is the factor by which we reduce our call rate.
+1. **throttle_increase_ms** - (Default: 10ms) This is the rate at which we decrease the call delay.
+
+
 ### Databases & Tables
 
 The Athena Cloudwatch Connector maps your LogGroups as schemas (aka database) and each LogStream as a table. The connector also maps a special "all_log_streams" View comprised of all LogStreams in the LogGroup. This View allows you to query all the logs in a LogGroup at once instead of search through each LogStream individually.

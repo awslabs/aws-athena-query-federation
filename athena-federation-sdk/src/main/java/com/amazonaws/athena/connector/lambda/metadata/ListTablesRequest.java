@@ -57,6 +57,14 @@ public class ListTablesRequest
     }
 
     @Override
+    public String toString()
+    {
+        return "ListTablesRequest{" +
+                "schemaName='" + schemaName + '\'' +
+                '}';
+    }
+
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {

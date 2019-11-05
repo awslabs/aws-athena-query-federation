@@ -115,7 +115,7 @@ public class GetSplitsResponse
     public String toString()
     {
         return "GetSplitsResponse{" +
-                "splits=" + splits +
+                "splitSize=" + splits.size() +
                 ", continuationToken='" + continuationToken + '\'' +
                 '}';
     }

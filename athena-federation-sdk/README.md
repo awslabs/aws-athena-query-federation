@@ -21,6 +21,8 @@ In the next section we take a closer look at the methods we must implement on th
 
 Lets take a closer look at what is required for a MetadataHandler. Below we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new data source.
 
+All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or mixed case will not be accessible in queries and will be lower cased by Athena's engine to ensure consistency across sources. As such you may need to handle this when integrating with a source that supports mixed case. As an example, you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
+
 ```java
 public class MyMetadataHandler extends MetadataHandler
 {
@@ -102,6 +104,14 @@ public class MyRecordHandler
 
 ### Throttling & Rate Limiting
 
+If your Lambda function(s) throw a FederationThrottleException, Athena will use that as an indication that your Lambda function(s) or the source they talk to are under too much load and trigger Athena's Additive-Increase/Multiplicative-Decrease based Congestion Control mechanism. Some sources may generate throttling events in the middle of a Lambda invocation, after some data has already been returned. In these cases, Athena can not always automatically apply congestion control because retrying the call may lead to incorrect query results. We recommend using ThrottlingInvoker to handle calls to depedent services in your connector. The ThrottlingInvoker has hooks to see if you've already written rows to the response and thus decide how best to handle a Throttling event either by: sleeping and retrying in your Lamnbda function or by bubbling up a FederationThrottleException to Athena.
+
+You can configure ThrottlingInvoker via its builder or for pre-built connectors like athena-cloudwatch by setting the following environment variables:
+
+1. **throttle_initial_delay_ms** - (Default: 10ms) This is the initial call delay applied after the first congestion event.
+1. **throttle_max_delay_ms** - (Default: 1000ms) This is the max delay between calls. You can derive TPS by dividing it into 1000ms.
+1. **throttle_decrease_factor** - (Default: 0.5) This is the factor by which we reduce our call rate.
+1. **throttle_increase_ms** - (Default: 10ms) This is the rate at which we decrease the call delay.
 
 
 ## License

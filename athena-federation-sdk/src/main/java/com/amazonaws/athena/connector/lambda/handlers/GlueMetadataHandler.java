@@ -52,6 +52,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * @note All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or
+ * mixed case will not be accessible in queries and will be lower cased by Athena's engine to ensure consistency across
+ * sources. As such you may need to handle this when integrating with a source that supports mixed case. As an example,
+ * you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
+ */
 public abstract class GlueMetadataHandler
         extends MetadataHandler
 {

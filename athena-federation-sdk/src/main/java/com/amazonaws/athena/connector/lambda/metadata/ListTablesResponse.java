@@ -58,6 +58,14 @@ public class ListTablesResponse
     }
 
     @Override
+    public String toString()
+    {
+        return "ListTablesResponse{" +
+                "tables=" + tables +
+                '}';
+    }
+
+    @Override
     public boolean equals(Object o)
     {
         if (this == o) {

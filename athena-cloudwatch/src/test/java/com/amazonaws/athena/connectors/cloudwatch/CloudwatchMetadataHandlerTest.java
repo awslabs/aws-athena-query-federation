@@ -69,6 +69,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
@@ -96,6 +97,15 @@ public class CloudwatchMetadataHandlerTest
     public void setUp()
             throws Exception
     {
+        when(mockAwsLogs.describeLogStreams(any(DescribeLogStreamsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            return new DescribeLogStreamsResult().withLogStreams(new LogStream().withLogStreamName("table-9"),
+                    new LogStream().withLogStreamName("table-10"));
+        });
+
+        when(mockAwsLogs.describeLogGroups(any(DescribeLogGroupsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            return new DescribeLogGroupsResult().withLogGroups(new LogGroup().withLogGroupName("schema-1"),
+                    new LogGroup().withLogGroupName("schema-20"));
+        });
         handler = new CloudwatchMetadataHandler(mockAwsLogs, new LocalKeyFactory(), mockSecretsManager, "spillBucket", "spillPrefix");
         allocator = new BlockAllocatorImpl();
     }
@@ -109,6 +119,7 @@ public class CloudwatchMetadataHandlerTest
 
     @Test
     public void doListSchemaNames()
+            throws TimeoutException
     {
         logger.info("doListSchemas - enter");
 
@@ -158,6 +169,7 @@ public class CloudwatchMetadataHandlerTest
 
     @Test
     public void doListTables()
+            throws TimeoutException
     {
         logger.info("doListTables - enter");
 
@@ -203,6 +215,7 @@ public class CloudwatchMetadataHandlerTest
         assertTrue(res.getTables().size() == 31);
 
         verify(mockAwsLogs, times(4)).describeLogStreams(any(DescribeLogStreamsRequest.class));
+        verify(mockAwsLogs, times(1)).describeLogGroups(any(DescribeLogGroupsRequest.class));
         verifyNoMoreInteractions(mockAwsLogs);
 
         logger.info("doListTables - exit");
@@ -256,7 +269,6 @@ public class CloudwatchMetadataHandlerTest
         assertTrue(res.getSchema() != null);
 
         verify(mockAwsLogs, times(1)).describeLogStreams(any(DescribeLogStreamsRequest.class));
-        verifyNoMoreInteractions(mockAwsLogs);
 
         logger.info("doGetTable - exit");
     }
@@ -326,7 +338,6 @@ public class CloudwatchMetadataHandlerTest
         assertTrue(res.getPartitions().getRowCount() == 1);
 
         verify(mockAwsLogs, times(4)).describeLogStreams(any(DescribeLogStreamsRequest.class));
-        verifyNoMoreInteractions(mockAwsLogs);
 
         logger.info("doGetTableLayout - exit");
     }
@@ -339,6 +350,7 @@ public class CloudwatchMetadataHandlerTest
         Schema schema = SchemaBuilder.newBuilder()
                 .addField(CloudwatchMetadataHandler.LOG_STREAM_FIELD, new ArrowType.Utf8())
                 .addField(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD, new ArrowType.Int(64, true))
+                .addField(CloudwatchMetadataHandler.LOG_GROUP_FIELD, new ArrowType.Utf8())
                 .build();
 
         Block partitions = allocator.createBlock(schema);
@@ -347,6 +359,7 @@ public class CloudwatchMetadataHandlerTest
         for (int i = 0; i < num_partitions; i++) {
             BlockUtils.setValue(partitions.getFieldVector(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD), i, 2016L + i);
             BlockUtils.setValue(partitions.getFieldVector(CloudwatchMetadataHandler.LOG_STREAM_FIELD), i, "log_stream_" + i);
+            BlockUtils.setValue(partitions.getFieldVector(CloudwatchMetadataHandler.LOG_GROUP_FIELD), i, "log_group_" + i);
         }
         partitions.setRowCount(num_partitions);
 
@@ -374,7 +387,8 @@ public class CloudwatchMetadataHandlerTest
 
             for (Split nextSplit : response.getSplits()) {
                 assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD));
-                assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_STREAM_SIZE_FIELD));
+                assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_STREAM_FIELD));
+                assertNotNull(nextSplit.getProperty(CloudwatchMetadataHandler.LOG_GROUP_FIELD));
             }
 
             if (continuationToken != null) {
