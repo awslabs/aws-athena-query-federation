@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,6 +26,10 @@ import org.apache.arrow.vector.types.pojo.Field;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Assists in writing values for complex types like List and Struct by providing a way to extract child field
+ * values from the provided complex value.
+ */
 public interface FieldResolver
 {
     /**
@@ -54,5 +58,12 @@ public interface FieldResolver
         }
     };
 
+    /**
+     * Used to extract a value for the given Field from the provided value.
+     *
+     * @param field The field that we would like to extract from the provided value.
+     * @param value The complex value we'd like to extract the provided field from.
+     * @return The value to use for the given field.
+     */
     Object getFieldValue(Field field, Object value);
 }

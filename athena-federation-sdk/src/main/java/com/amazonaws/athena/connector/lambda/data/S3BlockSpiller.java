@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,43 +49,71 @@ import java.util.concurrent.locks.StampedLock;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Implementation of BlockSpiller which spills Blocks from large results to S3 with optional AES-GCM encryption.
+ *
+ * @note The size at which this implementation will spill to S3 are configured using SpillConfig.
+ */
 public class S3BlockSpiller
         implements AutoCloseable, BlockSpiller
 {
     private static final Logger logger = LoggerFactory.getLogger(S3BlockSpiller.class);
-    private static final String S3_SEPERATOR = "/";
+    //Used to control how long we will wait for background spill threads to exit.
     private static final long ASYNC_SHUTDOWN_MILLIS = 10_000;
+    //The default max number of rows that are allowed to be written per call to writeRows(...)
+    private static final int MAX_ROWS_PER_CALL = 100;
 
+    //Used to write to S3
     private final AmazonS3 amazonS3;
+    //Used to optionally encrypt Blocks.
     private final BlockCrypto blockCrypto;
+    //Used to create new blocks.
     private final BlockAllocator allocator;
+    //Controls how/when/where/if this implementation will spill to S3.
     private final SpillConfig spillConfig;
+    //The schema to use for Blocks.
     private final Schema schema;
+    //The max number of rows that are allowed to be written per call to writeRows(...)
     private final long maxRowsPerCall;
-
+    //If we spilled, the spill locations are kept here.
     private final List<SpillLocation> spillLocations = new ArrayList<>();
+    //Reference to the in progress Block.
     private final AtomicReference<Block> inProgressBlock = new AtomicReference<>();
-
     //Allows a degree of pipelining to take place so we don't block reading from the source
     //while we are spilling.
     private final ExecutorService asyncSpillPool;
-    //Allows us to provide thread safety between async spill completion and calls to
-    //getSpill info
+    //Allows us to provide thread safety between async spill completion and calls to getSpill status
     private final ReadWriteLock spillLock = new StampedLock().asReadWriteLock();
-
     //Used to create monotonically increasing spill locations, if the locations are not
     //monotonically increasing then read performance may suffer as the engine's ability to
-    //pipeline reads before write are completed may use this characteristic of the writes
+    //pre-fetch/pipeline reads before write are completed may use this characteristic of the writes
     //to ensure consistency
     private final AtomicLong spillNumber = new AtomicLong(0);
-
+    //Holder that is used to surface any exceptions encountered in our background spill threads.
     private final AtomicReference<RuntimeException> asyncException = new AtomicReference<>(null);
 
+    /**
+     * Constructor which uses the default maxRowsPerCall.
+     *
+     * @param amazonS3 AmazonS3 client to use for writing to S3.
+     * @param spillConfig The spill config for this instance. Includes things like encryption key, s3 path, etc...
+     * @param allocator The BlockAllocator to use when creating blocks.
+     * @param schema The schema for blocks that should be written.
+     */
     public S3BlockSpiller(AmazonS3 amazonS3, SpillConfig spillConfig, BlockAllocator allocator, Schema schema)
     {
-        this(amazonS3, spillConfig, allocator, schema, 100);
+        this(amazonS3, spillConfig, allocator, schema, MAX_ROWS_PER_CALL);
     }
 
+    /**
+     * Constructs a new S3BlockSpiller.
+     *
+     * @param amazonS3 AmazonS3 client to use for writing to S3.
+     * @param spillConfig The spill config for this instance. Includes things like encryption key, s3 path, etc...
+     * @param allocator The BlockAllocator to use when creating blocks.
+     * @param schema The schema for blocks that should be written.
+     * @param maxRowsPerCall The max number of rows to allow callers to write in one call.
+     */
     public S3BlockSpiller(AmazonS3 amazonS3,
             SpillConfig spillConfig,
             BlockAllocator allocator,
@@ -102,6 +130,12 @@ public class S3BlockSpiller
         this.maxRowsPerCall = maxRowsPerCall;
     }
 
+    /**
+     * Used to write rows via the BlockWriter.
+     *
+     * @param rowWriter The RowWriter that the BlockWriter should use to write rows into the Block(s) it is managing.
+     * @see BlockSpiller
+     */
     public void writeRows(RowWriter rowWriter)
     {
         ensureInit();
@@ -202,6 +236,11 @@ public class S3BlockSpiller
         }
     }
 
+    /**
+     * Frees any resources held by this BlockSpiller.
+     *
+     * @see BlockSpiller
+     */
     public void close()
     {
         if (asyncSpillPool == null) {
@@ -220,6 +259,9 @@ public class S3BlockSpiller
         }
     }
 
+    /**
+     * Writes (aka spills) a Block.
+     */
     protected SpillLocation write(Block block)
     {
         try {
@@ -245,6 +287,14 @@ public class S3BlockSpiller
         }
     }
 
+    /**
+     * Reads a spilled block.
+     *
+     * @param spillLocation The location to read the spilled Block from.
+     * @param key The encryption key to use when reading the spilled Block.
+     * @param schema The Schema to use when deserializing the spilled Block.
+     * @return The Block stored at the spill location.
+     */
     protected Block read(S3SpillLocation spillLocation, EncryptionKey key, Schema schema)
     {
         try {
@@ -260,6 +310,11 @@ public class S3BlockSpiller
         }
     }
 
+    /**
+     * Spills a block, potentially asynchronously depending on the settings.
+     *
+     * @param block The Block to spill.
+     */
     private void spillBlock(Block block)
     {
         if (asyncSpillPool != null) {
@@ -294,6 +349,9 @@ public class S3BlockSpiller
         }
     }
 
+    /**
+     * Ensures that the initial Block is initialized.
+     */
     private void ensureInit()
     {
         if (inProgressBlock.get() == null) {
@@ -322,6 +380,11 @@ public class S3BlockSpiller
         return new S3SpillLocation(splitSpillLocation.getBucket(), blockKey, false);
     }
 
+    /**
+     * Closes the supplied AutoCloseable and remaps any actions to Runtime.
+     *
+     * @param block The Block to close.
+     */
     private void safeClose(AutoCloseable block)
     {
         try {

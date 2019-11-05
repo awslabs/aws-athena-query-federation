@@ -57,17 +57,15 @@ public class MyMetadataHandler extends MetadataHandler
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
      *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param constraintEvaluator Used to apply partition pruning constraints.
+     * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
-     * @return A GetTableLayoutResponse which primarily contains:
-     *             1. An Apache Arrow Block with 0 or more partitions to read. 0 partitions implies there are 0 rows to read.
-     *             2. Set<String> of partition column names which should correspond to columns in your Apache Arrow Block.
-     * @note Partitions are opaque to Amazon Athena in that it does not understand their contents, just that it must call
-     * doGetSplits(...) for each partition you return in order to determine which reads to perform and if those reads
-     * can be parallelized. This means the contents of this response are more for you than they are for Athena.
+     * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
+     * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
+     * partition data are ignored by Athena but passed on to calls on GetSplits.
      */
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator allocator, GetTableLayoutRequest request) {}
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request) {}
 
     /**
      * Used to split-up the reads required to scan the requested batch of partition(s).

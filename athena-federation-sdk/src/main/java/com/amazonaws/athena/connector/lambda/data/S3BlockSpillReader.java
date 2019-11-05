@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,6 +49,14 @@ public class S3BlockSpillReader
         this.allocator = requireNonNull(allocator, "allocator was null");
     }
 
+    /**
+     * Reads a spilled block.
+     *
+     * @param spillLocation The location to read the spilled Block from.
+     * @param key The encryption key to use when reading the spilled Block.
+     * @param schema The Schema to use when deserializing the spilled Block.
+     * @return The Block stored at the spill location.
+     */
     public Block read(S3SpillLocation spillLocation, EncryptionKey key, Schema schema)
     {
         S3Object fullObject = null;
@@ -76,6 +84,13 @@ public class S3BlockSpillReader
         }
     }
 
+    /**
+     * Reads spilled data as a byte[].
+     *
+     * @param spillLocation The location to read the spilled Block from.
+     * @param key The encryption key to use when reading the spilled Block.
+     * @return The Block stored at the spill location.
+     */
     public byte[] read(S3SpillLocation spillLocation, EncryptionKey key)
     {
         S3Object fullObject = null;

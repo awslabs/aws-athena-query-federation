@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,6 +31,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 
+/**
+ * used to serialize and deserialize ArrowRecordBatch.
+ */
 public class RecordBatchSerDe
 {
     private final BlockAllocator allocator;
@@ -40,6 +43,14 @@ public class RecordBatchSerDe
         this.allocator = allocator;
     }
 
+    /**
+     * Serialized the provided ArrowRecordBatch to the provided OutputStream and closes the batch once
+     * it is fully written to the OutputStream.
+     *
+     * @param batch The ArrowRecordBatch to serialize.
+     * @param out The OutputStream to write to.
+     * @throws IOException
+     */
     public void serialize(ArrowRecordBatch batch, OutputStream out)
             throws IOException
     {
@@ -51,6 +62,13 @@ public class RecordBatchSerDe
         }
     }
 
+    /**
+     * Attempts to deserialize the provided byte[] into an ArrowRecordBatch.
+     *
+     * @param in The byte[] that is expected to contain a serialized ArrowRecordBatch.
+     * @return The resulting ArrowRecordBatch if the byte[] contains a valid ArrowRecordBatch.
+     * @throws IOException
+     */
     public ArrowRecordBatch deserialize(byte[] in)
             throws IOException
     {

@@ -45,9 +45,8 @@ public class MyMetadataHandler extends MetadataHandler
     }
 
     @Override
-    protected GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)
-    {
-      //Return the partitions of the requested table that need to be read
+    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request) {
+      //Generates the partitions of the requested table that need to be read
       //to satisfy the supplied predicate. This is meant to be a fast pruning operation.
       //Source that don't support partitioning can return a single partition. Partitions
       //are opaque to Athena and are just used to call the next method, doGetSplits(...)
