@@ -159,7 +159,7 @@ public class TPCDSMetadataHandlerTest
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
-        logger.info("doGetTableLayout - {}", res.getSchema());
+        logger.info("doGetTableLayout - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout - {}", res.getPartitions());
 
         assertTrue(res.getPartitions().getRowCount() == 1);

@@ -30,6 +30,7 @@ public class TestUtils
 
     public static ValueSet makeStringEquals(BlockAllocator allocator, String value)
     {
-        return EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true).add(value).build();
+        return EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                .add(value).build();
     }
 }

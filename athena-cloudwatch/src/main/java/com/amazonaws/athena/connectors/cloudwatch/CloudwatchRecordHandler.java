@@ -168,7 +168,7 @@ public class CloudwatchRecordHandler
     private GetLogEventsRequest pushDownConstraints(Constraints constraints, GetLogEventsRequest request)
     {
         ValueSet timeConstraint = constraints.getSummary().get(LOG_TIME_FIELD);
-        if (timeConstraint instanceof SortedRangeSet) {
+        if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
             //SortedRangeSet is how >, <, between is represented which are easiest and most common when
             //searching logs so we attempt to push that down here as an optimization. SQL can represent complex
             //overlapping ranges which Cloudwatch can not support so this is not a replacement for applying

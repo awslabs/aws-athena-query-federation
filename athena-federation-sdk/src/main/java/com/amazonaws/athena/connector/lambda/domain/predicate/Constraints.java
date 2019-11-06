@@ -58,6 +58,14 @@ public class Constraints
     }
 
     @Override
+    public String toString()
+    {
+        return "Constraints{" +
+                "summary=" + summary +
+                '}';
+    }
+
+    @Override
     public int hashCode()
     {
         return Objects.hashCode(summary);

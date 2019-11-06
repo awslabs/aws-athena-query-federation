@@ -161,7 +161,7 @@ public class TPCDSRecordHandlerTest
         logger.info("doReadRecordsNoSpill: enter");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
-        constraintsMap.put("c_customer_id", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true)
+        constraintsMap.put("c_customer_id", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
                 .add("AAAAAAAABAAAAAAA")
                 .add("AAAAAAAACAAAAAAA")
                 .add("AAAAAAAADAAAAAAA").build());

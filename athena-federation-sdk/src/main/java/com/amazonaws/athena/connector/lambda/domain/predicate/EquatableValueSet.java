@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,30 +51,55 @@ public class EquatableValueSet
     private static final String DEFAULT_COLUMN = "col1";
     private final boolean whiteList;
     private final Block valueBlock;
+    public final boolean nullAllowed;
 
     @JsonCreator
     public EquatableValueSet(
             @JsonProperty("valueBlock") Block valueBlock,
-            @JsonProperty("whiteList") boolean whiteList)
+            @JsonProperty("whiteList") boolean whiteList,
+            @JsonProperty("nullAllowed") boolean nullAllowed)
     {
         requireNonNull(valueBlock, "valueBlock is null");
         this.valueBlock = valueBlock;
         this.whiteList = whiteList;
+        this.nullAllowed = nullAllowed;
     }
 
     static EquatableValueSet none(BlockAllocator allocator, ArrowType type)
     {
-        return new EquatableValueSet(BlockUtils.newEmptyBlock(allocator, DEFAULT_COLUMN, type), true);
+        return new EquatableValueSet(BlockUtils.newEmptyBlock(allocator, DEFAULT_COLUMN, type), true, false);
     }
 
     static EquatableValueSet all(BlockAllocator allocator, ArrowType type)
     {
-        return new EquatableValueSet(BlockUtils.newEmptyBlock(allocator, DEFAULT_COLUMN, type), false);
+        return new EquatableValueSet(BlockUtils.newEmptyBlock(allocator, DEFAULT_COLUMN, type), false, true);
+    }
+
+    static EquatableValueSet onlyNull(BlockAllocator allocator, ArrowType type)
+    {
+        return new EquatableValueSet(BlockUtils.newEmptyBlock(allocator, DEFAULT_COLUMN, type), false, true);
+    }
+
+    static EquatableValueSet notNull(BlockAllocator allocator, ArrowType type)
+    {
+        return new EquatableValueSet(BlockUtils.newEmptyBlock(allocator, DEFAULT_COLUMN, type), false, false);
     }
 
     static EquatableValueSet of(BlockAllocator allocator, ArrowType type, Object... values)
     {
-        return new EquatableValueSet(BlockUtils.newBlock(allocator, DEFAULT_COLUMN, type, values), true);
+        return new EquatableValueSet(BlockUtils.newBlock(allocator, DEFAULT_COLUMN, type, values), true, false);
+    }
+
+    static EquatableValueSet of(BlockAllocator allocator, ArrowType type, boolean nullAllowed, Collection<Object> values)
+    {
+        return new EquatableValueSet(BlockUtils.newBlock(allocator, DEFAULT_COLUMN, type, values), true, nullAllowed);
+    }
+
+    @JsonProperty("nullAllowed")
+    @Override
+    public boolean isNullAllowed()
+    {
+        return nullAllowed;
     }
 
     @Transient
@@ -117,19 +142,20 @@ public class EquatableValueSet
     @Override
     public boolean isNone()
     {
-        return whiteList && valueBlock.getRowCount() == 0;
+        return whiteList && valueBlock.getRowCount() == 0 && !nullAllowed;
     }
 
     @Override
     public boolean isAll()
     {
-        return !whiteList && valueBlock.getRowCount() == 0;
+        return !whiteList && valueBlock.getRowCount() == 0 && nullAllowed;
     }
 
     @Override
     public boolean isSingleValue()
     {
-        return whiteList && valueBlock.getRowCount() == 1;
+        return (whiteList && valueBlock.getRowCount() == 1 && !nullAllowed) ||
+                (whiteList && valueBlock.getRowCount() == 0 && nullAllowed);
     }
 
     @Override
@@ -138,6 +164,11 @@ public class EquatableValueSet
         if (!isSingleValue()) {
             throw new IllegalStateException("EquatableValueSet does not have just a single value");
         }
+
+        if (nullAllowed && valueBlock.getRowCount() == 0) {
+            return null;
+        }
+
         FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
         reader.setPosition(0);
         return reader.readObject();
@@ -146,6 +177,13 @@ public class EquatableValueSet
     @Override
     public boolean containsValue(Marker marker)
     {
+        if (marker.isNullValue() && nullAllowed) {
+            return true;
+        }
+        else if (marker.isNullValue() && !nullAllowed) {
+            return false;
+        }
+
         Object value = marker.getValue();
         boolean result = false;
         FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
@@ -158,6 +196,10 @@ public class EquatableValueSet
 
     protected boolean containsValue(Object value)
     {
+        if (value == null && nullAllowed) {
+            return true;
+        }
+
         boolean result = false;
         FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
         for (int i = 0; i < valueBlock.getRowCount() && !result; i++) {
@@ -171,18 +213,19 @@ public class EquatableValueSet
     public EquatableValueSet intersect(BlockAllocator allocator, ValueSet other)
     {
         EquatableValueSet otherValueSet = checkCompatibility(other);
+        boolean intersectNullAllowed = this.isNullAllowed() && other.isNullAllowed();
 
         if (whiteList && otherValueSet.isWhiteList()) {
-            return new EquatableValueSet(intersect(allocator, this, otherValueSet), true);
+            return new EquatableValueSet(intersect(allocator, this, otherValueSet), true, intersectNullAllowed);
         }
         else if (whiteList) {
-            return new EquatableValueSet(subtract(allocator, this, otherValueSet), true);
+            return new EquatableValueSet(subtract(allocator, this, otherValueSet), true, intersectNullAllowed);
         }
         else if (otherValueSet.isWhiteList()) {
-            return new EquatableValueSet(subtract(allocator, otherValueSet, this), true);
+            return new EquatableValueSet(subtract(allocator, otherValueSet, this), true, intersectNullAllowed);
         }
         else {
-            return new EquatableValueSet(union(allocator, otherValueSet, this), false);
+            return new EquatableValueSet(union(allocator, otherValueSet, this), false, intersectNullAllowed);
         }
     }
 
@@ -190,25 +233,26 @@ public class EquatableValueSet
     public EquatableValueSet union(BlockAllocator allocator, ValueSet other)
     {
         EquatableValueSet otherValueSet = checkCompatibility(other);
+        boolean unionNullAllowed = this.isNullAllowed() || other.isNullAllowed();
 
         if (whiteList && otherValueSet.isWhiteList()) {
-            return new EquatableValueSet(union(allocator, otherValueSet, this), true);
+            return new EquatableValueSet(union(allocator, otherValueSet, this), true, unionNullAllowed);
         }
         else if (whiteList) {
-            return new EquatableValueSet(subtract(allocator, otherValueSet, this), false);
+            return new EquatableValueSet(subtract(allocator, otherValueSet, this), false, unionNullAllowed);
         }
         else if (otherValueSet.isWhiteList()) {
-            return new EquatableValueSet(subtract(allocator, this, otherValueSet), false);
+            return new EquatableValueSet(subtract(allocator, this, otherValueSet), false, unionNullAllowed);
         }
         else {
-            return new EquatableValueSet(intersect(allocator, otherValueSet, this), false);
+            return new EquatableValueSet(intersect(allocator, otherValueSet, this), false, unionNullAllowed);
         }
     }
 
     @Override
     public EquatableValueSet complement(BlockAllocator allocator)
     {
-        return new EquatableValueSet(valueBlock, !whiteList);
+        return new EquatableValueSet(valueBlock, !whiteList, !nullAllowed);
     }
 
     @Override
@@ -216,6 +260,7 @@ public class EquatableValueSet
     {
         return "EquatableValueSet{" +
                 "whiteList=" + whiteList +
+                "nullAllowed=" + nullAllowed +
                 ", valueBlock=" + valueBlock +
                 '}';
     }
@@ -315,7 +360,7 @@ public class EquatableValueSet
     @Override
     public int hashCode()
     {
-        return Objects.hash(getType(), whiteList, valueBlock);
+        return Objects.hash(getType(), whiteList, valueBlock, nullAllowed);
     }
 
     @Override
@@ -337,6 +382,10 @@ public class EquatableValueSet
             return false;
         }
 
+        if (this.nullAllowed != other.nullAllowed) {
+            return false;
+        }
+
         if (this.valueBlock == null && other.valueBlock != null) {
             return false;
         }
@@ -355,24 +404,26 @@ public class EquatableValueSet
         valueBlock.close();
     }
 
-    public static Builder newBuilder(BlockAllocator allocator, ArrowType type, boolean isWhiteList)
+    public static Builder newBuilder(BlockAllocator allocator, ArrowType type, boolean isWhiteList, boolean nullAllowed)
     {
-        return new Builder(allocator, type, isWhiteList);
+        return new Builder(allocator, type, isWhiteList, nullAllowed);
     }
 
     public static class Builder
     {
         private ArrowType type;
         private boolean isWhiteList;
+        private boolean nullAllowed;
         private List<Object> values = new ArrayList<>();
         private BlockAllocator allocator;
 
-        Builder(BlockAllocator allocator, ArrowType type, boolean isWhiteList)
+        Builder(BlockAllocator allocator, ArrowType type, boolean isWhiteList, boolean nullAllowed)
         {
             requireNonNull(type, "minorType is null");
             this.allocator = allocator;
             this.type = type;
             this.isWhiteList = isWhiteList;
+            this.nullAllowed = nullAllowed;
         }
 
         public Builder add(Object value)
@@ -389,7 +440,15 @@ public class EquatableValueSet
 
         public EquatableValueSet build()
         {
-            return new EquatableValueSet(BlockUtils.newBlock(allocator, DEFAULT_COLUMN, type, values), isWhiteList);
+            return new EquatableValueSet(BlockUtils.newBlock(allocator, DEFAULT_COLUMN, type, values), isWhiteList, nullAllowed);
+        }
+    }
+
+    private void checkTypeCompatibility(Marker marker)
+    {
+        if (!getType().equals(marker.getType())) {
+            throw new IllegalStateException(String.format("Marker of %s does not match SortedRangeSet of %s",
+                    marker.getType(), getType()));
         }
     }
 }

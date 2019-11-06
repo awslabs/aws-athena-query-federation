@@ -241,7 +241,7 @@ public class DocDBRecordHandlerTest
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
-                ImmutableList.of(Range.equal(allocator, Types.MinorType.FLOAT8.getType(), 22.0D))));
+                ImmutableList.of(Range.equal(allocator, Types.MinorType.FLOAT8.getType(), 22.0D)), false));
 
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())
@@ -307,7 +307,7 @@ public class DocDBRecordHandlerTest
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D)), false));
 
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())

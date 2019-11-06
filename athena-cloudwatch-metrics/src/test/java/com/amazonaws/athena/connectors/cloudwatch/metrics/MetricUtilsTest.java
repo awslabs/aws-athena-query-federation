@@ -174,7 +174,7 @@ public class MetricUtilsTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put(TIMESTAMP_FIELD, SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 1L))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 1L)), false));
 
         ReadRecordsRequest request = new ReadRecordsRequest(identity,
                 catalog,

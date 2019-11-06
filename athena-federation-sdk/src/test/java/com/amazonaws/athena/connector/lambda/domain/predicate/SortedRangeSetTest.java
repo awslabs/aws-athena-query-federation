@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,6 +26,9 @@ import com.google.common.collect.Iterables;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.junit.Assert.*;
@@ -80,12 +83,24 @@ public class SortedRangeSetTest
     }
 
     @Test
+    public void testNullability()
+            throws Exception
+    {
+        SortedRangeSet rangeSet = SortedRangeSet.of(allocator, BIGINT.getType(), true, 10L, Collections.singletonList(10L));
+        assertTrue(rangeSet.containsValue(Marker.nullMarker(allocator, BIGINT.getType())));
+        assertFalse(rangeSet.containsValue(Marker.exactly(allocator, BIGINT.getType(), 1L)));
+        assertTrue(rangeSet.containsValue(Marker.exactly(allocator, BIGINT.getType(), 10L)));
+    }
+
+    @Test
     public void testSingleValue()
             throws Exception
     {
         SortedRangeSet rangeSet = SortedRangeSet.of(allocator, BIGINT.getType(), 10L);
 
-        SortedRangeSet complement = SortedRangeSet.of(Range.greaterThan(allocator, BIGINT.getType(), 10L), Range.lessThan(allocator, BIGINT.getType(), 10L));
+        SortedRangeSet complement = SortedRangeSet.of(true,
+                Range.greaterThan(allocator, BIGINT.getType(), 10L),
+                Range.lessThan(allocator, BIGINT.getType(), 10L));
 
         assertEquals(rangeSet.getType(), BIGINT.getType());
         assertFalse(rangeSet.isNone());
@@ -117,7 +132,7 @@ public class SortedRangeSetTest
                 Range.range(allocator, BIGINT.getType(), 2L, true, 5L, true),
                 Range.range(allocator, BIGINT.getType(), 9L, true, 11L, false));
 
-        SortedRangeSet complement = SortedRangeSet.of(
+        SortedRangeSet complement = SortedRangeSet.of(true,
                 Range.lessThan(allocator, BIGINT.getType(), 0L),
                 Range.range(allocator, BIGINT.getType(), 0L, false, 2L, false),
                 Range.range(allocator, BIGINT.getType(), 5L, false, 9L, false),
@@ -128,7 +143,7 @@ public class SortedRangeSetTest
         assertFalse(rangeSet.isAll());
         assertFalse(rangeSet.isSingleValue());
         assertTrue(Iterables.elementsEqual(rangeSet.getOrderedRanges(), normalizedResult));
-        assertEquals(rangeSet, SortedRangeSet.copyOf(BIGINT.getType(), normalizedResult));
+        assertEquals(rangeSet, SortedRangeSet.copyOf(BIGINT.getType(), normalizedResult, false));
         assertEquals(rangeSet.getRangeCount(), 3);
         assertEquals(rangeSet.complement(allocator), complement);
         assertFalse(rangeSet.includesMarker(Marker.lowerUnbounded(allocator, BIGINT.getType())));
@@ -156,7 +171,7 @@ public class SortedRangeSetTest
                 Range.range(allocator, BIGINT.getType(), 1L, false, 6L, false),
                 Range.greaterThan(allocator, BIGINT.getType(), 9L));
 
-        SortedRangeSet complement = SortedRangeSet.of(
+        SortedRangeSet complement = SortedRangeSet.of(true,
                 Range.range(allocator, BIGINT.getType(), 0L, false, 1L, true),
                 Range.range(allocator, BIGINT.getType(), 6L, true, 9L, true));
 
@@ -165,7 +180,7 @@ public class SortedRangeSetTest
         assertFalse(rangeSet.isAll());
         assertFalse(rangeSet.isSingleValue());
         assertTrue(Iterables.elementsEqual(rangeSet.getOrderedRanges(), normalizedResult));
-        assertEquals(rangeSet, SortedRangeSet.copyOf(BIGINT.getType(), normalizedResult));
+        assertEquals(rangeSet, SortedRangeSet.copyOf(BIGINT.getType(), normalizedResult, false));
         assertEquals(rangeSet.getRangeCount(), 3);
         assertEquals(rangeSet.complement(allocator), complement);
         assertTrue(rangeSet.includesMarker(Marker.lowerUnbounded(allocator, BIGINT.getType())));
@@ -342,7 +357,7 @@ public class SortedRangeSetTest
 
         assertUnion(
                 SortedRangeSet.of(Range.greaterThan(allocator, BIGINT.getType(), 0L)),
-                SortedRangeSet.of(Range.lessThan(allocator, BIGINT.getType(), 0L)),
+                SortedRangeSet.of(true, Range.lessThan(allocator, BIGINT.getType(), 0L)),
                 SortedRangeSet.of(allocator, BIGINT.getType(), 0L).complement(allocator));
     }
 
@@ -364,7 +379,7 @@ public class SortedRangeSetTest
                 SortedRangeSet.of(Range.equal(allocator, BIGINT.getType(), 0L), Range.equal(allocator, BIGINT.getType(), 1L)).complement(allocator));
         assertEquals(
                 SortedRangeSet.all(allocator, BIGINT.getType()).subtract(allocator, SortedRangeSet.of(Range.greaterThan(allocator, BIGINT.getType(), 0L))),
-                SortedRangeSet.of(Range.lessThanOrEqual(allocator, BIGINT.getType(), 0L)));
+                SortedRangeSet.of(true, Range.lessThanOrEqual(allocator, BIGINT.getType(), 0L)));
 
         assertEquals(
                 SortedRangeSet.none(BIGINT.getType()).subtract(allocator, SortedRangeSet.all(allocator, BIGINT.getType())),

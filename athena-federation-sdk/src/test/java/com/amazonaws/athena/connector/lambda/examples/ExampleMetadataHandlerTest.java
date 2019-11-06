@@ -182,13 +182,13 @@ public class ExampleMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put("day", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 20))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 20)), false));
 
         constraintsMap.put("month", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 2))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 2)), false));
 
         constraintsMap.put("year", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1900))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1900)), false));
 
         GetTableLayoutRequest req = null;
         GetTableLayoutResponse res = null;
@@ -256,7 +256,7 @@ public class ExampleMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put(dayCol, SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 20))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 20)), false));
 
         Block partitions = allocator.createBlock(schema);
 

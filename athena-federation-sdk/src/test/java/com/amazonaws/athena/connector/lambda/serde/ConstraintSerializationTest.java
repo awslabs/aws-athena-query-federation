@@ -67,17 +67,17 @@ public class ConstraintSerializationTest
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col2", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 950L))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.BIGINT.getType(), 950L)), false));
 
         constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.BIT.getType(),
-                ImmutableList.of(Range.equal(allocator, Types.MinorType.BIT.getType(), false))));
+                ImmutableList.of(Range.equal(allocator, Types.MinorType.BIT.getType(), false)), false));
 
         constraintsMap.put("col4", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 950.0D))));
+                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 950.0D)), false));
 
         constraintsMap.put("col5", SortedRangeSet.copyOf(Types.MinorType.VARCHAR.getType(),
                 ImmutableList.of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "8"),
-                        Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "9"))));
+                        Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "9")), false));
 
         try (
                 GetTableLayoutRequest req = new GetTableLayoutRequest(IdentityUtil.fakeIdentity(),

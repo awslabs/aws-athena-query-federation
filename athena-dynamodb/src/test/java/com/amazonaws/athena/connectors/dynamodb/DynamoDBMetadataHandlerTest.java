@@ -190,7 +190,8 @@ public class DynamoDBMetadataHandlerTest
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col_3",
-                EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true).add(true).build());
+                EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, false)
+                        .add(true).build());
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,
@@ -202,11 +203,11 @@ public class DynamoDBMetadataHandlerTest
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
-        logger.info("doGetTableLayout schema - {}", res.getSchema());
+        logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout partitions - {}", res.getPartitions());
 
         // no hash key constraints, so look for segment count column
-        assertThat(res.getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
+        assertThat(res.getPartitions().getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
         assertThat(res.getPartitions().getRowCount(), equalTo(1));
 
         logger.info("doGetTableLayoutScan: exit");
@@ -218,8 +219,8 @@ public class DynamoDBMetadataHandlerTest
     {
         logger.info("doGetTableLayoutQueryIndex: enter");
         Map<String, ValueSet> constraintsMap = new HashMap<>();
-        SortedRangeSet.Builder dateValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEDAY.getType());
-        SortedRangeSet.Builder timeValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType());
+        SortedRangeSet.Builder dateValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEDAY.getType(), false);
+        SortedRangeSet.Builder timeValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
         LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
         dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), dateTime.toLocalDate().toEpochDay()));
         LocalDateTime dateTime2 = dateTime.plusHours(26);
@@ -237,11 +238,11 @@ public class DynamoDBMetadataHandlerTest
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
-        logger.info("doGetTableLayout schema - {}", res.getSchema());
+        logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout partitions - {}", res.getPartitions());
 
-        assertThat(res.getSchema().getCustomMetadata().containsKey(INDEX_METADATA), is(true));
-        assertThat(res.getSchema().getCustomMetadata().get(INDEX_METADATA), equalTo("test_index"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().containsKey(INDEX_METADATA), is(true));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(INDEX_METADATA), equalTo("test_index"));
         assertThat(res.getPartitions().getRowCount(), equalTo(2));
 
         logger.info("doGetTableLayoutQueryIndex: exit");
@@ -294,7 +295,7 @@ public class DynamoDBMetadataHandlerTest
         logger.info("doGetSplitsQuery: enter");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
-        EquatableValueSet.Builder valueSet = EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true);
+        EquatableValueSet.Builder valueSet = EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false);
         for (int i = 0; i < 2000; i++) {
             valueSet.add("test_str_" + i);
         }

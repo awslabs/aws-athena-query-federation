@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.examples;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -198,7 +198,7 @@ public class ExampleRecordHandlerTest
 
             Map<String, ValueSet> constraintsMap = new HashMap<>();
             constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
-                    ImmutableList.of(Range.equal(allocator, Types.MinorType.FLOAT8.getType(), 22.0D))));
+                    ImmutableList.of(Range.equal(allocator, Types.MinorType.FLOAT8.getType(), 22.0D)), false));
 
             ReadRecordsRequest request = new ReadRecordsRequest(IdentityUtil.fakeIdentity(),
                     "catalog",
@@ -237,7 +237,7 @@ public class ExampleRecordHandlerTest
 
             Map<String, ValueSet> constraintsMap = new HashMap<>();
             constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
-                    ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D))));
+                    ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D)), false));
 
             ReadRecordsRequest request = new ReadRecordsRequest(IdentityUtil.fakeIdentity(),
                     "catalog",

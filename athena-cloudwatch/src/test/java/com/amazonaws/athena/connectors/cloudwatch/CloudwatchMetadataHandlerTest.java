@@ -317,7 +317,8 @@ public class CloudwatchMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put("log_stream",
-                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true).add("table-10").build());
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add("table-10").build());
 
         Schema schema = SchemaBuilder.newBuilder().addStringField("log_stream").build();
 
@@ -331,10 +332,10 @@ public class CloudwatchMetadataHandlerTest
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
-        logger.info("doGetTableLayout - {}", res.getSchema());
+        logger.info("doGetTableLayout - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout - {}", res.getPartitions());
 
-        assertTrue(res.getSchema().findField("log_stream") != null);
+        assertTrue(res.getPartitions().getSchema().findField("log_stream") != null);
         assertTrue(res.getPartitions().getRowCount() == 1);
 
         verify(mockAwsLogs, times(4)).describeLogStreams(any(DescribeLogStreamsRequest.class));

@@ -26,9 +26,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-import org.apache.arrow.vector.types.pojo.Schema;
-
-import java.beans.Transient;
 
 import static java.util.Objects.requireNonNull;
 
@@ -54,12 +51,6 @@ public class GetTableLayoutResponse
     public TableName getTableName()
     {
         return tableName;
-    }
-
-    @Transient
-    public Schema getSchema()
-    {
-        return partitions.getSchema();
     }
 
     @JsonProperty

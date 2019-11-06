@@ -303,6 +303,11 @@ public class Marker
         return create(allocator, type, value, Bound.EXACTLY);
     }
 
+    public static Marker nullMarker(BlockAllocator allocator, ArrowType type)
+    {
+        return create(allocator, type, Bound.EXACTLY);
+    }
+
     public static Marker below(BlockAllocator allocator, ArrowType type, Object value)
     {
         requireNonNull(type, "type is null");

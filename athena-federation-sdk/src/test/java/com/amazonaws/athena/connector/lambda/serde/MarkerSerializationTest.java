@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.serde;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -76,7 +76,32 @@ public class MarkerSerializationTest
         assertEquals(expectedMarker.getBound(), actualMarker.getBound());
         assertEquals(expectedMarker.getValue(), actualMarker.getValue());
         assertEquals(expectedValue, actualMarker.getValue());
+        assertEquals(false, actualMarker.isNullValue());
 
         logger.info("serializationTest - exit");
+    }
+
+    @Test
+    public void nullableSerializationTest()
+            throws IOException
+    {
+        logger.info("nullableSerializationTest - enter");
+
+        ObjectMapper serializer = ObjectMapperFactory.create(new BlockAllocatorImpl());
+        Marker expectedMarker = Marker.nullMarker(allocator, Types.MinorType.INT.getType());
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        serializer.writeValue(out, expectedMarker);
+
+        ObjectMapper deserializer = ObjectMapperFactory.create(allocator);
+
+        Marker actualMarker = deserializer.readValue(new ByteArrayInputStream(out.toByteArray()), Marker.class);
+
+        assertEquals(expectedMarker.getSchema().getCustomMetadata(), actualMarker.getSchema().getCustomMetadata());
+        assertEquals(expectedMarker.getSchema().getFields(), actualMarker.getSchema().getFields());
+        assertEquals(expectedMarker.getBound(), actualMarker.getBound());
+        assertEquals(true, actualMarker.isNullValue());
+
+        logger.info("nullableSerializationTest - exit");
     }
 }

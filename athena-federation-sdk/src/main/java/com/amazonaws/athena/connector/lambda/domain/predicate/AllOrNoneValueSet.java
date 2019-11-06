@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,22 +34,43 @@ public class AllOrNoneValueSet
 {
     private final ArrowType type;
     private final boolean all;
+    private final boolean nullAllowed;
 
     @JsonCreator
-    public AllOrNoneValueSet(@JsonProperty("type") ArrowType type, @JsonProperty("all") boolean all)
+    public AllOrNoneValueSet(@JsonProperty("type") ArrowType type,
+            @JsonProperty("all") boolean all,
+            @JsonProperty("nullAllowed") boolean nullAllowed)
     {
         this.type = requireNonNull(type, "type is null");
         this.all = all;
+        this.nullAllowed = nullAllowed;
     }
 
     static AllOrNoneValueSet all(ArrowType type)
     {
-        return new AllOrNoneValueSet(type, true);
+        return new AllOrNoneValueSet(type, true, true);
     }
 
     static AllOrNoneValueSet none(ArrowType type)
     {
-        return new AllOrNoneValueSet(type, false);
+        return new AllOrNoneValueSet(type, false, false);
+    }
+
+    static AllOrNoneValueSet onlyNull(ArrowType type)
+    {
+        return new AllOrNoneValueSet(type, false, true);
+    }
+
+    static AllOrNoneValueSet notNull(ArrowType type)
+    {
+        return new AllOrNoneValueSet(type, true, false);
+    }
+
+    @Override
+    @JsonProperty("nullAllowed")
+    public boolean isNullAllowed()
+    {
+        return nullAllowed;
     }
 
     @Override
@@ -62,14 +83,14 @@ public class AllOrNoneValueSet
     @Override
     public boolean isNone()
     {
-        return !all;
+        return !all && !nullAllowed;
     }
 
     @Override
     @JsonProperty
     public boolean isAll()
     {
-        return all;
+        return all && nullAllowed;
     }
 
     @Override
@@ -87,7 +108,13 @@ public class AllOrNoneValueSet
     @Override
     public boolean containsValue(Marker value)
     {
-        //TODO: Perhaps we need to do a type check here?
+        if (value.isNullValue() && nullAllowed) {
+            return true;
+        }
+        else if (value.isNullValue() && !nullAllowed) {
+            return false;
+        }
+
         return all;
     }
 
@@ -95,26 +122,26 @@ public class AllOrNoneValueSet
     public ValueSet intersect(BlockAllocator allocator, ValueSet other)
     {
         AllOrNoneValueSet otherValueSet = checkCompatibility(other);
-        return new AllOrNoneValueSet(type, all && otherValueSet.all);
+        return new AllOrNoneValueSet(type, all && otherValueSet.all, nullAllowed && other.isNullAllowed());
     }
 
     @Override
     public ValueSet union(BlockAllocator allocator, ValueSet other)
     {
         AllOrNoneValueSet otherValueSet = checkCompatibility(other);
-        return new AllOrNoneValueSet(type, all || otherValueSet.all);
+        return new AllOrNoneValueSet(type, all || otherValueSet.all, nullAllowed || other.isNullAllowed());
     }
 
     @Override
     public ValueSet complement(BlockAllocator allocator)
     {
-        return new AllOrNoneValueSet(type, !all);
+        return new AllOrNoneValueSet(type, !all, !nullAllowed);
     }
 
     @Override
     public String toString()
     {
-        return "[" + (all ? "ALL" : "NONE") + "]";
+        return "[" + (all ? "ALL" : "NONE") + " nullAllowed:" + isNullAllowed() + "]";
     }
 
     @Override
@@ -154,5 +181,13 @@ public class AllOrNoneValueSet
     public void close()
             throws Exception
     {
+    }
+
+    private void checkTypeCompatibility(Marker marker)
+    {
+        if (!getType().equals(marker.getType())) {
+            throw new IllegalStateException(String.format("Marker of %s does not match SortedRangeSet of %s",
+                    marker.getType(), getType()));
+        }
     }
 }

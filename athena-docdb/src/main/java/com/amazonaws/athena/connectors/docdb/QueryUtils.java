@@ -35,8 +35,12 @@
  */
 package com.amazonaws.athena.connectors.docdb;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
@@ -104,7 +108,10 @@ public final class QueryUtils
     {
         Document query = new Document();
         for (Map.Entry<String, ValueSet> entry : constraintSummary.entrySet()) {
-            query.putAll(makePredicate(schema.findField(entry.getKey()), entry.getValue()));
+            Document doc = makePredicate(schema.findField(entry.getKey()), entry.getValue());
+            if (doc != null) {
+                query.putAll(doc);
+            }
         }
 
         return query;
@@ -127,6 +134,27 @@ public final class QueryUtils
 
         if (constraint.isAll()) {
             return documentOf(name, isNotNullPredicate());
+        }
+
+        if (constraint.isNullAllowed()) {
+            //TODO: support nulls mixed with discrete value constraints
+            return null;
+        }
+
+        if (constraint instanceof EquatableValueSet) {
+            Block block = ((EquatableValueSet) constraint).getValues();
+            List<Object> singleValues = new ArrayList<>();
+
+            FieldReader fieldReader = block.getFieldReaders().get(0);
+            for (int i = 0; i < block.getRowCount(); i++) {
+                Document nextEqVal = new Document();
+                nextEqVal.put(EQ_OP, BlockUtils.fieldToString(fieldReader));
+                singleValues.add(singleValues);
+            }
+
+            return orPredicate(singleValues.stream()
+                    .map(next -> new Document(name, next))
+                    .collect(toList()));
         }
 
         List<Object> singleValues = new ArrayList<>();

@@ -55,7 +55,7 @@ public class ConstraintEvaluator
         try {
             ValueSet constraint = constraints.getSummary().get(fieldName);
             if (constraint != null && typeMap.get(fieldName) != null) {
-                try (Marker marker = markerFactory.create(typeMap.get(fieldName),
+                try (Marker marker = markerFactory.createNullable(typeMap.get(fieldName),
                         value,
                         Marker.Bound.EXACTLY)) {
                     return constraint.containsValue(marker);

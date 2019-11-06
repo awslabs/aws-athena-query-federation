@@ -26,6 +26,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Collections;
+
 import static org.junit.Assert.*;
 
 public class AllOrNoneValueSetTest
@@ -61,6 +63,21 @@ public class AllOrNoneValueSetTest
         }
         catch (Exception ignored) {
         }
+    }
+
+    @Test
+    public void testNullability()
+            throws Exception
+    {
+        ValueSet notNull = AllOrNoneValueSet.notNull(Types.MinorType.INT.getType());
+        assertTrue(notNull.containsValue(Marker.exactly(allocator, Types.MinorType.INT.getType(), 100)));
+        assertFalse(notNull.containsValue(Marker.nullMarker(allocator, Types.MinorType.INT.getType())));
+        assertTrue(notNull.containsValue(Marker.exactly(allocator, Types.MinorType.INT.getType(), 101)));
+
+        ValueSet onlyNull = AllOrNoneValueSet.onlyNull(Types.MinorType.INT.getType());
+        assertFalse(onlyNull.containsValue(Marker.exactly(allocator, Types.MinorType.INT.getType(), 100)));
+        assertTrue(onlyNull.containsValue(Marker.nullMarker(allocator, Types.MinorType.INT.getType())));
+        assertFalse(onlyNull.containsValue(Marker.exactly(allocator, Types.MinorType.INT.getType(), 101)));
     }
 
     @Test

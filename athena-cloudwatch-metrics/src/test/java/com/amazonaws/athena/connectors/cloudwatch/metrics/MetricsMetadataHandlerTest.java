@@ -183,7 +183,8 @@ public class MetricsMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put(METRIC_NAME_FIELD,
-                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true).add("MyMetric").build());
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add("MyMetric").build());
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
                 "queryId",
@@ -195,7 +196,7 @@ public class MetricsMetadataHandlerTest
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
-        logger.info("doGetTableLayout - {}", res.getSchema());
+        logger.info("doGetTableLayout - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout - {}", res.getPartitions());
 
         assertTrue(res.getPartitions().getRowCount() == 1);
@@ -283,9 +284,11 @@ public class MetricsMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
         constraintsMap.put(NAMESPACE_FIELD,
-                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true).add(namespaceFilter).build());
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add(namespaceFilter).build());
         constraintsMap.put(STATISTIC_FIELD,
-                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true).add(statistic).build());
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add(statistic).build());
 
         String continuationToken = null;
         GetSplitsRequest originalReq = new GetSplitsRequest(identity,
