@@ -27,11 +27,22 @@ import com.google.common.base.Objects;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents a fully qualified TableName.
+ */
 public class TableName
 {
+    //The schema name that the table belongs to.
     private final String schemaName;
+    //The name of the table.
     private final String tableName;
 
+    /**
+     * Constructs a fully qualified TableName.
+     *
+     * @param schemaName The name of the schema that the table belongs to.
+     * @param tableName The name of the table.
+     */
     @JsonCreator
     public TableName(@JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName)
@@ -40,12 +51,22 @@ public class TableName
         this.tableName = requireNonNull(tableName, "tableName is null");
     }
 
+    /**
+     * Gets the name of the schema the table belongs to.
+     *
+     * @return A String containing the schema name for the table.
+     */
     @JsonProperty
     public String getSchemaName()
     {
         return schemaName;
     }
 
+    /**
+     * Gets the name of the table.
+     *
+     * @return A String containing the name of the table.
+     */
     @JsonProperty
     public String getTableName()
     {

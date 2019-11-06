@@ -152,6 +152,18 @@ public abstract class RecordHandler
         }
     }
 
+    /**
+     * Used to read the row data associated with the provided Split.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Details of the read request, including:
+     * 1. The Split
+     * 2. The Catalog, Database, and Table the read request is for.
+     * 3. The filtering predicate (if any)
+     * 4. The columns required for projection.
+     * @return A RecordResponse which either a ReadRecordsResponse or a RemoteReadRecordsResponse containing the row
+     * data for the requested Split.
+     */
     public RecordResponse doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
             throws Exception
     {
@@ -175,6 +187,22 @@ public abstract class RecordHandler
         }
     }
 
+    /**
+     * A more stream lined option for reading the row data associated with the provided Split. This method differs from
+     * doReadRecords(...) in that the SDK handles more of the request lifecycle, leaving you to focus more closely on
+     * the task of actually reading from your source.
+     *
+     * @param constraintEvaluator A ConstraintEvaluator capable of applying constraints form the query that request this read.
+     * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
+     * The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
+     * @param recordsRequest Details of the read request, including:
+     * 1. The Split
+     * 2. The Catalog, Database, and Table the read request is for.
+     * 3. The filtering predicate (if any)
+     * 4. The columns required for projection.
+     * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
+     * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
+     */
     protected abstract void readWithConstraint(ConstraintEvaluator constraintEvaluator,
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest)

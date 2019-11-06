@@ -25,14 +25,28 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
 
+/**
+ * Defines a SpillLocation that is backed by S3.
+ */
 public class S3SpillLocation
         implements SpillLocation
 {
     private static final String SEPARATOR = "/";
+    //The S3 bucket where we may have spilled data.
     private final String bucket;
+    //The S3 key where we may have spilled data
     private final String key;
+    //If true the Key is actually a key prefix for a location that may have multiple blocks.
     private final boolean directory;
 
+    /**
+     * Constructs an S3 SpillLocation.
+     *
+     * @param bucket The S3 bucket that is the root of the spill location.
+     * @param key The S3 key that represents the spill location
+     * @param directory Boolean that if True indicates the key is a pre-fix (aka directory) where multiple Blocks may
+     * be spilled.
+     */
     @JsonCreator
     public S3SpillLocation(@JsonProperty("bucket") String bucket,
             @JsonProperty("key") String key,
@@ -43,18 +57,34 @@ public class S3SpillLocation
         this.directory = directory;
     }
 
+    /**
+     * The S3 bucket that we may have spilled data to.
+     *
+     * @return String containing the S3 bucket name.
+     */
     @JsonProperty
     public String getBucket()
     {
         return bucket;
     }
 
+    /**
+     * The S3 key that we may have spilled data to.
+     *
+     * @return String containing the S3 key.
+     */
     @JsonProperty
     public String getKey()
     {
         return key;
     }
 
+    /**
+     * Indicates if the Key is actually a key prefix for a location that may have multiple blocks.
+     *
+     * @return True if the key is actually a prefix for a location that may have multiple blocks, False if the location
+     * points to a specific S3 object.
+     */
     @JsonProperty
     public boolean isDirectory()
     {

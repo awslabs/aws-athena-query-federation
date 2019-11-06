@@ -61,31 +61,65 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * All items in the "com.amazonaws.athena.connector.lambda.examples" that this class belongs to are part of an
+ * 'Example' connector. We do not recommend using any of the classes in this package directly. Instead you can/should
+ * copy and modify as needed.
+ * <p>
+ * This class defined an example MetadataHandler that supports a single schema and single table which showcases most
+ * of the features offered by the Amazon Athena Query Federation SDK. Some notable characteristics include:
+ * 1. Highly partitioned table.
+ * 2. Paginated split generation.
+ * 3. S3 Spill support.
+ * 4. Spill encryption using either KMS KeyFactory or LocalKeyFactory.
+ * 5. A wide range of field types including complex Struct and List types.
+ *
+ * @see MetadataHandler
+ */
 public class ExampleMetadataHandler
         extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(ExampleMetadataHandler.class);
+    //Used to aid in diagnostic logging
     private static final String SOURCE_TYPE = "custom";
+    //The name of the Lambda Environment vaiable that toggles generating simulated Throttling events to trigger Athena's
+    //Congestion control logic.
     private static final String SIMULATE_THROTTLES = "SIMULATE_THROTTLES";
-
+    //The number of splits to generated for each Partition. Keep in mind this connector generates random data, a real
+    //source is unlikely to have such a setting.
     protected static final int NUM_PARTS_PER_SPLIT = 10;
     //This is used to illustrate how to use continuation tokens to handle partitions that generate a large number
     //of splits. This helps avoid hitting the Lambda response size limit.
     protected static final int MAX_SPLITS_PER_REQUEST = 300;
-
+    //Field name for storing partition location information.
     protected static final String PARTITION_LOCATION = "location";
+    //Field name for storing an example property on our partitions and splits.
     protected static final String SERDE = "serde";
 
+    //Stores how frequently to generate a simulated throttling event.
     private final int simulateThrottle;
+    //Controls if spill encryption should be enabled or disabled.
     private boolean encryptionEnabled = true;
+    //Counter that is used in conjunction with simulateThrottle to generated simulated throttling events.
     private int count = 0;
 
+    /**
+     * Default constructor used by Lambda.
+     */
     public ExampleMetadataHandler()
     {
         super(SOURCE_TYPE);
         this.simulateThrottle = (System.getenv(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(System.getenv(SIMULATE_THROTTLES));
     }
 
+    /**
+     * Full DI constructor used mostly for testing
+     *
+     * @param keyFactory The EncryptionKeyFactory to use for spill encryption.
+     * @param awsSecretsManager The AWSSecretsManager client that can be used when attempting to resolve secrets.
+     * @param spillBucket The S3 Bucket to use when spilling results.
+     * @param spillPrefix The S3 prefix to use when spilling results.
+     */
     @VisibleForTesting
     protected ExampleMetadataHandler(EncryptionKeyFactory keyFactory,
             AWSSecretsManager awsSecretsManager,
@@ -93,21 +127,40 @@ public class ExampleMetadataHandler
             String spillPrefix)
     {
         super(keyFactory, awsSecretsManager, SOURCE_TYPE, spillBucket, spillPrefix);
+        //Read the Lambda environment variable for controlling simulated throttles.
         this.simulateThrottle = (System.getenv(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(System.getenv(SIMULATE_THROTTLES));
     }
 
+    /**
+     * Used to toggle encryption during unit tests.
+     *
+     * @param enableEncryption
+     */
     @VisibleForTesting
     protected void setEncryption(boolean enableEncryption)
     {
         this.encryptionEnabled = enableEncryption;
     }
 
+    /**
+     * Demonstrates how you can capture the identity of the caller that ran the Athena query which triggered the Lambda invocation.
+     *
+     * @param request
+     */
     private void logCaller(FederationRequest request)
     {
         FederatedIdentity identity = request.getIdentity();
         logger.info("logCaller: account[" + identity.getAccount() + "] id[" + identity.getId() + "]  principal[" + identity.getPrincipal() + "]");
     }
 
+    /**
+     * Returns a static, single schema. A connector for a real data source would likely query that source's metadata
+     * to create a real list of schemas.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog they are querying.
+     * @return The ListSchemasResponse which mostly contains the list of schemas (aka databases).
+     */
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
@@ -117,6 +170,14 @@ public class ExampleMetadataHandler
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
+    /**
+     * Returns a static list of TableNames. A connector for a real data source would likely query that source's metadata
+     * to create a real list of TableNames for the requested schema name.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog and database they are querying.
+     * @return A ListTablesResponse containing the list of available TableNames.
+     */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
@@ -124,12 +185,22 @@ public class ExampleMetadataHandler
         List<TableName> tables = new ArrayList<>();
         tables.add(new TableName(ExampleTable.schemaName, ExampleTable.tableName));
 
+        //The below filter for null schema is not typical, we do this to generate a specific semantic error
+        //that is exercised in our unit test suite.
         return new ListTablesResponse(request.getCatalogName(),
                 tables.stream()
                         .filter(table -> request.getSchemaName() == null || request.getSchemaName().equals(table.getSchemaName()))
                         .collect(Collectors.toList()));
     }
 
+    /**
+     * Retrieves a static Table schema for the example table. A connector for a real data source would likely query that
+     * source's metadata to create a table definition.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog, database, and table they are querying.
+     * @return A GetTableResponse containing the definition of the table (e.g. table schema and partition columns)
+     */
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
     {
@@ -146,6 +217,15 @@ public class ExampleMetadataHandler
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), ExampleTable.schema, partitionCols);
     }
 
+    /**
+     * Here we inject the two additional columns we define for partition metadata. These columns are ignored by
+     * Athena but passed along to our code when Athena calls GetSplits(...). If you do not require any additional
+     * metadata on your partitions you may choose not to implement this function.
+     *
+     * @param partitionSchemaBuilder The SchemaBuilder you can use to add additional columns and metadata to the
+     * partitions response.
+     * @param request The GetTableLayoutResquest that triggered this call.
+     */
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
@@ -158,6 +238,15 @@ public class ExampleMetadataHandler
                 .addField(SERDE, new ArrowType.Utf8());
     }
 
+    /**
+     * Our example table is partitions on year, month, day so we loop over a range of years, months, and days to generate
+     * our example partitions. A connector for a real data source would likely query that source's metadata
+     * to create a real list of partitions.
+     *
+     * @param constraintEvaluator Used to apply partition pruning constraints.
+     * @param writer Used to write rows (partitions) into the Apache Arrow response.
+     * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
+     */
     @Override
     public void getPartitions(ConstraintEvaluator constraintEvaluator,
             BlockWriter writer,
@@ -199,6 +288,18 @@ public class ExampleMetadataHandler
         }
     }
 
+    /**
+     * For each partition we generate a pre-determined number of splits based on the NUM_PARTS_PER_SPLIT setting. This
+     * method also demonstrates how to handle calls for batches of partitions and also leverage this API's ability
+     * to paginated. A connector for a real data source would likely query that source's metadata to determine if/how
+     * to split up the read operations for a particular partition.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details of the catalog, database, table, andpartition(s) being queried as well as
+     * any filter predicate.
+     * @return A GetSplitsResponse which contains a list of splits as an optional continuation token if we were not
+     * able to generate all splits for the partitions in this batch.
+     */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
@@ -221,7 +322,10 @@ public class ExampleMetadataHandler
         Set<Split> splits = new HashSet<>();
         Block partitions = request.getPartitions();
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+            //We use the makeEncryptionKey() method from our parent class to make an EncryptionKey
             EncryptionKey encryptionKey = makeEncryptionKey();
+
+            //We prepare to read our custom metadata fields from the partition so that we can pass this info to the split(s)
             FieldReader locationReader = partitions.getFieldReader(SplitProperties.LOCATION.getId());
             locationReader.setPosition(curPartition);
             FieldReader storageClassReader = partitions.getFieldReader(SplitProperties.SERDE.getId());
@@ -238,6 +342,7 @@ public class ExampleMetadataHandler
                             ContinuationToken.encode(curPartition, curPart));
                 }
 
+                //We use makeSpillLocation(...) from our parent class to get a unique SpillLocation for each split
                 Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), encryptionEnabled ? encryptionKey : null)
                         .add(SplitProperties.LOCATION.getId(), String.valueOf(locationReader.readText()))
                         .add(SplitProperties.SERDE.getId(), String.valueOf(storageClassReader.readText()))
@@ -245,7 +350,7 @@ public class ExampleMetadataHandler
 
                 //Add the partition column values to the split's properties.
                 //We are doing this because our example record reader depends on it, your specific needs
-                //will likely vary
+                //will likely vary. Our example only supports a limited number of partition column types.
                 for (String next : request.getPartitionCols()) {
                     FieldReader reader = partitions.getFieldReader(next);
                     reader.setPosition(curPartition);
@@ -278,6 +383,11 @@ public class ExampleMetadataHandler
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
     }
 
+    /**
+     * We use the ping signal to simply log the fact that a ping request came in.
+     *
+     * @param request The PingRequest.
+     */
     public void onPing(PingRequest request)
     {
         logCaller(request);

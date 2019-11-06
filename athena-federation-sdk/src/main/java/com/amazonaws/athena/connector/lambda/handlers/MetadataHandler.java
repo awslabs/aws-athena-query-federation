@@ -243,15 +243,55 @@ public abstract class MetadataHandler
         }
     }
 
+    /**
+     * Used to get the list of schemas (aka databases) that this source contains.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog they are querying.
+     * @return A ListSchemasResponse which primarily contains a Set<String> of schema names and a catalog name
+     * corresponding the Athena catalog that was queried.
+     */
     public abstract ListSchemasResponse doListSchemaNames(final BlockAllocator allocator, final ListSchemasRequest request)
             throws Exception;
 
+    /**
+     * Used to get the list of tables that this source contains.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog and database they are querying.
+     * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
+     * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
+     */
     public abstract ListTablesResponse doListTables(final BlockAllocator allocator, final ListTablesRequest request)
             throws Exception;
 
+    /**
+     * Used to get definition (field names, types, descriptions, etc...) of a Table.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog, database, and table they are querying.
+     * @return A GetTableResponse which primarily contains:
+     * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
+     * 2. A Set<String> of partition column names (or empty if the table isn't partitioned).
+     */
     public abstract GetTableResponse doGetTable(final BlockAllocator allocator, final GetTableRequest request)
             throws Exception;
 
+    /**
+     * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
+     * @return A GetTableLayoutResponse which primarily contains:
+     * 1. An Apache Arrow Block with 0 or more partitions to read. 0 partitions implies there are 0 rows to read.
+     * 2. Set<String> of partition column names which should correspond to columns in your Apache Arrow Block.
+     * @note Partitions are opaque to Amazon Athena in that it does not understand their contents, just that it must call
+     * doGetSplits(...) for each partition you return in order to determine which reads to perform and if those reads
+     * can be parallelized. This means the contents of this response are more for you than they are for Athena.
+     * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
+     * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
+     * partition data are ignored by Athena but passed on to calls on GetSplits.
+     */
     public GetTableLayoutResponse doGetTableLayout(final BlockAllocator allocator, final GetTableLayoutRequest request)
             throws Exception
     {
@@ -293,6 +333,16 @@ public abstract class MetadataHandler
         }
     }
 
+    /**
+     * This method can be used to add additional fields to the schema of our partition response. Athena
+     * expects each partitions in the response to have a column corresponding to your partition columns.
+     * You can choose to add additional columns to that response which Athena will ignore but will pass
+     * on to you when it call GetSplits(...) for each partition.
+     *
+     * @param partitionSchemaBuilder The SchemaBuilder you can use to add additional columns and metadata to the
+     * partitions response.
+     * @param request The GetTableLayoutResquest that triggered this call.
+     */
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         //You can add additional fields to the partition schema which are ignored by Athena
@@ -305,14 +355,44 @@ public abstract class MetadataHandler
         //contains the s3 location.
     }
 
+    /**
+     * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
+     *
+     * @param constraintEvaluator Used to apply partition pruning constraints.
+     * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
+     * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
+     * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
+     * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
+     * partition data are ignored by Athena but passed on to calls on GetSplits.
+     */
     public abstract void getPartitions(final ConstraintEvaluator constraintEvaluator,
             final BlockWriter blockWriter,
             final GetTableLayoutRequest request)
             throws Exception;
 
+    /**
+     * Used to split-up the reads required to scan the requested batch of partition(s).
+     *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details of the catalog, database, table, andpartition(s) being queried as well as
+     * any filter predicate.
+     * @return A GetSplitsResponse which primarily contains:
+     * 1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
+     * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
+     * @note A Split is a mostly opaque object to Amazon Athena. Amazon Athena will use the optional SpillLocation and
+     * optional EncryptionKey for pipelined reads but all properties you set on the Split are passed to your read
+     * function to help you perform the read.
+     */
     public abstract GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
             throws Exception;
 
+    /**
+     * Used warm up your function as well as to discovery its capabilities (e.g. SDK capabilities)
+     *
+     * @param request The PingRequest.
+     * @return A PingResponse.
+     * @note We do not recommend modifying this function, instead you should implement doPing(...)
+     */
     public PingResponse doPing(PingRequest request)
     {
         PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES);
@@ -325,11 +405,21 @@ public abstract class MetadataHandler
         return response;
     }
 
+    /**
+     * Provides you a signal that can be used to warm up your function.
+     *
+     * @param request The PingRequest.
+     */
     public void onPing(PingRequest request)
     {
         //NoOp
     }
 
+    /**
+     * Helper function that is used to ensure we always have a non-null response.
+     *
+     * @param response The response to assert is not null.
+     */
     private void assertNotNull(FederationResponse response)
     {
         if (response == null) {

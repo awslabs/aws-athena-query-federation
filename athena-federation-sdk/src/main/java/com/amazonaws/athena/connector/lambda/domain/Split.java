@@ -33,12 +33,30 @@ import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * A Split is best thought of as a unit of work that is part of a larger activity. For example, if we needed to
+ * read a 100GB table stored in S3. We might want to improve performance by parallelizing the reads of this large file
+ * by _splitting_ it up into 100MB pieces. You could think of each piece as a split. In general, Splits are opaque
+ * to Athena with the exception of the SpillLocation and EncryptionKey which are used by Athena to find any data that
+ * was spilled by the processing of the split. All properties on the split are soley produced by and consumed by the
+ * connector.
+ */
 public class Split
 {
+    //The optional SpillLocation this Split can write to.
     private final SpillLocation spillLocation;
+    //The optional EncryptionKey this Split can use to encrypt/decrypt data.
     private final EncryptionKey encryptionKey;
+    //The properties that define what this split is meant to do.
     private final Map<String, String> properties;
 
+    /**
+     * Basic constructor.
+     *
+     * @param spillLocation The optional SpillLocation this Split can write to.
+     * @param encryptionKey The optional EncryptionKey this Split can use to encrypt/decrypt data.
+     * @param properties The properties that define what this split is meant to do.
+     */
     @JsonCreator
     public Split(@JsonProperty("spillLocation") SpillLocation spillLocation,
             @JsonProperty("encryptionKey") EncryptionKey encryptionKey,
@@ -57,42 +75,81 @@ public class Split
         this.encryptionKey = builder.encryptionKey;
     }
 
+    /**
+     * Retrieves the value of the requested property.
+     *
+     * @param key The name of the property to retrieve.
+     * @return The value for that property or null if there is no such property.
+     */
     @Transient
     public String getProperty(String key)
     {
         return properties.get(key);
     }
 
+    /**
+     * Retrieves the value of the requested property and attempts to parse the value into an int.
+     *
+     * @param key The name of the property to retrieve.
+     * @return The value for that property, throws if there is no such property.
+     */
     @Transient
     public int getPropertyAsInt(String key)
     {
         return Integer.parseInt(properties.get(key));
     }
 
+    /**
+     * Retrieves the value of the requested property and attempts to parse the value into an Long.
+     *
+     * @param key The name of the property to retrieve.
+     * @return The value for that property, throws if there is no such property.
+     */
     @Transient
     public long getPropertyAsLong(String key)
     {
         return Long.parseLong(properties.get(key));
     }
 
+    /**
+     * Retrieves the value of the requested property and attempts to parse the value into a double.
+     *
+     * @param key The name of the property to retrieve.
+     * @return The value for that property, throws if there is no such property.
+     */
     @Transient
     public double getPropertyAsDouble(String key)
     {
         return Double.parseDouble(properties.get(key));
     }
 
+    /**
+     * Provides access to all properties on this Split.
+     *
+     * @return Map<String, String> containing all properties on the split.
+     */
     @JsonProperty
     public Map<String, String> getProperties()
     {
         return properties;
     }
 
+    /**
+     * The optional SpillLocation this Split can write to.
+     *
+     * @return The SpillLocation.
+     */
     @JsonProperty
     public SpillLocation getSpillLocation()
     {
         return spillLocation;
     }
 
+    /**
+     * The optional EncryptionKey this Split can use to encrypt/decrypt data.
+     *
+     * @return The EncryptionKey.
+     */
     @JsonProperty
     public EncryptionKey getEncryptionKey()
     {
@@ -134,24 +191,48 @@ public class Split
 
         private Builder() {}
 
+        /**
+         * Adds the provided property key,value pair to the Split, overwriting any previous value for the key.
+         *
+         * @param key The key for the property.
+         * @param value The value for the property.
+         * @return The Builder itself.
+         */
         public Builder add(String key, String value)
         {
             properties.put(key, value);
             return this;
         }
 
-        public Builder withSpillLocation(SpillLocation dir)
+        /**
+         * Sets the optional SpillLocation this Split can write to.
+         *
+         * @param val The SpillLocation
+         * @return The Builder itself.
+         */
+        public Builder withSpillLocation(SpillLocation val)
         {
-            this.spillLocation = dir;
+            this.spillLocation = val;
             return this;
         }
 
+        /**
+         * Sets the optional EncryptionKey this Split can use to encrypt/decrypt data.
+         *
+         * @param key The EncryptionKey
+         * @return The Builder itself.
+         */
         public Builder withEncryptionKey(EncryptionKey key)
         {
             this.encryptionKey = key;
             return this;
         }
 
+        /**
+         * Builds the Split
+         *
+         * @return A newly constructed Split using the attributes collected by this builder.
+         */
         public Split build()
         {
             return new Split(this);
