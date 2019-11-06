@@ -20,6 +20,12 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * #L%
  */
 
+/**
+ * Used to convey the capabilities of this SDK instance when negotiating functionality with
+ * Athena. You can think of this like a version number that is specific to the feature set
+ * and protocol used by the SDK. Purely client side changes in the SDK would not be expected
+ * to change the capabilities.
+ */
 public class FederationCapabilities
 {
     private FederationCapabilities() {}

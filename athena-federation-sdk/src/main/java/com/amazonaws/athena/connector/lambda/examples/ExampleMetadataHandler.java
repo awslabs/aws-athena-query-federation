@@ -73,7 +73,13 @@ import java.util.stream.Collectors;
  * 3. S3 Spill support.
  * 4. Spill encryption using either KMS KeyFactory or LocalKeyFactory.
  * 5. A wide range of field types including complex Struct and List types.
+ * <p>
  *
+ * @note All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or
+ * mixed case will not be accessible in queries and will be lower cased by Athena's engine to ensure consistency across
+ * sources. As such you may need to handle this when integrating with a source that supports mixed case. As an example,
+ * you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
+ * <p>
  * @see MetadataHandler
  */
 public class ExampleMetadataHandler

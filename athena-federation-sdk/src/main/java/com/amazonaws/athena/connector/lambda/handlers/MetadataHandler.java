@@ -72,6 +72,12 @@ import java.util.UUID;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
 
 /**
+ * This class defines the functionality required by any valid source of federated metadata for Athena. It is recommended
+ * that all connectors extend this class for Metadata operations though it is possible for you to write your own
+ * from the ground up as long as you satisfy the wire protocol. For all cases we've encountered it has made more sense
+ * to start with this base class and use it's implementation for most of the boilerplate related to Lambda and resource
+ * lifecycle so we could focus on the task of integrating with the source we were interested in.
+ *
  * @note All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or
  * mixed case will not be accessible in queries and will be lower cased by Athena's engine to ensure consistency across
  * sources. As such you may need to handle this when integrating with a source that supports mixed case. As an example,
@@ -81,8 +87,14 @@ public abstract class MetadataHandler
         implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetadataHandler.class);
+    //name of the default column used when a default single-partition response is required for connectors that
+    //do not support robust partitioning. In such cases Athena requires at least 1 partition in order indicate
+    //there is indeed data to be read vs. queries that were able to fully partition prune and thus decide there
+    //was no data to read.
     private static final String PARTITION_ID_COL = "partitionId";
+    //The value that denotes encryption should be disabled, encryption is enabled by default.
     private static final String DISABLE_ENCRYPTION = "true";
+    //The default S3 prefix to use when spilling to S3
     private static final String DEFAULT_SPILL_PREFIX = "athena-federation-spill";
     protected static final String SPILL_BUCKET_ENV = "spill_bucket";
     protected static final String SPILL_PREFIX_ENV = "spill_prefix";

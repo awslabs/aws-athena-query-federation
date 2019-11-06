@@ -15,7 +15,8 @@ The Athena HBase Connector supports several configuration options via Lambda env
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 5. **disable_glue** - (Optional) If present, with any valye, the connector will no longer attempt to retrieve supplemental metadata from Glue.
-6. **default_hbase** If present, this HBase connection string (e.g. master_hostname:zookeeper_port:hbase_port) is used when there is not a catalog specific environment variable (as explained below).
+6. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
+7. **default_hbase** If present, this HBase connection string (e.g. master_hostname:zookeeper_port:hbase_port) is used when there is not a catalog specific environment variable (as explained below).
 
 You can also provide one or more properties which define the HBase connection details for the HBase instance(s) you'd like this connector to use. You can do this by setting a Lambda environment variable that corresponds to the catalog name you'd like to use in Athena. For example, if I'd like to query two different HBase instances from Athena in the below queries:
 
