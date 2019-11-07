@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,11 +22,9 @@ package com.amazonaws.athena.connectors.aws.cmdb.tables.ec2;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
@@ -36,16 +34,11 @@ import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.model.DescribeVolumesRequest;
 import com.amazonaws.services.ec2.model.DescribeVolumesResult;
 import com.amazonaws.services.ec2.model.Volume;
-import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -96,11 +89,8 @@ public class EbsTableProvider
      * @See TableProvider
      */
     @Override
-    public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         boolean done = false;
         DescribeVolumesRequest request = new DescribeVolumesRequest();
 
@@ -113,7 +103,7 @@ public class EbsTableProvider
             DescribeVolumesResult response = ec2.describeVolumes(request);
 
             for (Volume volume : response.getVolumes()) {
-                instanceToRow(volume, constraintEvaluator, spiller, fields);
+                instanceToRow(volume, spiller);
             }
 
             request.setNextToken(response.getNextToken());
@@ -128,111 +118,37 @@ public class EbsTableProvider
      * Maps an EBS Volume into a row in our Apache Arrow response block(s).
      *
      * @param volume The EBS Volume to map.
-     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
      * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
-     * @param fields The set of fields that need to be projected.
      * @note The current implementation is rather naive in how it maps fields. It leverages a static
      * list of fields that we'd like to provide and then explicitly filters and converts each field.
      */
     private void instanceToRow(Volume volume,
-            ConstraintEvaluator constraintEvaluator,
-            BlockSpiller spiller,
-            Map<String, Field> fields)
+            BlockSpiller spiller)
     {
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            if (matched && fields.containsKey("id")) {
-                String value = volume.getVolumeId();
-                matched &= constraintEvaluator.apply("id", value);
-                BlockUtils.setValue(block.getFieldVector("id"), row, value);
+            matched &= block.offerValue("id", row, volume.getVolumeId());
+            matched &= block.offerValue("type", row, volume.getVolumeType());
+            matched &= block.offerValue("availability_zone", row, volume.getAvailabilityZone());
+            matched &= block.offerValue("created_time", row, volume.getCreateTime());
+            matched &= block.offerValue("is_encrypted", row, volume.getEncrypted());
+            matched &= block.offerValue("kms_key_id", row, volume.getKmsKeyId());
+            matched &= block.offerValue("size", row, volume.getSize());
+            matched &= block.offerValue("iops", row, volume.getIops());
+            matched &= block.offerValue("snapshot_id", row, volume.getSnapshotId());
+            matched &= block.offerValue("state", row, volume.getState());
+
+            if (volume.getAttachments().size() == 1) {
+                matched &= block.offerValue("target", row, volume.getAttachments().get(0).getInstanceId());
+                matched &= block.offerValue("attached_device", row, volume.getAttachments().get(0).getDevice());
+                matched &= block.offerValue("attachment_state", row, volume.getAttachments().get(0).getState());
+                matched &= block.offerValue("attachment_time", row, volume.getAttachments().get(0).getAttachTime());
             }
 
-            if (matched && fields.containsKey("type")) {
-                String value = volume.getVolumeType();
-                matched &= constraintEvaluator.apply("type", value);
-                BlockUtils.setValue(block.getFieldVector("type"), row, value);
-            }
-
-            if (matched && fields.containsKey("target") && volume.getAttachments().size() == 1) {
-                String value = volume.getAttachments().get(0).getInstanceId();
-                matched &= constraintEvaluator.apply("target", value);
-                BlockUtils.setValue(block.getFieldVector("target"), row, value);
-            }
-
-            if (matched && fields.containsKey("attached_device") && volume.getAttachments().size() == 1) {
-                String value = volume.getAttachments().get(0).getDevice();
-                matched &= constraintEvaluator.apply("attached_device", value);
-                BlockUtils.setValue(block.getFieldVector("attached_device"), row, value);
-            }
-
-            if (matched && fields.containsKey("attachment_state") && volume.getAttachments().size() == 1) {
-                String value = volume.getAttachments().get(0).getState();
-                matched &= constraintEvaluator.apply("attachment_state", value);
-                BlockUtils.setValue(block.getFieldVector("attachment_state"), row, value);
-            }
-
-            if (matched && fields.containsKey("attachment_time") && volume.getAttachments().size() == 1) {
-                Date value = volume.getAttachments().get(0).getAttachTime();
-                matched &= constraintEvaluator.apply("attachment_time", value);
-                BlockUtils.setValue(block.getFieldVector("attachment_time"), row, value);
-            }
-
-            if (matched && fields.containsKey("availability_zone")) {
-                String value = volume.getAvailabilityZone();
-                matched &= constraintEvaluator.apply("availability_zone", value);
-                BlockUtils.setValue(block.getFieldVector("availability_zone"), row, value);
-            }
-
-            if (matched && fields.containsKey("created_time")) {
-                Date value = volume.getCreateTime();
-                matched &= constraintEvaluator.apply("created_time", value);
-                BlockUtils.setValue(block.getFieldVector("created_time"), row, value);
-            }
-
-            if (matched && fields.containsKey("is_encrypted")) {
-                boolean value = volume.getEncrypted();
-                matched &= constraintEvaluator.apply("is_encrypted", value);
-                BlockUtils.setValue(block.getFieldVector("is_encrypted"), row, value);
-            }
-
-            if (matched && fields.containsKey("kms_key_id")) {
-                String value = volume.getKmsKeyId();
-                matched &= constraintEvaluator.apply("kms_key_id", value);
-                BlockUtils.setValue(block.getFieldVector("kms_key_id"), row, value);
-            }
-
-            if (matched && fields.containsKey("size")) {
-                Integer value = volume.getSize();
-                matched &= constraintEvaluator.apply("size", value);
-                BlockUtils.setValue(block.getFieldVector("size"), row, value);
-            }
-
-            if (matched && fields.containsKey("iops")) {
-                Integer value = volume.getIops();
-                matched &= constraintEvaluator.apply("iops", value);
-                BlockUtils.setValue(block.getFieldVector("iops"), row, value);
-            }
-
-            if (matched && fields.containsKey("snapshot_id")) {
-                String value = volume.getSnapshotId();
-                matched &= constraintEvaluator.apply("snapshot_id", value);
-                BlockUtils.setValue(block.getFieldVector("snapshot_id"), row, value);
-            }
-
-            if (matched && fields.containsKey("state")) {
-                String value = volume.getState();
-                matched &= constraintEvaluator.apply("state", value);
-                BlockUtils.setValue(block.getFieldVector("state"), row, value);
-            }
-
-            if (matched && fields.containsKey("tags")) {
-                //TODO: apply constraint for complex type
-                ListVector vector = (ListVector) block.getFieldVector("tags");
-                List<String> interfaces = volume.getTags().stream()
-                        .map(next -> next.getKey() + ":" + next.getValue()).collect(Collectors.toList());
-                BlockUtils.setComplexValue(vector, row, FieldResolver.DEFAULT, interfaces);
-            }
+            List<String> tags = volume.getTags().stream()
+                    .map(next -> next.getKey() + ":" + next.getValue()).collect(Collectors.toList());
+            matched &= block.offerComplexValue("tags", row, FieldResolver.DEFAULT, tags);
 
             return matched ? 1 : 0;
         });

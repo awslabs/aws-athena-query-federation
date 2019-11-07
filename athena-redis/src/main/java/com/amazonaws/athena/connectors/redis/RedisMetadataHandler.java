@@ -26,7 +26,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -204,7 +203,7 @@ public class RedisMetadataHandler
      * We also use this 1 partition to carry settings that we will need in order to generate splits.
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         Map<String, String> properties = request.getSchema().getCustomMetadata();

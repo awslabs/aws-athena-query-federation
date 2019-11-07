@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,8 +21,6 @@ package com.amazonaws.athena.connectors.android;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -60,7 +58,7 @@ public class AndroidRecordHandler
     private static final String MAX_WAIT_TIME = "MAX_WAIT_TIME";
     private static final String MIN_RESULTS = "MIN_RESULTS";
 
-    private final AndroidDeviceTable androidDeviceTable = new AndroidDeviceTable();
+    private final AndroidDeviceTable androidTable = new AndroidDeviceTable();
     private final ObjectMapper mapper = new ObjectMapper();
     private final AmazonSQS amazonSQS;
     private final LiveQueryService liveQueryService;
@@ -88,7 +86,7 @@ public class AndroidRecordHandler
     }
 
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
+    protected void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {
         QueryRequest request = QueryRequest.newBuilder()
                 .withQueryId(readRecordsRequest.getQueryId())
@@ -99,10 +97,10 @@ public class AndroidRecordHandler
         String response = liveQueryService.broadcastQuery(readRecordsRequest.getTableName().getTableName(), request);
         logger.info("readWithConstraint: Android broadcast result: " + response);
 
-        readResultsFromSqs(constraintEvaluator, blockSpiller, readRecordsRequest);
+        readResultsFromSqs(blockSpiller, readRecordsRequest);
     }
 
-    private void readResultsFromSqs(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
+    private void readResultsFromSqs(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {
         final Map<String, Field> fields = new HashMap<>();
         readRecordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
@@ -111,8 +109,8 @@ public class AndroidRecordHandler
                 .withQueueUrl(queueUrl)
                 .withWaitTimeSeconds(1);
 
-        ValueSet queryTimeoutValueSet = readRecordsRequest.getConstraints().getSummary().get(androidDeviceTable.getQueryTimeout());
-        ValueSet minResultsValueSet = readRecordsRequest.getConstraints().getSummary().get(androidDeviceTable.getQueryMinResultsField());
+        ValueSet queryTimeoutValueSet = readRecordsRequest.getConstraints().getSummary().get(androidTable.getQueryTimeout());
+        ValueSet minResultsValueSet = readRecordsRequest.getConstraints().getSummary().get(androidTable.getQueryMinResultsField());
 
         long maxWaitTime = queryTimeoutValueSet != null && queryTimeoutValueSet.isSingleValue() ?
                 (long) queryTimeoutValueSet.getSingleValue() : Long.parseLong(System.getenv(MAX_WAIT_TIME));
@@ -140,42 +138,15 @@ public class AndroidRecordHandler
                                 boolean matches = true;
                                 int effectiveRow = newRows + rowNum;
 
-                                matches &= constraintEvaluator.apply(androidDeviceTable.getDeviceIdField(), queryResponse.getDeviceId());
-                                if (matches && fields.containsKey(androidDeviceTable.getDeviceIdField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getDeviceIdField(block), effectiveRow, queryResponse.getDeviceId());
-                                }
+                                matches &= block.offerValue(androidTable.getDeviceIdField(), effectiveRow, queryResponse.getDeviceId());
+                                matches &= block.offerValue(androidTable.getNameField(), effectiveRow, queryResponse.getName());
+                                matches &= block.offerValue(androidTable.getEchoValueField(), effectiveRow, queryResponse.getEchoValue());
+                                matches &= block.offerValue(androidTable.getLastUpdatedField(), effectiveRow, System.currentTimeMillis());
+                                matches &= block.offerValue(androidTable.getResultField(), effectiveRow, nextVal);
+                                matches &= block.offerValue(androidTable.getScoreField(), effectiveRow, queryResponse.getRandom());
+                                matches &= block.offerValue(androidTable.getQueryMinResultsField(), effectiveRow, minResults);
+                                matches &= block.offerValue(androidTable.getQueryTimeout(), effectiveRow, maxWaitTime);
 
-                                matches &= constraintEvaluator.apply(androidDeviceTable.getNameField(), queryResponse.getName());
-                                if (matches && fields.containsKey(androidDeviceTable.getNameField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getNameField(block), effectiveRow, queryResponse.getName());
-                                }
-
-                                matches &= constraintEvaluator.apply(androidDeviceTable.getEchoValueField(), queryResponse.getEchoValue());
-                                if (matches && fields.containsKey(androidDeviceTable.getEchoValueField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getEchoValueField(block), effectiveRow, queryResponse.getEchoValue());
-                                }
-
-                                if (matches && fields.containsKey(androidDeviceTable.getLastUpdatedField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getLastUpdatedField(block), effectiveRow, System.currentTimeMillis());
-                                }
-
-                                matches &= constraintEvaluator.apply(androidDeviceTable.getResultField(), nextVal);
-                                if (matches && fields.containsKey(androidDeviceTable.getResultField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getResultField(block), effectiveRow, nextVal);
-                                }
-
-                                matches &= constraintEvaluator.apply(androidDeviceTable.getScoreField(), queryResponse.getRandom());
-                                if (matches && fields.containsKey(androidDeviceTable.getScoreField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getScoreField(block), effectiveRow, queryResponse.getRandom());
-                                }
-
-                                if (matches && fields.containsKey(androidDeviceTable.getQueryMinResultsField())) {
-                                    BlockUtils.setValue(androidDeviceTable.getQueryMinResultsField(block), effectiveRow, minResults);
-                                }
-
-                                if (matches && fields.containsKey(androidDeviceTable.getQueryTimeout())) {
-                                    BlockUtils.setValue(androidDeviceTable.getQueryTimeout(block), effectiveRow, maxWaitTime);
-                                }
                                 newRows += matches ? 1 : 0;
                             }
 

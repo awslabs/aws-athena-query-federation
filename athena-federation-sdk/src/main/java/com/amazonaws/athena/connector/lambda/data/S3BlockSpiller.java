@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
@@ -91,6 +92,8 @@ public class S3BlockSpiller
     private final AtomicLong spillNumber = new AtomicLong(0);
     //Holder that is used to surface any exceptions encountered in our background spill threads.
     private final AtomicReference<RuntimeException> asyncException = new AtomicReference<>(null);
+    //
+    private final ConstraintEvaluator constraintEvaluator;
 
     /**
      * Constructor which uses the default maxRowsPerCall.
@@ -99,10 +102,15 @@ public class S3BlockSpiller
      * @param spillConfig The spill config for this instance. Includes things like encryption key, s3 path, etc...
      * @param allocator The BlockAllocator to use when creating blocks.
      * @param schema The schema for blocks that should be written.
+     * @param constraintEvaluator The ConstraintEvaluator that should be used to constrain writes.
      */
-    public S3BlockSpiller(AmazonS3 amazonS3, SpillConfig spillConfig, BlockAllocator allocator, Schema schema)
+    public S3BlockSpiller(AmazonS3 amazonS3,
+            SpillConfig spillConfig,
+            BlockAllocator allocator,
+            Schema schema,
+            ConstraintEvaluator constraintEvaluator)
     {
-        this(amazonS3, spillConfig, allocator, schema, MAX_ROWS_PER_CALL);
+        this(amazonS3, spillConfig, allocator, schema, constraintEvaluator, MAX_ROWS_PER_CALL);
     }
 
     /**
@@ -112,12 +120,14 @@ public class S3BlockSpiller
      * @param spillConfig The spill config for this instance. Includes things like encryption key, s3 path, etc...
      * @param allocator The BlockAllocator to use when creating blocks.
      * @param schema The schema for blocks that should be written.
+     * @param constraintEvaluator The ConstraintEvaluator that should be used to constrain writes.
      * @param maxRowsPerCall The max number of rows to allow callers to write in one call.
      */
     public S3BlockSpiller(AmazonS3 amazonS3,
             SpillConfig spillConfig,
             BlockAllocator allocator,
             Schema schema,
+            ConstraintEvaluator constraintEvaluator,
             int maxRowsPerCall)
     {
         this.amazonS3 = requireNonNull(amazonS3, "amazonS3 was null");
@@ -128,6 +138,18 @@ public class S3BlockSpiller
         asyncSpillPool = (spillConfig.getNumSpillThreads() <= 0) ? null :
                 Executors.newFixedThreadPool(spillConfig.getNumSpillThreads());
         this.maxRowsPerCall = maxRowsPerCall;
+        this.constraintEvaluator = constraintEvaluator;
+    }
+
+    /**
+     * Provides access to the constraint evaluator used to constrain blocks written via this BlockSpiller.
+     *
+     * @return
+     */
+    @Override
+    public ConstraintEvaluator getConstraintEvaluator()
+    {
+        return constraintEvaluator;
     }
 
     /**
@@ -158,6 +180,7 @@ public class S3BlockSpiller
                     new Object[] {block.getRowCount(), block.getSize(), spillConfig.getMaxBlockBytes()});
             spillBlock(block);
             inProgressBlock.set(this.allocator.createBlock(this.schema));
+            inProgressBlock.get().constrain(constraintEvaluator);
         }
     }
 
@@ -226,6 +249,7 @@ public class S3BlockSpiller
                 spillBlock(block);
 
                 inProgressBlock.set(this.allocator.createBlock(this.schema));
+                inProgressBlock.get().constrain(constraintEvaluator);
             }
 
             lock.lock();
@@ -357,6 +381,7 @@ public class S3BlockSpiller
         if (inProgressBlock.get() == null) {
             //Create the initial block
             inProgressBlock.set(this.allocator.createBlock(this.schema));
+            inProgressBlock.get().constrain(constraintEvaluator);
         }
     }
 

@@ -169,11 +169,12 @@ public abstract class RecordHandler
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
         SpillConfig spillConfig = getSpillConfig(request);
-        try (S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema());
-                ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
-                        request.getSchema(),
-                        request.getConstraints())) {
-            readWithConstraint(constraintEvaluator, spiller, request);
+        try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
+                request.getSchema(),
+                request.getConstraints());
+                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator);
+        ) {
+            readWithConstraint(spiller, request);
 
             if (!spiller.spilled()) {
                 return new ReadRecordsResponse(request.getCatalogName(), spiller.getBlock());
@@ -192,7 +193,6 @@ public abstract class RecordHandler
      * doReadRecords(...) in that the SDK handles more of the request lifecycle, leaving you to focus more closely on
      * the task of actually reading from your source.
      *
-     * @param constraintEvaluator A ConstraintEvaluator capable of applying constraints form the query that request this read.
      * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
      * The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
      * @param recordsRequest Details of the read request, including:
@@ -203,9 +203,7 @@ public abstract class RecordHandler
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
-    protected abstract void readWithConstraint(ConstraintEvaluator constraintEvaluator,
-            BlockSpiller spiller,
-            ReadRecordsRequest recordsRequest)
+    protected abstract void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
             throws Exception;
 
     protected SpillConfig getSpillConfig(ReadRecordsRequest request)

@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,10 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.BasicSessionCredentials;
@@ -82,6 +86,30 @@ public class BlockTest
     public void tearDown()
     {
         allocator.close();
+    }
+
+    @Test
+    public void constrainedBlockTest()
+            throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addIntField("col1")
+                .addIntField("col2")
+                .build();
+
+        Block block = allocator.createBlock(schema);
+
+        ValueSet col1Constraint = EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(), true, false)
+                .add(10).build();
+        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint));
+        try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, constraints)) {
+            block.constrain(constraintEvaluator);
+            assertTrue(block.setValue("col1", 0, 10));
+            assertTrue(block.offerValue("col1", 0, 10));
+            assertFalse(block.setValue("col1", 0, 11));
+            assertFalse(block.offerValue("col1", 0, 11));
+            assertTrue(block.offerValue("unkown_col", 0, 10));
+        }
     }
 
     //TODO: Break this into multiple smaller tests, probably primitive types vs. complex vs. nested complex

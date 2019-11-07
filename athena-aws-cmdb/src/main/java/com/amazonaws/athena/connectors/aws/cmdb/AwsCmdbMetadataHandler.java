@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -142,14 +141,14 @@ public class AwsCmdbMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         TableProvider tableProvider = tableProviders.get(request.getTableName());
         if (tableProvider == null) {
             throw new RuntimeException("Unknown table " + request.getTableName());
         }
-        tableProvider.getPartitions(constraintEvaluator, blockWriter, request);
+        tableProvider.getPartitions(blockWriter, request);
     }
 
     /**

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,11 +22,9 @@ package com.amazonaws.athena.connectors.aws.cmdb.tables.ec2;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
@@ -45,9 +43,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Maps your EC2 images (aka AMIs) to a table.
@@ -104,11 +100,8 @@ public class ImagesTableProvider
      * @See TableProvider
      */
     @Override
-    public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         DescribeImagesRequest request = new DescribeImagesRequest();
 
         ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("id");
@@ -134,7 +127,7 @@ public class ImagesTableProvider
             if (count++ > MAX_IMAGES) {
                 throw new RuntimeException("Too many images returned, add an owner or id filter.");
             }
-            instanceToRow(next, constraintEvaluator, spiller, fields);
+            instanceToRow(next, spiller);
         }
     }
 
@@ -142,182 +135,81 @@ public class ImagesTableProvider
      * Maps an EC2 Image (AMI) into a row in our Apache Arrow response block(s).
      *
      * @param image The EC2 Image (AMI) to map.
-     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
      * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
-     * @param fields The set of fields that need to be projected.
      * @note The current implementation is rather naive in how it maps fields. It leverages a static
      * list of fields that we'd like to provide and then explicitly filters and converts each field.
      */
     private void instanceToRow(Image image,
-            ConstraintEvaluator constraintEvaluator,
-            BlockSpiller spiller,
-            Map<String, Field> fields)
+            BlockSpiller spiller)
     {
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            if (matched && fields.containsKey("id")) {
-                String value = image.getImageId();
-                matched &= constraintEvaluator.apply("id", value);
-                BlockUtils.setValue(block.getFieldVector("id"), row, value);
-            }
+            matched &= block.offerValue("id", row, image.getImageId());
+            matched &= block.offerValue("architecture", row, image.getArchitecture());
+            matched &= block.offerValue("created", row, image.getCreationDate());
+            matched &= block.offerValue("description", row, image.getDescription());
+            matched &= block.offerValue("hypervisor", row, image.getHypervisor());
+            matched &= block.offerValue("location", row, image.getImageLocation());
+            matched &= block.offerValue("type", row, image.getImageType());
+            matched &= block.offerValue("kernel", row, image.getKernelId());
+            matched &= block.offerValue("name", row, image.getName());
+            matched &= block.offerValue("owner", row, image.getOwnerId());
+            matched &= block.offerValue("platform", row, image.getPlatform());
+            matched &= block.offerValue("ramdisk", row, image.getRamdiskId());
+            matched &= block.offerValue("root_device", row, image.getRootDeviceName());
+            matched &= block.offerValue("root_type", row, image.getRootDeviceType());
+            matched &= block.offerValue("srvio_net", row, image.getSriovNetSupport());
+            matched &= block.offerValue("state", row, image.getState());
+            matched &= block.offerValue("virt_type", row, image.getVirtualizationType());
+            matched &= block.offerValue("is_public", row, image.getPublic());
 
-            if (matched && fields.containsKey("architecture")) {
-                String value = image.getArchitecture();
-                matched &= constraintEvaluator.apply("architecture", value);
-                BlockUtils.setValue(block.getFieldVector("architecture"), row, value);
-            }
+            List<Tag> tags = image.getTags();
+            matched &= block.offerComplexValue("tags",
+                    row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("key")) {
+                            return ((Tag) val).getKey();
+                        }
+                        else if (field.getName().equals("value")) {
+                            return ((Tag) val).getValue();
+                        }
 
-            if (matched && fields.containsKey("created")) {
-                String value = image.getCreationDate();
-                matched &= constraintEvaluator.apply("created", value);
-                BlockUtils.setValue(block.getFieldVector("created"), row, value);
-            }
+                        throw new RuntimeException("Unexpected field " + field.getName());
+                    },
+                    tags);
 
-            if (matched && fields.containsKey("description")) {
-                String value = image.getDescription();
-                matched &= constraintEvaluator.apply("description", value);
-                BlockUtils.setValue(block.getFieldVector("description"), row, value);
-            }
+            matched &= block.offerComplexValue("block_devices",
+                    row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("dev_name")) {
+                            return ((BlockDeviceMapping) val).getDeviceName();
+                        }
+                        else if (field.getName().equals("no_device")) {
+                            return ((BlockDeviceMapping) val).getNoDevice();
+                        }
+                        else if (field.getName().equals("virt_name")) {
+                            return ((BlockDeviceMapping) val).getVirtualName();
+                        }
+                        else if (field.getName().equals("ebs")) {
+                            return ((BlockDeviceMapping) val).getEbs();
+                        }
+                        else if (field.getName().equals("ebs_size")) {
+                            return ((EbsBlockDevice) val).getVolumeSize();
+                        }
+                        else if (field.getName().equals("ebs_iops")) {
+                            return ((EbsBlockDevice) val).getIops();
+                        }
+                        else if (field.getName().equals("ebs_type")) {
+                            return ((EbsBlockDevice) val).getVolumeType();
+                        }
+                        else if (field.getName().equals("ebs_kms_key")) {
+                            return ((EbsBlockDevice) val).getKmsKeyId();
+                        }
 
-            if (matched && fields.containsKey("hypervisor")) {
-                String value = image.getHypervisor();
-                matched &= constraintEvaluator.apply("hypervisor", value);
-                BlockUtils.setValue(block.getFieldVector("hypervisor"), row, value);
-            }
-
-            if (matched && fields.containsKey("location")) {
-                String value = image.getImageLocation();
-                matched &= constraintEvaluator.apply("location", value);
-                BlockUtils.setValue(block.getFieldVector("location"), row, value);
-            }
-
-            if (matched && fields.containsKey("type")) {
-                String value = image.getImageType();
-                matched &= constraintEvaluator.apply("type", value);
-                BlockUtils.setValue(block.getFieldVector("type"), row, value);
-            }
-
-            if (matched && fields.containsKey("kernel")) {
-                String value = image.getKernelId();
-                matched &= constraintEvaluator.apply("kernel", value);
-                BlockUtils.setValue(block.getFieldVector("kernel"), row, value);
-            }
-
-            if (matched && fields.containsKey("name")) {
-                String value = image.getName();
-                matched &= constraintEvaluator.apply("name", value);
-                BlockUtils.setValue(block.getFieldVector("name"), row, value);
-            }
-
-            if (matched && fields.containsKey("owner")) {
-                String value = image.getOwnerId();
-                matched &= constraintEvaluator.apply("owner", value);
-                BlockUtils.setValue(block.getFieldVector("owner"), row, value);
-            }
-
-            if (matched && fields.containsKey("platform")) {
-                String value = image.getPlatform();
-                matched &= constraintEvaluator.apply("platform", value);
-                BlockUtils.setValue(block.getFieldVector("platform"), row, value);
-            }
-
-            if (matched && fields.containsKey("ramdisk")) {
-                String value = image.getRamdiskId();
-                matched &= constraintEvaluator.apply("ramdisk", value);
-                BlockUtils.setValue(block.getFieldVector("ramdisk"), row, value);
-            }
-
-            if (matched && fields.containsKey("root_device")) {
-                String value = image.getRootDeviceName();
-                matched &= constraintEvaluator.apply("root_device", value);
-                BlockUtils.setValue(block.getFieldVector("root_device"), row, value);
-            }
-
-            if (matched && fields.containsKey("root_type")) {
-                String value = image.getRootDeviceType();
-                matched &= constraintEvaluator.apply("root_type", value);
-                BlockUtils.setValue(block.getFieldVector("root_type"), row, value);
-            }
-
-            if (matched && fields.containsKey("srvio_net")) {
-                String value = image.getSriovNetSupport();
-                matched &= constraintEvaluator.apply("srvio_net", value);
-                BlockUtils.setValue(block.getFieldVector("srvio_net"), row, value);
-            }
-
-            if (matched && fields.containsKey("state")) {
-                String value = image.getState();
-                matched &= constraintEvaluator.apply("state", value);
-                BlockUtils.setValue(block.getFieldVector("state"), row, value);
-            }
-
-            if (matched && fields.containsKey("virt_type")) {
-                String value = image.getVirtualizationType();
-                matched &= constraintEvaluator.apply("virt_type", value);
-                BlockUtils.setValue(block.getFieldVector("virt_type"), row, value);
-            }
-
-            if (matched && fields.containsKey("is_public")) {
-                boolean value = image.getPublic();
-                matched &= constraintEvaluator.apply("is_public", value);
-                BlockUtils.setValue(block.getFieldVector("is_public"), row, value);
-            }
-
-            if (matched && fields.containsKey("tags")) {
-                //TODO: apply constraint for complex type
-                List<Tag> tags = image.getTags();
-                BlockUtils.setComplexValue(block.getFieldVector("tags"),
-                        row,
-                        (Field field, Object val) -> {
-                            if (field.getName().equals("key")) {
-                                return ((Tag) val).getKey();
-                            }
-                            else if (field.getName().equals("value")) {
-                                return ((Tag) val).getValue();
-                            }
-
-                            throw new RuntimeException("Unexpected field " + field.getName());
-                        },
-                        tags);
-            }
-
-            if (matched && fields.containsKey("block_devices")) {
-                //TODO: constraints for complex types
-                List<BlockDeviceMapping> value = image.getBlockDeviceMappings();
-                matched &= constraintEvaluator.apply("block_devices", value);
-                BlockUtils.setComplexValue(block.getFieldVector("block_devices"),
-                        row,
-                        (Field field, Object val) -> {
-                            if (field.getName().equals("dev_name")) {
-                                return ((BlockDeviceMapping) val).getDeviceName();
-                            }
-                            else if (field.getName().equals("no_device")) {
-                                return ((BlockDeviceMapping) val).getNoDevice();
-                            }
-                            else if (field.getName().equals("virt_name")) {
-                                return ((BlockDeviceMapping) val).getVirtualName();
-                            }
-                            else if (field.getName().equals("ebs")) {
-                                return ((BlockDeviceMapping) val).getEbs();
-                            }
-                            else if (field.getName().equals("ebs_size")) {
-                                return ((EbsBlockDevice) val).getVolumeSize();
-                            }
-                            else if (field.getName().equals("ebs_iops")) {
-                                return ((EbsBlockDevice) val).getIops();
-                            }
-                            else if (field.getName().equals("ebs_type")) {
-                                return ((EbsBlockDevice) val).getVolumeType();
-                            }
-                            else if (field.getName().equals("ebs_kms_key")) {
-                                return ((EbsBlockDevice) val).getKmsKeyId();
-                            }
-
-                            throw new RuntimeException("Unexpected field " + field.getName());
-                        },
-                        value);
-            }
+                        throw new RuntimeException("Unexpected field " + field.getName());
+                    },
+                    image.getBlockDeviceMappings());
 
             return matched ? 1 : 0;
         });

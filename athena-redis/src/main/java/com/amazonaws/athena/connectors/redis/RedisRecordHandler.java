@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,9 +21,7 @@ package com.amazonaws.athena.connectors.redis;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.s3.AmazonS3;
@@ -31,7 +29,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +62,7 @@ import static redis.clients.jedis.ScanParams.SCAN_POINTER_START;
  * <p>
  * 1. Supporting literal, zset, and hash value types.
  * 2. Attempts to resolve sensitive configuration fields such as redis-endpoint via SecretsManager so that you can
- *    substitute variables with values from by doing something like hostname:port:password=${my_secret}
+ * substitute variables with values from by doing something like hostname:port:password=${my_secret}
  */
 public class RedisRecordHandler
         extends RecordHandler
@@ -115,7 +112,7 @@ public class RedisRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
         Split split = recordsRequest.getSplit();
         ScanResult<String> keyCursor = null;
@@ -129,21 +126,33 @@ public class RedisRecordHandler
 
             //Scan the data associated with all the keys.
             for (String nextKey : keys) {
-                spiller.writeRows((Block block, int rowNum) -> {
-                    int matches = loadRow(split, nextKey, constraintEvaluator, block, rowNum);
-                    rowsMatched.getAndAdd(matches);
-                    return matches;
-                });
-                numRows++;
+                try (Jedis client = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP))) {
+                    ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
+                    List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
+                            .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
+
+                    switch (valueType) {
+                        case LITERAL:   //The key value is a row with single column
+                            loadLiteralRow(client, nextKey, spiller, fieldList);
+                            break;
+                        case HASH:
+                            loadHashRow(client, nextKey, spiller, fieldList);
+                            break;
+                        case ZSET:
+                            loadZSetRows(client, nextKey, spiller, fieldList);
+                            break;
+                        default:
+                            throw new RuntimeException("Unsupported value type " + valueType);
+                    }
+                }
             }
         }
         while (keyCursor != null && !END_CURSOR.equals(keyCursor.getCursor()));
-
-        logger.info("readWithConstraint: numKeysScanned[{}] numRowsMatched[{}]", numRows, rowsMatched.get());
     }
 
     /**
      * For the given key prefix, find all actual keys depending on the type of the key.
+     *
      * @param split The split for this request, mostly used to get the redis endpoint and config details.
      * @param redisCursor The previous Redis cursor (aka continuation token).
      * @param keys The collections of keys we collected so far. Any new keys we find are added to this.
@@ -173,98 +182,70 @@ public class RedisRecordHandler
         }
     }
 
+    private void loadLiteralRow(Jedis client, String keyString, BlockSpiller spiller, List<Field> fieldList)
+    {
+        spiller.writeRows((Block block, int row) -> {
+            if (fieldList.size() != 1) {
+                throw new RuntimeException("Ambiguous field mapping, more than 1 field for literal value type.");
+            }
+
+            Field field = fieldList.get(0);
+            Object value = ValueConverter.convert(field, client.get(keyString));
+            boolean literalMatched = block.offerValue(KEY_COLUMN_NAME, row, keyString);
+            literalMatched &= block.offerValue(field.getName(), row, value);
+            return literalMatched ? 1 : 0;
+        });
+    }
+
+    private void loadHashRow(Jedis client, String keyString, BlockSpiller spiller, List<Field> fieldList)
+    {
+        spiller.writeRows((Block block, int row) -> {
+            boolean hashMatched = block.offerValue(KEY_COLUMN_NAME, row, keyString);
+
+            Map<String, String> rawValues = new HashMap<>();
+            //Glue only supports lowercase column names / also could do a better job only fetching the columns
+            //that are needed
+            client.hgetAll(keyString).forEach((key, entry) -> rawValues.put(key.toLowerCase(), entry));
+
+            for (Field hfield : fieldList) {
+                Object hvalue = ValueConverter.convert(hfield, rawValues.get(hfield.getName()));
+                if (hashMatched && !block.offerValue(hfield.getName(), row, hvalue)) {
+                    return 0;
+                }
+            }
+
+            return 1;
+        });
+    }
+
+    private void loadZSetRows(Jedis client, String keyString, BlockSpiller spiller, List<Field> fieldList)
+    {
+        if (fieldList.size() != 1) {
+            throw new RuntimeException("Ambiguous field mapping, more than 1 field for ZSET value type.");
+        }
+
+        Field zfield = fieldList.get(0);
+        String cursor = SCAN_POINTER_START;
+        do {
+            ScanResult<Tuple> result = client.zscan(keyString, cursor);
+            cursor = result.getCursor();
+            for (Tuple nextElement : result.getResult()) {
+                spiller.writeRows((Block block, int rowNum) -> {
+                    Object zvalue = ValueConverter.convert(zfield, nextElement.getElement());
+                    boolean zsetMatched = block.offerValue(KEY_COLUMN_NAME, rowNum, keyString);
+                    zsetMatched &= block.offerValue(zfield.getName(), rowNum, zvalue);
+                    return zsetMatched ? 1 : 0;
+                });
+            }
+        }
+        while (cursor != null && !END_CURSOR.equals(cursor));
+    }
+
     /**
-     *
      * @param split The split for this request, mostly used to get the redis endpoint and config details.
      * @param keyString The key to read.
-     * @param evaluator ConstraintEvaluator that can be used to filter results.
-     * @param block The block to write results into.
+     * @param spiller The BlockSpiller to write results into.
      * @param startPos The starting postion in the block
      * @return The number of rows created in the result block.
      */
-    private int loadRow(Split split, String keyString, ConstraintEvaluator evaluator, Block block, int startPos)
-    {
-        try (Jedis client = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP))) {
-            ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
-            int pos = startPos;
-            List<Field> fieldList = block.getFields().stream()
-                    .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
-
-            switch (valueType) {
-                case LITERAL:   //The key value is a row with single column
-                    if (fieldList.size() != 1) {
-                        throw new RuntimeException("Ambiguous field mapping, more than 1 field for literal value type.");
-                    }
-
-                    if (block.getFieldVector(KEY_COLUMN_NAME) != null) {
-                        BlockUtils.setValue(block.getFieldVector(KEY_COLUMN_NAME), pos, keyString);
-                    }
-
-                    Field field = fieldList.get(0);
-                    FieldVector vector = block.getFieldVector(field.getName());
-                    Object value = ValueConverter.convert(field, client.get(keyString));
-
-                    if (evaluator.apply(field.getName(), value)) {
-                        BlockUtils.setValue(vector, pos++, value);
-                    }
-                    break;
-                case HASH:  //The key value is a row with multiple columns
-                    if (block.getFieldVector(KEY_COLUMN_NAME) != null) {
-                        BlockUtils.setValue(block.getFieldVector(KEY_COLUMN_NAME), pos, keyString);
-                    }
-
-                    Map<String, String> rawValues = new HashMap<>();
-                    //Glue only supports lowercase column names / also could do a better job only fetching the columns
-                    //that are needed
-                    client.hgetAll(keyString).forEach((key, entry) -> rawValues.put(key.toLowerCase(), entry));
-
-                    if (block.getFieldVector(KEY_COLUMN_NAME) != null) {
-                        BlockUtils.setValue(block.getFieldVector(KEY_COLUMN_NAME), pos, keyString);
-                    }
-
-                    for (Field hfield : fieldList) {
-                        FieldVector hvector = block.getFieldVector(hfield.getName());
-                        Object hvalue = ValueConverter.convert(hfield, rawValues.get(hfield.getName()));
-
-                        if (!evaluator.apply(hfield.getName(), hvalue)) {
-                            return pos - startPos;
-                        }
-                        BlockUtils.setValue(hvector, pos, hvalue);
-                    }
-                    pos++;
-                    break;
-                case ZSET:  //Each value in the zset should be treated as a row with single column.
-                    if (fieldList.size() != 1) {
-                        throw new RuntimeException("Ambiguous field mapping, more than 1 field for ZSET value type.");
-                    }
-
-                    Field zfield = fieldList.get(0);
-                    FieldVector zvector = block.getFieldVector(zfield.getName());
-
-                    //TODO: Since we are writing multiple rows here, there is a chance of causing spill failures
-                    //      if any 1 ZSET if more than 5% of our max block size. This should be exceedingly unlikely but
-                    //      a possible good thing to tackle in the future.
-                    String cursor = SCAN_POINTER_START;
-                    do {
-                        ScanResult<Tuple> result = client.zscan(keyString, cursor);
-                        cursor = result.getCursor();
-                        for (Tuple nextElement : result.getResult()) {
-                            Object zvalue = ValueConverter.convert(zfield, nextElement.getElement());
-                            if (evaluator.apply(zfield.getName(), zvalue)) {
-                                if (block.getFieldVector(KEY_COLUMN_NAME) != null) {
-                                    BlockUtils.setValue(block.getFieldVector(KEY_COLUMN_NAME), pos, keyString);
-                                }
-                                BlockUtils.setValue(zvector, pos++, zvalue);
-                            }
-                        }
-                    }
-                    while (cursor != null && !END_CURSOR.equals(cursor));
-                    break;
-                default:
-                    throw new RuntimeException("Unsupported value type " + valueType);
-            }
-
-            return pos - startPos;
-        }
-    }
 }

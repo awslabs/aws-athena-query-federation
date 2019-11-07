@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,10 +21,8 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -40,7 +38,6 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
@@ -84,7 +81,7 @@ public class DynamoDBRecordHandler
     }
 
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
         Split split = recordsRequest.getSplit();
         String tableName = recordsRequest.getTableName().getTableName();
@@ -105,42 +102,39 @@ public class DynamoDBRecordHandler
                 Map<String, AttributeValue> item = itemIterator.next();
 
                 boolean matched = true;
+                numResultRows.getAndIncrement();
                 for (Field nextField : recordsRequest.getSchema().getFields()) {
-                    if (!matched) {
-                        break;
-                    }
-                    matched = constraintEvaluator.apply(nextField.getName(), ItemUtils.toSimpleValue(item.get(nextField.getName())));
-                }
-
-                if (matched) {
-                    numResultRows.getAndIncrement();
-                    for (Field nextField : recordsRequest.getSchema().getFields()) {
-                        FieldVector vector = block.getFieldVector(nextField.getName());
-                        Object value = ItemUtils.toSimpleValue(item.get(nextField.getName()));
-                        Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
-                        try {
-                            switch (fieldType) {
-                                case LIST:
-                                    // DDB may return Set so coerce to List
-                                    List valueAsList = new ArrayList((Collection) value);
-                                    BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, valueAsList);
-                                    break;
-                                case STRUCT:
-                                    BlockUtils.setComplexValue(vector, rowNum,
-                                            (Field field, Object val) -> ((Map) val).get(field.getName()), value);
-                                    break;
-                                default:
-                                    BlockUtils.setValue(vector, rowNum, value);
-                                    break;
-                            }
+                    Object value = ItemUtils.toSimpleValue(item.get(nextField.getName()));
+                    Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
+                    try {
+                        switch (fieldType) {
+                            case LIST:
+                                // DDB may return Set so coerce to List
+                                List valueAsList = new ArrayList((Collection) value);
+                                matched &= block.offerComplexValue(nextField.getName(),
+                                        rowNum,
+                                        FieldResolver.DEFAULT,
+                                        valueAsList);
+                                break;
+                            case STRUCT:
+                                matched &= block.offerComplexValue(nextField.getName(),
+                                        rowNum,
+                                        (Field field, Object val) -> ((Map) val).get(field.getName()), value);
+                                break;
+                            default:
+                                matched &= block.offerValue(nextField.getName(), rowNum, value);
+                                break;
                         }
-                        catch (Exception ex) {
-                            throw new RuntimeException("Error while processing field " + nextField.getName(), ex);
+
+                        if (!matched) {
+                            return 0;
                         }
                     }
+                    catch (Exception ex) {
+                        throw new RuntimeException("Error while processing field " + nextField.getName(), ex);
+                    }
                 }
-
-                return matched ? 1 : 0;
+                return 1;
             });
         }
 

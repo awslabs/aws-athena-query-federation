@@ -66,22 +66,20 @@ public class MultiplexingJdbcRecordHandlerTest
     @Test
     public void readWithConstraint()
     {
-        ConstraintEvaluator constraintEvaluator = Mockito.mock(ConstraintEvaluator.class);
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
         Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("mysql");
-        this.jdbcRecordHandler.readWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
-        Mockito.verify(this.mySqlRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(constraintEvaluator), Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest));
+        this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest);
+        Mockito.verify(this.mySqlRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest));
     }
 
     @Test(expected = RuntimeException.class)
     public void readWithConstraintWithUnsupportedCatalog()
     {
-        ConstraintEvaluator constraintEvaluator = Mockito.mock(ConstraintEvaluator.class);
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
         Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("unsupportedCatalog");
-        this.jdbcRecordHandler.readWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
+        this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest);
     }
 
     @Test

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.aws.cmdb;
 
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
@@ -68,9 +67,9 @@ public class AwsCmdbRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
+    protected void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {
         TableProvider tableProvider = tableProviders.get(readRecordsRequest.getTableName());
-        tableProvider.readWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
+        tableProvider.readWithConstraint(blockSpiller, readRecordsRequest);
     }
 }

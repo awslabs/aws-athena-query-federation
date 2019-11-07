@@ -1,5 +1,7 @@
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+
 /**
  * Used to write a single Block using the BlockWriter programming model.
  *
@@ -35,5 +37,16 @@ public class SimpleBlockWriter
         if (rows > 0) {
             block.setRowCount(rowCount + rows);
         }
+    }
+
+    /**
+     * Provides access to the ConstraintEvaluator that will be applied to the generated Blocks.
+     *
+     * @See BlockWriter
+     */
+    @Override
+    public ConstraintEvaluator getConstraintEvaluator()
+    {
+        return block.getConstraintEvaluator();
     }
 }

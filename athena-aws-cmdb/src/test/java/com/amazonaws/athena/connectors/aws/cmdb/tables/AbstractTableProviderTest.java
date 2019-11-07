@@ -213,8 +213,8 @@ public abstract class AbstractTableProviderTest
 
         setUpRead();
 
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, response.getSchema());
-        provider.readWithConstraint(evaluator, spiller, readRequest);
+        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, response.getSchema(), evaluator);
+        provider.readWithConstraint(spiller, readRequest);
 
         validateRead(response.getSchema(), blockSpillReader, spiller.getSpillLocations(), spillConfig.getEncryptionKey());
     }

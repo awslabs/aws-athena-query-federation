@@ -339,8 +339,9 @@ public abstract class MetadataHandler
                 constraintSchema.build(),
                 request.getConstraints())) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
+            partitions.constrain(constraintEvaluator);
             SimpleBlockWriter blockWriter = new SimpleBlockWriter(partitions);
-            getPartitions(constraintEvaluator, blockWriter, request);
+            getPartitions(blockWriter, request);
             return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);
         }
     }
@@ -370,15 +371,17 @@ public abstract class MetadataHandler
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
      *
-     * @param constraintEvaluator Used to apply partition pruning constraints.
      * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
      * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
-     * partition data are ignored by Athena but passed on to calls on GetSplits.
+     * partition data are ignored by Athena but passed on to calls on GetSplits. Also note tat the BlockWriter handlers
+     * automatically constraining and filtering out values that don't satisfy the query's predicate. This is how we
+     * we accomplish partition pruning. You can optionally retreive a ConstraintEvaluator from BlockWriter if you have
+     * your own need to apply filtering in Lambda. Otherwise you can get the actual preducate from the request object
+     * for pushing down into the source you are querying.
      */
-    public abstract void getPartitions(final ConstraintEvaluator constraintEvaluator,
-            final BlockWriter blockWriter,
+    public abstract void getPartitions(final BlockWriter blockWriter,
             final GetTableLayoutRequest request)
             throws Exception;
 

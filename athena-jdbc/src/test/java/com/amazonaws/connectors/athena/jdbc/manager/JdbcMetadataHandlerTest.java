@@ -86,7 +86,7 @@ public class JdbcMetadataHandlerTest
             }
 
             @Override
-            public void getPartitions(final ConstraintEvaluator constraintEvaluator, final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest)
+            public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest)
             {
             }
 

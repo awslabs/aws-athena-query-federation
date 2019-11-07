@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
@@ -216,7 +215,7 @@ public class DynamoDBMetadataHandler
     }
 
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);

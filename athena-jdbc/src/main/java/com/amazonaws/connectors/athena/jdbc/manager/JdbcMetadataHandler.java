@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -249,7 +248,7 @@ public abstract class JdbcMetadataHandler
     public abstract Schema getPartitionSchema(final String catalogName);
 
     @Override
-    public abstract void getPartitions(final ConstraintEvaluator constraintEvaluator,
+    public abstract void getPartitions(
             final BlockWriter blockWriter,
             final GetTableLayoutRequest request)
             throws Exception;

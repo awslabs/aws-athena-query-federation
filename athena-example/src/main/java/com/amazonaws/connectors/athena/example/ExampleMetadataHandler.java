@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -186,7 +185,6 @@ public class ExampleMetadataHandler
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
      *
-     * @param constraintEvaluator Used to apply partition pruning constraints.
      * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
@@ -194,34 +192,31 @@ public class ExampleMetadataHandler
      * partition data are ignored by Athena but passed on to calls on GetSplits.
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         for (int year = 2000; year < 2030; year++) {
-            if (constraintEvaluator.apply("year", year)) {
-                for (int month = 1; month < 13; month++) {
-                    //TODO: Add partition pruning for the 'month' field (hint: copy & modify the evaluator if-clause above for 'year')
-                    for (int day = 1; day < 31; day++) {
-                        //TODO: Add partition pruning for the 'day' field (hint: copy & modify the evaluator if-clause above for 'year')
+            for (int month = 1; month < 13; month++) {
+                for (int day = 1; day < 31; day++) {
 
-                        final int yearVal = year;
-                        final int monthVal = month;
-                        final int dayVal = day;
-
-                        /**
-                         * TODO: If the partition represented by this year,month,day passed all constraints then
-                         *  add it to our partitions block.
-                         *
-                         blockWriter.writeRows((Block block, int row) -> {
-                             block.setValue("year", row, yearVal);
-                             block.setValue("month", row, monthVal);
-                             block.setValue("day", row, dayVal);
-                             //we write 1 row during this call so we return 1
-                             return 1;
-                         });
-                         *
-                         */
-                    }
+                    final int yearVal = year;
+                    final int monthVal = month;
+                    final int dayVal = day;
+                    /**
+                     * TODO: If the partition represented by this year,month,day offer the values to the block
+                     * and check if they all passed constraints. The Block has been configured to automatically
+                     * apply our partition pruning constraints.
+                     *
+                     blockWriter.writeRows((Block block, int row) -> {
+                     boolean matched = true;
+                     matched &= block.setValue("year", row, yearVal);
+                     matched &= block.setValue("month", row, monthVal);
+                     matched &= block.setValue("day", row, dayVal);
+                     //If all fields matches then we wrote 1 row during this call so we return 1
+                     return matched ? 1 : 0;
+                     });
+                     *
+                     */
                 }
             }
         }

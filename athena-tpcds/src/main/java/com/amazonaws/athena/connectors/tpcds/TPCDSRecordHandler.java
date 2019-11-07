@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.s3.AmazonS3;
@@ -92,7 +91,7 @@ public class TPCDSRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraints, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
             throws IOException
     {
         Split split = recordsRequest.getSplit();
@@ -111,7 +110,7 @@ public class TPCDSRecordHandler
         Results results = constructResults(table, session);
         Iterator<List<List<String>>> itr = results.iterator();
 
-        Map<Integer, CellWriter> writers = makeWriters(constraints, recordsRequest.getSchema(), table);
+        Map<Integer, CellWriter> writers = makeWriters(recordsRequest.getSchema(), table);
         while (itr.hasNext()) {
             List<String> row = itr.next().get(0);
             spiller.writeRows((Block block, int numRow) -> {
@@ -146,14 +145,13 @@ public class TPCDSRecordHandler
     /**
      * Generates the CellWriters used to convert the TPCDS Generators data to Apache Arrow.
      *
-     * @param evaluator The ConstraintEvaluator that can be used for predicate pushdown.
      * @param schemaForRead The schema to read/project.
      * @param table The TPCDS Table we are reading from.
      * @return Map<Integer, CellWriter> where integer is the Column position in the TPCDS data set and the CellWriter
      * can be used to read,convert,write the value at that position for any row into the correct position and type
      * in our Apache Arrow response.
      */
-    private Map<Integer, CellWriter> makeWriters(ConstraintEvaluator evaluator, Schema schemaForRead, Table table)
+    private Map<Integer, CellWriter> makeWriters(Schema schemaForRead, Table table)
     {
         Map<String, Column> columnPositions = new HashMap<>();
         for (Column next : table.getColumns()) {
@@ -165,7 +163,7 @@ public class TPCDSRecordHandler
         Map<Integer, CellWriter> writers = new HashMap<>();
         for (Field nextField : schemaForRead.getFields()) {
             Column column = columnPositions.get(nextField.getName());
-            writers.put(column.getPosition(), makeWriter(evaluator, nextField, column));
+            writers.put(column.getPosition(), makeWriter(nextField, column));
         }
         return writers;
     }
@@ -177,60 +175,35 @@ public class TPCDSRecordHandler
      * @param column The corresponding TPCDS Column.
      * @return The CellWriter that can be used to convert and write values for the provided Field/Column pair.
      */
-    private CellWriter makeWriter(ConstraintEvaluator evaluator, Field field, Column column)
+    private CellWriter makeWriter(Field field, Column column)
     {
         ColumnType type = column.getType();
         switch (type.getBase()) {
             case TIME:
             case IDENTIFIER:
                 return (Block block, int rowNum, String rawValue) -> {
-                    String fieldName = field.getName();
                     Long value = (rawValue != null) ? Long.parseLong(rawValue) : null;
-                    if (evaluator.apply(fieldName, value)) {
-                        block.setValue(field.getName(), rowNum, value);
-                        return true;
-                    }
-                    return false;
+                    return block.setValue(field.getName(), rowNum, value);
                 };
             case INTEGER:
                 return (Block block, int rowNum, String rawValue) -> {
-                    String fieldName = field.getName();
                     Integer value = (rawValue != null) ? Integer.parseInt(rawValue) : null;
-                    if (evaluator.apply(fieldName, value)) {
-                        block.setValue(field.getName(), rowNum, value);
-                        return true;
-                    }
-                    return false;
+                    return block.setValue(field.getName(), rowNum, value);
                 };
             case DATE:
                 return (Block block, int rowNum, String rawValue) -> {
-                    String fieldName = field.getName();
                     Date value = (rawValue != null) ? LocalDate.parse(rawValue).toDate() : null;
-                    if (evaluator.apply(fieldName, value)) {
-                        block.setValue(field.getName(), rowNum, value);
-                        return true;
-                    }
-                    return false;
+                    return block.setValue(field.getName(), rowNum, value);
                 };
             case DECIMAL:
                 return (Block block, int rowNum, String rawValue) -> {
-                    String fieldName = field.getName();
                     BigDecimal value = (rawValue != null) ? new BigDecimal(rawValue) : null;
-                    if (evaluator.apply(fieldName, value)) {
-                        block.setValue(field.getName(), rowNum, value);
-                        return true;
-                    }
-                    return false;
+                    return block.setValue(field.getName(), rowNum, value);
                 };
             case CHAR:
             case VARCHAR:
                 return (Block block, int rowNum, String rawValue) -> {
-                    String fieldName = field.getName();
-                    if (evaluator.apply(fieldName, rawValue)) {
-                        block.setValue(field.getName(), rowNum, rawValue);
-                        return true;
-                    }
-                    return false;
+                    return block.setValue(field.getName(), rowNum, rawValue);
                 };
         }
         throw new IllegalArgumentException("Unsupported TPC-DS type " + column.getName() + ":" + column.getType().getBase());

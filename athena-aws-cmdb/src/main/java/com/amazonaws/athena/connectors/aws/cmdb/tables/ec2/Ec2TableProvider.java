@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,12 +22,10 @@ package com.amazonaws.athena.connectors.aws.cmdb.tables.ec2;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
@@ -41,18 +39,13 @@ import com.amazonaws.services.ec2.model.InstanceNetworkInterface;
 import com.amazonaws.services.ec2.model.InstanceState;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.StateReason;
-import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -103,11 +96,8 @@ public class Ec2TableProvider
      * @See TableProvider
      */
     @Override
-    public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
-        final Map<String, Field> fields = new HashMap<>();
-        recordsRequest.getSchema().getFields().forEach(next -> fields.put(next.getName(), next));
-
         boolean done = false;
         DescribeInstancesRequest request = new DescribeInstancesRequest();
 
@@ -121,7 +111,7 @@ public class Ec2TableProvider
 
             for (Reservation reservation : response.getReservations()) {
                 for (Instance instance : reservation.getInstances()) {
-                    instanceToRow(instance, constraintEvaluator, spiller, fields);
+                    instanceToRow(instance, spiller);
                 }
             }
 
@@ -137,237 +127,103 @@ public class Ec2TableProvider
      * Maps an EC2 Instance into a row in our Apache Arrow response block(s).
      *
      * @param instance The EBS Volume to map.
-     * @param constraintEvaluator The ConstraintEvaluator we can use to filter results.
      * @param spiller The BlockSpiller to use when we want to write a matching row to the response.
-     * @param fields The set of fields that need to be projected.
      * @note The current implementation is rather naive in how it maps fields. It leverages a static
      * list of fields that we'd like to provide and then explicitly filters and converts each field.
      */
     private void instanceToRow(Instance instance,
-            ConstraintEvaluator constraintEvaluator,
-            BlockSpiller spiller,
-            Map<String, Field> fields)
+            BlockSpiller spiller)
     {
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            if (matched && fields.containsKey("instanceId")) {
-                String value = instance.getInstanceId();
-                matched &= constraintEvaluator.apply("instanceId", value);
-                BlockUtils.setValue(block.getFieldVector("instanceId"), row, value);
-            }
+            matched &= block.offerValue("instanceId", row, instance.getInstanceId());
+            matched &= block.offerValue("imageId", row, instance.getImageId());
+            matched &= block.offerValue("instanceType", row, instance.getInstanceType());
+            matched &= block.offerValue("platform", row, instance.getPlatform());
+            matched &= block.offerValue("privateDnsName", row, instance.getPrivateDnsName());
+            matched &= block.offerValue("privateIpAddress", row, instance.getPrivateIpAddress());
+            matched &= block.offerValue("publicDnsName", row, instance.getPublicDnsName());
+            matched &= block.offerValue("publicIpAddress", row, instance.getPublicIpAddress());
+            matched &= block.offerValue("subnetId", row, instance.getSubnetId());
+            matched &= block.offerValue("vpcId", row, instance.getVpcId());
+            matched &= block.offerValue("architecture", row, instance.getArchitecture());
+            matched &= block.offerValue("instanceLifecycle", row, instance.getInstanceLifecycle());
+            matched &= block.offerValue("rootDeviceName", row, instance.getRootDeviceName());
+            matched &= block.offerValue("rootDeviceType", row, instance.getRootDeviceType());
+            matched &= block.offerValue("spotInstanceRequestId", row, instance.getSpotInstanceRequestId());
+            matched &= block.offerValue("virtualizationType", row, instance.getVirtualizationType());
+            matched &= block.offerValue("keyName", row, instance.getKeyName());
+            matched &= block.offerValue("kernelId", row, instance.getKernelId());
+            matched &= block.offerValue("capacityReservationId", row, instance.getCapacityReservationId());
+            matched &= block.offerValue("launchTime", row, instance.getLaunchTime());
 
-            if (matched && fields.containsKey("imageId")) {
-                String value = instance.getImageId();
-                matched &= constraintEvaluator.apply("imageId", value);
-                BlockUtils.setValue(block.getFieldVector("imageId"), row, value);
-            }
+            matched &= block.offerComplexValue("state",
+                    row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("name")) {
+                            return ((InstanceState) val).getName();
+                        }
+                        else if (field.getName().equals("code")) {
+                            return ((InstanceState) val).getCode();
+                        }
+                        throw new RuntimeException("Unknown field " + field.getName());
+                    }, instance.getState());
 
-            if (matched && fields.containsKey("instanceType")) {
-                String value = instance.getInstanceType();
-                matched &= constraintEvaluator.apply("instanceType", value);
-                BlockUtils.setValue(block.getFieldVector("instanceType"), row, value);
-            }
+            matched &= block.offerComplexValue("networkInterfaces",
+                    row,
+                    (Field field, Object val) -> {
+                        if (field.getName().equals("status")) {
+                            return ((InstanceNetworkInterface) val).getStatus();
+                        }
+                        else if (field.getName().equals("subnet")) {
+                            return ((InstanceNetworkInterface) val).getSubnetId();
+                        }
+                        else if (field.getName().equals("vpc")) {
+                            return ((InstanceNetworkInterface) val).getVpcId();
+                        }
+                        else if (field.getName().equals("mac")) {
+                            return ((InstanceNetworkInterface) val).getMacAddress();
+                        }
+                        else if (field.getName().equals("private_dns")) {
+                            return ((InstanceNetworkInterface) val).getPrivateDnsName();
+                        }
+                        else if (field.getName().equals("private_ip")) {
+                            return ((InstanceNetworkInterface) val).getPrivateIpAddress();
+                        }
+                        else if (field.getName().equals("security_groups")) {
+                            return ((InstanceNetworkInterface) val).getGroups().stream().map(next -> next.getGroupName() + ":" + next.getGroupId()).collect(Collectors.toList());
+                        }
+                        else if (field.getName().equals("interface_id")) {
+                            return ((InstanceNetworkInterface) val).getNetworkInterfaceId();
+                        }
 
-            if (matched && fields.containsKey("state")) {
-                //TODO: apply constraint for complex type
-                StructVector vector = (StructVector) block.getFieldVector("state");
-                BlockUtils.setComplexValue(vector, row, (Field field, Object val) -> {
-                    if (field.getName().equals("name")) {
-                        return ((InstanceState) val).getName();
-                    }
-                    else if (field.getName().equals("code")) {
-                        return ((InstanceState) val).getCode();
-                    }
-                    throw new RuntimeException("Unknown field " + field.getName());
-                }, instance.getState());
-            }
+                        throw new RuntimeException("Unknown field " + field.getName());
+                    }, instance.getNetworkInterfaces());
 
-            if (matched && fields.containsKey("networkInterfaces")) {
-                //TODO: apply constraint for complex type
-                ListVector vector = (ListVector) block.getFieldVector("networkInterfaces");
+            matched &= block.offerComplexValue("stateReason", row, (Field field, Object val) -> {
+                if (field.getName().equals("message")) {
+                    return ((StateReason) val).getMessage();
+                }
+                else if (field.getName().equals("code")) {
+                    return ((StateReason) val).getCode();
+                }
+                throw new RuntimeException("Unknown field " + field.getName());
+            }, instance.getStateReason());
 
-                BlockUtils.setComplexValue(vector, row, (Field field, Object val) -> {
-                    if (field.getName().equals("status")) {
-                        return ((InstanceNetworkInterface) val).getStatus();
-                    }
-                    else if (field.getName().equals("subnet")) {
-                        return ((InstanceNetworkInterface) val).getSubnetId();
-                    }
-                    else if (field.getName().equals("vpc")) {
-                        return ((InstanceNetworkInterface) val).getVpcId();
-                    }
-                    else if (field.getName().equals("mac")) {
-                        return ((InstanceNetworkInterface) val).getMacAddress();
-                    }
-                    else if (field.getName().equals("private_dns")) {
-                        return ((InstanceNetworkInterface) val).getPrivateDnsName();
-                    }
-                    else if (field.getName().equals("private_ip")) {
-                        return ((InstanceNetworkInterface) val).getPrivateIpAddress();
-                    }
-                    else if (field.getName().equals("security_groups")) {
-                        return ((InstanceNetworkInterface) val).getGroups().stream().map(next -> next.getGroupName() + ":" + next.getGroupId()).collect(Collectors.toList());
-                    }
-                    else if (field.getName().equals("interface_id")) {
-                        return ((InstanceNetworkInterface) val).getNetworkInterfaceId();
-                    }
+            matched &= block.offerValue("ebsOptimized", row, instance.getEbsOptimized());
 
-                    throw new RuntimeException("Unknown field " + field.getName());
-                }, instance.getNetworkInterfaces());
-            }
+            List<String> securityGroups = instance.getSecurityGroups().stream()
+                    .map(next -> next.getGroupId()).collect(Collectors.toList());
+            matched &= block.offerComplexValue("securityGroups", row, FieldResolver.DEFAULT, securityGroups);
 
-            if (matched && fields.containsKey("platform")) {
-                String value = instance.getPlatform();
-                matched &= constraintEvaluator.apply("platform", value);
-                BlockUtils.setValue(block.getFieldVector("platform"), row, value);
-            }
+            List<String> securityGroupNames = instance.getSecurityGroups().stream()
+                    .map(next -> next.getGroupName()).collect(Collectors.toList());
+            matched &= block.offerComplexValue("securityGroupNames", row, FieldResolver.DEFAULT, securityGroupNames);
 
-            if (matched && fields.containsKey("privateDnsName")) {
-                String value = instance.getPrivateDnsName();
-                matched &= constraintEvaluator.apply("privateDnsName", value);
-                BlockUtils.setValue(block.getFieldVector("privateDnsName"), row, value);
-            }
-
-            if (matched && fields.containsKey("privateDnsName")) {
-                String value = instance.getPrivateDnsName();
-                matched &= constraintEvaluator.apply("privateDnsName", value);
-                BlockUtils.setValue(block.getFieldVector("privateDnsName"), row, value);
-            }
-
-            if (matched && fields.containsKey("privateIpAddress")) {
-                String value = instance.getPrivateIpAddress();
-                matched &= constraintEvaluator.apply("privateIpAddress", value);
-                BlockUtils.setValue(block.getFieldVector("privateIpAddress"), row, value);
-            }
-
-            if (matched && fields.containsKey("publicDnsName")) {
-                String value = instance.getPublicDnsName();
-                matched &= constraintEvaluator.apply("publicDnsName", value);
-                BlockUtils.setValue(block.getFieldVector("publicDnsName"), row, value);
-            }
-
-            if (matched && fields.containsKey("publicIpAddress")) {
-                String value = instance.getPublicIpAddress();
-                matched &= constraintEvaluator.apply("publicIpAddress", value);
-                BlockUtils.setValue(block.getFieldVector("publicIpAddress"), row, value);
-            }
-
-            if (matched && fields.containsKey("subnetId")) {
-                String value = instance.getSubnetId();
-                matched &= constraintEvaluator.apply("subnetId", value);
-                BlockUtils.setValue(block.getFieldVector("subnetId"), row, value);
-            }
-
-            if (matched && fields.containsKey("vpcId")) {
-                String value = instance.getVpcId();
-                matched &= constraintEvaluator.apply("vpcId", value);
-                BlockUtils.setValue(block.getFieldVector("vpcId"), row, value);
-            }
-
-            if (matched && fields.containsKey("architecture")) {
-                String value = instance.getArchitecture();
-                matched &= constraintEvaluator.apply("architecture", value);
-                BlockUtils.setValue(block.getFieldVector("architecture"), row, value);
-            }
-
-            if (matched && fields.containsKey("instanceLifecycle")) {
-                String value = instance.getInstanceLifecycle();
-                matched &= constraintEvaluator.apply("instanceLifecycle", value);
-                BlockUtils.setValue(block.getFieldVector("instanceLifecycle"), row, value);
-            }
-
-            if (matched && fields.containsKey("rootDeviceName")) {
-                String value = instance.getRootDeviceName();
-                matched &= constraintEvaluator.apply("rootDeviceName", value);
-                BlockUtils.setValue(block.getFieldVector("rootDeviceName"), row, value);
-            }
-
-            if (matched && fields.containsKey("rootDeviceType")) {
-                String value = instance.getRootDeviceType();
-                matched &= constraintEvaluator.apply("rootDeviceType", value);
-                BlockUtils.setValue(block.getFieldVector("rootDeviceType"), row, value);
-            }
-
-            if (matched && fields.containsKey("spotInstanceRequestId")) {
-                String value = instance.getSpotInstanceRequestId();
-                matched &= constraintEvaluator.apply("spotInstanceRequestId", value);
-                BlockUtils.setValue(block.getFieldVector("spotInstanceRequestId"), row, value);
-            }
-
-            if (matched && fields.containsKey("virtualizationType")) {
-                String value = instance.getVirtualizationType();
-                matched &= constraintEvaluator.apply("virtualizationType", value);
-                BlockUtils.setValue(block.getFieldVector("virtualizationType"), row, value);
-            }
-
-            if (matched && fields.containsKey("keyName")) {
-                String value = instance.getKeyName();
-                matched &= constraintEvaluator.apply("keyName", value);
-                BlockUtils.setValue(block.getFieldVector("keyName"), row, value);
-            }
-
-            if (matched && fields.containsKey("kernelId")) {
-                String value = instance.getKernelId();
-                matched &= constraintEvaluator.apply("kernelId", value);
-                BlockUtils.setValue(block.getFieldVector("kernelId"), row, value);
-            }
-
-            if (matched && fields.containsKey("capacityReservationId")) {
-                String value = instance.getCapacityReservationId();
-                matched &= constraintEvaluator.apply("capacityReservationId", value);
-                BlockUtils.setValue(block.getFieldVector("capacityReservationId"), row, value);
-            }
-
-            if (matched && fields.containsKey("launchTime")) {
-                Date value = instance.getLaunchTime();
-                matched &= constraintEvaluator.apply("launchTime", value);
-                BlockUtils.setValue(block.getFieldVector("launchTime"), row, value);
-            }
-
-            if (matched && fields.containsKey("stateReason")) {
-                //TODO: apply constraint for complex type
-                StructVector vector = (StructVector) block.getFieldVector("stateReason");
-                BlockUtils.setComplexValue(vector, row, (Field field, Object val) -> {
-                    if (field.getName().equals("message")) {
-                        return ((StateReason) val).getMessage();
-                    }
-                    else if (field.getName().equals("code")) {
-                        return ((StateReason) val).getCode();
-                    }
-                    throw new RuntimeException("Unknown field " + field.getName());
-                }, instance.getStateReason());
-            }
-
-            if (matched && fields.containsKey("ebsOptimized")) {
-                boolean value = instance.getEbsOptimized();
-                matched &= constraintEvaluator.apply("ebsOptimized", value);
-                BlockUtils.setValue(block.getFieldVector("ebsOptimized"), row, value);
-            }
-
-            if (matched && fields.containsKey("securityGroups")) {
-                //TODO: apply constraint for complex type
-                ListVector vector = (ListVector) block.getFieldVector("securityGroups");
-                List<String> values = instance.getSecurityGroups().stream()
-                        .map(next -> next.getGroupId()).collect(Collectors.toList());
-                BlockUtils.setComplexValue(vector, row, FieldResolver.DEFAULT, values);
-            }
-
-            if (matched && fields.containsKey("securityGroupNames")) {
-                //TODO: apply constraint for complex type
-                ListVector vector = (ListVector) block.getFieldVector("securityGroupNames");
-                List<String> values = instance.getSecurityGroups().stream()
-                        .map(next -> next.getGroupName()).collect(Collectors.toList());
-                BlockUtils.setComplexValue(vector, row, FieldResolver.DEFAULT, values);
-            }
-
-            if (matched && fields.containsKey("ebsVolumes")) {
-                //TODO: apply constraint for complex type
-                ListVector vector = (ListVector) block.getFieldVector("ebsVolumes");
-                List<String> values = instance.getBlockDeviceMappings().stream()
-                        .map(next -> next.getEbs().getVolumeId()).collect(Collectors.toList());
-                BlockUtils.setComplexValue(vector, row, FieldResolver.DEFAULT, values);
-            }
+            List<String> ebsVolumes = instance.getBlockDeviceMappings().stream()
+                    .map(next -> next.getEbs().getVolumeId()).collect(Collectors.toList());
+            matched &= block.offerComplexValue("ebsVolumes", row, FieldResolver.DEFAULT, ebsVolumes);
 
             return matched ? 1 : 0;
         });

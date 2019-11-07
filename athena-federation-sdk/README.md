@@ -45,11 +45,17 @@ public class MyMetadataHandler extends MetadataHandler
     }
 
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request) {
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request) {
       //Generates the partitions of the requested table that need to be read
       //to satisfy the supplied predicate. This is meant to be a fast pruning operation.
       //Source that don't support partitioning can return a single partition. Partitions
       //are opaque to Athena and are just used to call the next method, doGetSplits(...)
+      //Partition Pruning is automatically handled by BlockWriter which creates
+      //Blocks that are constrained to filter out values that do not match
+      //the requests constraints. You can optionally get a ConstraintEvaluator
+      //from the BlockWriter or get constraints directly from the request if you
+      //need to do some customer filtering for performance reasons or to push
+      //down into your source system.
     }
 
     @Override

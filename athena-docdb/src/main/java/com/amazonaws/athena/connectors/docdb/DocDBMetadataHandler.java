@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -212,7 +211,7 @@ public class DocDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         //NoOp as we do not support partitioning.

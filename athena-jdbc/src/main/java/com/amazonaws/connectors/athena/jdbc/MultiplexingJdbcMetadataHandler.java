@@ -21,7 +21,6 @@ package com.amazonaws.connectors.athena.jdbc;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -110,11 +109,11 @@ public class MultiplexingJdbcMetadataHandler
     }
 
     @Override
-    public void getPartitions(final ConstraintEvaluator constraintEvaluator, final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest)
+    public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest)
             throws Exception
     {
         validateMultiplexer(getTableLayoutRequest.getCatalogName());
-        this.metadataHandlerMap.get(getTableLayoutRequest.getCatalogName()).getPartitions(constraintEvaluator, blockWriter, getTableLayoutRequest);
+        this.metadataHandlerMap.get(getTableLayoutRequest.getCatalogName()).getPartitions(blockWriter, getTableLayoutRequest);
     }
 
     @Override

@@ -21,10 +21,8 @@ package com.amazonaws.connectors.athena.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -37,7 +35,6 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -106,7 +103,7 @@ public abstract class JdbcRecordHandler
     }
 
     @Override
-    public void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
+    public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
@@ -134,9 +131,7 @@ public abstract class JdbcRecordHandler
                 blockSpiller.writeRows((Block block, int rowNum) -> {
                     try {
                         boolean matched;
-                        int fieldIndex = 1;
                         for (Field nextField : readRecordsRequest.getSchema().getFields()) {
-                            FieldVector vector = block.getFieldVector(nextField.getName());
                             Object value;
                             if (partitionValues.containsKey(nextField.getName())) {
                                 value = partitionValues.get(nextField.getName());
@@ -144,12 +139,10 @@ public abstract class JdbcRecordHandler
                             else {
                                 value = getArrowValue(resultSet, nextField.getName(), typeMap.get(nextField.getName()));
                             }
-                            matched = constraintEvaluator.apply(nextField.getName(), value);
+                            matched = block.offerValue(nextField.getName(), rowNum, value);
                             if (!matched) {
                                 return 0;
                             }
-                            BlockUtils.setValue(vector, rowNum, value);
-                            fieldIndex++;
                         }
 
                         return 1;
@@ -168,7 +161,9 @@ public abstract class JdbcRecordHandler
     private Object getArrowValue(final ResultSet resultSet, final String columnName, final Types.MinorType minorType)
             throws SQLException
     {
-        return VALUE_EXTRACTOR.getOrDefault(minorType, (rs, col) -> { throw new RuntimeException("Unhandled column type " + minorType); })
+        return VALUE_EXTRACTOR.getOrDefault(minorType, (rs, col) -> {
+            throw new RuntimeException("Unhandled column type " + minorType);
+        })
                 .call(resultSet, columnName);
     }
 

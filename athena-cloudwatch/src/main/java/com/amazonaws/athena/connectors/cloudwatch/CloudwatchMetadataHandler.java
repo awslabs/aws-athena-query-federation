@@ -26,7 +26,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -232,7 +231,7 @@ public class CloudwatchMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         CloudwatchTableName cwTableName = tableResolver.validateTable(request.getTableName());
@@ -247,15 +246,12 @@ public class CloudwatchMetadataHandler
             result = invoker.invoke(() -> awsLogs.describeLogStreams(cwRequest));
             for (LogStream next : result.getLogStreams()) {
                 //Each log stream that matches any possible partition pruning should be added to the partition list.
-                if (constraintEvaluator.apply(LOG_STREAM_FIELD, next.getLogStreamName())) {
-                    blockWriter.writeRows((Block block, int rowNum) -> {
-                        block.setValue(LOG_GROUP_FIELD, rowNum, cwRequest.getLogGroupName());
-                        block.setValue(LOG_STREAM_FIELD, rowNum, next.getLogStreamName());
-                        block.setValue(LOG_STREAM_SIZE_FIELD, rowNum, next.getStoredBytes());
-                        //we wrote 1 row so we return 1
-                        return 1;
-                    });
-                }
+                blockWriter.writeRows((Block block, int rowNum) -> {
+                    boolean matched = block.setValue(LOG_GROUP_FIELD, rowNum, cwRequest.getLogGroupName());
+                    matched &= block.setValue(LOG_STREAM_FIELD, rowNum, next.getLogStreamName());
+                    matched &= block.setValue(LOG_STREAM_SIZE_FIELD, rowNum, next.getStoredBytes());
+                    return matched ? 1 : 0;
+                });
             }
             cwRequest.setNextToken(result.getNextToken());
         }

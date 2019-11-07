@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -97,7 +96,7 @@ public class PostGreSqlMetadataHandler
     }
 
     @Override
-    public void getPartitions(final ConstraintEvaluator constraintEvaluator, final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest)
+    public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());

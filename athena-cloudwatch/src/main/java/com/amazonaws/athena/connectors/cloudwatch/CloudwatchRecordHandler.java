@@ -22,10 +22,8 @@ package com.amazonaws.athena.connectors.cloudwatch;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -95,7 +93,7 @@ public class CloudwatchRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
             throws TimeoutException
     {
         String continuationToken = null;
@@ -125,27 +123,10 @@ public class CloudwatchRecordHandler
 
             for (OutputLogEvent ole : logEventsResult.getEvents()) {
                 spiller.writeRows((Block block, int rowNum) -> {
-                    //perform predicate pushdown on supported fields
-                    boolean matched = constraintEvaluator.apply(LOG_STREAM_FIELD, split.getProperty(LOG_STREAM_FIELD))
-                            && constraintEvaluator.apply(LOG_TIME_FIELD, ole.getTimestamp())
-                            && constraintEvaluator.apply(LOG_MSG_FIELD, ole.getMessage());
-
-                    if (matched) {
-                        if (requiredFields.contains(LOG_STREAM_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(LOG_STREAM_FIELD),
-                                    rowNum,
-                                    split.getProperty(LOG_STREAM_FIELD));
-                        }
-
-                        if (requiredFields.contains(LOG_TIME_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(LOG_TIME_FIELD), rowNum, ole.getTimestamp());
-                        }
-
-                        if (requiredFields.contains(LOG_MSG_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(LOG_MSG_FIELD), rowNum, ole.getMessage());
-                        }
-                    }
-
+                    boolean matched = true;
+                    matched &= block.offerValue(LOG_STREAM_FIELD, rowNum, split.getProperty(LOG_STREAM_FIELD));
+                    matched &= block.offerValue(LOG_TIME_FIELD, rowNum, ole.getTimestamp());
+                    matched &= block.offerValue(LOG_MSG_FIELD, rowNum, ole.getMessage());
                     return matched ? 1 : 0;
                 });
             }

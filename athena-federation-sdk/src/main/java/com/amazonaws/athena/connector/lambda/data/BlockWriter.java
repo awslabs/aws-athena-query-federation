@@ -1,5 +1,7 @@
 package com.amazonaws.athena.connector.lambda.data;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+
 /**
  * Defines an abstraction that can be used to write to a Block without owning the lifecycle of the
  * Block.
@@ -32,4 +34,9 @@ public interface BlockWriter
      * @param rowWriter The RowWriter that the BlockWriter should use to write rows into the Block(s) it is managing.
      */
     void writeRows(RowWriter rowWriter);
+
+    /**
+     * Provides access to the ConstraintEvaluator that will be applied to the generated Blocks.
+     */
+    ConstraintEvaluator getConstraintEvaluator();
 }

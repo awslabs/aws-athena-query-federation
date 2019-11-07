@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.data;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
@@ -98,7 +99,7 @@ public class S3BlockSpillerTest
                 .withRequestId(requestId)
                 .build();
 
-        blockWriter = new S3BlockSpiller(mockS3, spillConfig, allocator, schema);
+        blockWriter = new S3BlockSpiller(mockS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator());
 
         expected = allocator.createBlock(schema);
         BlockUtils.setValue(expected.getFieldVector("col1"), 1, 100);

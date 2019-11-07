@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.s3.AmazonS3;
@@ -74,7 +73,6 @@ public class ExampleRecordHandler
     /**
      * Used to read the row data associated with the provided Split.
      *
-     * @param constraints A ConstraintEvaluator capable of applying constraints form the query that request this read.
      * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
      * The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
      * @param recordsRequest Details of the read request, including:
@@ -87,7 +85,7 @@ public class ExampleRecordHandler
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraints, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
             throws IOException
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
@@ -144,35 +142,20 @@ public class ExampleRecordHandler
                 int transactionId = Integer.parseInt(lineParts[4]);
                 boolean transactionComplete = Boolean.parseBoolean(lineParts[5]);
 
-                /**
-                 * TODO: As an optional optimization, we can reduce the number of rows that we need to transmit and that
-                 *  Athena needs to process (filter) by performing predicate push-down on in the connector using
-                 *  the supplied constraint evaluator. Doing this in the connector can greatly improve performance
-                 *  and also reduce your cost for the query. If this was a real data source we'd try to push the predicate
-                 *  evaluation into the source for even better performance. Note that the SDK does not current support
-                 *  pushing down predicates on nested/complex.
-                 *
-                 rowMatched &= constraints.apply("year", year) &&
-                 constraints.apply("month", month) &&
-                 constraints.apply("day", day) &&
-                 constraints.apply("account_id", accountId);
-                 *
-                 */
-
-                if (rowMatched) {
                     /**
-                     * TODO: If our row matched all constraints write the data using the supplied Block.
+                     * TODO: Write the data using the supplied Block and check if the writes passed all constraints
+                     * before retuning how many rows we wrote.
                      *
-                     block.offerValue("year", rowNum, year);
-                     block.offerValue("month", rowNum, month);
-                     block.offerValue("day", rowNum, day);
+                     rowMatched &= block.offerValue("year", rowNum, year);
+                     rowMatched &= block.offerValue("month", rowNum, month);
+                     rowMatched &= block.offerValue("day", rowNum, day);
 
                      //For complex types like List and Struct, we can build a Map to conveniently set nested values
                      Map<String, Object> eventMap = new HashMap<>();
                      eventMap.put("id", transactionId);
                      eventMap.put("completed", transactionComplete);
 
-                     block.offerComplexValue("transaction", rowNum, FieldResolver.DEFAULT, eventMap);
+                     rowMatched &= block.offerComplexValue("transaction", rowNum, FieldResolver.DEFAULT, eventMap);
                      *
                      */
 
@@ -182,10 +165,9 @@ public class ExampleRecordHandler
                      *  on the masked value from Athena.
                      *
                      String maskedAcctId = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
-                     block.offerValue("account_id", rowNum, maskedAcctId);
+                     rowMatched &= block.offerValue("account_id", rowNum, maskedAcctId);
                      *
                      */
-                }
 
                 //We return the number of rows written for this invocation. In our case 1 or 0.
                 return rowMatched ? 1 : 0;

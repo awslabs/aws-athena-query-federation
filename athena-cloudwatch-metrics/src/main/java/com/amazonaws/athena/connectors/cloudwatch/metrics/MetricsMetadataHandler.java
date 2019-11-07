@@ -193,7 +193,7 @@ public class MetricsMetadataHandler
      * @see MetadataHandler
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         validateTable(request.getTableName());

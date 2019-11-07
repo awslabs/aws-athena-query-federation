@@ -22,9 +22,7 @@ package com.amazonaws.athena.connectors.cloudwatch.metrics;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -114,22 +112,22 @@ public class MetricsRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
+    protected void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest)
             throws TimeoutException
     {
         invoker.setBlockSpiller(blockSpiller);
         if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_TABLE.getName())) {
-            readMetricsWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
+            readMetricsWithConstraint(blockSpiller, readRecordsRequest);
         }
         else if (readRecordsRequest.getTableName().getTableName().equalsIgnoreCase(METRIC_DATA_TABLE.getName())) {
-            readMetricSamplesWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
+            readMetricSamplesWithConstraint(blockSpiller, readRecordsRequest);
         }
     }
 
     /**
      * Handles retrieving the list of available metrics when the METRICS_TABLE is queried by listing metrics in Cloudwatch Metrics.
      */
-    private void readMetricsWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
+    private void readMetricsWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request)
             throws TimeoutException
     {
         ListMetricsRequest listMetricsRequest = new ListMetricsRequest();
@@ -138,59 +136,43 @@ public class MetricsRecordHandler
         Set<String> requiredFields = new HashSet<>();
         request.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
         ValueSet dimensionNameConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
-        ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
+        ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_VALUE_FIELD);
         do {
             prevToken = listMetricsRequest.getNextToken();
             ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
             for (Metric nextMetric : result.getMetrics()) {
                 blockSpiller.writeRows((Block block, int row) -> {
-                    boolean matches = MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, null);
+                    boolean matches = MetricUtils.applyMetricConstraints(blockSpiller.getConstraintEvaluator(), nextMetric, null);
                     if (matches) {
-                        if (requiredFields.contains(METRIC_NAME_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(METRIC_NAME_FIELD), row, nextMetric.getMetricName());
-                        }
+                        matches &= block.offerValue(METRIC_NAME_FIELD, row, nextMetric.getMetricName());
+                        matches &= block.offerValue(NAMESPACE_FIELD, row, nextMetric.getNamespace());
+                        matches &= block.offerComplexValue(STATISTIC_FIELD, row, DEFAULT, STATISTICS);
 
-                        if (requiredFields.contains(NAMESPACE_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(NAMESPACE_FIELD), row, nextMetric.getNamespace());
-                        }
+                        matches &= block.offerComplexValue(DIMENSIONS_FIELD,
+                                row,
+                                (Field field, Object val) -> {
+                                    if (field.getName().equals(DIMENSION_NAME_FIELD)) {
+                                        return ((Dimension) val).getName();
+                                    }
+                                    else if (field.getName().equals(DIMENSION_VALUE_FIELD)) {
+                                        return ((Dimension) val).getValue();
+                                    }
 
-                        if (requiredFields.contains(STATISTIC_FIELD)) {
-                            BlockUtils.setComplexValue(block.getFieldVector(STATISTIC_FIELD), row, DEFAULT, STATISTICS);
-                        }
-
-                        //If needed, populate the List of Dimensions as a List<Struct> using FieldResolver on setComplexValue
-                        if (requiredFields.contains(DIMENSIONS_FIELD)) {
-                            List<Dimension> dimensions = nextMetric.getDimensions();
-                            BlockUtils.setComplexValue(block.getFieldVector(DIMENSIONS_FIELD),
-                                    row,
-                                    (Field field, Object val) -> {
-                                        if (field.getName().equals(DIMENSION_NAME_FIELD)) {
-                                            return ((Dimension) val).getName();
-                                        }
-                                        else if (field.getName().equals(DIMENSION_VALUE_FIELD)) {
-                                            return ((Dimension) val).getValue();
-                                        }
-
-                                        throw new RuntimeException("Unexpected field " + field.getName());
-                                    },
-                                    dimensions);
-                        }
+                                    throw new RuntimeException("Unexpected field " + field.getName());
+                                },
+                                nextMetric.getDimensions());
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
-                        if (requiredFields.contains(DIMENSION_NAME_FIELD)) {
-                            String value = (dimensionNameConstraint == null || !dimensionNameConstraint.isSingleValue())
-                                    ? null : (dimensionNameConstraint.getSingleValue().toString());
-                            BlockUtils.setValue(block.getFieldVector(DIMENSION_NAME_FIELD), row, value);
-                        }
+                        String dimName = (dimensionNameConstraint == null || !dimensionNameConstraint.isSingleValue())
+                                ? null : (dimensionNameConstraint.getSingleValue().toString());
+                        matches &= block.offerValue(DIMENSION_NAME_FIELD, row, dimName);
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
-                        if (requiredFields.contains(DIMENSION_VALUE_FIELD)) {
-                            String value = (dimensionValueConstraint == null || !dimensionValueConstraint.isSingleValue())
-                                    ? null : dimensionValueConstraint.getSingleValue().toString();
-                            BlockUtils.setValue(block.getFieldVector(DIMENSION_VALUE_FIELD), row, value);
-                        }
+                        String dimValue = (dimensionValueConstraint == null || !dimensionValueConstraint.isSingleValue())
+                                ? null : dimensionValueConstraint.getSingleValue().toString();
+                        matches &= block.offerValue(DIMENSION_VALUE_FIELD, row, dimValue);
                     }
                     return matches ? 1 : 0;
                 });
@@ -203,7 +185,7 @@ public class MetricsRecordHandler
     /**
      * Handles retrieving the samples for a specific metric from Cloudwatch Metrics.
      */
-    private void readMetricSamplesWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
+    private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request)
             throws TimeoutException
     {
         Split split = request.getSplit();
@@ -228,67 +210,42 @@ public class MetricsRecordHandler
                          * Most constraints were already applied at split generation so we only need to apply
                          * a subset.
                          */
-                        if (requiredFields.contains(METRIC_NAME_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(METRIC_NAME_FIELD), row, split.getProperty(METRIC_NAME_FIELD));
-                        }
+                        block.offerValue(METRIC_NAME_FIELD, row, split.getProperty(METRIC_NAME_FIELD));
+                        block.offerValue(NAMESPACE_FIELD, row, split.getProperty(NAMESPACE_FIELD));
+                        block.offerValue(STATISTIC_FIELD, row, split.getProperty(STATISTIC_FIELD));
 
-                        if (requiredFields.contains(NAMESPACE_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(NAMESPACE_FIELD), row, split.getProperty(NAMESPACE_FIELD));
-                        }
+                        block.offerComplexValue(DIMENSIONS_FIELD,
+                                row,
+                                (Field field, Object val) -> {
+                                    if (field.getName().equals(DIMENSION_NAME_FIELD)) {
+                                        return ((Dimension) val).getName();
+                                    }
+                                    else if (field.getName().equals(DIMENSION_VALUE_FIELD)) {
+                                        return ((Dimension) val).getValue();
+                                    }
 
-                        if (requiredFields.contains(STATISTIC_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(STATISTIC_FIELD), row, split.getProperty(STATISTIC_FIELD));
-                        }
-
-                        //If needed, populate the List of Dimensions as a List<Struct> using FieldResolver on setComplexValue
-                        if (requiredFields.contains(DIMENSIONS_FIELD)) {
-                            BlockUtils.setComplexValue(block.getFieldVector(DIMENSIONS_FIELD),
-                                    row,
-                                    (Field field, Object val) -> {
-                                        if (field.getName().equals(DIMENSION_NAME_FIELD)) {
-                                            return ((Dimension) val).getName();
-                                        }
-                                        else if (field.getName().equals(DIMENSION_VALUE_FIELD)) {
-                                            return ((Dimension) val).getValue();
-                                        }
-
-                                        throw new RuntimeException("Unexpected field " + field.getName());
-                                    },
-                                    dimensions);
-                        }
+                                    throw new RuntimeException("Unexpected field " + field.getName());
+                                },
+                                dimensions);
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
-                        if (requiredFields.contains(DIMENSION_NAME_FIELD)) {
-                            String value = (dimensionNameConstraint == null || !dimensionNameConstraint.isSingleValue())
-                                    ? null : dimensionNameConstraint.getSingleValue().toString();
-                            BlockUtils.setValue(block.getFieldVector(DIMENSION_NAME_FIELD), row, value);
-                        }
+                        String dimName = (dimensionNameConstraint == null || !dimensionNameConstraint.isSingleValue())
+                                ? null : dimensionNameConstraint.getSingleValue().toString();
+                        block.offerValue(DIMENSION_NAME_FIELD, row, dimName);
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
-                        if (requiredFields.contains(DIMENSION_VALUE_FIELD)) {
-                            String value = (dimensionValueConstraint == null || !dimensionValueConstraint.isSingleValue())
-                                    ? null : dimensionValueConstraint.getSingleValue().toString();
-                            BlockUtils.setValue(block.getFieldVector(DIMENSION_VALUE_FIELD), row, value);
-                        }
+                        String dimVal = (dimensionValueConstraint == null || !dimensionValueConstraint.isSingleValue())
+                                ? null : dimensionValueConstraint.getSingleValue().toString();
+                        block.offerValue(DIMENSION_VALUE_FIELD, row, dimVal);
 
-                        if (requiredFields.contains(PERIOD_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(PERIOD_FIELD), row, Integer.valueOf(split.getProperty(PERIOD_FIELD)));
-                        }
+                        block.offerValue(PERIOD_FIELD, row, Integer.valueOf(split.getProperty(PERIOD_FIELD)));
 
                         boolean matches = true;
-
+                        block.offerValue(VALUE_FIELD, row, values.get(sampleNum));
                         long timestamp = timestamps.get(sampleNum).getTime() / 1000;
-                        matches &= constraintEvaluator.apply(TIMESTAMP_FIELD, timestamp);
-                        if (matches && requiredFields.contains(TIMESTAMP_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(TIMESTAMP_FIELD), row, timestamp);
-                        }
-
-                        matches &= constraintEvaluator.apply(VALUE_FIELD, values.get(sampleNum));
-                        if (matches && requiredFields.contains(VALUE_FIELD)) {
-                            BlockUtils.setValue(block.getFieldVector(VALUE_FIELD), row, values.get(sampleNum));
-                        }
+                        block.offerValue(TIMESTAMP_FIELD, row, timestamp);
 
                         return matches ? 1 : 0;
                     });

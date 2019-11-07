@@ -22,10 +22,8 @@ package com.amazonaws.athena.connector.lambda.examples;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -142,13 +140,12 @@ public class ExampleRecordHandler
      * Here we generate our simulated row data. A real connector would instead connect to the actual source and read
      * the data corresponding to the requested split.
      *
-     * @param constraintEvaluator A ConstraintEvaluator capable of applying constraints form the query that request this read.
      * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
-     * The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
+     * The BlockSpiller automatically handles applying constraints, chunking the response, encrypting, and spilling to S3.
      * @param request The ReadRecordsRequest containing the split and other details about what to read.
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest request)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest request)
     {
         /**
          * It is important to try and throw any throttling events before writing data since Athena may not be able to
@@ -165,7 +162,7 @@ public class ExampleRecordHandler
             spiller.writeRows((Block block, int rowNum) -> {
                 //This is just filling the row with random data and then partition values that match the split
                 //in a real implementation you would read your real data.
-                boolean rowMatched = makeRandomRow(constraintEvaluator, block, rowNum, seed);
+                boolean rowMatched = makeRandomRow(block, rowNum, seed);
                 addPartitionColumns(request.getSplit(), block, rowNum);
                 return rowMatched ? 1 : 0;
             });
@@ -192,7 +189,7 @@ public class ExampleRecordHandler
                     case INT:
                     case UINT2:
                     case BIGINT:
-                        BlockUtils.setValue(vector, blockRow, Integer.valueOf(split.getProperty(nextPartition)));
+                        block.setValue(nextPartition, blockRow, Integer.valueOf(split.getProperty(nextPartition)));
                         break;
                     default:
                         throw new RuntimeException(vector.getMinorType() + " is not supported");
@@ -204,7 +201,7 @@ public class ExampleRecordHandler
     /**
      * This should be replaced with something that actually reads useful data.
      */
-    private boolean makeRandomRow(ConstraintEvaluator constraintEvaluator, Block block, int blockRow, int seed)
+    private boolean makeRandomRow(Block block, int blockRow, int seed)
     {
         Set<String> partitionCols = new HashSet<>();
         String partitionColsMetadata = block.getSchema().getCustomMetadata().get("partitionCols");
@@ -214,78 +211,69 @@ public class ExampleRecordHandler
 
         boolean matches = true;
         for (Field next : block.getSchema().getFields()) {
-            FieldVector vector = block.getFieldVector(next.getName());
-            if (!partitionCols.contains(next.getName())) {
+            String fieldName = next.getName();
+            if (!partitionCols.contains(fieldName)) {
                 if (!matches) {
                     return false;
                 }
                 boolean negative = seed % 2 == 1;
-                switch (vector.getMinorType()) {
+                Types.MinorType fieldType = Types.getMinorTypeForArrowType(next.getType());
+                switch (fieldType) {
                     case INT:
                         int iVal = seed * (negative ? -1 : 1);
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), iVal);
-                        BlockUtils.setValue(vector, blockRow, iVal);
+                        matches &= block.setValue(fieldName, blockRow, iVal);
                         break;
                     case DATEMILLI:
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), 100_000L);
-                        BlockUtils.setValue(vector, blockRow, 100_000L);
+                        matches &= block.setValue(fieldName, blockRow, 100_000L);
                         break;
                     case DATEDAY:
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), 100_000);
-                        BlockUtils.setValue(vector, blockRow, 100_000);
+                        matches &= block.setValue(fieldName, blockRow, 100_000);
                         break;
                     case TINYINT:
                     case SMALLINT:
                         int stVal = (seed % 4) * (negative ? -1 : 1);
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), stVal);
-                        BlockUtils.setValue(vector, blockRow, stVal);
+                        matches &= block.setValue(fieldName, blockRow, stVal);
                         break;
                     case UINT1:
                     case UINT2:
                     case UINT4:
                     case UINT8:
                         int uiVal = seed % 4;
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), uiVal);
-                        BlockUtils.setValue(vector, blockRow, uiVal);
+                        matches &= block.setValue(fieldName, blockRow, uiVal);
                         break;
                     case FLOAT4:
                         float fVal = seed * 1.1f * (negative ? -1 : 1);
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), fVal);
-                        BlockUtils.setValue(vector, blockRow, fVal);
+                        matches &= block.setValue(fieldName, blockRow, fVal);
                         break;
                     case FLOAT8:
                     case DECIMAL:
                         double d8Val = seed * 1.1D * (negative ? -1 : 1);
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), d8Val);
-                        BlockUtils.setValue(vector, blockRow, d8Val);
+                        matches &= block.setValue(fieldName, blockRow, d8Val);
                         break;
                     case BIT:
                         boolean bVal = seed % 2 == 0;
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), bVal);
-                        BlockUtils.setValue(vector, blockRow, bVal);
+                        matches &= block.setValue(fieldName, blockRow, bVal);
                         break;
                     case BIGINT:
                         long lVal = seed * 1L * (negative ? -1 : 1);
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), lVal);
-                        BlockUtils.setValue(vector, blockRow, lVal);
+                        matches &= block.setValue(fieldName, blockRow, lVal);
                         break;
                     case VARCHAR:
                         String vVal = "VarChar" + seed;
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), vVal);
-                        BlockUtils.setValue(vector, blockRow, vVal);
+                        matches &= block.setValue(fieldName, blockRow, vVal);
                         break;
                     case VARBINARY:
                         byte[] binaryVal = ("VarChar" + seed).getBytes();
-                        matches &= constraintEvaluator.apply(vector.getField().getName(), binaryVal);
-                        BlockUtils.setValue(vector, blockRow, binaryVal);
+                        matches &= block.setValue(fieldName, blockRow, binaryVal);
                         break;
                     case LIST:
                         //This is setup for the specific kinds of lists we have in our example schema,
                         //it is not universal. List<String> and List<Struct{string,bigint}> is what
                         //this block supports.
-                        Field child = vector.getField().getChildren().get(0);
+                        Field child = block.getFieldVector(fieldName).getField().getChildren().get(0);
                         List<Object> value = new ArrayList<>();
-                        switch (Types.getMinorTypeForArrowType(child.getType())) {
+                        Types.MinorType childType = Types.getMinorTypeForArrowType(child.getType());
+                        switch (childType) {
                             case LIST:
                                 List<String> list = new ArrayList<>();
                                 list.add(String.valueOf(1000));
@@ -300,12 +288,12 @@ public class ExampleRecordHandler
                                 value.add(struct);
                                 break;
                             default:
-                                throw new RuntimeException(vector.getMinorType() + " is not supported");
+                                throw new RuntimeException(childType + " is not supported");
                         }
-                        BlockUtils.setComplexValue(vector, blockRow, FieldResolver.DEFAULT, value);
+                        matches &= block.setComplexValue(fieldName, blockRow, FieldResolver.DEFAULT, value);
                         break;
                     default:
-                        throw new RuntimeException(vector.getMinorType() + " is not supported");
+                        throw new RuntimeException(fieldType + " is not supported");
                 }
             }
         }

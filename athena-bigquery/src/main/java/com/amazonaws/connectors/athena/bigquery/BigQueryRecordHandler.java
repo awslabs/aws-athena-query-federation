@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,10 +21,8 @@ package com.amazonaws.connectors.athena.bigquery;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
@@ -95,7 +93,7 @@ public class BigQueryRecordHandler
     }
 
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
     {
         String datasetName = fixCaseForDatasetName(getProjectName(recordsRequest), recordsRequest.getTableName().getSchemaName(), bigQueryClient);
         String tableName = fixCaseForTableName(getProjectName(recordsRequest), datasetName, recordsRequest.getTableName().getTableName(),
@@ -147,28 +145,13 @@ public class BigQueryRecordHandler
             spiller.writeRows((Block block, int rowNum) -> {
                 boolean matched = true;
                 for (Field field : recordsRequest.getSchema().getFields()) {
-                    if (!matched) {
-                        break;
-                    }
                     FieldValue fieldValue = row.get(field.getName());
                     Object val = getObjectFromFieldValue(field.getName(), fieldValue,
                             field.getFieldType().getType().getTypeID());
-                    matched &= constraintEvaluator.apply(field.getName(), val);
+                    matched &= block.offerValue(field.getName(), rowNum, val);
                 }
 
-                if (matched) {
-                    for (Field field : recordsRequest.getSchema().getFields()) {
-                        FieldValue fieldValue = row.get(field.getName());
-                        Object val = getObjectFromFieldValue(field.getName(), fieldValue,
-                                field.getFieldType().getType().getTypeID());
-                        if (val == null) {
-                            continue;
-                        }
-                        BlockUtils.setValue(block.getFieldVector(field.getName()), rowNum, val);
-                    }
-                    return 1;
-                }
-                return 0;
+                return matched ? 1 : 0;
             });
         }
     }

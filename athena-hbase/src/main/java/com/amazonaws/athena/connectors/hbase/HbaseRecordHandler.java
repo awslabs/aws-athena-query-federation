@@ -21,9 +21,7 @@ package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
@@ -33,7 +31,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -106,7 +103,7 @@ public class HbaseRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller blockSpiller, ReadRecordsRequest request)
+    protected void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request)
             throws IOException
     {
         Schema projection = request.getSchema();
@@ -133,9 +130,8 @@ public class HbaseRecordHandler
                 blockSpiller.writeRows((Block block, int rowNum) -> {
                     boolean match = true;
                     for (Field field : projection.getFields()) {
-                        FieldVector vector = block.getFieldVector(field.getName());
                         if (match) {
-                            match &= writeField(constraintEvaluator, vector, isNative, row, rowNum);
+                            match &= writeField(block, field, isNative, row, rowNum);
                         }
                     }
                     return match ? 1 : 0;
@@ -150,46 +146,39 @@ public class HbaseRecordHandler
     /**
      * Used to filter and write field values from the HBase scan to the response block.
      *
-     * @param constraintEvaluator Used to applied constraints (predicates) to field values before writing them.
-     * @param vector The Apache Arrow vector for the field we need to write.
+     * @param block The Block we should write to.
+     * @param field The Apache Arrow Field we need to write.
      * @param isNative Boolean indicating if the HBase value is stored as a String (false) or as Native byte[] (true).
      * @param row The HBase row from which we should extract a value for the field denoted by vector.
      * @param rowNum The rowNumber to write into on the vector.
      * @return True if the value passed the ConstraintEvaluator's test.
      */
-    private boolean writeField(ConstraintEvaluator constraintEvaluator, FieldVector vector, boolean isNative, Result row, int rowNum)
+    private boolean writeField(Block block, Field field, boolean isNative, Result row, int rowNum)
     {
-        String fieldName = vector.getField().getName();
-        ArrowType type = vector.getField().getType();
+        String fieldName = field.getName();
+        ArrowType type = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
         try {
             //Is this field the special 'row' field that can be used to group column families that may
             //have been spread across different region servers if they are needed in the same query.
             if (HbaseSchemaUtils.ROW_COLUMN_NAME.equals(fieldName)) {
                 String value = Bytes.toString(row.getRow());
-                BlockUtils.setValue(vector,
-                        rowNum,
-                        value);
-                return constraintEvaluator.apply(fieldName, value);
+                return block.offerValue(fieldName, rowNum, value);
             }
 
             switch (minorType) {
                 case STRUCT:
                     //Column is actually a Column Family stored as a STRUCT.
-                    BlockUtils.setComplexValue(vector,
+                    return block.offerComplexValue(fieldName,
                             rowNum,
                             HbaseFieldResolver.resolver(isNative, fieldName),
                             row);
-
-                    //Constraints on complex types are not supported yet
-                    return true;
                 default:
                     //We expect the column name format to be <FAMILY>:<QUALIFIER>
                     String[] columnParts = HbaseSchemaUtils.extractColumnParts(fieldName);
                     byte[] rawValue = row.getValue(columnParts[0].getBytes(), columnParts[1].getBytes());
                     Object value = HbaseSchemaUtils.coerceType(isNative, type, rawValue);
-                    BlockUtils.setValue(vector, rowNum, value);
-                    return constraintEvaluator.apply(fieldName, value);
+                    return block.offerValue(fieldName, rowNum, value);
             }
         }
         catch (RuntimeException ex) {

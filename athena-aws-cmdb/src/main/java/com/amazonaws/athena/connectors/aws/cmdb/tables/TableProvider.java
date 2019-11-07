@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
@@ -63,7 +62,7 @@ public interface TableProvider
      *
      * @See MetadataHandler
      */
-    default void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+    default void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
         //NoOp as we do not support partitioning.
@@ -84,5 +83,5 @@ public interface TableProvider
      *
      * @See RecordHandler
      */
-    void readWithConstraint(ConstraintEvaluator constraintEvaluator, BlockSpiller spiller, ReadRecordsRequest recordsRequest);
+    void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest);
 }

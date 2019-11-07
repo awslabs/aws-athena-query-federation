@@ -27,7 +27,6 @@ import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -249,14 +248,11 @@ public class ExampleMetadataHandler
      * our example partitions. A connector for a real data source would likely query that source's metadata
      * to create a real list of partitions.
      *
-     * @param constraintEvaluator Used to apply partition pruning constraints.
-     * @param writer Used to write rows (partitions) into the Apache Arrow response.
+     * @param writer Used to write rows (partitions) into the Apache Arrow response. The writes are automatically constrained.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      */
     @Override
-    public void getPartitions(ConstraintEvaluator constraintEvaluator,
-            BlockWriter writer,
-            GetTableLayoutRequest request)
+    public void getPartitions(BlockWriter writer, GetTableLayoutRequest request)
     {
         logCaller(request);
 
@@ -266,29 +262,25 @@ public class ExampleMetadataHandler
          * or knowledge of the actual table's physical layout to do this.
          */
         for (int year = 1990; year < 2020; year++) {
-            if (constraintEvaluator.apply("year", year)) {
-                for (int month = 0; month < 12; month++) {
-                    if (constraintEvaluator.apply("month", month)) {
-                        for (int day = 0; day < 30; day++) {
-                            if (constraintEvaluator.apply("day", day)) {
-                                final int dayVal = day;
-                                final int monthVal = month;
-                                final int yearVal = year;
-                                writer.writeRows((Block block, int rowNum) -> {
-                                    //these are our partition columns and were defined by the call to doGetTable(...)
-                                    block.setValue("day", rowNum, dayVal);
-                                    block.setValue("month", rowNum, monthVal);
-                                    block.setValue("year", rowNum, yearVal);
+            for (int month = 0; month < 12; month++) {
+                for (int day = 0; day < 30; day++) {
+                    final int dayVal = day;
+                    final int monthVal = month;
+                    final int yearVal = year;
+                    writer.writeRows((Block block, int rowNum) -> {
+                        //these are our partition columns and were defined by the call to doGetTable(...)
+                        boolean matched = true;
+                        matched &= block.setValue("day", rowNum, dayVal);
+                        matched &= block.setValue("month", rowNum, monthVal);
+                        matched &= block.setValue("year", rowNum, yearVal);
 
-                                    //these are additional field we added by overriding enhancePartitionSchema(...)
-                                    block.setValue(PARTITION_LOCATION, rowNum, "s3://" + request.getPartitionCols());
-                                    block.setValue(SERDE, rowNum, "TextInputFormat");
-                                    //we wrote 1 row
-                                    return 1;
-                                });
-                            }
-                        }
-                    }
+                        //these are additional field we added by overriding enhancePartitionSchema(...)
+                        matched &= block.setValue(PARTITION_LOCATION, rowNum, "s3://" + request.getPartitionCols());
+                        matched &= block.setValue(SERDE, rowNum, "TextInputFormat");
+
+                        //if all fields passed then we wrote 1 row
+                        return matched ? 1 : 0;
+                    });
                 }
             }
         }

@@ -130,7 +130,7 @@ public class JdbcRecordHandlerTest
 
         SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
         Mockito.when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);
-        BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema);
+        BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator);
         ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, "testCatalog", "testQueryId", inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
 
         Mockito.when(amazonS3.putObject(Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any())).thenAnswer((Answer<PutObjectResult>) invocation -> {
@@ -143,6 +143,6 @@ public class JdbcRecordHandlerTest
             return new PutObjectResult();
         });
 
-        this.jdbcRecordHandler.readWithConstraint(constraintEvaluator, s3Spiller, readRecordsRequest);
+        this.jdbcRecordHandler.readWithConstraint(s3Spiller, readRecordsRequest);
     }
 }

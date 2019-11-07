@@ -124,8 +124,8 @@ public class    MultiplexingJdbcMetadataHandlerTest
     {
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("mysql");
-        this.jdbcMetadataHandler.getPartitions(Mockito.mock(ConstraintEvaluator.class), Mockito.mock(BlockWriter.class), getTableLayoutRequest);
-        Mockito.verify(this.mySqlMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(ConstraintEvaluator.class), Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest));
+        this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest);
+        Mockito.verify(this.mySqlMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest));
     }
 
     @Test

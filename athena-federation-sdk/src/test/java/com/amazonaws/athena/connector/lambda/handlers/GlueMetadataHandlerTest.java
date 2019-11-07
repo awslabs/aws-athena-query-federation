@@ -113,7 +113,7 @@ public class GlueMetadataHandlerTest
             }
 
             @Override
-            public void getPartitions(ConstraintEvaluator constraintEvaluator, BlockWriter blockWriter, GetTableLayoutRequest request)
+            public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
                     throws Exception
             {
                 throw new UnsupportedOperationException();

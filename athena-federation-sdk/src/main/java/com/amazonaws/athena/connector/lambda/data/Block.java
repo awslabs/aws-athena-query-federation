@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.google.common.base.MoreObjects;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorLoader;
@@ -74,6 +75,10 @@ public class Block
     //The VectorSchemaRoot which can be used to read/write values to/from the underlying Apache Arrow buffers that
     //for the Arrow Batch of rows.
     private final VectorSchemaRoot vectorSchema;
+    //Used to constrain writes to the block, be default we use an emptyEvaluator that allows all writes.
+    //Note that we will _NOT_ close this ConstraintEvaluator because we may not own it and the emptyEvaluator
+    //has no resources that could leak.
+    private ConstraintEvaluator constraintEvaluator = ConstraintEvaluator.emptyEvaluator();
 
     /**
      * Used by a BlockAllocator to construct a block by setting the key values that a Block 'holds'. Most of the meaningful
@@ -91,6 +96,25 @@ public class Block
         this.allocatorId = allocatorId;
         this.schema = schema;
         this.vectorSchema = vectorSchema;
+    }
+
+    /**
+     * Used to constrain writes to the Block.
+     *
+     * @param constraintEvaluator The ConstraintEvaluator to use check if we should allow a value to be written to the Block.
+     * @note Setting the ConstraintEvaluator to null disables constraints.
+     */
+    public void constrain(ConstraintEvaluator constraintEvaluator)
+    {
+        this.constraintEvaluator = (constraintEvaluator != null) ? constraintEvaluator : ConstraintEvaluator.emptyEvaluator();
+    }
+
+    /**
+     * Returns the ConstraintEvaluator used by the block.
+     */
+    public ConstraintEvaluator getConstraintEvaluator()
+    {
+        return constraintEvaluator;
     }
 
     public String getAllocatorId()
@@ -113,14 +137,19 @@ public class Block
      * @param fieldName The name of the field you wish to write to.
      * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
      * @param value The value you wish to write.
+     * @return True if the value was written to the Block, False if the value was not written due to failing a constraint.
      * @note This method will throw an NPE if you call with with a non-existent field. You can use offerValue(...)
      * to ignore non-existent fields. This can be useful when you are writing results and want to avoid checking
      * if a field has been requested. One such example is when a query projects only a subset of columns and your
      * underlying data store is not columnar.
      */
-    public void setValue(String fieldName, int row, Object value)
+    public boolean setValue(String fieldName, int row, Object value)
     {
-        BlockUtils.setValue(getFieldVector(fieldName), row, value);
+        if (constraintEvaluator.apply(fieldName, value)) {
+            BlockUtils.setValue(getFieldVector(fieldName), row, value);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -133,15 +162,17 @@ public class Block
      * @param fieldName The name of the field you wish to write to.
      * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
      * @param value The value you wish to write.
-     * @return True if the field was present and thus the value set, False if the provided fieldName did not match
-     * a field in the Block's Schema.
+     * @return True if the value was written to the Block, False if the value was not written due to failing a constraint.
      * @note This method will take no action if the provided fieldName is not a valid field in this Block's Schema.
+     * In such cases the method will return true.
      */
     public boolean offerValue(String fieldName, int row, Object value)
     {
-        FieldVector vector = getFieldVector(fieldName);
-        if (vector != null) {
-            BlockUtils.setValue(vector, row, value);
+        if (constraintEvaluator.apply(fieldName, value)) {
+            FieldVector vector = getFieldVector(fieldName);
+            if (vector != null) {
+                BlockUtils.setValue(vector, row, value);
+            }
             return true;
         }
         return false;
@@ -151,10 +182,32 @@ public class Block
      * Attempts to set the provided value for the given field name and row. If the Block's schema does not
      * contain such a field, this method does nothing and returns false.
      *
-     * @param fieldName
-     * @param row
-     * @param value
-     * @return
+     * @param fieldName The name of the field you wish to write to.
+     * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
+     * @param value The value you wish to write.
+     * @return True if the value was written to the Block, False if the value was not written due to failing a constraint.
+     * @note This method will throw an NPE if you call with with a non-existent field. You can use offerComplexValue(...)
+     * to ignore non-existent fields. This can be useful when you are writing results and want to avoid checking
+     * if a field has been requested. One such example is when a query projects only a subset of columns and your
+     * underlying data store is not columnar.
+     */
+    public boolean setComplexValue(String fieldName, int row, FieldResolver fieldResolver, Object value)
+    {
+        FieldVector vector = getFieldVector(fieldName);
+        BlockUtils.setComplexValue(vector, row, fieldResolver, value);
+        return true;
+    }
+
+    /**
+     * Attempts to set the provided value for the given field name and row. If the Block's schema does not
+     * contain such a field, this method does nothing and returns false.
+     *
+     * @param fieldName The name of the field you wish to write to.
+     * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
+     * @param value The value you wish to write.
+     * @return True if the value was written to the Block, False if the value was not written due to failing a constraint.
+     * @note This method will take no action if the provided fieldName is not a valid field in this Block's Schema.
+     * In such cases the method will return true.
      */
     public boolean offerComplexValue(String fieldName, int row, FieldResolver fieldResolver, Object value)
     {

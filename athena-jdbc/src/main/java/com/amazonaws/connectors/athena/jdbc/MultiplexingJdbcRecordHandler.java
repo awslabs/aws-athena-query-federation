@@ -22,7 +22,6 @@ package com.amazonaws.connectors.athena.jdbc;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig;
@@ -75,12 +74,11 @@ public class MultiplexingJdbcRecordHandler
 
     @Override
     public void readWithConstraint(
-            final ConstraintEvaluator constraintEvaluator,
             final BlockSpiller blockSpiller,
             final ReadRecordsRequest readRecordsRequest)
     {
         validateMultiplexer(readRecordsRequest.getCatalogName());
-        this.recordHandlerMap.get(readRecordsRequest.getCatalogName()).readWithConstraint(constraintEvaluator, blockSpiller, readRecordsRequest);
+        this.recordHandlerMap.get(readRecordsRequest.getCatalogName()).readWithConstraint(blockSpiller, readRecordsRequest);
     }
 
     @Override

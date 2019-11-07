@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 
 import java.util.List;
@@ -55,4 +56,9 @@ public interface BlockSpiller
      * Frees any resources associated with the BlockSpiller.
      */
     void close();
+
+    /**
+     * Provides access to the ConstraintEvaluator that will be applied to the generated Blocks.
+     */
+    ConstraintEvaluator getConstraintEvaluator();
 }
