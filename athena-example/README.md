@@ -164,7 +164,20 @@ Then you can navigate to [Serverless Application Repository](https://console.aws
 
 (Alternatively you can publish your connector directly to Lambda but for simplicity this tutorial uses Serverless Application Repository.)
 
-### Step 6: Run a Query!
+### Step 6: Validate our Connector.
+
+One of the most challenging aspects of integrating systems (in this case our connector and Athena) is testing how these two things will work together. Lambda will capture logging from out connector in Cloudwatch Logs but we've also tried to provide some tools to stream line detecting and correcting common semantic and logical issues with your custom connector. By running Athena's connector validation tool you can simulate how Athena will interact with your Lambda function and get access to diagnostic information that would normally only be available within Athena or require you to add extra diagnostics to your connector.
+
+Run `../tools/validate_connector.sh <function_name>` be sure to replace <function_name> with the name you gave to your function/catalog when you deployed it via Serverless Application Repository. 
+
+If everything worked as expected you should see the script generate useful debugging info and end with:
+```txt
+2019-11-07 20:25:08 <> INFO  ConnectorSanityCheck:==================================================
+2019-11-07 20:25:08 <> INFO  ConnectorSanityCheck:Successfully Passed Sanity Test!
+2019-11-07 20:25:08 <> INFO  ConnectorSanityCheck:==================================================
+```
+
+### Step 7: Run a Query!
 
 Ok, now we are ready to try running some queries using our new connector. Some good examples to try include (be sure to put in your actual database and table names):
 

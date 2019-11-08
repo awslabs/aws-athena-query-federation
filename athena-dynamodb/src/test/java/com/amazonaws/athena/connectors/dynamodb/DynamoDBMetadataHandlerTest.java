@@ -43,15 +43,20 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.hamcrest.collection.IsIterableContainingInOrder;
+import org.joda.time.Days;
+import org.joda.time.LocalDateTime;
+import org.joda.time.MutableDateTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -61,8 +66,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -71,7 +74,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.INDEX_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.PARTITION_TYPE_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.QUERY_PARTITION_TYPE;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SCAN_PARTITION_TYPE;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DEFAULT_SCHEMA;
@@ -190,7 +202,7 @@ public class DynamoDBMetadataHandlerTest
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col_3",
-                EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, false)
+                EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, true)
                         .add(true).build());
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(TEST_IDENTITY,
@@ -206,9 +218,18 @@ public class DynamoDBMetadataHandlerTest
         logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout partitions - {}", res.getPartitions());
 
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
         // no hash key constraints, so look for segment count column
         assertThat(res.getPartitions().getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
         assertThat(res.getPartitions().getRowCount(), equalTo(1));
+
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_3 = :v0 OR attribute_not_exists(#col_3) OR #col_3 = :v1)"));
+
+        ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_3", "col_3");
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
+
+        ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(true), ":v1", ItemUtils.toAttributeValue(null));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
 
         logger.info("doGetTableLayoutScan: exit");
     }
@@ -221,12 +242,16 @@ public class DynamoDBMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         SortedRangeSet.Builder dateValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEDAY.getType(), false);
         SortedRangeSet.Builder timeValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
-        LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
-        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), dateTime.toLocalDate().toEpochDay()));
+        LocalDateTime dateTime = new LocalDateTime().withYear(2019).withMonthOfYear(9).withDayOfMonth(23).withHourOfDay(11).withMinuteOfHour(18).withSecondOfMinute(37);
+        MutableDateTime epoch = new MutableDateTime();
+        epoch.setDate(0); //Set to Epoch time
+        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), Days.daysBetween(epoch, dateTime.toDateTime()).getDays()));
         LocalDateTime dateTime2 = dateTime.plusHours(26);
-        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), dateTime2.toLocalDate().toEpochDay()));
-        timeValueSet.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), Timestamp.valueOf(dateTime).toInstant().toEpochMilli(), true,
-                Timestamp.valueOf(dateTime2).toInstant().toEpochMilli(), true));
+        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), Days.daysBetween(epoch, dateTime2.toDateTime()).getDays()));
+        long startTime = dateTime.toDateTime().getMillis();
+        long endTime = dateTime2.toDateTime().getMillis();
+        timeValueSet.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime, true,
+                endTime, true));
         constraintsMap.put("col_4", dateValueSet.build());
         constraintsMap.put("col_5", timeValueSet.build());
 
@@ -241,9 +266,19 @@ public class DynamoDBMetadataHandlerTest
         logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
         logger.info("doGetTableLayout partitions - {}", res.getPartitions());
 
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(QUERY_PARTITION_TYPE));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().containsKey(INDEX_METADATA), is(true));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(INDEX_METADATA), equalTo("test_index"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(HASH_KEY_NAME_METADATA), equalTo("col_4"));
         assertThat(res.getPartitions().getRowCount(), equalTo(2));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_NAME_METADATA), equalTo("col_5"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0 AND #col_5 <= :v1)"));
+
+        ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_4", "col_4", "#col_5", "col_5");
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
+
+        ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(startTime), ":v1", ItemUtils.toAttributeValue(endTime));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
 
         logger.info("doGetTableLayoutQueryIndex: exit");
     }

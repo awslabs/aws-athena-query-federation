@@ -83,11 +83,6 @@ public class DynamoDBTable
         return approxTableSizeInBytes;
     }
 
-    public long getApproxItemCount()
-    {
-        return approxItemCount;
-    }
-
     public long getProvisionedReadCapacity()
     {
         return provisionedReadCapacity;

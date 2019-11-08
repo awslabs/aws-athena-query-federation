@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,8 +17,10 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.connectors.athena.bigquery;
 
+package com.amazonaws.athena.connectors.bigquery;
+
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
@@ -38,6 +40,7 @@ import com.google.cloud.resourcemanager.ResourceManagerOptions;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.io.ByteArrayInputStream;
@@ -45,23 +48,19 @@ import java.io.IOException;
 
 class BigQueryUtils
 {
-    //The secrets manager id that contains big queries creds.
-    //These configure the spill information.
-    private static final String ENV_BIG_QUERY_CREDS_SM_ID = "SECRET_MANAGER_BIG_QUERY_CREDS_ARN";
-
     private BigQueryUtils() {}
 
     static Credentials getCredentialsFromSecretsManager()
-            throws IOException
+        throws IOException
     {
         AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
         GetSecretValueResult response = secretsManager.getSecretValue(new GetSecretValueRequest()
-                .withSecretId(getEnvBigQueryCredsSmId()));
+            .withSecretId(getEnvBigQueryCredsSmId()));
         return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes()));
     }
 
     static BigQuery getBigQueryClient()
-            throws IOException
+        throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
@@ -69,7 +68,7 @@ class BigQueryUtils
     }
 
     static ResourceManager getResourceManagerClient()
-            throws IOException
+        throws IOException
     {
         ResourceManagerOptions.Builder resourceManagerBuilder = ResourceManagerOptions.newBuilder();
         resourceManagerBuilder.setCredentials(getCredentialsFromSecretsManager());
@@ -78,7 +77,7 @@ class BigQueryUtils
 
     static String getEnvBigQueryCredsSmId()
     {
-        return getEnvVar(ENV_BIG_QUERY_CREDS_SM_ID);
+        return getEnvVar(BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID);
     }
 
     static String getEnvVar(String envVar)
@@ -88,6 +87,35 @@ class BigQueryUtils
             throw new IllegalArgumentException("Lambda Environment Variable " + envVar + " has not been populated! ");
         }
         return var;
+    }
+
+    /**
+     * Gets the project name that exists within Google Cloud Platform that contains the datasets that we wish to query.
+     * The Lambda environment variables are first inspected and if it does not exist, then we take it from the catalog
+     * name in the request.
+     *
+     * @param catalogNameFromRequest The Catalog Name from the request that is passed in from the Athena Connector framework.
+     * @return The project name.
+     */
+    static String getProjectName(String catalogNameFromRequest)
+    {
+        if (System.getenv(BigQueryConstants.GCP_PROJECT_ID) != null) {
+            return System.getenv(BigQueryConstants.GCP_PROJECT_ID);
+        }
+        return catalogNameFromRequest;
+    }
+
+    /**
+     * Gets the project name that exists within Google Cloud Platform that contains the datasets that we wish to query.
+     * The Lambda environment variables are first inspected and if it does not exist, then we take it from the catalog
+     * name in the request.
+     *
+     * @param request The {@link MetadataRequest} from the request that is passed in from the Athena Connector framework.
+     * @return The project name.
+     */
+    static String getProjectName(MetadataRequest request)
+    {
+        return getProjectName(request.getCatalogName());
     }
 
     /**
@@ -107,7 +135,7 @@ class BigQueryUtils
         }
 
         throw new IllegalArgumentException("Google Dataset with name " + datasetName +
-                " could not be found in Project " + projectName + " in GCP. ");
+            " could not be found in Project " + projectName + " in GCP. ");
     }
 
     static String fixCaseForTableName(String projectName, String datasetName, String tableName, BigQuery bigQuery)
@@ -119,31 +147,36 @@ class BigQueryUtils
             }
         }
         throw new IllegalArgumentException("Google Table with name " + datasetName +
-                " could not be found in Project " + projectName + " in GCP. ");
+            " could not be found in Project " + projectName + " in GCP. ");
     }
 
-    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, ArrowType.ArrowTypeID typeId)
+    static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, ArrowType arrowType)
     {
-        if (fieldValue == null || fieldValue.isNull()) {
+        if (fieldValue == null || fieldValue.isNull() || fieldValue.getValue().equals("null")) {
             return null;
         }
-        switch (typeId) {
-            case Timestamp:
-                return fieldValue.getTimestampValue();
-            case Int:
+        switch (Types.getMinorTypeForArrowType(arrowType)) {
+            case TIMESTAMPMILLI:
+                //getTimestampValue() returns a long in microseconds. Return it in Milliseconds which is how its stored.
+                return fieldValue.getTimestampValue() / 1000;
+            case SMALLINT:
+            case TINYINT:
+            case INT:
+            case BIGINT:
                 return fieldValue.getLongValue();
-            case Decimal:
+            case DECIMAL:
                 return fieldValue.getNumericValue();
-            case Bool:
+            case BIT:
                 return fieldValue.getBooleanValue();
-            case FloatingPoint:
+            case FLOAT4:
+            case FLOAT8:
                 return fieldValue.getDoubleValue();
-            case Utf8:
+            case VARCHAR:
                 return fieldValue.getStringValue();
+            //TODO: Support complex types.
             default:
                 throw new IllegalArgumentException("Unknown type has been encountered: Field Name: " + fieldName +
-                        " Field Type: " + typeId.name());
-                //TODO: Support complex types.
+                    " Field Type: " + arrowType.toString() + " MinorType: " + Types.getMinorTypeForArrowType(arrowType));
         }
     }
 
@@ -178,7 +211,7 @@ class BigQueryUtils
              * years 1 and 9999, inclusive.
              */
             case TIMESTAMP:
-                return new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
+                return new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
             /** Represents a logical calendar date. Values range between the years 1 and 9999, inclusive. */
             case DATE:
                 return new ArrowType.Date(DateUnit.DAY);
@@ -190,10 +223,9 @@ class BigQueryUtils
                 return new ArrowType.Date(DateUnit.MILLISECOND);
             /** Represents a set of geographic points, represented as a Well Known Text (WKT) string. */
             case GEOGRAPHY:
-                //TODO:: Change this. Return a string so the output is a string
                 return new ArrowType.Utf8();
         }
         throw new IllegalArgumentException("Unable to map Google Type of StandardType: " + type.getStandardType().toString()
-                + " NonStandardType: " + type.name());
+            + " NonStandardType: " + type.name());
     }
 }

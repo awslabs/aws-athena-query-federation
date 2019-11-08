@@ -111,13 +111,16 @@ public class TestBase
         LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
         for (int i = 0; i < len; i++) {
             Map<String, AttributeValue> item = new HashMap<>();
-            item.put("col_0", toAttributeValue("test_str_" + i));
+            item.put("col_0", toAttributeValue("test_str_" + (i - i % 3)));
             item.put("col_1", toAttributeValue(i));
-            item.put("col_2", toAttributeValue(200000.0 + i / 2.0));
+            double doubleVal = 200000.0 + i / 2.0;
+            if (Math.floor(doubleVal) != doubleVal) {
+                item.put("col_2", toAttributeValue(200000.0 + i / 2.0));
+            }
             item.put("col_3", toAttributeValue(ImmutableMap.of("modulo", i % 2 == 0, "nextModulos", ImmutableList.of((i + 1) % 2 == 0, ((i + 2) % 2 == 0)))));
             item.put("col_4", toAttributeValue(dateTime.toLocalDate().toEpochDay()));
             item.put("col_5", toAttributeValue(Timestamp.valueOf(dateTime).toInstant().toEpochMilli()));
-            item.put("col_6", toAttributeValue(i % 128));
+            item.put("col_6", toAttributeValue(i % 128 == 0 ? null : i % 128));
             item.put("col_7", toAttributeValue(-i));
             item.put("col_8", toAttributeValue(ImmutableSet.of(i - 100, i - 200)));
             item.put("col_9", toAttributeValue(100.0f + i));

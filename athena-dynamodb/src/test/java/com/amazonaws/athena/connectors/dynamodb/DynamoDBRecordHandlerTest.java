@@ -31,10 +31,9 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.util.json.Jackson;
 import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Before;
@@ -42,11 +41,18 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toAttributeValue;
+import static com.amazonaws.util.json.Jackson.toJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -86,9 +92,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         logger.info("testReadScanSplit: enter");
+        Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(SEGMENT_ID_PROPERTY, "0")
                 .add(SEGMENT_COUNT_METADATA, "1")
+                .add(NON_KEY_FILTER_METADATA, "NOT #col_6 IN (:v0,:v1)")
+                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -102,8 +113,6 @@ public class DynamoDBRecordHandlerTest
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
-        RecordResponse recordResponse = handler.doReadRecords(allocator, request);
-
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
@@ -111,7 +120,7 @@ public class DynamoDBRecordHandlerTest
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
         logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
 
-        assertEquals(1000, response.getRecords().getRowCount());
+        assertEquals(992, response.getRecords().getRowCount());
         logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
         logger.info("testReadScanSplit: exit");
@@ -122,9 +131,14 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         logger.info("testReadQuerySplit: enter");
+        Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(HASH_KEY_NAME_METADATA, "col_0")
-                .add("col_0", Jackson.toJsonString(ItemUtils.toAttributeValue("test_str_0")))
+                .add("col_0", toJsonString(toAttributeValue("test_str_0")))
+                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
         ReadRecordsRequest request = new ReadRecordsRequest(
@@ -138,18 +152,54 @@ public class DynamoDBRecordHandlerTest
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
-        RecordResponse recordResponse = handler.doReadRecords(allocator, request);
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadQuerySplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(2, response.getRecords().getRowCount());
+        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+
+        logger.info("testReadQuerySplit: exit");
+    }
+
+    @Test
+    public void testZeroRowQuery()
+            throws Exception
+    {
+        logger.info("testZeroRowQuery: enter");
+        Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
+        Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(HASH_KEY_NAME_METADATA, "col_0")
+                .add("col_0", toJsonString(toAttributeValue("test_str_999999")))
+                .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
+                .add(EXPRESSION_NAMES_METADATA, toJsonString(expressionNames))
+                .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+        logger.info("testZeroRowQuery: rows[{}]", response.getRecordCount());
 
-        assertEquals(1, response.getRecords().getRowCount());
-        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(0, response.getRecords().getRowCount());
 
-        logger.info("testReadQuerySplit: exit");
+        logger.info("testZeroRowQuery: exit");
     }
 }

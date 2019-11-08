@@ -40,10 +40,14 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
+import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ListTablesResult;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
@@ -51,28 +55,31 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.INDEX_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.PARTITION_TYPE_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.PROVISIONED_READ_CAPACITY_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.QUERY_PARTITION_TYPE;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_NAME_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SCAN_PARTITION_TYPE;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
@@ -92,7 +99,7 @@ public class DynamoDBMetadataHandler
 
     public DynamoDBMetadataHandler()
     {
-        super((System.getenv(GLUE_ENV) == null && Boolean.parseBoolean(System.getenv(GLUE_ENV))) ? AWSGlueClientBuilder.standard().build() : null,
+        super((System.getenv(GLUE_ENV) == null || !Boolean.parseBoolean(System.getenv(GLUE_ENV))) ? AWSGlueClientBuilder.standard().build() : null,
                 sourceType);
         ddbClient = AmazonDynamoDBClientBuilder.standard().build();
         glueClient = getAwsGlue();
@@ -182,29 +189,39 @@ public class DynamoDBMetadataHandler
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
     }
 
-    /*
-    TODO calculate filter expressions here to avoid recalculating them at the split level
-     */
-
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
-        DynamoDBTable index = DDBTableUtils.getBestIndexForPredicates(table, summary);
+        DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        partitionSchemaBuilder.addMetadata(PROVISIONED_READ_CAPACITY_METADATA, String.valueOf(table.getProvisionedReadCapacity()));
-        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
 
+        Set<String> alreadyFilteredColumns = new HashSet<>();
+        List<AttributeValue> valueAccumulator = new ArrayList<>();
+        IncrementingValueNameProducer valueNameProducer = new IncrementingValueNameProducer();
         if (!hashKeyValues.isEmpty()) {
             // can "partition" on hash key
             partitionSchemaBuilder.addField(hashKeyName, hashKeyValueSet.getType());
             partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
-            index.getRangeKey().ifPresent((rangeKeyName) -> partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName));
+            alreadyFilteredColumns.add(hashKeyName);
             partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
             if (!table.equals(index)) {
                 partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
+            }
+
+            // add range key filter if there is one
+            Optional<String> rangeKey = index.getRangeKey();
+            if (rangeKey.isPresent()) {
+                String rangeKeyName = rangeKey.get();
+                if (summary.containsKey(rangeKeyName)) {
+                    String rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer);
+                    partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName);
+                    partitionSchemaBuilder.addMetadata(RANGE_KEY_FILTER_METADATA, rangeKeyFilter);
+                    alreadyFilteredColumns.add(rangeKeyName);
+                }
             }
         }
         else {
@@ -212,30 +229,29 @@ public class DynamoDBMetadataHandler
             partitionSchemaBuilder.addField(SEGMENT_COUNT_METADATA, Types.MinorType.INT.getType());
             partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, SCAN_PARTITION_TYPE);
         }
+
+        precomputeAdditionalMetadata(alreadyFilteredColumns, summary, valueAccumulator, valueNameProducer, partitionSchemaBuilder);
     }
 
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
+        // TODO consider caching this repeated work in #enhancePartitionSchema
         DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
-        DynamoDBTable index = DDBTableUtils.getBestIndexForPredicates(table, summary);
+        DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
-        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
+        List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
 
         if (!hashKeyValues.isEmpty()) {
-            hashKeyValues = DDBTableUtils.getHashKeyAttributeValues(hashKeyValueSet);
-            if (!hashKeyValues.isEmpty()) {
-                // can "partition" on hash key
-                for (Object hashKeyValue : hashKeyValues) {
-                    blockWriter.writeRows((Block block, int rowNum) -> {
-                        block.setValue(hashKeyName, rowNum, hashKeyValue);
-                        //we added 1 partition per hashkey value
-                        return 1;
-                    });
-                }
+            for (Object hashKeyValue : hashKeyValues) {
+                blockWriter.writeRows((Block block, int rowNum) -> {
+                    block.setValue(hashKeyName, rowNum, hashKeyValue);
+                    //we added 1 partition per hashkey value
+                    return 1;
+                });
             }
         }
         else {
@@ -243,9 +259,34 @@ public class DynamoDBMetadataHandler
             int segmentCount = DDBTableUtils.getNumSegments(table.getProvisionedReadCapacity(), table.getApproxTableSizeInBytes());
             blockWriter.writeRows((Block block, int rowNum) -> {
                 block.setValue(SEGMENT_COUNT_METADATA, rowNum, segmentCount);
-                //we added 1 partition per hashkey value
                 return 1;
             });
+        }
+    }
+
+    private void precomputeAdditionalMetadata(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
+            IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder)
+    {
+        // precompute non-key filter
+        String filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer);
+        if (filterExpression != null) {
+            partitionsSchemaBuilder.addMetadata(NON_KEY_FILTER_METADATA, filterExpression);
+        }
+
+        if (!accumulator.isEmpty()) {
+            // add in mappings for aliased columns and value placeholders
+            Map<String, String> aliasedColumns = new HashMap<>();
+            for (String column : predicates.keySet()) {
+                aliasedColumns.put(DDBPredicateUtils.aliasColumn(column), column);
+            }
+            Map<String, AttributeValue> expressionValueMapping = new HashMap<>();
+            // IncrementingValueNameProducer is repeatable for simplicity
+            IncrementingValueNameProducer valueNameProducer2 = new IncrementingValueNameProducer();
+            for (AttributeValue value : accumulator) {
+                expressionValueMapping.put(valueNameProducer2.getNext(), value);
+            }
+            partitionsSchemaBuilder.addMetadata(EXPRESSION_NAMES_METADATA, Jackson.toJsonString(aliasedColumns));
+            partitionsSchemaBuilder.addMetadata(EXPRESSION_VALUES_METADATA, Jackson.toJsonString(expressionValueMapping));
         }
     }
 
@@ -255,31 +296,30 @@ public class DynamoDBMetadataHandler
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
         Block partitions = request.getPartitions();
-        Map<String, String> customMetadata = partitions.getSchema().getCustomMetadata();
-        String partitionType = customMetadata.get(PARTITION_TYPE_METADATA);
+        Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
+        // copy all partition metadata to the split
+        Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
+        String partitionType = partitionMetadata.get(PARTITION_TYPE_METADATA);
         if (partitionType == null) {
             throw new IllegalStateException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()));
         }
         if (QUERY_PARTITION_TYPE.equals(partitionType)) {
-            String hashKeyName = Iterables.getOnlyElement(request.getPartitionCols());
+            String hashKeyName = partitionMetadata.get(HASH_KEY_NAME_METADATA);
             FieldReader hashKeyValueReader = partitions.getFieldReader(hashKeyName);
+            // one split per hash key value (since one DDB query can only take one hash key value)
             for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
                 hashKeyValueReader.setPosition(curPartition);
 
                 //Every split must have a unique location if we wish to spill to avoid failures
                 SpillLocation spillLocation = makeSpillLocation(request);
 
-                Object hashKeyValue = convertArrowTypeIfNecessary(hashKeyValueReader.readObject());
+                Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyValueReader.readObject());
                 String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
+                splitMetadata.put(hashKeyName, hashKeyValueJSON);
 
-                // one split per hash key value (since one DDB query can only take on hash key value)
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(HASH_KEY_NAME_METADATA, hashKeyName)
-                        .add(hashKeyName, hashKeyValueJSON)
-                        // also encode the index that contains the hash key column (could be the original table)
-                        .add(INDEX_METADATA, customMetadata.get(INDEX_METADATA))
-                        .add(SEGMENT_COUNT_METADATA, String.valueOf(partitions.getRowCount()));
-                splits.add(splitBuilder.build());
+                splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(partitions.getRowCount()));
+
+                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
                     // We've reached max page size and this is not the last partition
@@ -296,12 +336,15 @@ public class DynamoDBMetadataHandler
             int segmentCount = segmentCountReader.readInteger();
             for (int curPartition = partitionContd; curPartition < segmentCount; curPartition++) {
                 SpillLocation spillLocation = makeSpillLocation(request);
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(SEGMENT_ID_PROPERTY, String.valueOf(curPartition))
-                        .add(SEGMENT_COUNT_METADATA, String.valueOf(segmentCount));
-                splits.add(splitBuilder.build());
 
-                if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
+                splitMetadata.put(SEGMENT_ID_PROPERTY, String.valueOf(curPartition));
+                splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(segmentCount));
+
+                splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
+
+                if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != segmentCount - 1) {
+                    // We've reached max page size and this is not the last partition
+                    // so send the page back
                     return new GetSplitsResponse(request.getCatalogName(),
                             splits,
                             encodeContinuationToken(curPartition));
@@ -333,13 +376,5 @@ public class DynamoDBMetadataHandler
     private String encodeContinuationToken(int partition)
     {
         return String.valueOf(partition);
-    }
-
-    private Object convertArrowTypeIfNecessary(Object object)
-    {
-        if (object instanceof Text) {
-            return object.toString();
-        }
-        return object;
     }
 }

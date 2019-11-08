@@ -20,10 +20,6 @@
 package com.amazonaws.athena.connectors.dynamodb.util;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
@@ -106,77 +102,6 @@ public final class DDBTableUtils
         return new KeyNames(hashKey, rangeKey);
     }
 
-    public static DynamoDBTable getBestIndexForPredicates(DynamoDBTable table, Map<String, ValueSet> constraintSummary)
-    {
-        Set<String> columnNames = constraintSummary.keySet();
-
-        ImmutableList.Builder<DynamoDBTable> hashKeyMatchesBuilder = ImmutableList.builder();
-        // if the original table has a hash key matching a predicate, start with that
-        if (columnNames.contains(table.getHashKey())) {
-            hashKeyMatchesBuilder.add(table);
-        }
-
-        // get indices with hash keys that match a predicate
-        table.getIndexes().stream()
-                .filter(index -> columnNames.contains(index.getHashKey()) && !getHashKeyAttributeValues(constraintSummary.get(index.getHashKey())).isEmpty())
-                .forEach(hashKeyMatchesBuilder::add);
-        List<DynamoDBTable> hashKeyMatches = hashKeyMatchesBuilder.build();
-
-        // if the original table has a range key matching a predicate, start with that
-        ImmutableList.Builder<DynamoDBTable> rangeKeyMatchesBuilder = ImmutableList.builder();
-        if (table.getRangeKey().isPresent() && columnNames.contains(table.getRangeKey().get())) {
-            rangeKeyMatchesBuilder.add(table);
-        }
-
-        // get indices with range keys that match a predicate
-        table.getIndexes().stream()
-                .filter(index -> index.getRangeKey().isPresent() && columnNames.contains(index.getRangeKey().get()))
-                .forEach(rangeKeyMatchesBuilder::add);
-        List<DynamoDBTable> rangeKeyMatches = rangeKeyMatchesBuilder.build();
-
-        // return first index where both hash and range key can be specified with predicates
-        for (DynamoDBTable index : hashKeyMatches) {
-            if (rangeKeyMatches.contains(index)) {
-                return index;
-            }
-        }
-        // else return the first index with a hash key predicate, or the original table if there are none
-        return hashKeyMatches.isEmpty() ? table : hashKeyMatches.get(0);
-    }
-
-    public static List<Object> getHashKeyAttributeValues(ValueSet valueSet)
-    {
-        if (valueSet.isSingleValue()) {
-            return ImmutableList.of(valueSet.getSingleValue());
-        }
-        else if (valueSet instanceof SortedRangeSet) {
-            List<Range> ranges = valueSet.getRanges().getOrderedRanges();
-            ImmutableList.Builder<Object> attributeValues = ImmutableList.builder();
-            for (Range range : ranges) {
-                if (range.isSingleValue()) {
-                    attributeValues.add(range.getSingleValue());
-                }
-                else {
-                    // DDB Query can't handle non-equality conditions for the hash key
-                    return ImmutableList.of();
-                }
-            }
-            return attributeValues.build();
-        }
-        else if (valueSet instanceof EquatableValueSet) {
-            EquatableValueSet equatableValueSet = (EquatableValueSet) valueSet;
-            if (equatableValueSet.isWhiteList()) {
-                ImmutableList.Builder<Object> values = ImmutableList.builder();
-                for (int pos = 0; pos < equatableValueSet.getValueBlock().getRowCount(); pos++) {
-                    values.add(equatableValueSet.getValue(pos));
-                }
-                return values.build();
-            }
-        }
-
-        return ImmutableList.of();
-    }
-
     public static Schema peekTableForSchema(String tableName, AmazonDynamoDB ddbClient)
     {
         ScanRequest scanRequest = new ScanRequest().withTableName(tableName).withLimit(SCHEMA_INFERENCE_NUM_RECORDS);
@@ -216,7 +141,6 @@ public final class DDBTableUtils
         return numSegments;
     }
 
-    // TODO handle case where different attributes in different records may have different types
     private static class KeyNames
     {
         private String hashKey;

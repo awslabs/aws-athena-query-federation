@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.connectors.athena.bigquery;
+package com.amazonaws.athena.connectors.bigquery;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -35,7 +35,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connectors.bigquery.BigQueryExceptions.TooManyTablesException;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
@@ -44,7 +44,6 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.resourcemanager.ResourceManager;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
@@ -54,41 +53,31 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForDatasetName;
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.fixCaseForTableName;
-import static com.amazonaws.connectors.athena.bigquery.BigQueryUtils.translateToArrowType;
+import static com.amazonaws.athena.connectors.bigquery.BigQueryUtils.fixCaseForDatasetName;
+import static com.amazonaws.athena.connectors.bigquery.BigQueryUtils.fixCaseForTableName;
+import static com.amazonaws.athena.connectors.bigquery.BigQueryUtils.translateToArrowType;
 
 public class BigQueryMetadataHandler
-        extends MetadataHandler
+    extends MetadataHandler
 {
-    public static final String PROJECT_NAME = "BQ_PROJECT_NAME";
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
-    private static final String sourceType = "bigquery";
-    private static final long MAX_RESULTS = 10_000;
-    private final BigQuery bigQuery;
-    private final ResourceManager resourceManager;
 
-    public BigQueryMetadataHandler()
-            throws IOException
+    /**
+     * The {@link BigQuery} client to interact with the BigQuery Service.
+     */
+    private final BigQuery bigQuery;
+
+    BigQueryMetadataHandler()
+        throws IOException
     {
-        this(BigQueryUtils.getBigQueryClient(),
-                BigQueryUtils.getResourceManagerClient());
+        this(BigQueryUtils.getBigQueryClient());
     }
 
     @VisibleForTesting
-    BigQueryMetadataHandler(BigQuery bigQuery, ResourceManager resourceManager)
+    BigQueryMetadataHandler(BigQuery bigQuery)
     {
-        super(sourceType);
+        super(BigQueryConstants.SOURCE_TYPE);
         this.bigQuery = bigQuery;
-        this.resourceManager = resourceManager;
-    }
-
-    private String getProjectName(MetadataRequest request)
-    {
-        if (System.getenv(PROJECT_NAME) != null) {
-            return System.getenv(PROJECT_NAME);
-        }
-        return request.getCatalogName();
     }
 
     @Override
@@ -96,13 +85,13 @@ public class BigQueryMetadataHandler
     {
         logger.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
 
-        List<String> schemas = new ArrayList<>();
-        String projectName = getProjectName(listSchemasRequest);
+        final List<String> schemas = new ArrayList<>();
+        final String projectName = BigQueryUtils.getProjectName(listSchemasRequest);
         Page<Dataset> response = bigQuery.listDatasets(projectName);
 
         for (Dataset dataset : response.iterateAll()) {
-            if (schemas.size() > MAX_RESULTS) {
-                throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
+            if (schemas.size() > BigQueryConstants.MAX_RESULTS) {
+                throw new TooManyTablesException();
             }
             schemas.add(dataset.getDatasetId().getDataset().toLowerCase());
             logger.debug("Found Dataset: {}", dataset.getDatasetId().getDataset());
@@ -117,19 +106,19 @@ public class BigQueryMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
-                listTablesRequest.getSchemaName());
+            listTablesRequest.getSchemaName());
 
-        //Check the case
-        String projectName = getProjectName(listTablesRequest);
-        String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
-        DatasetId datasetId = DatasetId.of(projectName, datasetName);
+        //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
+        final String projectName = BigQueryUtils.getProjectName(listTablesRequest);
+        final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
+        final DatasetId datasetId = DatasetId.of(projectName, datasetName);
 
         Page<Table> response = bigQuery.listTables(datasetId);
         List<TableName> tables = new ArrayList<>();
 
         for (Table table : response.iterateAll()) {
-            if (tables.size() > MAX_RESULTS) {
-                throw new RuntimeException("Too many log groups, exceeded max metadata results for schema count.");
+            if (tables.size() > BigQueryConstants.MAX_RESULTS) {
+                throw new TooManyTablesException();
             }
             tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable().toLowerCase()));
         }
@@ -142,25 +131,20 @@ public class BigQueryMetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
     {
-        logger.info("doGetTable called with request {}:{}", getProjectName(getTableRequest),
-                getTableRequest.getTableName());
+        logger.info("doGetTable called with request {}:{}", BigQueryUtils.getProjectName(getTableRequest),
+            getTableRequest.getTableName());
 
-        Schema tableSchema = getSchema(getProjectName(getTableRequest), getTableRequest.getTableName().getSchemaName(),
-                getTableRequest.getTableName().getTableName());
-        return new GetTableResponse(getProjectName(getTableRequest).toLowerCase(),
-                getTableRequest.getTableName(), tableSchema);
+        final Schema tableSchema = getSchema(BigQueryUtils.getProjectName(getTableRequest), getTableRequest.getTableName().getSchemaName(),
+            getTableRequest.getTableName().getTableName());
+        return new GetTableResponse(BigQueryUtils.getProjectName(getTableRequest).toLowerCase(),
+            getTableRequest.getTableName(), tableSchema);
     }
 
-    /**
-     * Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp.
-     *
-     * @see MetadataHandler
-     */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
-        //NoOp as we do not support partitioning.
+        //NoOp since we don't support partitioning at this time.
     }
 
     @Override
@@ -168,14 +152,14 @@ public class BigQueryMetadataHandler
     {
         if (logger.isInfoEnabled()) {
             logger.info("DoGetSplits: {}.{} Part Cols: {}", request.getSchema(), request.getTableName(),
-                    String.join(",", request.getPartitionCols()));
+                String.join(",", request.getPartitionCols()));
         }
 
         //Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
         return new GetSplitsResponse(request.getCatalogName(), Split.newBuilder(spillLocation,
-                makeEncryptionKey()).build());
+            makeEncryptionKey()).build());
     }
 
     private Schema getSchema(String projectName, String datasetName, String tableName)

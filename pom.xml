@@ -54,6 +54,7 @@
         <module>athena-federation-sdk</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>
+        <module>athena-federation-sdk-tools</module>
     </modules>
 
     <dependencies>

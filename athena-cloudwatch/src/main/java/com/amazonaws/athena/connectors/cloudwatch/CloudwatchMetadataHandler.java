@@ -337,6 +337,6 @@ public class CloudwatchMetadataHandler
      */
     private TableName toTableName(ListTablesRequest request, LogStream logStream)
     {
-        return new TableName(request.getSchemaName(), logStream.getLogStreamName());
+        return new TableName(request.getSchemaName(), logStream.getLogStreamName().toLowerCase());
     }
 }

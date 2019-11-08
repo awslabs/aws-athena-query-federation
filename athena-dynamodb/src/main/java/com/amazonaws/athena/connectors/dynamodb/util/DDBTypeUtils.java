@@ -23,6 +23,9 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.Text;
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -81,5 +84,16 @@ public final class DDBTypeUtils
 
         String className = value.getClass() == null ? "null" : value.getClass().getName();
         throw new RuntimeException("Unknown type[" + className + "] for field[" + key + "]");
+    }
+
+    public static Object convertArrowTypeIfNecessary(Object object)
+    {
+        if (object instanceof Text) {
+            return object.toString();
+        }
+        else if (object instanceof LocalDateTime) {
+            return ((LocalDateTime) object).toDateTime(DateTimeZone.UTC).getMillis();
+        }
+        return object;
     }
 }

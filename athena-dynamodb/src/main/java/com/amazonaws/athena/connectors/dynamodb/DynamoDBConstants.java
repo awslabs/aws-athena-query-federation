@@ -21,6 +21,8 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 final class DynamoDBConstants
 {
+    private DynamoDBConstants() {}
+
     public static final String PARTITION_TYPE_METADATA = "partitionType";
     public static final String QUERY_PARTITION_TYPE = "query";
     public static final String SCAN_PARTITION_TYPE = "scan";
@@ -29,6 +31,8 @@ final class DynamoDBConstants
     public static final String INDEX_METADATA = "index";
     public static final String HASH_KEY_NAME_METADATA = "hashKeyName";
     public static final String RANGE_KEY_NAME_METADATA = "rangeKeyName";
-    public static final String PROVISIONED_READ_CAPACITY_METADATA = "provisionedCapacity";
-    private DynamoDBConstants() {}
+    public static final String RANGE_KEY_FILTER_METADATA = "rangeKeyFilter";
+    public static final String NON_KEY_FILTER_METADATA = "nonKeyFilter";
+    public static final String EXPRESSION_NAMES_METADATA = "expressionAttributeNames";
+    public static final String EXPRESSION_VALUES_METADATA = "expressionAttributeValues";
 }
