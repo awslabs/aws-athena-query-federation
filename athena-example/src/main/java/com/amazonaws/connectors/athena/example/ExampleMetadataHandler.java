@@ -195,9 +195,11 @@ public class ExampleMetadataHandler
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request)
             throws Exception
     {
-        for (int year = 2000; year < 2030; year++) {
-            for (int month = 1; month < 13; month++) {
-                for (int day = 1; day < 31; day++) {
+        //we generate partitions for a very narrow range intentionally since we are only uploading fake data
+        //for 1 partition.
+        for (int year = 2017; year < 2018; year++) {
+            for (int month = 11; month < 12; month++) {
+                for (int day = 1; day < 2; day++) {
 
                     final int yearVal = year;
                     final int monthVal = month;
