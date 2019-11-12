@@ -61,6 +61,7 @@ public interface ValueSet
     /**
      * @return range predicates for orderable Types
      */
+    @Transient
     default Ranges getRanges()
     {
         throw new UnsupportedOperationException();

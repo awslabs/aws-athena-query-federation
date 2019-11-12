@@ -375,7 +375,10 @@ public class EquatableValueSet
         final EquatableValueSet other = (EquatableValueSet) obj;
 
         if (this.getType() != other.getType()) {
-            return false;
+            //some arrow types require checking the minor type only, like Decimal. We ignore any params though we may want to reconsider that in the future
+            if (!(this.getType() != null && other.getType() != null && Types.getMinorTypeForArrowType(this.getType()) == Types.getMinorTypeForArrowType(other.getType()))) {
+                return false;
+            }
         }
 
         if (this.whiteList != other.whiteList) {
