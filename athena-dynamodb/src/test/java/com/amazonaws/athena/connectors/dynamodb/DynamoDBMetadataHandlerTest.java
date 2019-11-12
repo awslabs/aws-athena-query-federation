@@ -74,19 +74,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.INDEX_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.PARTITION_TYPE_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.QUERY_PARTITION_TYPE;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_NAME_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SCAN_PARTITION_TYPE;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DEFAULT_SCHEMA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.INDEX_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.NON_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.PARTITION_TYPE_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.QUERY_PARTITION_TYPE;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.RANGE_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SCAN_PARTITION_TYPE;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -168,6 +168,7 @@ public class DynamoDBMetadataHandlerTest
 
         List<TableName> expectedTables = tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(Collectors.toList());
         expectedTables.add(TEST_TABLE_NAME);
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "Test_table2"));
 
         assertEquals(new HashSet<>(res.getTables()), new HashSet<>(expectedTables));
 
@@ -190,6 +191,43 @@ public class DynamoDBMetadataHandlerTest
         assertThat(res.getTableName().getSchemaName(), equalTo(DEFAULT_SCHEMA));
         assertThat(res.getTableName().getTableName(), equalTo(TEST_TABLE));
         assertThat(res.getSchema().getFields().size(), equalTo(10));
+
+        logger.info("doGetTable: exit");
+    }
+
+    @Test
+    public void doGetEmptyTable()
+            throws Exception
+    {
+        logger.info("doGetEmptyTable: enter");
+
+        when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
+
+        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
+        GetTableResponse res = handler.doGetTable(allocator, req);
+
+        logger.info("doGetEmptyTable - {}", res.getSchema());
+
+        assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
+        assertThat(res.getSchema().getFields().size(), equalTo(2));
+
+        logger.info("doGetEmptyTable: exit");
+    }
+
+    @Test
+    public void testCaseInsensitiveResolve()
+            throws Exception
+    {
+        logger.info("doGetTable: enter");
+
+        when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
+
+        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
+        GetTableResponse res = handler.doGetTable(allocator, req);
+
+        logger.info("doGetTable - {}", res.getSchema());
+
+        assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
 
         logger.info("doGetTable: exit");
     }

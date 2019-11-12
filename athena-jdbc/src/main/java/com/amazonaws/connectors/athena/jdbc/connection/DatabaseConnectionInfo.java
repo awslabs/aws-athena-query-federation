@@ -27,13 +27,11 @@ public class DatabaseConnectionInfo
 {
     private final String driverClassName;
     private final int defaultPort;
-    private final String templateConnectionString;
 
-    public DatabaseConnectionInfo(final String driverClassName, final int defaultPort, final String templateConnectionString)
+    public DatabaseConnectionInfo(final String driverClassName, final int defaultPort)
     {
         this.driverClassName = Validate.notBlank(driverClassName, "driverClassName must not be blank");
         this.defaultPort = defaultPort;
-        this.templateConnectionString = Validate.notBlank(templateConnectionString, "templateConnectionString must not be blank");
     }
 
     public String getDriverClassName()
@@ -44,11 +42,6 @@ public class DatabaseConnectionInfo
     public int getDefaultPort()
     {
         return defaultPort;
-    }
-
-    public String getTemplateConnectionString()
-    {
-        return templateConnectionString;
     }
 
     @Override
@@ -62,13 +55,12 @@ public class DatabaseConnectionInfo
         }
         DatabaseConnectionInfo that = (DatabaseConnectionInfo) o;
         return getDefaultPort() == that.getDefaultPort() &&
-                Objects.equals(getDriverClassName(), that.getDriverClassName()) &&
-                Objects.equals(getTemplateConnectionString(), that.getTemplateConnectionString());
+                Objects.equals(getDriverClassName(), that.getDriverClassName());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getDriverClassName(), getDefaultPort(), getTemplateConnectionString());
+        return Objects.hash(getDriverClassName(), getDefaultPort());
     }
 }

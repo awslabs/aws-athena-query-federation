@@ -33,7 +33,7 @@ Parameters:
     Default: 3008
     Type: Number
   DisableSpillEncryption:
-    Description: "If set to 'false' data spilled to S3 is encrypted with AES GCM"
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
   DocDBConnString:

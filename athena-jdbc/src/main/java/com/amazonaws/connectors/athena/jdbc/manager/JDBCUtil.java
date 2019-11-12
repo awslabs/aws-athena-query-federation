@@ -92,6 +92,7 @@ public final class JDBCUtil
         switch (databaseConnectionConfig.getType()) {
             case MYSQL:
                 return new MySqlMetadataHandler(databaseConnectionConfig);
+            case REDSHIFT:
             case POSTGRES:
                 return new PostGreSqlMetadataHandler(databaseConnectionConfig);
             default:
@@ -140,6 +141,7 @@ public final class JDBCUtil
         switch (databaseConnectionConfig.getType()) {
             case MYSQL:
                 return new MySqlRecordHandler(databaseConnectionConfig);
+            case REDSHIFT:
             case POSTGRES:
                 return new PostGreSqlRecordHandler(databaseConnectionConfig);
             default:

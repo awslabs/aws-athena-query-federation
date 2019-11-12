@@ -29,6 +29,8 @@ sudo wget https://archive.apache.org/dist/maven/maven-3/3.5.4/binaries/apache-ma
 sudo tar xf /tmp/apache-maven-3.5.4-bin.tar.gz -C /opt
 echo "export M2_HOME=/opt/apache-maven-3.5.4" >> ~/.profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
+echo "export M2_HOME=/opt/apache-maven-3.5.4" >> ~/.bash_profile
+echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.bash_profile
 
 sudo yum -y install java-1.8.0-openjdk-devel
 sudo update-alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
@@ -43,6 +45,7 @@ test -d ~/.linuxbrew && eval $(~/.linuxbrew/bin/brew shellenv)
 test -d /home/linuxbrew/.linuxbrew && eval $(/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 test -r ~/.bash_profile && echo "eval \$($(brew --prefix)/bin/brew shellenv)" >>~/.bash_profile
 echo "eval \$($(brew --prefix)/bin/brew shellenv)" >>~/.profile
+echo "eval \$($(brew --prefix)/bin/brew shellenv)" >>~/.bash_profile
 
 source ~/.profile
 

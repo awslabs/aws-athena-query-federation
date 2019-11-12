@@ -42,7 +42,8 @@ public interface JdbcConnectionFactory
         MYSQL("mysql"),
         POSTGRES("postgres"),
         ORACLE("oracle"),
-        SQLSERVER("sqlserver");
+        SQLSERVER("sqlserver"),
+        REDSHIFT("redshift");
 
         private final String dbName;
 

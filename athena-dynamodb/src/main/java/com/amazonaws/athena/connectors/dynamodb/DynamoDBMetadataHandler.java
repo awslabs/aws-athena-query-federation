@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -39,7 +40,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
+import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBTableResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
@@ -48,7 +51,6 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ListTablesResult;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -71,31 +73,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.INDEX_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.PARTITION_TYPE_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.QUERY_PARTITION_TYPE;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_NAME_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SCAN_PARTITION_TYPE;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
-import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.INDEX_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.NON_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.PARTITION_TYPE_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.QUERY_PARTITION_TYPE;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.RANGE_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SCAN_PARTITION_TYPE;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
 
 public class DynamoDBMetadataHandler
         extends GlueMetadataHandler
 {
-    static final String DEFAULT_SCHEMA = "default";
+    @VisibleForTesting
     static final int MAX_SPLITS_PER_REQUEST = 1000;
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
     private static final String sourceType = "ddb";
     private static final String GLUE_ENV = "disable_glue";
+
+    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
     private final AmazonDynamoDB ddbClient;
     private final AWSGlue glueClient;
+    private final DynamoDBTableResolver tableResolver;
 
     public DynamoDBMetadataHandler()
     {
@@ -103,6 +110,7 @@ public class DynamoDBMetadataHandler
                 sourceType);
         ddbClient = AmazonDynamoDBClientBuilder.standard().build();
         glueClient = getAwsGlue();
+        tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
     }
 
     @VisibleForTesting
@@ -116,6 +124,7 @@ public class DynamoDBMetadataHandler
         super(glueClient, keyFactory, secretsManager, sourceType, spillBucket, spillPrefix);
         this.glueClient = glueClient;
         this.ddbClient = ddbClient;
+        this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
     }
 
     @Override
@@ -154,18 +163,8 @@ public class DynamoDBMetadataHandler
         }
 
         // add tables that may not be in Glue (if listing the default schema)
-        if (DEFAULT_SCHEMA.equals(request.getSchemaName())) {
-            List<TableName> tablesFromDDB = new ArrayList<>();
-            String nextToken = null;
-            do {
-                com.amazonaws.services.dynamodbv2.model.ListTablesRequest ddbRequest = new com.amazonaws.services.dynamodbv2.model.ListTablesRequest()
-                        .withExclusiveStartTableName(nextToken);
-                ListTablesResult result = ddbClient.listTables(ddbRequest);
-                tablesFromDDB.addAll(result.getTableNames().stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(toImmutableList()));
-                nextToken = result.getLastEvaluatedTableName();
-            }
-            while (nextToken != null);
-            combinedTables.addAll(tablesFromDDB);
+        if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
+            combinedTables.addAll(tableResolver.listTables());
         }
         return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables));
     }
@@ -185,14 +184,22 @@ public class DynamoDBMetadataHandler
         }
 
         // ignore database/schema name since there are no databases/schemas in DDB
-        Schema schema = DDBTableUtils.peekTableForSchema(request.getTableName().getTableName(), ddbClient);
+        Schema schema = tableResolver.getTableSchema(request.getTableName().getTableName());
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
     }
 
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
-        DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);
+        DynamoDBTable table = null;
+        try {
+            table = tableResolver.getTableMetadata(request.getTableName().getTableName());
+        }
+        catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
+        // add table name so we don't have to do case insensitive resolution again
+        partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
         DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
         String hashKeyName = index.getHashKey();
@@ -238,7 +245,7 @@ public class DynamoDBMetadataHandler
             throws Exception
     {
         // TODO consider caching this repeated work in #enhancePartitionSchema
-        DynamoDBTable table = DDBTableUtils.getTable(request.getTableName().getTableName(), ddbClient);
+        DynamoDBTable table = tableResolver.getTableMetadata(request.getTableName().getTableName());
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
         DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
         String hashKeyName = index.getHashKey();

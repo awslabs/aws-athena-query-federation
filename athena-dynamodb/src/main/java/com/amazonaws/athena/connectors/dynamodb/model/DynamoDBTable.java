@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.model;
 
+import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
@@ -34,6 +35,7 @@ public class DynamoDBTable
     private final String name;
     private final String hashKey;
     private final Optional<String> rangeKey;
+    private final List<AttributeDefinition> knownAttributeDefinitions;
     private final List<DynamoDBTable> indexes;
     private final long approxTableSizeInBytes;
     private final long approxItemCount;
@@ -43,6 +45,7 @@ public class DynamoDBTable
             String name,
             String hashKey,
             Optional<String> rangeKey,
+            List<AttributeDefinition> knownAttributeDefinitions,
             List<DynamoDBTable> indexes,
             long approxTableSizeInBytes,
             long approxItemCount,
@@ -51,6 +54,7 @@ public class DynamoDBTable
         checkArgument(!isNullOrEmpty(name), "name is null or is empty");
         this.hashKey = requireNonNull(hashKey, "hashKey is null");
         this.rangeKey = requireNonNull(rangeKey, "rangeKey is null");
+        this.knownAttributeDefinitions = requireNonNull(knownAttributeDefinitions, "knownAttributeDefinitions is null");
         this.name = requireNonNull(name, "name is null");
         this.indexes = ImmutableList.copyOf(requireNonNull(indexes, "indexes is null"));
         this.approxTableSizeInBytes = approxTableSizeInBytes;
@@ -71,6 +75,11 @@ public class DynamoDBTable
     public Optional<String> getRangeKey()
     {
         return rangeKey;
+    }
+
+    public List<AttributeDefinition> getKnownAttributeDefinitions()
+    {
+        return knownAttributeDefinitions;
     }
 
     public List<DynamoDBTable> getIndexes()

@@ -1,17 +1,58 @@
 # Amazon Athena Query Federation SDK
 
+The Athena Query Federation SDK defines a set of interfaces and wire protocols that you can implement to enable Athena to delegate portions of it's query execution plan to code that you deploy/write.
 
+This essentially allows you to customize Athena's core execution engine with your own functionality while still taking advantage of Athena's ease of use and fully managed nature.
+
+You can find a collection of ready made modules that allow Athena to connect to various data sources by going to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/). Serverless Application Repository will allow you to search for and 1-Click deploy Athena connectors.
+ 
+ Alternatively, you can explore [the Amazon Athena Query Federation github repositoru](https://github.com/awslabs/aws-athena-query-federation) for many of those same ready made connectors, modify them as you see fit, or write your own connector using the included example project. 
+
+For those seeking to write their own connectors, we recommend you being by going through the [tutorial in athena-example](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-example)
 
 ## Features
 
+* Federated Metadata - It is not always practical to centralize table metadata in a centralized meta-store. As such, this SDK allows Athena to delegate portions of its query planning to your connector in order to retrieve metadata about your data source.
+* Glue DataCatalog Support - You can optionally enable a pre-built Glue MetadataHandler in your connector which will first attempt to fetch metadata from Glue about any table being queried before given you an opportunitiy to modify or re-write the retrieved metadata. This can be handy when you are using a custom format it S3 or if your data source doesn't have its own source of metadata (e.g. redis). 
+* AWS Secrets Manager Integration - If your connectors need passwords or other sensitive information, you can optionally use the SDK's built in tooling to resolve secrets. For example, if you have a config with a jdbc connection string you can do: "jdbc://${username}:${password}@hostname:post?options" and the SDK will automatically replace ${username} and ${password} with AWS Secrets Manager secrets of the same name.
+* Federated Identity - When Athena federates a query to your connector, you may want to perform Authz based on the identitiy of the entity that executed the Athena Query. 
+* Partition Pruning - Athena will call you connector to understand how the table being queried is partitioned as well as to obtain which partitions need to be read for a given query. If your source supports partitioning, this give you an opportunity to use the query predicate to perform partition prunning.
+* Parallelized & Pipelined Reads - Athena will parallelize reading your tables based on the partitioning information you provide. You also have the opportunity to tell Athena how (and if) it should split each partition into multiple (potentially concurrent) read operations. Behind the scenes Athena will parallelize reading the split (work units) you've created and pipeline reads to reduce the performance impact of reading a remote source. 
+* Predicate Pushdown - (Associative Predicates) Where relevant, Athena will supply you with the associative portion of the query predicate so that you can perform filtering or push the predicate into your source system for even better performance. It is important to note that the predicate is not always the query's full predicate. For example, if the query's predicate was "where (col0 < 1 or col1 < 10) and col2 + 10 < 100" only the "col0 < 1 or col1 < 10" will be supplied to you at this time. We are still considering the best form for supplying connectors with a more complete view of the query and its predicate and expect a future release to provide this to connectors that are capable of utilizing
+* Column Projection - Where relevant, Athena will supply you with the columns that need to be projected so that you can reduce data scanned.
+* Limited Scans - While Athena is not yet able to push down limits to you connector, the SDK does expose a mechanism by which you can abandon a scan early. Athena will already avoid scanning partitions and splits that are not needed once a limit, failure, or user cancellation occurs but this functionality will allow connectors that are in the middle of processing a split to stop regardless of the cause. This works even when the query's limit can not be semantically pushed down (e.g. limit happens after a filtered join). In a future release we may also introduce traditional limit pushdwon for the simple cases that would support that.
+* Congestion Control - Some of the source you may wish to federate to may not be as scalable as Athena or may be running performance sensitive workloads that you wish to protect from an overzealous federated query. Athena will automatically detect congestion by listening for FederationThrottleException(s) as well as many other AWS service exceptions that indicate your source is overwhelemed. When Athena detects congestion it reducing parallelism against your source. Within the SDK you can make use of ThrottlingInvoker to more tightly control congestion yourself. Lastly, you can reduce the concurrency your Lambda functions are allowed to achieve in the Lambda console and Athena will respect that setting.
+
 ### DataTypes
+
+The wire protocol between your connector(s) and Athena is built on Apache Arrow with JSON for request/response structures. As such we make use of Apache Arrow's type system. At this time we support the below Apache Arrow types with plans to add more (e.g. timestamp w/TZ and Map are some of the upcoming additions)
+
+The below table lists the supported Apache Arrow types as well as the corresponding java type you can use to 'set' values via Block.setValue(...) or BlockUtils.setValue(...). It is important to remember that while this SDK offers a number of convenience helpers to make working with Apache Arrow easier for the beginner you always have the option of using Apache Arrow directly. Using Arrow Directly can offer improved performance as well as more options for how you handle type conversion and coercion.
+
+|Apache Arrow Data Type|Java Type|
+|-------------|-----------------|
+|BIT|int, boolean|
+|DATEMILLI|Date, long, int|
+|DATEDAY|Date, long, int|
+|FLOAT8|double|
+|FLOAT4|float|
+|INT|int, long|
+|TINYINT|int|
+|SMALLINT|int|
+|BIGINT|long|
+|VARBINARY|byte[]|
+|DECIMAL|double, BigDecimal|
+|VARCHAR|String, Text|
+|STRUCT|Object (w/ FieldResolver)|
+|LIST|iterable<Object> (w/Optional FieldResolver)|
+
 
 ## What is a 'Connector'?
 
 A 'Connector' is a piece of code that understands how to execute portions of an Athena query outside of Athena's core engine. Connectors must satisfy a few basic requirements.
 
-1. Your connector must provide a source of meta-data for Athena to get schema information about what databases, tables, and columns your connector has. This is done by building and deploying a lambda function that extends com.amazonaws.athena.connector.lambda.handlers.MetadataHandler in the athena-federation-sdk module. 
-2. Your connector must provide a way for Athena to read the data stored in your tables. This is done by building and deploying a lambda function that extends com.amazonaws.athena.connector.lambda.handlers.RecordHandler in the athena-federation-sdk module. 
+1. Your connector must provide a source of meta-data for Athena to get schema information about what databases, tables, and columns your connector has. This is done by building and deploying a lambda function that extends or composes com.amazonaws.athena.connector.lambda.handlers.MetadataHandler in the athena-federation-sdk module. 
+2. Your connector must provide a way for Athena to read the data stored in your tables. This is done by building and deploying a lambda function that extends or composes com.amazonaws.athena.connector.lambda.handlers.RecordHandler in the athena-federation-sdk module. 
 
 Alternatively, you can deploy a single Lambda function which combines the two above requirements by using com.amazonaws.athena.connector.lambda.handlers.CompositeHandler or com.amazonaws.athena.connector.lambda.handlers.UnifiedHandler. While breaking this into two separate Lambda functions allows you to independently control the cost and timeout of your Lambda functions, using a single Lambda function can be simpler and higher performance due to less cold start.
 
@@ -19,7 +60,7 @@ In the next section we take a closer look at the methods we must implement on th
 
 ### MetadataHandler Details
 
-Lets take a closer look at what is required for a MetadataHandler. Below we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new data source.
+ Below we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates only the discrete operations that are relevant to the task at hand, querying our new data source.
 
 All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or mixed case will not be accessible in queries and will be lower cased by Athena's engine to ensure consistency across sources. As such you may need to handle this when integrating with a source that supports mixed case. As an example, you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
 
@@ -71,7 +112,7 @@ public class MyMetadataHandler extends MetadataHandler
 
 You can find example MetadataHandlers by looking at some of the connectors in the repository. athena-cloudwatch and athena-tpcds are fairly easy to follow along with.
 
-Alternatively, if you wish to use AWS Glue DataCatalog as the authrotiative (or suplimental) source of meta-data for your connector you can extend com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler instead of com.amazonaws.athena.connector.lambda.handlers.MetadataHandler. GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the athena-docdb module is an example of using GlueMetadataHandler.
+Alternatively, if you wish to use AWS Glue DataCatalog as the authoritative (or supplimental) source of meta-data for your connector you can extend com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler instead of com.amazonaws.athena.connector.lambda.handlers.MetadataHandler. GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the athena-docdb module is an example of using GlueMetadataHandler.
 
 ### RecordHandler Details
 
@@ -89,27 +130,42 @@ public class MyRecordHandler
        //read the data represented by the Split in the request and use the blockSpiller.writeRow() 
        //to write rows into the response. The Amazon Athena Query Federation SDK handles all the 
        //boiler plate of spilling large response to S3, and optionally encrypting any spilled data.
-       //If you source supports filtering, use the Contraints objects on the request to push the predicate
-       //down into your source. You can also use the provided ContrainEvaluator to performing filtering
+       //If you source supports filtering, use the Constraints objects on the request to push the predicate
+       //down into your source. You can also use the provided ConstraintEvaluator to performing filtering
        //in this code block.
     }
 }
 ```
 
+## Performance
 
-## Performance Tuning
+Federated queries may run more slowly than queries which are 100% localized to Athena's execution engine, however much of this is dependent upon the source you are interacting with.
+When running a federated query, Athena make use of a deep execution pipeline as well as various data pre-fetch techniques to hide the performance impact of doing remote reads. If
+your source supports parallel scans and predicate push-down it is possible to achieve performance that is close to that of native Athena.
 
-### Partition Pruning
+To put some real work context around this, we tested this SDK as well as the usage of AWS Lambda by re-creating Athena's S3 + AWS Glue integration as a federated connector. We then 
+ran 2 tests using a highly (~3000 files totaling 350GB) parallelizable dataset on S3. The tests were a select count(*) from test_table where our test table had 4 columns of 
+primitive types (int, bigint, float4, float8). This query was purposely simple because we wanted to stress test the TABLE_SCAN operation which corresponds very closely to the 
+current capabilities of our connector. We expect most workloads, for parallelizable source tables, to bottleneck on other areas of query execution before running into constraints
+associated with federated TABLE_SCAN performance.
 
-### Predicate Push-Down
+|Test|GB/Sec|Rows/Sec|
+|-------------|-----------------|-------------|
+|Federated S3 Query w/Apache Arrow|102 Gbps|1.5B rows/sec|
+|Athena + TextCSV on S3 Query|115 Gbps|120M rows/sec|
+|Athena + Parquet on S3 Query|30Gbps*|2.7B rows/sec|
+*Parquet's run-length encoding makes the GB/sec number somewhat irrelevant for comparison testing but since it is more compact than Apache Arrow it does mean lower network utilization.
+**These are not exhaustive tests but rather represent the point at which we stopped validation testing.
 
---talk about associative predicates
-
-### Native Apache Arrow
 
 ### Throttling & Rate Limiting
 
-If your Lambda function(s) throw a FederationThrottleException, Athena will use that as an indication that your Lambda function(s) or the source they talk to are under too much load and trigger Athena's Additive-Increase/Multiplicative-Decrease based Congestion Control mechanism. Some sources may generate throttling events in the middle of a Lambda invocation, after some data has already been returned. In these cases, Athena can not always automatically apply congestion control because retrying the call may lead to incorrect query results. We recommend using ThrottlingInvoker to handle calls to depedent services in your connector. The ThrottlingInvoker has hooks to see if you've already written rows to the response and thus decide how best to handle a Throttling event either by: sleeping and retrying in your Lamnbda function or by bubbling up a FederationThrottleException to Athena.
+If your Lambda function(s) throw a FederationThrottleException or if Lambda/EC2 throws a limit exceed exception, Athena will use that as an indication that your Lambda function(s) 
+or the source they talk to are under too much load and trigger Athena's Additive-Increase/Multiplicative-Decrease based Congestion Control mechanism. Some sources may generate 
+throttling events in the middle of a Lambda invocation, after some data has already been returned. In these cases, Athena can not always automatically apply congestion control 
+because retrying the call may lead to incorrect query results. We recommend using ThrottlingInvoker to handle calls to depedent services in your connector. The ThrottlingInvoker 
+has hooks to see if you've already written rows to the response and thus decide how best to handle a Throttling event either by: sleeping and retrying in your Lamnbda function or 
+by bubbling up a FederationThrottleException to Athena.
 
 You can configure ThrottlingInvoker via its builder or for pre-built connectors like athena-cloudwatch by setting the following environment variables:
 

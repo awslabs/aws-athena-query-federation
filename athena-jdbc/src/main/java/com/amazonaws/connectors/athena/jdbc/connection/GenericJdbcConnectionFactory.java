@@ -44,37 +44,30 @@ public class GenericJdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
 
-    private static final String HOST_PROPERTY_NAME = "host";
-    private static final String DATABASE_PROPERTY_NAME = "database";
-    private static final String PORT_PROPERTY_NAME = "port";
-
     private static final String MYSQL_DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
     private static final int MYSQL_DEFAULT_PORT = 3306;
-    private static final String MYSQL_TEMPLATE_CONNECTION_STR = String.format("jdbc:mysql://${%s}:${%s}/${%s}", HOST_PROPERTY_NAME, PORT_PROPERTY_NAME, DATABASE_PROPERTY_NAME);
 
     private static final String POSTGRESQL_DRIVER_CLASS = "org.postgresql.Driver";
     private static final int POSTGRESQL_DEFAULT_PORT = 5432;
-    private static final String POSTGRESQL_TEMPLATE_CONNECTION_STR = String.format("jdbc:postgresql://${%s}:${%s}/${%s}", HOST_PROPERTY_NAME, PORT_PROPERTY_NAME,
-            DATABASE_PROPERTY_NAME);
+
+    private static final String REDSHIFT_DRIVER_CLASS = "com.amazon.redshift.jdbc.Driver";
+    private static final int REDSHIFT_DEFAULT_PORT = 5439;
 
     private static final String ORACLE_DRIVER_CLASS = "oracle.jdbc.driver.OracleDriver";
     private static final int ORACLE_DEFAULT_PORT = 1521;
-    private static final String ORACLE_TEMPLATE_CONNECTION_STR = String.format("jdbc:oracle:thin:@${%s}:${%s}:${%s}", HOST_PROPERTY_NAME, PORT_PROPERTY_NAME,
-            DATABASE_PROPERTY_NAME);
 
     private static final String SQL_SERVER_DRIVER_CLASS = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
     private static final int SQL_SERVER_DEFAULT_PORT = 1433;
-    private static final String SQL_SERVER_TEMPLATE_CONNECTION_STR = String.format("jdbc:sqlserver://${%s}:${%s};databaseName=${%s}", HOST_PROPERTY_NAME, PORT_PROPERTY_NAME,
-            DATABASE_PROPERTY_NAME);
 
     private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9/_+=.@-]+})";
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private static final ImmutableMap<DatabaseEngine, DatabaseConnectionInfo> CONNECTION_INFO = ImmutableMap.of(
-            DatabaseEngine.MYSQL, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT, MYSQL_TEMPLATE_CONNECTION_STR),
-            DatabaseEngine.POSTGRES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT, POSTGRESQL_TEMPLATE_CONNECTION_STR),
-            DatabaseEngine.ORACLE, new DatabaseConnectionInfo(ORACLE_DRIVER_CLASS, ORACLE_DEFAULT_PORT, ORACLE_TEMPLATE_CONNECTION_STR),
-            DatabaseEngine.SQLSERVER, new DatabaseConnectionInfo(SQL_SERVER_DRIVER_CLASS, SQL_SERVER_DEFAULT_PORT, SQL_SERVER_TEMPLATE_CONNECTION_STR));
+            DatabaseEngine.MYSQL, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT),
+            DatabaseEngine.POSTGRES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT),
+            DatabaseEngine.REDSHIFT, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT),
+            DatabaseEngine.ORACLE, new DatabaseConnectionInfo(ORACLE_DRIVER_CLASS, ORACLE_DEFAULT_PORT),
+            DatabaseEngine.SQLSERVER, new DatabaseConnectionInfo(SQL_SERVER_DRIVER_CLASS, SQL_SERVER_DEFAULT_PORT));
 
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;

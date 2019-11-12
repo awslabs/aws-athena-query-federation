@@ -19,10 +19,12 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.util;
 
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.services.dynamodbv2.model.GlobalSecondaryIndexDescription;
@@ -42,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 public final class DDBTableUtils
 {
@@ -57,10 +60,11 @@ public final class DDBTableUtils
 
     private DDBTableUtils() {}
 
-    public static DynamoDBTable getTable(String tableName, AmazonDynamoDB ddbClient)
+    public static DynamoDBTable getTable(String tableName, ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+            throws TimeoutException
     {
         DescribeTableRequest request = new DescribeTableRequest().withTableName(tableName);
-        TableDescription table = ddbClient.describeTable(request).getTable();
+        TableDescription table = invoker.invoke(() -> ddbClient.describeTable(request).getTable());
 
         KeyNames keys = getKeys(table.getKeySchema());
 
@@ -75,16 +79,16 @@ public final class DDBTableUtils
         ImmutableList.Builder<DynamoDBTable> indices = ImmutableList.builder();
         localSecondaryIndexes.forEach(i -> {
             KeyNames indexKeys = getKeys(i.getKeySchema());
-            indices.add(new DynamoDBTable(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ImmutableList.of(), i.getIndexSizeBytes(), i.getItemCount(),
+            indices.add(new DynamoDBTable(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), table.getAttributeDefinitions(), ImmutableList.of(), i.getIndexSizeBytes(), i.getItemCount(),
                     provisionedReadCapacity));
         });
         globalSecondaryIndexes.forEach(i -> {
             KeyNames indexKeys = getKeys(i.getKeySchema());
-            indices.add(new DynamoDBTable(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ImmutableList.of(), i.getIndexSizeBytes(), i.getItemCount(),
+            indices.add(new DynamoDBTable(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), table.getAttributeDefinitions(), ImmutableList.of(), i.getIndexSizeBytes(), i.getItemCount(),
                     i.getProvisionedThroughput() != null ? i.getProvisionedThroughput().getReadCapacityUnits() : PSUEDO_CAPACITY_FOR_ON_DEMAND));
         });
 
-        return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
+        return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), table.getAttributeDefinitions(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
     }
 
     private static KeyNames getKeys(List<KeySchemaElement> keys)
@@ -102,19 +106,29 @@ public final class DDBTableUtils
         return new KeyNames(hashKey, rangeKey);
     }
 
-    public static Schema peekTableForSchema(String tableName, AmazonDynamoDB ddbClient)
+    public static Schema peekTableForSchema(String tableName, ThrottlingInvoker invoker, AmazonDynamoDB ddbClient)
+            throws TimeoutException
     {
         ScanRequest scanRequest = new ScanRequest().withTableName(tableName).withLimit(SCHEMA_INFERENCE_NUM_RECORDS);
-        ScanResult scanResult = ddbClient.scan(scanRequest);
+        ScanResult scanResult = invoker.invoke(() -> ddbClient.scan(scanRequest));
         List<Map<String, AttributeValue>> items = scanResult.getItems();
         Set<String> discoveredColumns = new HashSet<>();
         SchemaBuilder schemaBuilder = new SchemaBuilder();
-        for (Map<String, AttributeValue> item : items) {
-            for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
-                if (!discoveredColumns.contains(column.getKey()) && !Boolean.TRUE.equals(column.getValue().getNULL())) {
-                    schemaBuilder.addField(DDBTypeUtils.getArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue())));
-                    discoveredColumns.add(column.getKey());
+        if (!items.isEmpty()) {
+            for (Map<String, AttributeValue> item : items) {
+                for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
+                    if (!discoveredColumns.contains(column.getKey()) && !Boolean.TRUE.equals(column.getValue().getNULL())) {
+                        schemaBuilder.addField(DDBTypeUtils.getArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue())));
+                        discoveredColumns.add(column.getKey());
+                    }
                 }
+            }
+        }
+        else {
+            // TODO table is currently empty so use key metadata
+            DynamoDBTable table = getTable(tableName, invoker, ddbClient);
+            for (AttributeDefinition attributeDefinition : table.getKnownAttributeDefinitions()) {
+                schemaBuilder.addField(DDBTypeUtils.getArrowFieldFromDDBType(attributeDefinition.getAttributeName(), attributeDefinition.getAttributeType()));
             }
         }
         return schemaBuilder.build();

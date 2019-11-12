@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
@@ -51,7 +52,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DEFAULT_SCHEMA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
+import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toAttributeValue;
 import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toItem;
 
@@ -62,6 +64,7 @@ public class TestBase
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";
     protected static final TableName TEST_TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
+    protected static final TableName TEST_TABLE_2_NAME = new TableName(DEFAULT_SCHEMA, "Test_table2");
 
     protected static AmazonDynamoDB ddbClient;
     protected static Schema schema;
@@ -70,7 +73,8 @@ public class TestBase
     public static void setupOnce() throws Exception
     {
         ddbClient = setupDatabase();
-        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, ddbClient);
+        ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+        schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient);
     }
 
     @AfterClass
@@ -145,6 +149,15 @@ public class TestBase
                 new AttributeDefinition().withAttributeName("col_4").withAttributeType(ScalarAttributeType.N),
                 new AttributeDefinition().withAttributeName("col_5").withAttributeType(ScalarAttributeType.N));
         gsi.waitForActive();
+
+        // for case sensitivity testing
+        createTableRequest = new CreateTableRequest()
+                .withTableName("Test_table2")
+                .withKeySchema(keySchema)
+                .withAttributeDefinitions(attributeDefinitions)
+                .withProvisionedThroughput(provisionedThroughput);
+        table = ddb.createTable(createTableRequest);
+        table.waitForActive();
 
         return client;
     }

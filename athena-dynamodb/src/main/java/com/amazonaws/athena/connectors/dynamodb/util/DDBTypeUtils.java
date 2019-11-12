@@ -37,6 +37,17 @@ import java.util.Set;
 
 public final class DDBTypeUtils
 {
+    // DDB attribute "types"
+    private static final String STRING = "S";
+    private static final String NUMBER = "N";
+    private static final String BOOLEAN = "BOOL";
+    private static final String BINARY = "B";
+    private static final String STRING_SET = "SS";
+    private static final String NUMBER_SET = "NS";
+    private static final String BINARY_SET = "BS";
+    private static final String LIST = "L";
+    private static final String MAP = "M";
+
     private DDBTypeUtils() {}
 
     public static Field getArrowField(String key, Object value)
@@ -95,5 +106,34 @@ public final class DDBTypeUtils
             return ((LocalDateTime) object).toDateTime(DateTimeZone.UTC).getMillis();
         }
         return object;
+    }
+
+    public static Field getArrowFieldFromDDBType(String attributeName, String attributeType)
+    {
+        switch (attributeType) {
+            case STRING:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+            case NUMBER:
+                return new Field(attributeName, FieldType.nullable(new ArrowType.Decimal(38, 9)), null);
+            case BOOLEAN:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.BIT.getType()), null);
+            case BINARY:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.VARBINARY.getType()), null);
+            case STRING_SET:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.LIST.getType()),
+                        Collections.singletonList(new Field("", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null)));
+            case NUMBER_SET:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.LIST.getType()),
+                        Collections.singletonList(new Field("", FieldType.nullable(new ArrowType.Decimal(38, 9)), null)));
+            case BINARY_SET:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.LIST.getType()),
+                        Collections.singletonList(new Field("", FieldType.nullable(Types.MinorType.VARBINARY.getType()), null)));
+            case LIST:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.LIST.getType()), null);
+            case MAP:
+                return new Field(attributeName, FieldType.nullable(Types.MinorType.STRUCT.getType()), null);
+            default:
+                throw new RuntimeException("Unknown type[" + attributeType + "] for field[" + attributeName + "]");
+        }
     }
 }

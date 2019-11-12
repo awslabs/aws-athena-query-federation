@@ -44,13 +44,14 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.NON_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toAttributeValue;
 import static com.amazonaws.util.json.Jackson.toJsonString;
 import static org.junit.Assert.assertEquals;
@@ -95,6 +96,7 @@ public class DynamoDBRecordHandlerTest
         Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
                 .add(SEGMENT_ID_PROPERTY, "0")
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .add(NON_KEY_FILTER_METADATA, "NOT #col_6 IN (:v0,:v1)")
@@ -134,6 +136,7 @@ public class DynamoDBRecordHandlerTest
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
                 .add("col_0", toJsonString(toAttributeValue("test_str_0")))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")
@@ -173,6 +176,7 @@ public class DynamoDBRecordHandlerTest
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
                 .add(HASH_KEY_NAME_METADATA, "col_0")
                 .add("col_0", toJsonString(toAttributeValue("test_str_999999")))
                 .add(RANGE_KEY_FILTER_METADATA, "#col_1 >= :v0")

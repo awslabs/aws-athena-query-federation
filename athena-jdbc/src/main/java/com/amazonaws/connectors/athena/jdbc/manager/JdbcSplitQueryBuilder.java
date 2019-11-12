@@ -183,6 +183,19 @@ public abstract class JdbcSplitQueryBuilder
         // TODO Add isNone and isAll checks once we have data on nullability.
 
         if (valueSet instanceof SortedRangeSet) {
+            if (valueSet.isNone() && valueSet.isNullAllowed()) {
+                return String.format("(%s IS NULL)", columnName);
+            }
+
+            if (valueSet.isNullAllowed()) {
+                disjuncts.add(String.format("(%s IS NULL)", columnName));
+            }
+
+            Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
+            if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
+                return String.format("(%s IS NOT NULL)", columnName);
+            }
+
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
                 if (range.isSingleValue()) {
                     singleValues.add(range.getLow().getValue());

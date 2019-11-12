@@ -1,18 +1,19 @@
 # Amazon Athena Lambda Jdbc Connector
 
-This connector enables Amazon Athena to access your RDBMS or RDS instance(s) using JDBC driver. 
+This connector enables Amazon Athena to access your SQL database or RDS instance(s) using JDBC driver. 
 
 Following databases are supported:
 
 1. MySql
 2. PostGreSql
+3. Redshift
 
 See `com.amazonaws.connectors.athena.jdbc.connectio.JdbcConnectionFactory.DatabaseEngine` for latest database types supported.
 
 # Terms
 
 * **Database Instance:** Any instance of a database deployed on premises, EC2 or using RDS.
-* **Database type:** Could be one of mysql, postgres. 
+* **Database type:** Could be one of mysql, postgres, redshift.
 * **Handler:** A Lambda handler accessing your database instance(s). Could be metadata or a record handler.
 * **Metadata Handler:** A Lambda handler that retrieves metadata from your database instance(s).
 * **Record Handler:** A Lambda handler that retrieves data records from your database instance(s). 
@@ -36,7 +37,7 @@ We support following format:
 `${db_type}://<jdbc_connection_string>`
 
 ```
-db_type                 One of following, mysql, postgres.
+db_type                 One of following, mysql, postgres, redshift.
 jdbc_connection_string  Connection string for a database type. For example, MySql connection String: jdbc:mysql://host1:33060/database
 ```
 
@@ -78,6 +79,7 @@ Database specific metadata and record handlers can also be used to connect to a 
 |---|---|---|
 |MySql|com.amazonaws.connectors.athena.jdbc.mysql.MySqlMetadataHandler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlRecordHandler|
 |PostGreSql|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
+|Redshift|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
 
 **Parameters:**
 
@@ -100,7 +102,6 @@ These handlers support one database instance. Must provide `default` parameter, 
 All database instances accessed using Lambda spill to the same location
 
 ```
-default_db_instance         Default Database instance name. Required for Mux. This will be used if catalog is `lambda:${AWS_LAMBDA_FUNCTION_NAME}`
 spill_bucket                Bucket name for spill. Required.
 spill_prefix                Spill bucket key prefix. Required.
 ```
@@ -142,13 +143,15 @@ A partition is represented by a single partition column of type varchar. We leve
 |partition_name|Varchar|Named partition in MySql. E.g. p0|
 
  
-### PostGreSql
+### PostGreSql & Redshift
 A partition is represented by two partition columns of type varchar. We leverage partitions as child tables defined on a PostGres table, and these columns contain child schema and child table information. For a table that does not have partition names, * is returned which single partition. A partition is equivalent to a split.
 
 |Name|Type|Description
 |---|---|---|
 |partition_schema|Varchar|Child table schema name|
 |partition_name|Varchar|Child table name|
+
+In case of Redshift partition_schema and partition_name will always be "*".
 
 # JDBC Driver Versions
 Current supported versions of JDBC Driver:
@@ -157,6 +160,7 @@ Current supported versions of JDBC Driver:
 |---|---|
 |MySql|8.0.17|
 |PostGreSql|42.2.8|
+|Redshift|1.2.34.1058|
 
 # Limitations
 * Write DDL operations are not supported. Athena can only do read operations currently. Athena assumes tables and relevant entities already exist in database instance. 

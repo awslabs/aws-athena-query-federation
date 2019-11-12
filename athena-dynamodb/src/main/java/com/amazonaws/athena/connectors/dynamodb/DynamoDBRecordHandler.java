@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
@@ -39,6 +40,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -52,17 +56,21 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.HASH_KEY_NAME_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.INDEX_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.NON_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_COUNT_METADATA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.INDEX_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.NON_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.RANGE_KEY_FILTER_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
+import static com.amazonaws.athena.connectors.dynamodb.throttling.DynamoDBExceptionFilter.EXCEPTION_FILTER;
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class DynamoDBRecordHandler
@@ -76,6 +84,15 @@ public class DynamoDBRecordHandler
     private static final TypeReference<HashMap<String, String>> STRING_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, String>>() {};
     private static final TypeReference<HashMap<String, AttributeValue>> ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, AttributeValue>>() {};
 
+    private final LoadingCache<String, ThrottlingInvoker> invokerCache = CacheBuilder.newBuilder().build(
+        new CacheLoader<String, ThrottlingInvoker>() {
+            @Override
+            public ThrottlingInvoker load(String tableName)
+                    throws Exception
+            {
+                return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+            }
+        });
     private final AmazonDynamoDB ddbClient;
 
     public DynamoDBRecordHandler()
@@ -93,9 +110,12 @@ public class DynamoDBRecordHandler
 
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest)
+            throws ExecutionException
     {
         Split split = recordsRequest.getSplit();
-        String tableName = recordsRequest.getTableName().getTableName();
+        // use the property instead of the request table name because of case sensitivity
+        String tableName = split.getProperty(TABLE_METADATA);
+        invokerCache.get(tableName).setBlockSpiller(spiller);
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName);
 
         long numRows = 0;
@@ -224,23 +244,28 @@ public class DynamoDBRecordHandler
                     return currentPageIterator.get().next();
                 }
                 Iterator<Map<String, AttributeValue>> iterator;
-                if (request instanceof QueryRequest) {
-                    QueryRequest paginatedRequest = ((QueryRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Invoking DDB with Query request: {}", request);
+                try {
+                    if (request instanceof QueryRequest) {
+                        QueryRequest paginatedRequest = ((QueryRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Invoking DDB with Query request: {}", request);
+                        }
+                        QueryResult queryResult = invokerCache.get(tableName).invoke(() -> ddbClient.query(paginatedRequest));
+                        lastKeyEvaluated.set(queryResult.getLastEvaluatedKey());
+                        iterator = queryResult.getItems().iterator();
                     }
-                    QueryResult queryResult = ddbClient.query(paginatedRequest);
-                    lastKeyEvaluated.set(queryResult.getLastEvaluatedKey());
-                    iterator = queryResult.getItems().iterator();
+                    else {
+                        ScanRequest paginatedRequest = ((ScanRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Invoking DDB with Scan request: {}", request);
+                        }
+                        ScanResult scanResult = invokerCache.get(tableName).invoke(() -> ddbClient.scan(paginatedRequest));
+                        lastKeyEvaluated.set(scanResult.getLastEvaluatedKey());
+                        iterator = scanResult.getItems().iterator();
+                    }
                 }
-                else {
-                    ScanRequest paginatedRequest = ((ScanRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Invoking DDB with Scan request: {}", request);
-                    }
-                    ScanResult scanResult = ddbClient.scan(paginatedRequest);
-                    lastKeyEvaluated.set(scanResult.getLastEvaluatedKey());
-                    iterator = scanResult.getItems().iterator();
+                catch (TimeoutException | ExecutionException e) {
+                    throw new RuntimeException(e);
                 }
                 currentPageIterator.set(iterator);
                 if (iterator.hasNext()) {

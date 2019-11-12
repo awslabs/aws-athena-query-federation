@@ -142,7 +142,7 @@ Now run `mvn clean install -DskipTests=true` from the athena-federation-sdk dire
 
 ### Step 4: Write The Code
 
-1. Create an s3 bucket, that we can use for spill and to upload some sample data using the following command `aws s3 mb s3://BUCKET_NAME` but be sure to put your actual bucket name in the command and that you pick something that is unlikely to already exist.
+1. Create an s3 bucket (in the same region you will be deploying the connector), that we can use for spill and to upload some sample data using the following command `aws s3 mb s3://BUCKET_NAME` but be sure to put your actual bucket name in the command and that you pick something that is unlikely to already exist.
 2. (If using Cloud9) Navigate to the aws-athena-query-federation/athena-example folder on the left nav. This is the code you extracted back in Step 2.
 3. Complete the TODOs in ExampleMetadataHandler by uncommenting the provided example code and providing missing code where indicated.
 4. Complete the TODOs in ExampleRecordHandler by uncommenting the provided example code and providing missing code where indicated.
