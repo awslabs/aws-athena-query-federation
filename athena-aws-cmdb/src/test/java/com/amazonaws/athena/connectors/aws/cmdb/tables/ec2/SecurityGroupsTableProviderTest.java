@@ -173,7 +173,7 @@ public class SecurityGroupsTableProviderTest
 
                         .withIpv6Ranges(new Ipv6Range().withCidrIpv6("cidr").withDescription("description"))
                         .withPrefixListIds(new PrefixListId().withPrefixListId("prefix").withDescription("description"))
-                        .withUserIdGroupPairs(new UserIdGroupPair().withGroupId("groupid").withGroupName("groupName"))
+                        .withUserIdGroupPairs(new UserIdGroupPair().withGroupId("group_id").withUserId("user_id"))
                 );
     }
 }

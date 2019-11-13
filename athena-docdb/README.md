@@ -31,6 +31,36 @@ To support these two SQL statements we'd need to add two environment variables t
 You can also optionally use SecretsManager for part or all of the value for the preceeding connection details. For example, if I set a Lambda environment variable for  **docdb_instance_1** to be "mongodb://${docdb_instance_1_creds}@myhostname.com:123/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0" the Athena Federation 
 SDK will automatically attempt to retrieve a secret from AWS SecretsManager named "docdb_instance_1_creds" and inject that value in place of "${docdb_instance_1_creds}". Basically anything between ${...} is attempted as a secret in SecretsManager. If no such secret exists, the text isn't replaced.
 
+### Data Types
+
+The schema inference feature of this connector will attempt to infer values as one of the following:
+
+|Apache Arrow DataType|Java/DocDB Type|
+|-------------|-----------------|
+|VARCHAR|String|
+|INT|Integer|
+|BIGINT|Long|
+|BIT|Boolean|
+|FLOAT4|Float|
+|FLOAT8|Double|
+|TIMESTAMPSEC|Date|
+|VARCHAR|ObjectId|
+|LIST|List|
+|STRUCT|Document|
+
+Alternatively, if you are using Glue for supplimental metadata you can configure the following types:
+        
+|Glue DataType|Apache Arrow Type|
+|-------------|-----------------|
+|int|INT|
+|bigint|BIGINT|
+|double|FLOAT8|
+|float|FLOAT4|
+|boolean|BIT|
+|binary|VARBINARY|
+|string|VARCHAR|
+|List|LIST|
+|Struct|STRUCT|
 
 ### Required Permissions
 

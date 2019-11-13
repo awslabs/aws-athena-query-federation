@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -62,7 +62,7 @@ public class RouteTableProviderTest
 
     protected String getIdField()
     {
-        return "routeTableId";
+        return "route_table_id";
     }
 
     protected String getIdValue()
@@ -163,16 +163,16 @@ public class RouteTableProviderTest
         routeTable.withRouteTableId(id)
                 .withOwnerId("owner")
                 .withVpcId("vpc")
-                .withAssociations(new RouteTableAssociation().withSubnetId("subnet").withRouteTableId("routeTableId"))
+                .withAssociations(new RouteTableAssociation().withSubnetId("subnet").withRouteTableId("route_table_id"))
                 .withTags(new Tag("key", "value"))
-                .withPropagatingVgws(new PropagatingVgw().withGatewayId("gatewayId"))
+                .withPropagatingVgws(new PropagatingVgw().withGatewayId("gateway_id"))
                 .withRoutes(new Route()
                         .withDestinationCidrBlock("dst_cidr")
                         .withDestinationIpv6CidrBlock("dst_cidr_v6")
                         .withDestinationPrefixListId("dst_prefix_list")
                         .withEgressOnlyInternetGatewayId("egress_igw")
                         .withGatewayId("gateway")
-                        .withInstanceId("instanceId")
+                        .withInstanceId("instance_id")
                         .withInstanceOwnerId("instance_owner")
                         .withNatGatewayId("nat_gateway")
                         .withNetworkInterfaceId("interface")

@@ -95,7 +95,7 @@ public class RouteTableProvider
         boolean done = false;
         DescribeRouteTablesRequest request = new DescribeRouteTablesRequest();
 
-        ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("routeTableId");
+        ValueSet idConstraint = recordsRequest.getConstraints().getSummary().get("route_table_id");
         if (idConstraint != null && idConstraint.isSingleValue()) {
             request.setRouteTableIds(Collections.singletonList(idConstraint.getSingleValue().toString()));
         }
@@ -133,7 +133,7 @@ public class RouteTableProvider
         spiller.writeRows((Block block, int row) -> {
             boolean matched = true;
 
-            matched &= block.offerValue("routeTableId", row, routeTable.getRouteTableId());
+            matched &= block.offerValue("route_table_id", row, routeTable.getRouteTableId());
             matched &= block.offerValue("owner", row, routeTable.getOwnerId());
             matched &= block.offerValue("vpc", row, routeTable.getVpcId());
             matched &= block.offerValue("dst_cidr", row, route.getDestinationCidrBlock());
@@ -141,7 +141,7 @@ public class RouteTableProvider
             matched &= block.offerValue("dst_prefix_list", row, route.getDestinationPrefixListId());
             matched &= block.offerValue("egress_igw", row, route.getEgressOnlyInternetGatewayId());
             matched &= block.offerValue("gateway", row, route.getGatewayId());
-            matched &= block.offerValue("instanceId", row, route.getInstanceId());
+            matched &= block.offerValue("instance_id", row, route.getInstanceId());
             matched &= block.offerValue("instance_owner", row, route.getInstanceOwnerId());
             matched &= block.offerValue("nat_gateway", row, route.getNatGatewayId());
             matched &= block.offerValue("interface", row, route.getNetworkInterfaceId());
@@ -160,7 +160,7 @@ public class RouteTableProvider
 
             List<String> propagatingVgws = routeTable.getPropagatingVgws().stream()
                     .map(next -> next.getGatewayId()).collect(Collectors.toList());
-            matched &= block.offerComplexValue("propagatingVgws", row, FieldResolver.DEFAULT, propagatingVgws);
+            matched &= block.offerComplexValue("propagating_vgws", row, FieldResolver.DEFAULT, propagatingVgws);
 
             return matched ? 1 : 0;
         });
@@ -171,18 +171,18 @@ public class RouteTableProvider
      */
     static {
         SCHEMA = SchemaBuilder.newBuilder()
-                .addStringField("routeTableId")
+                .addStringField("route_table_id")
                 .addStringField("owner")
                 .addStringField("vpc")
                 .addListField("associations", Types.MinorType.VARCHAR.getType())
                 .addListField("tags", Types.MinorType.VARCHAR.getType())
-                .addListField("propagatingVgws", Types.MinorType.VARCHAR.getType())
+                .addListField("propagating_vgws", Types.MinorType.VARCHAR.getType())
                 .addStringField("dst_cidr")
                 .addStringField("dst_cidr_v6")
                 .addStringField("dst_prefix_list")
                 .addStringField("egress_igw")
                 .addStringField("gateway")
-                .addStringField("instanceId")
+                .addStringField("instance_id")
                 .addStringField("instance_owner")
                 .addStringField("nat_gateway")
                 .addStringField("interface")
@@ -190,18 +190,18 @@ public class RouteTableProvider
                 .addStringField("state")
                 .addStringField("transit_gateway")
                 .addStringField("vpc_peering_con")
-                .addMetadata("routeTableId", "Id of the route table the route belongs to.")
+                .addMetadata("route_table_id", "Id of the route table the route belongs to.")
                 .addMetadata("owner", "Owner of the route table.")
                 .addMetadata("vpc", "VPC the route table is associated with.")
                 .addMetadata("associations", "List of associations for this route table.")
                 .addMetadata("tags", "Tags on the route table.")
-                .addMetadata("propagatingVgws", "Vgws the route table propogates through.")
+                .addMetadata("propagating_vgws", "Vgws the route table propogates through.")
                 .addMetadata("dst_cidr", "Destination IPv4 CIDR block for the route.")
                 .addMetadata("dst_cidr_v6", "Destination IPv6 CIDR block for the route.")
                 .addMetadata("dst_prefix_list", "Destination prefix list for the route.")
                 .addMetadata("egress_igw", "Egress gateway for the route.")
                 .addMetadata("gateway", "Gateway for the route.")
-                .addMetadata("instanceId", "Instance id of the route.")
+                .addMetadata("instance_id", "Instance id of the route.")
                 .addMetadata("instance_owner", "Owner of the route.")
                 .addMetadata("nat_gateway", "NAT gateway used by the route.")
                 .addMetadata("interface", "Interface associated with the route.")

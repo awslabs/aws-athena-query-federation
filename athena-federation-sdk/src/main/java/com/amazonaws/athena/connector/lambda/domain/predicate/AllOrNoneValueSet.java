@@ -29,6 +29,15 @@ import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Describes a constraint as a ValueSet which can have one of several states:
+ * 1. No value can match
+ * 2. Only NULL values can match
+ * 3. Only non-null values can match
+ * 4. All values can match
+ *
+ * @see ValueSet
+ */
 public class AllOrNoneValueSet
         implements ValueSet
 {

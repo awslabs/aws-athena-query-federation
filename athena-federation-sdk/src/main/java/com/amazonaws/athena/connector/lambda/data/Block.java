@@ -162,7 +162,8 @@ public class Block
      * @param fieldName The name of the field you wish to write to.
      * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
      * @param value The value you wish to write.
-     * @return True if the value was written to the Block, False if the value was not written due to failing a constraint.
+     * @return True if the value was written to the Block (even if the field is missing from the Block),
+     * False if the value was not written due to failing a constraint.
      * @note This method will take no action if the provided fieldName is not a valid field in this Block's Schema.
      * In such cases the method will return true.
      */
@@ -205,7 +206,8 @@ public class Block
      * @param fieldName The name of the field you wish to write to.
      * @param row The row number to write to. Note that Apache Arrow Blocks begin with row 0 just like a typical array.
      * @param value The value you wish to write.
-     * @return True if the value was written to the Block, False if the value was not written due to failing a constraint.
+     * @return True if the value was written to the Block (even if the field is missing from the Block),
+     * False if the value was not written due to failing a constraint.
      * @note This method will take no action if the provided fieldName is not a valid field in this Block's Schema.
      * In such cases the method will return true.
      */
@@ -214,9 +216,8 @@ public class Block
         FieldVector vector = getFieldVector(fieldName);
         if (vector != null) {
             BlockUtils.setComplexValue(vector, row, fieldResolver, value);
-            return true;
         }
-        return false;
+        return true;
     }
 
     /**

@@ -31,6 +31,18 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Used to apply predicates to values inside your connector. Ideally you would also be able to push
+ * constraints into your source system (e.g. RDBMS via SQL). For each value you'd like to write for a given row,
+ * you call the 'apply' function on this class and if the values for all columns in the row return 'true' that
+ * indicates that the row passes the constraints.
+ *
+ * @note This abstraction works well for the associative predicates that are made available to your connector
+ * today but will likely require enhancement as we expose more sophisticated predicates (e.g. col1 + col2 < 100)
+ * in the future. Additionally, we do not support constraints on complex types are this time.
+ * <p>
+ * For usage examples, please see the ExampleRecordHandler or connectors like athena-redis.
+ */
 public class ConstraintEvaluator
         implements AutoCloseable
 {
@@ -39,7 +51,11 @@ public class ConstraintEvaluator
     private final Constraints constraints;
 
     //Used to reduce the object overhead of constraints by sharing blocks across Markers.
+    //This is a byproduct of the way we are using Apache Arrow to hold Markers which are essentially
+    //a single value blocks. This factory allows us to represent a Marker (aka a single value) as
+    //a row in a shared block to improve memory and perf.
     private final MarkerFactory markerFactory;
+    //Holds the type for each field.
     private final Map<String, ArrowType> typeMap = new HashMap<>();
 
     public ConstraintEvaluator(BlockAllocator allocator, Schema schema, Constraints constraints)

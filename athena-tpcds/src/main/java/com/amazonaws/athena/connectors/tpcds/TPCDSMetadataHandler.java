@@ -179,13 +179,17 @@ public class TPCDSMetadataHandler
         logger.info("doGetSplits: Generating {} splits for {} at scale factor {}",
                 totalSplits, request.getTableName(), scaleFactor);
 
+        int nextSplit = request.getContinuationToken() == null ? 0 : Integer.parseInt(request.getContinuationToken());
         Set<Split> splits = new HashSet<>();
-        for (int i = 0; i < totalSplits; i++) {
+        for (int i = nextSplit; i < totalSplits; i++) {
             splits.add(Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                     .add(SPLIT_NUMBER_FIELD, String.valueOf(i))
                     .add(SPLIT_TOTAL_NUMBER_FIELD, String.valueOf(totalSplits))
                     .add(SPLIT_SCALE_FACTOR_FIELD, String.valueOf(scaleFactor))
                     .build());
+            if (splits.size() >= 1000) {
+                return new GetSplitsResponse(catalogName, splits, String.valueOf(i + 1));
+            }
         }
 
         logger.info("doGetSplits: exit - " + splits.size());

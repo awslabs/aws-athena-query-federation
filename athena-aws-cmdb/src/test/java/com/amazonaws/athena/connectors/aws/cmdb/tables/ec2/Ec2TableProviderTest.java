@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -64,7 +64,7 @@ public class Ec2TableProviderTest
 
     protected String getIdField()
     {
-        return "instanceId";
+        return "instance_id";
     }
 
     protected String getIdValue()
@@ -173,24 +173,24 @@ public class Ec2TableProviderTest
     {
         Instance instance = new Instance();
         instance.withInstanceId(id)
-                .withImageId("imageId")
-                .withInstanceType("instanceType")
+                .withImageId("image_id")
+                .withInstanceType("instance_type")
                 .withPlatform("platform")
-                .withPrivateDnsName("privateDnsName")
-                .withPrivateIpAddress("privateIpAddress")
-                .withPublicDnsName("publicDnsName")
-                .withPublicIpAddress("publicIpAddress")
-                .withSubnetId("subnetId")
-                .withVpcId("vpcId")
+                .withPrivateDnsName("private_dns_name")
+                .withPrivateIpAddress("private_ip_address")
+                .withPublicDnsName("public_dns_name")
+                .withPublicIpAddress("public_ip_address")
+                .withSubnetId("subnet_id")
+                .withVpcId("vpc_id")
                 .withArchitecture("architecture")
-                .withInstanceLifecycle("instanceLifecycle")
-                .withRootDeviceName("rootDeviceName")
-                .withRootDeviceType("rootDeviceType")
-                .withSpotInstanceRequestId("spotInstanceRequestId")
-                .withVirtualizationType("virtualizationType")
-                .withKeyName("keyName")
-                .withKernelId("kernelId")
-                .withCapacityReservationId("capacityReservationId")
+                .withInstanceLifecycle("instance_lifecycle")
+                .withRootDeviceName("root_device_name")
+                .withRootDeviceType("root_device_type")
+                .withSpotInstanceRequestId("spot_instance_request_id")
+                .withVirtualizationType("virtualization_type")
+                .withKeyName("key_name")
+                .withKernelId("kernel_id")
+                .withCapacityReservationId("capacity_reservation_id")
                 .withLaunchTime(new Date(100_000))
                 .withState(new InstanceState().withCode(100).withName("name"))
                 .withStateReason(new StateReason().withCode("code").withMessage("message"))
@@ -201,11 +201,11 @@ public class Ec2TableProviderTest
                 .withStatus("status")
                 .withSubnetId("subnet")
                 .withVpcId("vpc")
-                .withMacAddress("macAddress")
+                .withMacAddress("mac_address")
                 .withPrivateDnsName("private_dns")
                 .withPrivateIpAddress("private_ip")
                 .withNetworkInterfaceId("interface_id")
-                .withGroups(new GroupIdentifier().withGroupId("groupId").withGroupName("groupname")));
+                .withGroups(new GroupIdentifier().withGroupId("group_id").withGroupName("group_name")));
 
         interfaces.add(new InstanceNetworkInterface()
                 .withStatus("status")
@@ -215,11 +215,11 @@ public class Ec2TableProviderTest
                 .withPrivateDnsName("private_dns")
                 .withPrivateIpAddress("private_ip")
                 .withNetworkInterfaceId("interface_id")
-                .withGroups(new GroupIdentifier().withGroupId("groupId").withGroupName("groupname")));
+                .withGroups(new GroupIdentifier().withGroupId("group_id").withGroupName("group_name")));
 
         instance.withNetworkInterfaces(interfaces)
-                .withSecurityGroups(new GroupIdentifier().withGroupId("groupId").withGroupName("groupname"))
-                .withBlockDeviceMappings(new InstanceBlockDeviceMapping().withDeviceName("deviceName").withEbs(new EbsInstanceBlockDevice().withVolumeId("volumeId")));
+                .withSecurityGroups(new GroupIdentifier().withGroupId("group_id").withGroupName("group_name"))
+                .withBlockDeviceMappings(new InstanceBlockDeviceMapping().withDeviceName("device_name").withEbs(new EbsInstanceBlockDevice().withVolumeId("volume_id")));
 
         return instance;
     }

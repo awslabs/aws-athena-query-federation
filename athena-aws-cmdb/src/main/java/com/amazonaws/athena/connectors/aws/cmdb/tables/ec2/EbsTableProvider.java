@@ -36,6 +36,8 @@ import com.amazonaws.services.ec2.model.DescribeVolumesResult;
 import com.amazonaws.services.ec2.model.Volume;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -47,6 +49,7 @@ import java.util.stream.Collectors;
 public class EbsTableProvider
         implements TableProvider
 {
+    private static final Logger logger = LoggerFactory.getLogger(EbsTableProvider.class);
     private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
@@ -103,6 +106,7 @@ public class EbsTableProvider
             DescribeVolumesResult response = ec2.describeVolumes(request);
 
             for (Volume volume : response.getVolumes()) {
+                logger.info("readWithConstraint: {}", response);
                 instanceToRow(volume, spiller);
             }
 

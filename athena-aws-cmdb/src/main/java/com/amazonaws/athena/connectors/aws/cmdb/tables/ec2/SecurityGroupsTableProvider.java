@@ -165,12 +165,12 @@ public class SecurityGroupsTableProvider
 
             List<String> prefixLists = permission.getPrefixListIds().stream()
                     .map(next -> next.getPrefixListId() + ":" + next.getDescription()).collect(Collectors.toList());
-            matched &= block.offerComplexValue("prefixLists", row, FieldResolver.DEFAULT, prefixLists);
+            matched &= block.offerComplexValue("prefix_lists", row, FieldResolver.DEFAULT, prefixLists);
 
             List<String> userIdGroups = permission.getUserIdGroupPairs().stream()
-                    .map(next -> next.getUserId() + ":" + next.getVpcPeeringConnectionId() + ":" + next.getDescription())
+                    .map(next -> next.getUserId() + ":" + next.getGroupId())
                     .collect(Collectors.toList());
-            matched &= block.offerComplexValue("userIdGroups", row, FieldResolver.DEFAULT, userIdGroups);
+            matched &= block.offerComplexValue("user_id_groups", row, FieldResolver.DEFAULT, userIdGroups);
 
             return matched ? 1 : 0;
         });
@@ -190,8 +190,8 @@ public class SecurityGroupsTableProvider
                 .addStringField("direction")
                 .addListField("ipv4_ranges", Types.MinorType.VARCHAR.getType())
                 .addListField("ipv6_ranges", Types.MinorType.VARCHAR.getType())
-                .addListField("prefixLists", Types.MinorType.VARCHAR.getType())
-                .addListField("userIdGroups", Types.MinorType.VARCHAR.getType())
+                .addListField("prefix_lists", Types.MinorType.VARCHAR.getType())
+                .addListField("user_id_groups", Types.MinorType.VARCHAR.getType())
                 .addMetadata("id", "Security Group ID.")
                 .addMetadata("name", "Name of the security group.")
                 .addMetadata("description", "Description of the security group.")
@@ -201,8 +201,8 @@ public class SecurityGroupsTableProvider
                 .addMetadata("direction", "Notes if the rule applies inbound (ingress) or outbound (egress).")
                 .addMetadata("ipv4_ranges", "The ip v4 ranges covered by this security group.")
                 .addMetadata("ipv6_ranges", "The ip v6 ranges covered by this security group.")
-                .addMetadata("prefixLists", "The prefix lists covered by this security group.")
-                .addMetadata("userIdGroups", "The user id groups covered by this security group.")
+                .addMetadata("prefix_lists", "The prefix lists covered by this security group.")
+                .addMetadata("user_id_groups", "The user id groups covered by this security group.")
                 .build();
     }
 }
