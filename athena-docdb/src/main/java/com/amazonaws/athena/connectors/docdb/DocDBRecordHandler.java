@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -45,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 
 /**
@@ -135,11 +135,8 @@ public class DocDBRecordHandler
                     try {
                         switch (fieldType) {
                             case LIST:
-                                matched &= block.offerComplexValue(nextField.getName(), rowNum, FieldResolver.DEFAULT, value);
-                                break;
                             case STRUCT:
-                                matched &= block.offerComplexValue(nextField.getName(), rowNum,
-                                        (Field field, Object val) -> ((Document) val).get(field.getName()), value);
+                                matched &= block.offerComplexValue(nextField.getName(), rowNum, DEFAULT_FIELD_RESOLVER, value);
                                 break;
                             default:
                                 matched &= block.offerValue(nextField.getName(), rowNum, value);

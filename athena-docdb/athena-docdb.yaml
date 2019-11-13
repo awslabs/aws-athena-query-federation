@@ -1,66 +1,4 @@
 Transform: 'AWS::Serverless-2016-10-31'
-
-Metadata:
-  AWS::ServerlessRepo::Application:
-    Author: Amazon Athena
-    SpdxLicenseId: Apache-2.0
-    LicenseUrl: LICENSE.txt
-    ReadmeUrl: README.md
-    Labels: ['athena-federation']
-    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 1.0.0
-    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
-
-# Parameters are CloudFormation features to pass input
-# to your template when you create a stack
-Parameters:
-  AthenaCatalogName:
-    Description: "The name you will give to this catalog in Athena. It will also be used as the function name prefix."
-    Type: String
-  SpillBucket:
-    Description: "The bucket where this function can spill data."
-    Type: String
-  SpillPrefix:
-    Description: "The prefix within the spill bucket where this function can spill responses that are too large for Lambda."
-    Type: String
-    Default: "athena-federation-spill"
-  LambdaTimeout:
-    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
-    Default: 90
-    Type: Number
-  LambdaMemory:
-    Description: "Lambda memory in MB (min 128 - 3008 max)."
-    Default: 3008
-    Type: Number
-  DisableSpillEncryption:
-    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
-    Default: "false"
-    Type: String
-  DocDBConnString:
-      Description: "Set to your DocumentDB connection string or SecretsManager secret containing the connection string."
-      Default: "e.g. mongodb://<username>:<password>@<hostname>:<port>/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0"
-      Type: String
-Resources:
-  ConnectorConfig:
-    Type: 'AWS::Serverless::Function'
-    Properties:
-      Environment:
-        Variables:
-          disable_spill_encryption: !Ref DisableSpillEncryption
-          spill_bucket: !Ref SpillBucket
-          spill_prefix: !Ref SpillPrefix
-      FunctionName: !Sub "${AthenaCatalogName}-connector"
-      Runtime: java8
-      Timeout: !Ref LambdaTimeout
-      MemorySize: !Ref LambdaMemory
-      Policies:
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
-        - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
-
-
-Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaDocumentDBConnector
@@ -88,7 +26,7 @@ Parameters:
     Default: athena-spill
   LambdaTimeout:
     Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
-    Default: 90
+    Default: 900
     Type: Number
   LambdaMemory:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'

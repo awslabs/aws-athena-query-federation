@@ -41,8 +41,8 @@ public class Range
             @JsonProperty("low") Marker low,
             @JsonProperty("high") Marker high)
     {
-        requireNonNull(low, "value is null");
-        requireNonNull(high, "value is null");
+        requireNonNull(low, "low value is null");
+        requireNonNull(high, "high value is null");
         if (!low.getType().equals(high.getType())) {
             throw new IllegalArgumentException(
                     String.format("Marker types do not match: %s vs %s", low.getType(), high.getType()));

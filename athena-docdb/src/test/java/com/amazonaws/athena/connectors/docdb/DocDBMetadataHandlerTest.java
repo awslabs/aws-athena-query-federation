@@ -201,6 +201,8 @@ public class DocDBMetadataHandlerTest
         when(mockClient.getDatabase(eq(schema))).thenReturn(mockDatabase);
         when(mockDatabase.getCollection(eq(table))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 

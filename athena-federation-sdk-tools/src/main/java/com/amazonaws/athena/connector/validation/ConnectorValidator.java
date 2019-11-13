@@ -17,12 +17,13 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.sanity;
+package com.amazonaws.athena.connector.validation;
 
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
@@ -33,70 +34,68 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.google.common.collect.Sets;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.data.BlockUtils.rowToString;
+import static com.amazonaws.athena.connector.validation.ConstraintParser.parseConstraints;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 /**
- * This class should be used to sanity check deployed Lambda functions that use Athena's Federation SDK.
+ * This class should be used to validate deployed Lambda functions that use Athena's Federation SDK.
  * It simulates the basic query patterns that Athena will send to Lambda throughout its usage so that
  * broader and sometimes more subtle logical issues can be discovered before being used through Athena.
  * <p>
  * You can run this tool using the following command:
- * mvn exec:java -Dexec.mainClass=com.amazonaws.athena.connector.sanity.ConnectorSanityCheck -Dexec.args="[args]"
+ * mvn exec:java -Dexec.mainClass=com.amazonaws.athena.connector.validation.ConnectorValidator -Dexec.args="[args]"
+ * <p>
+ * This tool can also be run using the validate_connector.sh script in the tools directory under the package root:
+ * tools/validate_connector.sh [args]
  */
-public class ConnectorSanityCheck
+public class ConnectorValidator
 {
-  private static final Logger log = LoggerFactory.getLogger(ConnectorSanityCheck.class);
+  private static final Logger log = LoggerFactory.getLogger(ConnectorValidator.class);
 
   private static final Random RAND = new Random();
 
-  private ConnectorSanityCheck()
+  static final BlockAllocator BLOCK_ALLOCATOR = new BlockAllocatorImpl();
+
+  private ConnectorValidator()
   {
     // Intentionally left blank.
   }
 
   /**
-   * The main method of this class allows the following argument combinations:
-   * lambda-function
-   * lambda-function catalog-id
-   * lambda-function catalog-id schema-id
-   * lambda-function catalog-id schema-id table-id
-   * lambda-function catalog-id schema-id table-id record-function
+   * The main method of this class allows the following argument pattern:
+   * --lambda-func lambda_func [--record-func record_func] [--catalog catalog]
+   * [--schema schema [--table table [--constraints constraints]]] [--planning-only] [--help]
    * <p>
-   * The catalog-id, schema-id, and table-id arguments are optional and can be provided in any of the above
-   * valid combinations. If any of these are not provided, this test will select one from the returned metadata
-   * calls to the Lambda under test. If some of the schemas or tables available through the Lambda are not valid,
-   * it is recommended to provide a specific set of identifier arguments to target the test effectively.
-   * <p>
-   * Note that the last accepted form adds a second Lambda function argument. This is to be used when
-   * separate Lambda functions are deployed for metadata and record operations. When this final argument
-   * is provided, the first Lambda function argument will represent the metadata function with the latter
-   * representing the record function.
-   *
-   * @param args
+   * Run with the -h or --help options to see full argument descriptions, or see {@link TestConfig} below.
    */
   public static void main(String[] args)
   {
     try {
       TestConfig testConfig = TestConfig.fromArgs(args);
 
-      // SHOW DATABASES
+      /*
+       * SHOW DATABASES
+       */
       logTestQuery("SHOW DATABASES");
       Collection<String> schemas = showDatabases(testConfig);
 
@@ -108,7 +107,9 @@ public class ConnectorSanityCheck
       logTestQuery("SHOW TABLES IN " + db);
       Collection<TableName> tables = showTables(testConfig, db);
 
-      // DESCRIBE TABLE
+      /*
+       * DESCRIBE TABLE
+       */
       final TableName table = testConfig.getTableId().isPresent()
                                       ? new TableName(db, testConfig.getTableId().get())
                                       : getRandomElement(tables);
@@ -118,12 +119,25 @@ public class ConnectorSanityCheck
       final Schema schema = tableResponse.getSchema();
       final Set<String> partitionColumns = tableResponse.getPartitionColumns();
 
-      // SELECT
+      /*
+       * SELECT
+       */
       logTestQuery("SELECT * FROM " + toQualifiedTableName(table));
       GetTableLayoutResponse tableLayout = getTableLayout(testConfig, table, schema, partitionColumns);
 
-      GetSplitsResponse splitsResponse = getSplits(testConfig, table, tableLayout, partitionColumns, null);
-      readRecords(testConfig, table, schema, splitsResponse.getSplits());
+      GetSplitsResponse splitsResponse = getSplits(testConfig,
+                                                   table,
+                                                   schema,
+                                                   tableLayout,
+                                                   partitionColumns,
+                                                   null);
+
+      if (!testConfig.isPlanningOnly()) {
+        readRecords(testConfig, table, schema, splitsResponse.getSplits());
+      }
+      else {
+        log.info("Skipping record reading because the arguments indicated that only the planning should be validated.");
+      }
 
       if (splitsResponse.getContinuationToken() == null) {
         logSuccess();
@@ -133,14 +147,28 @@ public class ConnectorSanityCheck
       log.info("GetSplits included a continuation token: " + splitsResponse.getContinuationToken());
       log.info("Testing next batch of splits.");
 
-      splitsResponse = getSplits(testConfig, table, tableLayout, partitionColumns, splitsResponse.getContinuationToken());
-      readRecords(testConfig, table, schema, splitsResponse.getSplits());
+      splitsResponse = getSplits(testConfig,
+                                 table,
+                                 schema,
+                                 tableLayout,
+                                 partitionColumns,
+                                 splitsResponse.getContinuationToken());
+
+      if (!testConfig.isPlanningOnly()) {
+        readRecords(testConfig, table, schema, splitsResponse.getSplits());
+      }
+      else {
+        log.info("Skipping record reading because the arguments indicated that only the planning should be validated.");
+      }
 
       logSuccess();
     }
     catch (Exception ex) {
       logFailure(ex);
+      System.exit(1);
     }
+
+    System.exit(0);
   }
 
   private static Collection<String> showDatabases(TestConfig testConfig)
@@ -213,8 +241,7 @@ public class ConnectorSanityCheck
                                                        Schema schema,
                                                        Set<String> partitionColumns)
   {
-    Map<String, ValueSet> summary = new HashMap<>();
-    Constraints constraints = new Constraints(summary);
+    Constraints constraints = parseConstraints(schema, testConfig.getConstraints());
     GetTableLayoutResponse tableLayout = LambdaMetadataProvider.getTableLayout(testConfig.getCatalogId(),
                                                         table,
                                                         constraints,
@@ -233,12 +260,12 @@ public class ConnectorSanityCheck
 
   private static GetSplitsResponse getSplits(TestConfig testConfig,
                                              TableName table,
+                                             Schema schema,
                                              GetTableLayoutResponse tableLayout,
                                              Set<String> partitionColumns,
                                              String continuationToken)
   {
-    Map<String, ValueSet> summary = new HashMap<>();
-    Constraints constraints = new Constraints(summary);
+    Constraints constraints = parseConstraints(schema, testConfig.getConstraints());
     GetSplitsResponse splitsResponse = LambdaMetadataProvider.getSplits(testConfig.getCatalogId(),
                                             table,
                                             constraints,
@@ -269,8 +296,7 @@ public class ConnectorSanityCheck
                                                  Schema schema,
                                                  Collection<Split> splits)
   {
-    Map<String, ValueSet> summary = new HashMap<>();
-    Constraints constraints = new Constraints(summary);
+    Constraints constraints = parseConstraints(schema, testConfig.getConstraints());
     Split split = getRandomElement(splits);
     log.info("Executing randomly selected split with properties: {}", split.getProperties());
     ReadRecordsResponse records = LambdaRecordProvider.readRecords(testConfig.getCatalogId(),
@@ -323,14 +349,14 @@ public class ConnectorSanityCheck
   private static void logSuccess()
   {
     log.info("==================================================");
-    log.info("Successfully Passed Sanity Test!");
+    log.info("Successfully Passed Validation!");
     log.info("==================================================");
   }
 
   private static void logFailure(Exception ex)
   {
     log.error("==================================================");
-    log.error("Error Encountered During Sanity Test!", ex);
+    log.error("Error Encountered During Validation!", ex);
     log.error("==================================================");
   }
 
@@ -341,11 +367,14 @@ public class ConnectorSanityCheck
 
   private static class TestConfig
   {
-    private static final int LAMBDA_METADATA_FUNCTION_ARG = 0;
-    private static final int CATALOG_ID_ARG = 1;
-    private static final int SCHEMA_ID_ARG = 2;
-    private static final int TABLE_ID_ARG = 3;
-    private static final int LAMBDA_RECORD_FUNCTION_ARG = 4;
+    private static final String LAMBDA_METADATA_FUNCTION_ARG = "lambda-func";
+    private static final String LAMBDA_RECORD_FUNCTION_ARG = "record-func";
+    private static final String CATALOG_ID_ARG = "catalog";
+    private static final String SCHEMA_ID_ARG = "schema";
+    private static final String TABLE_ID_ARG = "table";
+    private static final String CONSTRAINTS_ARG = "constraints";
+    private static final String PLANNING_ONLY_ARG = "planning-only";
+    private static final String HELP_ARG = "help";
 
     private final FederatedIdentity identity;
     private final String metadataFunction;
@@ -353,21 +382,27 @@ public class ConnectorSanityCheck
     private final String catalogId;
     private final Optional<String> schemaId;
     private final Optional<String> tableId;
+    private final Optional<String> constraints;
+    private final boolean planningOnly;
 
     private TestConfig(String metadataFunction,
                        String recordFunction,
                        String catalogId,
                        Optional<String> schemaId,
-                       Optional<String> tableId)
+                       Optional<String> tableId,
+                       Optional<String> constraints,
+                       boolean planningOnly)
     {
       this.metadataFunction = metadataFunction;
       this.recordFunction = recordFunction;
       this.catalogId = catalogId;
       this.schemaId = schemaId;
       this.tableId = tableId;
-      this.identity = new FederatedIdentity("SANITY_ACCESS_KEY",
-                                            "SANITY_PRINCIPAL",
-                                            "SANITY_ACCOUNT");
+      this.constraints = constraints;
+      this.planningOnly = planningOnly;
+      this.identity = new FederatedIdentity("VALIDATION_ACCESS_KEY",
+                                            "VALIDATION_PRINCIPAL",
+                                            "VALIDATION_ACCOUNT");
     }
 
     public FederatedIdentity getIdentity()
@@ -400,31 +435,94 @@ public class ConnectorSanityCheck
       return tableId;
     }
 
-    static TestConfig fromArgs(String[] args)
+    Optional<String> getConstraints()
     {
-      requireNonNull(args);
-
-      Optional<String> metadataFunction = getArgument(args, LAMBDA_METADATA_FUNCTION_ARG);
-      Optional<String> catalogId = getArgument(args, CATALOG_ID_ARG);
-      Optional<String> schemaId = getArgument(args, SCHEMA_ID_ARG);
-      Optional<String> tableId = getArgument(args, TABLE_ID_ARG);
-      Optional<String> recordFunction = getArgument(args, LAMBDA_RECORD_FUNCTION_ARG);
-
-      checkArgument(metadataFunction.isPresent(), "The Function argument must be provided.");
-
-      return new TestConfig(metadataFunction.get(),
-                            recordFunction.isPresent() ? recordFunction.get() : metadataFunction.get(),
-                            catalogId.isPresent() ? catalogId.get() : metadataFunction.get(),
-                            schemaId,
-                            tableId);
+      return constraints;
     }
 
-    static Optional<String> getArgument(String[] args, int index)
+    boolean isPlanningOnly()
     {
-      if (args.length > index && args[index] != null && args[index].length() > 0) {
-        return Optional.of(args[index]);
+      return planningOnly;
+    }
+
+    static TestConfig fromArgs(String[] args) throws ParseException
+    {
+      log.info("Received arguments: {}", args);
+
+      requireNonNull(args);
+
+      Options options = new Options();
+      options.addOption("f", LAMBDA_METADATA_FUNCTION_ARG, true,
+                                "The name of the Lambda function to be validated. "
+                                        + "Uses your configured default AWS region.");
+      options.addOption("r", LAMBDA_RECORD_FUNCTION_ARG, true,
+                        "The name of the Lambda function to be used to read data records. "
+                                + "If not provided, this defaults to the value provided for lambda-func. "
+                                + "Uses your configured default AWS region.");
+      options.addOption("c", CATALOG_ID_ARG, true,
+                        "The catalog name to pass to the Lambda function to be validated.");
+      options.addOption("s", SCHEMA_ID_ARG, true,
+                        "The schema name to be used when validating the Lambda function. "
+                                + "If not provided, a random existing schema will be chosen.");
+      options.addOption("t", TABLE_ID_ARG, true,
+                        "The table name to be used when validating the Lambda function. "
+                                + "If not provided, a random existing table will be chosen.");
+      options.addOption("c", CONSTRAINTS_ARG, true,
+                        "A comma-separated list of field/value pair constraints to be applied "
+                                + "when reading metadata and records from the Lambda function to be validated");
+      options.addOption("p", PLANNING_ONLY_ARG, false,
+                        "If this option is set, then the validator will not attempt to read"
+                                + " any records after calling GetSplits.");
+      options.addOption("h", HELP_ARG, false, "Prints usage information.");
+      DefaultParser argParser = new DefaultParser();
+      CommandLine parsedArgs = argParser.parse(options, args);
+
+      if (parsedArgs.hasOption(HELP_ARG)) {
+        new HelpFormatter().printHelp(150, "./validate_connector.sh --" + LAMBDA_METADATA_FUNCTION_ARG
+                                                   + " lambda_func [--" + LAMBDA_RECORD_FUNCTION_ARG
+                                                   + " record_func] [--" + CATALOG_ID_ARG
+                                                   + " catalog] [--" + SCHEMA_ID_ARG
+                                                   + " schema [--" + TABLE_ID_ARG
+                                                   + " table [--" + CONSTRAINTS_ARG
+                                                   + " constraints]]] [--" + PLANNING_ONLY_ARG + "] [--" + HELP_ARG + "]",
+                                      null,
+                                      options,
+                                      null);
+        System.exit(0);
       }
-      return Optional.empty();
+
+      checkArgument(parsedArgs.hasOption(LAMBDA_METADATA_FUNCTION_ARG),
+                    "Lambda function must be provided via the --lambda-func or -l args!");
+      String metadataFunction = parsedArgs.getOptionValue(LAMBDA_METADATA_FUNCTION_ARG);
+      checkArgument(metadataFunction.equals(metadataFunction.toLowerCase()),
+                    "Lambda function name must be lowercase.");
+
+      if (parsedArgs.hasOption(TABLE_ID_ARG)) {
+        checkArgument(parsedArgs.hasOption(SCHEMA_ID_ARG),
+                      "The --schema argument must be provided if the --table argument is provided.");
+      }
+
+      if (parsedArgs.hasOption(CONSTRAINTS_ARG)) {
+        checkArgument(parsedArgs.hasOption(TABLE_ID_ARG),
+                      "The --table argument must be provided if the --constraints argument is provided.");
+      }
+
+      String catalog = metadataFunction;
+      if (parsedArgs.hasOption(CATALOG_ID_ARG)) {
+        catalog = parsedArgs.getOptionValue(CATALOG_ID_ARG);
+        checkArgument(catalog.equals(catalog.toLowerCase()),
+                      "Catalog name must be lowercase.");
+      }
+
+      return new TestConfig(metadataFunction,
+                            parsedArgs.hasOption(LAMBDA_RECORD_FUNCTION_ARG)
+                                    ? parsedArgs.getOptionValue(LAMBDA_RECORD_FUNCTION_ARG)
+                                    : metadataFunction,
+                            catalog,
+                            Optional.ofNullable(parsedArgs.getOptionValue(SCHEMA_ID_ARG)),
+                            Optional.ofNullable(parsedArgs.getOptionValue(TABLE_ID_ARG)),
+                            Optional.ofNullable(parsedArgs.getOptionValue(CONSTRAINTS_ARG)),
+                            parsedArgs.hasOption(PLANNING_ONLY_ARG));
     }
   }
 }

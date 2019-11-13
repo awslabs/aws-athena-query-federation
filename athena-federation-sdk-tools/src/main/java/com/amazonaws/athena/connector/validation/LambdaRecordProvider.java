@@ -17,10 +17,8 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.sanity;
+package com.amazonaws.athena.connector.validation;
 
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -30,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.records.RecordRequest;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
@@ -42,6 +41,11 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Method;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.validation.ConnectorValidator.BLOCK_ALLOCATOR;
+
+/**
+ * This class offers a convenience method to retrieve records from a deployed Lambda.
+ */
 public class LambdaRecordProvider
 {
   private static final Logger log = LoggerFactory.getLogger(LambdaMetadataProvider.class);
@@ -49,13 +53,23 @@ public class LambdaRecordProvider
   private static final long MAX_BLOCK_SIZE = 16000000;
   private static final long MAX_INLINE_BLOCK_SIZE = 5242880;
 
-  private static final BlockAllocator BLOCK_ALLOCATOR = new BlockAllocatorImpl();
-
   private LambdaRecordProvider()
   {
     // Intentionally left blank.
   }
 
+  /**
+   * This method builds and executes a ReadRecordsRequest against the specified Lambda function.
+   *
+   * @param catalog the catalog name to be passed to Lambda
+   * @param tableName the schema-qualified table name indicating the table for which splits should be retrieved
+   * @param constraints the constraints to be applied to the request
+   * @param schema the schema of the table in question
+   * @param split the split to be read in this request
+   * @param recordFunction the name of the Lambda function to call
+   * @param identity the identity of the caller
+   * @return the response
+   */
   public static ReadRecordsResponse readRecords(String catalog,
                                                 TableName tableName,
                                                 Constraints constraints,
@@ -68,7 +82,15 @@ public class LambdaRecordProvider
     log.info("Submitting ReadRecordsRequest with ID " + queryId);
 
     try (ReadRecordsRequest request =
-                 new ReadRecordsRequest(identity, queryId, catalog, tableName, schema, split, constraints, MAX_BLOCK_SIZE, MAX_INLINE_BLOCK_SIZE)) {
+                 new ReadRecordsRequest(identity,
+                                        queryId,
+                                        catalog,
+                                        tableName,
+                                        schema,
+                                        split,
+                                        constraints,
+                                        MAX_BLOCK_SIZE,
+                                        MAX_INLINE_BLOCK_SIZE)) {
       log.info("Submitting request: {}", request);
       ReadRecordsResponse response = (ReadRecordsResponse) getService(recordFunction).readRecords(request);
       log.info("Received response: {}", response);
@@ -106,7 +128,7 @@ public class LambdaRecordProvider
   private static RecordService getService(String lambdaFunction)
   {
     return LambdaInvokerFactory.builder()
-                   .lambdaClient(AWSLambdaClientBuilder.standard()
+                   .lambdaClient(AWSLambdaClientBuilder.standard().withRegion(Regions.US_EAST_2)
                                          .build())
                    .objectMapper(ObjectMapperFactory.create(BLOCK_ALLOCATOR))
                    .lambdaFunctionNameResolver(new Mapper(lambdaFunction))

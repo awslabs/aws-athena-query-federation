@@ -31,7 +31,7 @@ Parameters:
     Default: "athena-spill"
   LambdaTimeout:
     Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
-    Default: 90
+    Default: 900
     Type: Number
   LambdaMemory:
     Description: "Lambda memory in MB (min 128 - 3008 max)."

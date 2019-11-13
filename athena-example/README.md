@@ -11,7 +11,7 @@ A 'Connector' is a piece of code that can translate between your target data sou
 
 Alternatively, you can deploy a single Lambda function which combines the two above requirements by using com.amazonaws.athena.connector.lambda.handlers.CompositeHandler or com.amazonaws.athena.connector.lambda.handlers.UnifiedHandler. While breaking this into two separate Lambda functions allows you to independently control the cost and timeout of your Lambda functions, using a single Lambda function can be simpler and higher performance due to less cold start.
 
-In the next section we take a closer look at the methosd we must implement on the MetadataHandler and RecordHandler.
+In the next section we take a closer look at the methods we must implement on the MetadataHandler and RecordHandler.
 
 ### MetadataHandler Details
 
@@ -90,7 +90,7 @@ public class MyMetadataHandler extends MetadataHandler
 
 You can find example MetadataHandlers by looking at some of the connectors in the repository. athena-cloudwatch and athena-tpcds are fairly easy to follow along with.
 
-Alternatively, if you wish to use AWS Glue DataCatalog as the authrotiative (or suplimental) source of meta-data for your connector you can extend com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler instead of com.amazonaws.athena.connector.lambda.handlers.MetadataHandler. GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the athena-docdb module is an example of using GlueMetadataHandler.
+Alternatively, if you wish to use AWS Glue DataCatalog as the authoritative (or supplemental) source of meta-data for your connector you can extend com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler instead of com.amazonaws.athena.connector.lambda.handlers.MetadataHandler. GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the athena-docdb module is an example of using GlueMetadataHandler.
 
 ### RecordHandler Details
 
@@ -126,7 +126,7 @@ You can use any IDE or even just comman line editor to write your connector. The
 ### Step 1: Create your Cloud9 Instance
 
 1. Open the AWS Console and navigate to the [Cloud9 Service or Click Here](https://console.aws.amazon.com/cloud9/)
-2. Click 'Create Environment' and follow the steps to create a new instance using a new EC2 Instance (we recommeded m4.large) running Amazon Linux. 
+2. Click 'Create Environment' and follow the steps to create a new instance using a new EC2 Instance (we recommend m4.large) running Amazon Linux.
 
 
 ### Step 2: Download The SDK + Connectors
@@ -158,7 +158,7 @@ We have two options for deploying our connector: directly to Lambda or via Serve
 Run `../tools/publish.sh S3_BUCKET_NAME athena-example` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form.
 
 If the publish command gave you an error about the aws cli or sam tool not recognizing an argument, you likely forgot to source the new bash profile after
-updating your development envirnment so run `source ~/.profile` and try again.
+updating your development environment so run `source ~/.profile` and try again.
 
 Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/) to search for your application and deploy it before using it from Athena.
 
@@ -168,24 +168,25 @@ Then you can navigate to [Serverless Application Repository](https://console.aws
 
 One of the most challenging aspects of integrating systems (in this case our connector and Athena) is testing how these two things will work together. Lambda will capture logging from out connector in Cloudwatch Logs but we've also tried to provide some tools to stream line detecting and correcting common semantic and logical issues with your custom connector. By running Athena's connector validation tool you can simulate how Athena will interact with your Lambda function and get access to diagnostic information that would normally only be available within Athena or require you to add extra diagnostics to your connector.
 
-Run `../tools/validate_connector.sh <function_name>` be sure to replace <function_name> with the name you gave to your function/catalog when you deployed it via Serverless Application Repository. 
+Run `../tools/validate_connector.sh --lambda-func <function_name> --schema schema1 --table table1 --constraints year=2017,month=11,day=1`
+Be sure to replace lambda_func with the name you gave to your function/catalog when you deployed it via Serverless Application Repository.
 
 If everything worked as expected you should see the script generate useful debugging info and end with:
 ```txt
-2019-11-07 20:25:08 <> INFO  ConnectorSanityCheck:==================================================
-2019-11-07 20:25:08 <> INFO  ConnectorSanityCheck:Successfully Passed Sanity Test!
-2019-11-07 20:25:08 <> INFO  ConnectorSanityCheck:==================================================
+2019-11-07 20:25:08 <> INFO  ConnectorValidator:==================================================
+2019-11-07 20:25:08 <> INFO  ConnectorValidator:Successfully Passed Validation!
+2019-11-07 20:25:08 <> INFO  ConnectorValidator:==================================================
 ```
 
 ### Step 7: Run a Query!
 
 Ok, now we are ready to try running some queries using our new connector. Some good examples to try include (be sure to put in your actual database and table names):
 
-`select * from "lambda:<catalog>".schema1.table1 where year=2017 and month=11 and day=1;`
+`select * from "lambda:<function_name>".schema1.table1 where year=2017 and month=11 and day=1;`
 
-`select transaction.completed, count(*) from "lambda:<catalog>".schema1.table1 where year=2017 and month=11 and day=1 group by transaction.completed;`
+`select transaction.completed, count(*) from "lambda:<function_name>".schema1.table1 where year=2017 and month=11 and day=1 group by transaction.completed;`
 
-*note that the <catalog> corresponds to the name of your Lambda function.
+*note that the <function_name> corresponds to the name of your Lambda function.
 
 
 

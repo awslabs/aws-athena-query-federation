@@ -37,11 +37,16 @@ import java.util.Map;
  * you call the 'apply' function on this class and if the values for all columns in the row return 'true' that
  * indicates that the row passes the constraints.
  *
+ * After being used, ConstraintEvaluator instance must be closed to ensure no Apache Arrow resources used by
+ * Markers that it creates as part of evaluation are leaked.
+ *
  * @note This abstraction works well for the associative predicates that are made available to your connector
  * today but will likely require enhancement as we expose more sophisticated predicates (e.g. col1 + col2 < 100)
  * in the future. Additionally, we do not support constraints on complex types are this time.
  * <p>
  * For usage examples, please see the ExampleRecordHandler or connectors like athena-redis.
+ *
+ * TODO: We can improve the filtering performance of ConstraintEvaluator by refactoring how ValueSets works.
  */
 public class ConstraintEvaluator
         implements AutoCloseable

@@ -61,6 +61,30 @@ public class TypeUtils
                 else {
                     return String.valueOf(origVal);
                 }
+            case FLOAT8:
+                if (origVal instanceof Integer) {
+                    return Double.valueOf((int) origVal);
+                }
+                else if (origVal instanceof Float) {
+                    return Double.valueOf((float) origVal);
+                }
+                return origVal;
+            case FLOAT4:
+                if (origVal instanceof Integer) {
+                    return Float.valueOf((int) origVal);
+                }
+                else if (origVal instanceof Double) {
+                    return ((Double) origVal).floatValue();
+                }
+                return origVal;
+            case INT:
+                if (origVal instanceof Float) {
+                    return ((Float) origVal).intValue();
+                }
+                else if (origVal instanceof Double) {
+                    return ((Double) origVal).intValue();
+                }
+                return origVal;
             default:
                 return origVal;
         }

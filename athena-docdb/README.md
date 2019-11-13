@@ -31,6 +31,13 @@ To support these two SQL statements we'd need to add two environment variables t
 You can also optionally use SecretsManager for part or all of the value for the preceeding connection details. For example, if I set a Lambda environment variable for  **docdb_instance_1** to be "mongodb://${docdb_instance_1_creds}@myhostname.com:123/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0" the Athena Federation 
 SDK will automatically attempt to retrieve a secret from AWS SecretsManager named "docdb_instance_1_creds" and inject that value in place of "${docdb_instance_1_creds}". Basically anything between ${...} is attempted as a secret in SecretsManager. If no such secret exists, the text isn't replaced.
 
+
+### Setting Up Databases & Tables
+
+To enable a Glue Table for use with DocumentDB, you simply need to have a Glue database and table that matches any DocumentDB Database and Collection that you'd like to supply supplemental metadata for (instead of relying on the DocumentDB Connector's ability to infer schema). The connector's in built schema inference only supports a subset of data types and scans a limited number of documents. You can enable a Glue table to be used for supplemental metadata by setting the below table properties from the Glue Console when editing the Table and databse in question. The only other thing you need to do ensure you use the appropriate data types listed in a later section.
+
+1. **docdb-metadata-flag** - Flag indicating that the table can be used for supplemental meta-data by the Athena DocDB Connector. The value is unimportant as long as this key is present in the properties of the table.
+  
 ### Data Types
 
 The schema inference feature of this connector will attempt to infer values as one of the following:

@@ -17,11 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.sanity;
+package com.amazonaws.athena.connector.validation;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -38,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
@@ -52,18 +51,29 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.validation.ConnectorValidator.BLOCK_ALLOCATOR;
+
+/**
+ * This class offers multiple convenience methods to retrieve metadata from a deployed Lambda.
+ */
 public class LambdaMetadataProvider
 {
   private static final Logger log = LoggerFactory.getLogger(LambdaMetadataProvider.class);
   private static final String UNKNOWN_SUFFIX = "_unknown";
-
-  private static final BlockAllocator BLOCK_ALLOCATOR = new BlockAllocatorImpl();
 
   private LambdaMetadataProvider()
   {
     // Intentionally left blank.
   }
 
+  /**
+   * This method builds and executes a ListSchemasRequest against the specified Lambda function.
+   *
+   * @param catalog the catalog name to be passed to Lambda
+   * @param metadataFunction the name of the Lambda function to call
+   * @param identity the identity of the caller
+   * @return the response
+   */
   public static ListSchemasResponse listSchemas(String catalog,
                                          String metadataFunction,
                                          FederatedIdentity identity)
@@ -83,6 +93,15 @@ public class LambdaMetadataProvider
     }
   }
 
+  /**
+   * This method builds and executes a ListTablesRequest against the specified Lambda function.
+   *
+   * @param catalog the catalog name to be passed to Lambda
+   * @param schema the name of the contextual schema for the request
+   * @param metadataFunction the name of the Lambda function to call
+   * @param identity the identity of the caller
+   * @return the response
+   */
   public static ListTablesResponse listTables(String catalog,
                                          String schema,
                                          String metadataFunction,
@@ -103,6 +122,15 @@ public class LambdaMetadataProvider
     }
   }
 
+  /**
+   * This method builds and executes a GetTableRequest against the specified Lambda function.
+   *
+   * @param catalog the catalog name to be passed to Lambda
+   * @param tableName the schema-qualified table name indicating which table should be retrieved
+   * @param metadataFunction the name of the Lambda function to call
+   * @param identity the identity of the caller
+   * @return the response
+   */
   public static GetTableResponse getTable(String catalog,
                                        TableName tableName,
                                        String metadataFunction,
@@ -123,6 +151,18 @@ public class LambdaMetadataProvider
     }
   }
 
+  /**
+   * This method builds and executes a GetTableLayoutRequest against the specified Lambda function.
+   *
+   * @param catalog the catalog name to be passed to Lambda
+   * @param tableName the schema-qualified table name indicating the table whose layout should be retrieved
+   * @param constraints the constraints to be applied to the request
+   * @param schema the schema of the table in question
+   * @param partitionCols the partition column names for the table in question
+   * @param metadataFunction the name of the Lambda function to call
+   * @param identity the identity of the caller
+   * @return the response
+   */
   public static GetTableLayoutResponse getTableLayout(String catalog,
                                      TableName tableName,
                                      Constraints constraints,
@@ -146,6 +186,19 @@ public class LambdaMetadataProvider
     }
   }
 
+  /**
+   * This method builds and executes a GetSplitsRequest against the specified Lambda function.
+   *
+   * @param catalog the catalog name to be passed to Lambda
+   * @param tableName the schema-qualified table name indicating the table for which splits should be retrieved
+   * @param constraints the constraints to be applied to the request
+   * @param partitions the block of partitions to be provided with the request
+   * @param partitionCols the partition column names for the table in question
+   * @param contToken a continuation token to be provided with the request, or null
+   * @param metadataFunction the name of the Lambda function to call
+   * @param identity the identity of the caller
+   * @return the response
+   */
   public static GetSplitsResponse getSplits(String catalog,
                                             TableName tableName,
                                             Constraints constraints,
@@ -197,7 +250,7 @@ public class LambdaMetadataProvider
   private static MetadataService getService(String lambdaFunction)
   {
     return LambdaInvokerFactory.builder()
-                   .lambdaClient(AWSLambdaClientBuilder.standard()
+                   .lambdaClient(AWSLambdaClientBuilder.standard().withRegion(Regions.US_EAST_2)
                                          .build())
                    .objectMapper(ObjectMapperFactory.create(BLOCK_ALLOCATOR))
                    .lambdaFunctionNameResolver(new Mapper(lambdaFunction))

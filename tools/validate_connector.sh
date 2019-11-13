@@ -14,13 +14,17 @@
 # limitations under the License.
 
 cat << EOF
-# Run this script from the athena-federation-sdk-tools director:
+# Run this script from any directory:
 # 1. Builds the maven project, if needed.
 # 2. Simulates an Athena query running against your connector that is deployed as a Lambda function.
 #
 # NOTE: That this test may cause a full table scan against your data source. If prompted to provide a
 # query predicate, doing so will avoid a full table scan. You can also opt to stop the simulated query
 # after the 'planning phase' so that it does not simulate process any splits.
+#
+# Use the -h or --help args to print usage information.
+#
+# Use 'yes | tools/validate_connector.sh [args]' to bypass this check. USE CAUTION
 #
 EOF
 
@@ -33,34 +37,14 @@ while true; do
     esac
 done
 
-if [ "$#" -lt 1 ]; then
-    echo "\n\nERROR: Script requires at least 1 argument \n"
-    echo "\n1. Lambda function name.\n"
-    echo "\n2. (Optional) catalog id for the query (often the same as the function name) \n"
-    echo "\n3. (Optional) schema name to query. \n"
-    echo "\n4. (Optional) table name to query. \n"
-    echo "\n5. (Optional) record-function if you are using separate Lambda functions for metadata and data, if not you can set to same as arg 1. \n"
-    echo "\n\n USAGE from the athena-federation-sdk-tools directory: ../tools/validate_connector.sh cloudwatch \n"
-    exit;
-fi
+dir=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 
-if test -d "athena-federation-sdk-tools"; then
-  echo "We are not in the correct directory, switching to ./athena-federation-sdk-tools"
-  cd athena-federation-sdk-tools
-elif test -d "../athena-federation-sdk-tools"; then
-  echo "We are not in the correct directory, switching to ../athena-federation-sdk-tools"
-  cd ../athena-federation-sdk-tools
-elif test -f "src/main/java/com/amazonaws/athena/connector/sanity/ConnectorSanityCheck.java"; then
-    echo "Athena Federation SDK Tools classes found, we appear to be in the correct directory."
-else
-  echo "We are not in the correct directory...and I'm not sure where athena-federation-sdk-tools can be found."
-  exit;
-fi
+cd "$dir/../athena-federation-sdk-tools"
 
-if test -f "target/athena-federation-sdk-tools-1.0-withdep.jar"; then
-    echo "Looks like the athena-federation-sdk-tools is already built, skipping compilation."
+if test -f "target/athena-federation-sdk-tools-1.0.jar"; then
+    echo "athena-federation-sdk-tools is already built, skipping compilation."
 else
     mvn clean install
 fi
 
-java -cp target/athena-federation-sdk-tools-1.0-withdep.jar com.amazonaws.athena.connector.sanity.ConnectorSanityCheck $1 $2 $3 $3 $5
+java -cp target/athena-federation-sdk-tools-1.0-withdep.jar com.amazonaws.athena.connector.validation.ConnectorValidator $@

@@ -68,7 +68,8 @@ public class SchemaUtils
     {
         MongoDatabase db = client.getDatabase(table.getSchemaName());
 
-        try (MongoCursor<Document> docs = db.getCollection(table.getTableName()).find().batchSize(numObjToSample).iterator()) {
+        try (MongoCursor<Document> docs = db.getCollection(table.getTableName()).find().batchSize(numObjToSample)
+                .maxScan(numObjToSample).limit(numObjToSample).iterator()) {
             if (!docs.hasNext()) {
                 return SchemaBuilder.newBuilder().build();
             }
@@ -117,7 +118,7 @@ public class SchemaUtils
             return new Field(key, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null);
         }
         else if (value instanceof Date) {
-            return new Field(key, FieldType.nullable(Types.MinorType.TIMESTAMPSEC.getType()), null);
+            return new Field(key, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null);
         }
         else if (value instanceof ObjectId) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
