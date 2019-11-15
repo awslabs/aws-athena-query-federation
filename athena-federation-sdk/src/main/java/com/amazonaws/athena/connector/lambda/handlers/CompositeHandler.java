@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,6 +57,8 @@ public class CompositeHandler
     private final MetadataHandler metadataHandler;
     //The RecordHandler to delegate data operations to.
     private final RecordHandler recordHandler;
+    //(Optional) The UserDefinedFunctionHandler to delegate UDF operations to.
+    private final UserDefinedFunctionHandler udfhandler;
 
     /**
      * Basic constructor that composes a MetadataHandler with a RecordHandler.
@@ -67,6 +70,21 @@ public class CompositeHandler
     {
         this.metadataHandler = metadataHandler;
         this.recordHandler = recordHandler;
+        this.udfhandler = null;
+    }
+
+    /**
+     * Basic constructor that composes a MetadataHandler, RecordHandler, and a UserDefinedFunctionHandler
+     *
+     * @param metadataHandler The MetadataHandler to delegate metadata operations to.
+     * @param recordHandler The RecordHandler to delegate data operations to.
+     * @param udfhandler The UserDefinedFunctionHandler to delegate UDF operations to.
+     */
+    public CompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler, UserDefinedFunctionHandler udfhandler)
+    {
+        this.metadataHandler = metadataHandler;
+        this.recordHandler = recordHandler;
+        this.udfhandler = udfhandler;
     }
 
     /**
@@ -115,6 +133,9 @@ public class CompositeHandler
         }
         else if (rawReq instanceof RecordRequest) {
             recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
+        }
+        else if (udfhandler != null && rawReq instanceof UserDefinedFunctionRequest) {
+            udfhandler.doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawReq, outputStream);
         }
         else {
             throw new IllegalArgumentException("Unknown request class " + rawReq.getClass());

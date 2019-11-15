@@ -20,7 +20,7 @@ package com.amazonaws.athena.connector.lambda.examples;
  * #L%
  */
 
-import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionHandler;
+import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
 import com.google.common.collect.ImmutableMap;
 
 import java.math.BigDecimal;
@@ -32,8 +32,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ExampleUserDefinedFunctionHandler
-    extends UserDefinedFunctionHandler
+        extends UserDefinedFunctionHandler
 {
+    //Used to aid in diagnostic logging
+    private static final String SOURCE_TYPE = "custom";
+
+    public ExampleUserDefinedFunctionHandler()
+    {
+        super(SOURCE_TYPE);
+    }
+
     public Boolean example_udf(Boolean value)
     {
         return !value;

@@ -146,7 +146,7 @@ Now run `mvn clean install -DskipTests=true` from the athena-federation-sdk dire
 2. (If using Cloud9) Navigate to the aws-athena-query-federation/athena-example folder on the left nav. This is the code you extracted back in Step 2.
 3. Complete the TODOs in ExampleMetadataHandler by uncommenting the provided example code and providing missing code where indicated.
 4. Complete the TODOs in ExampleRecordHandler by uncommenting the provided example code and providing missing code where indicated.
-5. Run the following command from the aws-athena-query-federation/athena-example directory to ensure your connector is valid.  `mvn clean install`
+5. Complete the TODOs in ExampleUserDefinedFuncHandler by uncommenting the provided example code and providing missing code where indicated.
 6. Upload our sample data by running the following command from aws-athena-query-federation/athena-example directory. Be sure to replace BUCKET_NAME with the name of the bucket your created earlier.  `aws s3 cp ./sample_data.csv s3://BUCKET_NAME/2017/11/1/sample_data.csv`
 
 ### Step 5: Package and Deploy Your New Connector
@@ -182,9 +182,13 @@ If everything worked as expected you should see the script generate useful debug
 
 Ok, now we are ready to try running some queries using our new connector. Some good examples to try include (be sure to put in your actual database and table names):
 
-`select * from "lambda:<function_name>".schema1.table1 where year=2017 and month=11 and day=1;`
-
-`select transaction.completed, count(*) from "lambda:<function_name>".schema1.table1 where year=2017 and month=11 and day=1 group by transaction.completed;`
+```sql
+USING 
+FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) RETURNS INT TYPE LAMBDA_INVOKE WITH (lambda_name = '<function_name>'),
+FUNCTION decrypt(payload VARCHAR ) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<function_name>')
+SELECT year, month, day, account_id, decrypt(encrypted_payload) as decrypted_payload, extract_tx_id(transaction) as tx_id
+FROM "lambda:<function_name>".schema1.table1 WHERE year=2017 AND month=11 AND day=1;
+```
 
 *note that the <function_name> corresponds to the name of your Lambda function.
 
