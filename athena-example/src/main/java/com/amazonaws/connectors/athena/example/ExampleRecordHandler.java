@@ -22,20 +22,26 @@ package com.amazonaws.connectors.athena.example;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
 
 import static java.lang.String.format;
 
@@ -65,8 +71,14 @@ public class ExampleRecordHandler
 
     public ExampleRecordHandler()
     {
-        super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE);
-        this.amazonS3 = AmazonS3ClientBuilder.standard().build();
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
+    }
+
+    @VisibleForTesting
+    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    {
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        this.amazonS3 = amazonS3;
     }
 
     /**
@@ -141,6 +153,7 @@ public class ExampleRecordHandler
                 String accountId = lineParts[3];
                 int transactionId = Integer.parseInt(lineParts[4]);
                 boolean transactionComplete = Boolean.parseBoolean(lineParts[5]);
+                String encryptedPayload = lineParts[6];
 
                     /**
                      * TODO: Write the data using the supplied Block and check if the writes passed all constraints
@@ -149,6 +162,7 @@ public class ExampleRecordHandler
                      rowMatched &= block.offerValue("year", rowNum, year);
                      rowMatched &= block.offerValue("month", rowNum, month);
                      rowMatched &= block.offerValue("day", rowNum, day);
+                     rowMatched &= block.offerValue("encrypted_payload", rowNum, encryptedPayload);
 
                      //For complex types like List and Struct, we can build a Map to conveniently set nested values
                      Map<String, Object> eventMap = new HashMap<>();

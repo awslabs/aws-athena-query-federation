@@ -13,8 +13,7 @@ Metadata:
     SemanticVersion: 1.0.0
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
-  Parameters:
-   UDFFunctionName:
+  LambdaFunctionName:
       Description: 'The name you want to give the Lambda function that will contain your UDFs.'
       Type: String
   LambdaTimeout:
@@ -29,9 +28,7 @@ Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Environment:
-        Variables:
-      FunctionName: !Ref UDFFunctionName
+      FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.udfs.AthenaUDFHandler"
       CodeUri: "./target/athena-udfs-1.0.jar"
       Description: "This connector enables Amazon Athena to leverage common UDFs made available via Lambda."

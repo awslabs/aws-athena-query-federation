@@ -36,6 +36,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
@@ -74,6 +78,16 @@ public class ExampleMetadataHandler
     public ExampleMetadataHandler()
     {
         super(SOURCE_TYPE);
+    }
+
+    @VisibleForTesting
+    protected ExampleMetadataHandler(EncryptionKeyFactory keyFactory,
+            AWSSecretsManager awsSecretsManager,
+            AmazonAthena athena,
+            String spillBucket,
+            String spillPrefix)
+    {
+        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
     }
 
     /**
@@ -162,6 +176,7 @@ public class ExampleMetadataHandler
          .addIntField("month")
          .addIntField("day")
          .addStringField("account_id")
+         .addStringField("encrypted_payload")
          .addStructField("transaction")
          .addChildField("transaction", "id", Types.MinorType.INT.getType())
          .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
@@ -172,6 +187,7 @@ public class ExampleMetadataHandler
          .addMetadata("month", "The month that the payment took place in.")
          .addMetadata("day", "The day that the payment took place in.")
          .addMetadata("account_id", "The account_id used for this payment.")
+         .addMetadata("encrypted_payload", "A special encrypted payload.")
          .addMetadata("transaction", "The payment transaction details.")
          //This metadata field is for our own use, Athena will ignore and pass along fields it doesn't expect.
          //we will use this later when we implement doGetTableLayout(...)

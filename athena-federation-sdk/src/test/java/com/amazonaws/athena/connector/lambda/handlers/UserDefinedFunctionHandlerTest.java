@@ -1,4 +1,4 @@
-package com.amazonaws.athena.connector.lambda.udf;
+package com.amazonaws.athena.connector.lambda.handlers;
 
 /*-
  * #%L
@@ -26,8 +26,13 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.UnitTestBlockUtils;
+import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
+import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -179,9 +184,10 @@ public class UserDefinedFunctionHandlerTest
     }
 
     @Test
-    public void testRequestTypeValidation() throws Exception
+    public void testRequestTypeValidation()
+            throws Exception
     {
-        FederationRequest federationRequest = new PingRequest(null, "dummy_catalog", "dummy_qid");
+        FederationRequest federationRequest = new ListSchemasRequest(null, "dummy_catalog", "dummy_qid");
 
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -316,7 +322,8 @@ public class UserDefinedFunctionHandlerTest
             FieldBuilder fieldBuilder = FieldBuilder.newBuilder(columnName, Types.MinorType.STRUCT.getType());
 
             Field childField1 = new Field("intVal", FieldType.nullable(new ArrowType.Int(32, true)), null);
-            Field childField2 = new Field("doubleVal", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);;
+            Field childField2 = new Field("doubleVal", FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null);
+            ;
 
             fieldBuilder.addField(childField1);
             fieldBuilder.addField(childField2);
@@ -327,14 +334,21 @@ public class UserDefinedFunctionHandlerTest
         throw new IllegalArgumentException("Unsupported type " + type);
     }
 
-    private static class TestUserDefinedFunctionHandler extends UserDefinedFunctionHandler
+    private static class TestUserDefinedFunctionHandler
+            extends UserDefinedFunctionHandler
     {
+        public TestUserDefinedFunctionHandler()
+        {
+            super("test_type");
+        }
+
         public Integer testScalarUDF(Integer col1, Integer col2)
         {
             return col1 + col2;
         }
 
-        public Boolean testScalarUDFWithNullCheck(Integer col1) {
+        public Boolean testScalarUDFWithNullCheck(Integer col1)
+        {
             if (col1 == null) {
                 return true;
             }

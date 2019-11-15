@@ -30,6 +30,6 @@ public class ExampleCompositeHandler
 {
     public ExampleCompositeHandler()
     {
-        super(new ExampleMetadataHandler(), new ExampleRecordHandler());
+        super(new ExampleMetadataHandler(), new ExampleRecordHandler(), new ExampleUserDefinedFuncHandler());
     }
 }
