@@ -40,6 +40,7 @@ import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.TableResult;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -47,6 +48,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.bigquery.BigQueryUtils.fixCaseForTableName;
@@ -95,14 +98,16 @@ public class BigQueryRecordHandler
 
         logger.info("Got Request with constraints: {}", recordsRequest.getConstraints());
 
+        List<QueryParameterValue> parameterValues = new ArrayList<>();
         final String sqlToExecute = BigQuerySqlUtils.buildSqlFromSplit(new TableName(datasetName, tableName),
-            recordsRequest.getSchema(), recordsRequest.getConstraints(), recordsRequest.getSplit());
+            recordsRequest.getSchema(), recordsRequest.getConstraints(), recordsRequest.getSplit(), parameterValues);
 
         QueryJobConfiguration queryConfig =
             QueryJobConfiguration.newBuilder(sqlToExecute)
                 // Use standard SQL syntax for queries.
                 // See: https://cloud.google.com/bigquery/sql-reference/
                 .setUseLegacySql(false)
+                .setPositionalParameters(parameterValues)
                 .build();
 
         logger.info("Executing SQL Query: {} for Split: {}", sqlToExecute, recordsRequest.getSplit());
