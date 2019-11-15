@@ -26,12 +26,22 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the input of a <code>Ping</code> operation.
+ */
 public class PingRequest
         extends FederationRequest
 {
     private final String catalogName;
     private final String queryId;
 
+    /**
+     * Constructs a new PingRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param catalogName The catalog name that is being pinged.
+     * @param queryId The ID of the pinging query.
+     */
     @JsonCreator
     public PingRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("catalogName") String catalogName,
@@ -44,12 +54,22 @@ public class PingRequest
         this.queryId = queryId;
     }
 
+    /**
+     * Returns the catalog name that is being pinged.
+     *
+     * @return The catalog name that is being pinged.
+     */
     @JsonProperty("catalogName")
     public String getCatalogName()
     {
         return catalogName;
     }
 
+    /**
+     * Returns the ID of the pinging query.
+     *
+     * @return The ID of the pinging query.
+     */
     @JsonProperty("queryId")
     public String getQueryId()
     {

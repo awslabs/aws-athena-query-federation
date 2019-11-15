@@ -31,11 +31,20 @@ import java.beans.Transient;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>ReadRecords</code> operation.
+ */
 public class ReadRecordsResponse
         extends RecordResponse
 {
     private final Block records;
 
+    /**
+     * Constructs a new ReadRecordsResponse object.
+     *
+     * @param catalogName The catalog name the data belongs to.
+     * @param records The records that were read.
+     */
     @JsonCreator
     public ReadRecordsResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("records") Block records)
@@ -45,24 +54,42 @@ public class ReadRecordsResponse
         this.records = records;
     }
 
+    /**
+     * Convenience accessor that returns the schema of the records Block.
+     *
+     * @return The schema of the records Block.
+     */
     @Transient
     public Schema getSchema()
     {
         return records.getSchema();
     }
 
+    /**
+     * Returns the records Block.
+     *
+     * @return The records Block.
+     */
     @JsonProperty
     public Block getRecords()
     {
         return records;
     }
 
+    /**
+     * Convenience accessor that returns the number of records that were read.
+     *
+     * @return The number of records that were read.
+     */
     @Transient
     public int getRecordCount()
     {
         return records.getRowCount();
     }
 
+    /**
+     * Frees up resources associated with the <code>records</code> Block.
+     */
     @Override
     public void close()
             throws Exception

@@ -25,9 +25,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
+/**
+ * Represents the input of a <code>ListSchemas</code> operation.
+ */
 public class ListSchemasRequest
         extends MetadataRequest
 {
+    /**
+     * Constructs a new ListSchemasRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that schemas should be listed for.
+     */
     @JsonCreator
     public ListSchemasRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("queryId") String queryId,

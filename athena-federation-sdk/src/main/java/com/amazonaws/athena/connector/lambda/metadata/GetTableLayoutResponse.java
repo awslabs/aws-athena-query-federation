@@ -29,12 +29,22 @@ import com.google.common.base.Objects;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>GetTableLayout</code> operation.
+ */
 public class GetTableLayoutResponse
         extends MetadataResponse
 {
     private final TableName tableName;
     private final Block partitions;
 
+    /**
+     * Constructs a new GetTableLayoutResponse object.
+     *
+     * @param catalogName The catalog name that a table layout was generated for.
+     * @param tableName The table name that a table layout was generated for.
+     * @param partitions The partitions representing the table layout.
+     */
     @JsonCreator
     public GetTableLayoutResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("tableName") TableName tableName,
@@ -47,12 +57,22 @@ public class GetTableLayoutResponse
         this.partitions = partitions;
     }
 
+    /**
+     * Returns the table name that a table layout was generated for.
+     *
+     * @return The table name that a table layout was generated for.
+     */
     @JsonProperty
     public TableName getTableName()
     {
         return tableName;
     }
 
+    /**
+     * Returns the partitions representing the table layout.
+     *
+     * @return The partitions representing the table layout.
+     */
     @JsonProperty
     public Block getPartitions()
     {
@@ -69,6 +89,9 @@ public class GetTableLayoutResponse
                 .toString();
     }
 
+    /**
+     * Frees up resources associated with the <code>partitions</code> Block.
+     */
     @Override
     public void close()
             throws Exception

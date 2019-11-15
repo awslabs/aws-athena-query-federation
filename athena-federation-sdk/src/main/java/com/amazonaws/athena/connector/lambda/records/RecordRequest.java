@@ -25,6 +25,9 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Parent class representing the generic input of all <code>Record</code> operations.
+ */
 public abstract class RecordRequest
         extends FederationRequest
 {
@@ -32,6 +35,14 @@ public abstract class RecordRequest
     private final String catalogName;
     private final String queryId;
 
+    /**
+     * Constructs a new RecordRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param requestType The type of the request.
+     * @param catalogName The catalog name that data is requested for.
+     * @param queryId The ID of the query requesting data.
+     */
     public RecordRequest(FederatedIdentity identity, RecordRequestType requestType, String catalogName, String queryId)
     {
         super(identity);
@@ -43,16 +54,31 @@ public abstract class RecordRequest
         this.queryId = queryId;
     }
 
+    /**
+     * Returns the type of the request.
+     *
+     * @return The type of the request.
+     */
     public RecordRequestType getRequestType()
     {
         return requestType;
     }
 
+    /**
+     * Returns the catalog name that data is requested for.
+     *
+     * @return The catalog name that data is requested for.
+     */
     public String getCatalogName()
     {
         return catalogName;
     }
 
+    /**
+     * Returns the ID of the query requesting data.
+     *
+     * @return The ID of the query requesting data.
+     */
     public String getQueryId()
     {
         return queryId;

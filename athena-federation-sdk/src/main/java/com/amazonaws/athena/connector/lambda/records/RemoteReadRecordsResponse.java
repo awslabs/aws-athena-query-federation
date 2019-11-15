@@ -34,6 +34,10 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>ReadRecords</code> operation when the output has
+ * spilled.
+ */
 public class RemoteReadRecordsResponse
         extends RecordResponse
 {
@@ -41,6 +45,14 @@ public class RemoteReadRecordsResponse
     private final List<SpillLocation> remoteBlocks;
     private final EncryptionKey encryptionKey;
 
+    /**
+     * Constructs a new RemoteReadRecordsResponse object.
+     *
+     * @param catalogName The catalog name the data belongs to.
+     * @param schema The schema of the spilled data.
+     * @param remoteBlocks The locations of the spilled data.
+     * @param encryptionKey The encryption key of the spilled data.
+     */
     @JsonCreator
     public RemoteReadRecordsResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("schema") Schema schema,
@@ -55,24 +67,42 @@ public class RemoteReadRecordsResponse
         this.encryptionKey = encryptionKey;
     }
 
+    /**
+     * Returns the schema of the spilled data.
+     * @return The schema of the spilled data.
+     */
     @JsonProperty
     public Schema getSchema()
     {
         return schema;
     }
 
+    /**
+     * Returns the locations of the spilled data.
+     * @return The locations of the spilled data.
+     */
     @JsonProperty
     public List<SpillLocation> getRemoteBlocks()
     {
         return remoteBlocks;
     }
 
+    /**
+     * Convenience accessor that returns the number of spilled blocks.
+     *
+     * @return The number of spilled blocks.
+     */
     @Transient
     public int getNumberBlocks()
     {
         return remoteBlocks.size();
     }
 
+    /**
+     * Returns the encryption key of the spilled data.
+     *
+     * @return The encryption key of the spilled data.
+     */
     @JsonProperty
     public EncryptionKey getEncryptionKey()
     {

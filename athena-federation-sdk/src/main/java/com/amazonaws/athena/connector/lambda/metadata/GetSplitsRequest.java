@@ -37,6 +37,9 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the input of a <code>GetSplits</code> operation.
+ */
 public class GetSplitsRequest
         extends MetadataRequest
 {
@@ -46,6 +49,18 @@ public class GetSplitsRequest
     private final Constraints constraints;
     private final String continuationToken;
 
+    /**
+     * Constructs a new GetSplitsRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that splits should be generated for.
+     * @param tableName The table name that splits should be generated for.
+     * @param partitions The partitions that splits should be generated for.
+     * @param partitionCols The partition columns used for partitioning.
+     * @param constraints The constraints that can be applied to split generation.
+     * @param continuationToken The continuation token from which split generation should be resumed.
+     */
     @JsonCreator
     public GetSplitsRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("queryId") String queryId,
@@ -68,48 +83,91 @@ public class GetSplitsRequest
         this.continuationToken = continuationToken;
     }
 
-    //Helpful when making a continuation call since it requires the original request but updated token
+    /**
+     * Constructs a new GetSplitsRequest object from an existing one with the ability to change the continuation token.
+     * Helpful when making a continuation call since it requires the original request but updated token.
+     *
+     * @param clone The original request.
+     * @param continuationToken The continuation token for the next paginated request.
+     */
     public GetSplitsRequest(GetSplitsRequest clone, String continuationToken)
     {
         this(clone.getIdentity(), clone.getQueryId(), clone.getCatalogName(), clone.tableName, clone.partitions, clone.partitionCols, clone.constraints, continuationToken);
     }
 
+    /**
+     * Returns the continuation token for split generation.  If present, this is a paginated request and
+     * split generation should be resumed using the provided token.
+     *
+     * @return The continuation token for the next paginated request.
+     */
     @JsonProperty
     public String getContinuationToken()
     {
         return continuationToken;
     }
 
+    /**
+     * Returns the table name that splits should be generated for.
+     *
+     * @return The table name that splits should be generated for.
+     */
     @JsonProperty
     public TableName getTableName()
     {
         return tableName;
     }
 
+    /**
+     * Convenience method to get the partition schema from partitions Block.
+     *
+     * @return The schema of the partitions.
+     */
     @Transient
     public Schema getSchema()
     {
         return partitions.getSchema();
     }
 
+    /**
+     * Returns the partition columns used for partitioning.
+     *
+     * @return The partition columns used for partitioning.
+     */
     @JsonProperty
     public List<String> getPartitionCols()
     {
         return partitionCols;
     }
 
+    /**
+     * Returns the partitions that splits should be generated for.
+     *
+     * @return The partitions that splits should be generated for.
+     */
     @JsonProperty
     public Block getPartitions()
     {
         return partitions;
     }
 
+    /**
+     * Returns the constraints that can be applied to split generation.
+     *
+     * @return The constraints that can be applied to split generation.
+     */
     @JsonProperty
     public Constraints getConstraints()
     {
         return constraints;
     }
 
+    /**
+     * Convenience method that returns whether a continuation token is provided in this request.  If true,
+     * this is a paginated request and split generation should be resumed using the provided token.
+     *
+     * @return The continuation token from which split generation should be resumed.
+     */
     @Transient
     public boolean hasContinuationToken()
     {
@@ -131,6 +189,9 @@ public class GetSplitsRequest
                 .toString();
     }
 
+    /**
+     * Frees up resources associated with the <code>partitions</code> and <code>constraints</code> Blocks.
+     */
     @Override
     public void close()
             throws Exception

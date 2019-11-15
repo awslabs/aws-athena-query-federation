@@ -25,6 +25,9 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Parent class representing the generic input of all <code>Metadata</code> operations.
+ */
 public abstract class MetadataRequest
        extends FederationRequest
 {
@@ -32,6 +35,14 @@ public abstract class MetadataRequest
     private final String queryId;
     private final String catalogName;
 
+    /**
+     * Constructs a new MetadataRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param requestType The type of the request.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that metadata is requested for.
+     */
     public MetadataRequest(FederatedIdentity identity, MetadataRequestType requestType, String queryId, String catalogName)
     {
         super(identity);
@@ -42,16 +53,31 @@ public abstract class MetadataRequest
         this.queryId = queryId;
     }
 
+    /**
+     * Returns the type of the request.
+     *
+     * @return The type of the request.
+     */
     public MetadataRequestType getRequestType()
     {
         return requestType;
     }
 
+    /**
+     * Returns the catalog name that metadata is requested for.
+     *
+     * @return The catalog name that metadata is requested for.
+     */
     public String getCatalogName()
     {
         return catalogName;
     }
 
+    /**
+     * Returns the ID of the query requesting metadata.
+     *
+     * @return The ID of the query requesting metadata.
+     */
     public String getQueryId()
     {
         return queryId;

@@ -32,6 +32,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+/**
+ * Base class for all user facing requests.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY)
 @JsonSubTypes({
@@ -49,16 +52,29 @@ public abstract class FederationRequest
 {
     private final FederatedIdentity identity;
 
+    /**
+     * Constructs a new FederationRequest object with a null identity.
+     */
     public FederationRequest()
     {
         identity = null;
     }
 
+    /**
+     * Constructs a new FederationRequest object.
+     *
+     * @param identity The identity of the caller.
+     */
     public FederationRequest(FederatedIdentity identity)
     {
         this.identity = identity;
     }
 
+    /**
+     * Returns the identity of the caller.
+     *
+     * @return The identity of the caller.
+     */
     public FederatedIdentity getIdentity()
     {
         return identity;

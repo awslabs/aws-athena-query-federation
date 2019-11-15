@@ -25,6 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>Ping</code> operation.
+ */
 public class PingResponse
         extends FederationResponse
 {
@@ -33,6 +36,13 @@ public class PingResponse
     private final String queryId;
     private final String sourceType;
 
+    /**
+     *
+     * @param catalogName The name of the catalog that was pinged.
+     * @param queryId The ID of the query that pinged.
+     * @param sourceType The source type ID of the pinged endpoint.
+     * @param capabilities The ID indicating the capabilities of the pinged endpoint.
+     */
     @JsonCreator
     public PingResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("queryId") String queryId,
@@ -47,24 +57,43 @@ public class PingResponse
         this.capabilities = capabilities;
     }
 
+    /**
+     * Returns the name of the catalog that was pinged.
+     *
+     * @return The name of the catalog that was pinged.
+     */
     @JsonProperty("catalogName")
     public String getCatalogName()
     {
         return catalogName;
     }
 
+    /**
+     * Returns the ID of the query that pinged.
+     *
+     * @return The ID of the query that pinged.
+     */
     @JsonProperty("queryId")
     public String getQueryId()
     {
         return queryId;
     }
 
+    /**
+     * Returns the source type ID of the pinged endpoint.
+     * @return The source type ID of the pinged endpoint.
+     */
     @JsonProperty("sourceType")
     public String getSourceType()
     {
         return sourceType;
     }
 
+    /**
+     * Returns the ID indicating the capabilities of the pinged endpoint.
+     *
+     * @return The ID indicating the capabilities of the pinged endpoint.
+     */
     @JsonProperty("capabilities")
     public int getCapabilities()
     {
