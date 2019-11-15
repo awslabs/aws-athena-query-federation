@@ -36,7 +36,6 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
@@ -250,8 +249,7 @@ public class LambdaMetadataProvider
   private static MetadataService getService(String lambdaFunction)
   {
     return LambdaInvokerFactory.builder()
-                   .lambdaClient(AWSLambdaClientBuilder.standard().withRegion(Regions.US_EAST_2)
-                                         .build())
+                   .lambdaClient(AWSLambdaClientBuilder.defaultClient())
                    .objectMapper(ObjectMapperFactory.create(BLOCK_ALLOCATOR))
                    .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
                    .build(MetadataService.class);
