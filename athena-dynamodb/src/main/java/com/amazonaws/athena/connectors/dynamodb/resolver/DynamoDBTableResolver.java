@@ -74,13 +74,22 @@ public class DynamoDBTableResolver
     public List<TableName> listTables()
             throws TimeoutException
     {
-        List<TableName> tables = new ArrayList<>();
+        return listTablesInternal().stream()
+                .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
+                .map(table -> new TableName(DEFAULT_SCHEMA, table))
+                .collect(toImmutableList());
+    }
+
+    private List<String> listTablesInternal()
+            throws TimeoutException
+    {
+        List<String> tables = new ArrayList<>();
         String nextToken = null;
         do {
             ListTablesRequest ddbRequest = new ListTablesRequest()
                     .withExclusiveStartTableName(nextToken);
             ListTablesResult result = invoker.invoke(() -> ddbClient.listTables(ddbRequest));
-            tables.addAll(result.getTableNames().stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(toImmutableList()));
+            tables.addAll(result.getTableNames());
             nextToken = result.getLastEvaluatedTableName();
         }
         while (nextToken != null);
@@ -146,8 +155,8 @@ public class DynamoDBTableResolver
     {
         logger.info("Table {} not found.  Falling back to case insensitive search.", tableName);
         Multimap<String, String> lowerCaseNameMapping = ArrayListMultimap.create();
-        for (TableName nextTableName : listTables()) {
-            lowerCaseNameMapping.put(nextTableName.getTableName().toLowerCase(Locale.ENGLISH), nextTableName.getTableName());
+        for (String nextTableName : listTablesInternal()) {
+            lowerCaseNameMapping.put(nextTableName.toLowerCase(Locale.ENGLISH), nextTableName);
         }
         Collection<String> mappedNames = lowerCaseNameMapping.get(tableName);
         if (mappedNames.size() > 1) {
