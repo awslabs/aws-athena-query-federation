@@ -97,12 +97,6 @@ public class ExampleMetadataHandlerTest
         allocator.close();
     }
 
-    @After
-    public void tearDown()
-            throws Exception
-    {
-    }
-
     @Test
     public void doListSchemas()
     {
