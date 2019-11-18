@@ -47,6 +47,7 @@ public class AllOrNoneValueSet
 
     /**
      * Constructs a new AllOrNoneValueSet.
+     * 
      * @param type The Apache Arrow type of the field that this ValueSet applies to.
      * @param all True if all non-null values are in this ValueSet.
      * @param nullAllowed True is all null values are in this ValueSet.
