@@ -50,13 +50,21 @@ import static java.util.Objects.requireNonNull;
 public class EquatableValueSet
         implements ValueSet
 {
+    //The name of the single column used to represent values in the valueBlock.
     private static final String DEFAULT_COLUMN = "col1";
     private final boolean whiteList;
     private final Block valueBlock;
     public final boolean nullAllowed;
 
+    /**
+     * Constructs a new EquatableValueSet.
+     *
+     * @param valueBlock The values that are in this ValueSet expressed as a Block of Apache Arrow records.
+     * @param whiteList True if this ValueSet is a white list (only these values), False if these are excluded values.
+     * @param nullAllowed True if null values should be considered part of this ValueSet, False otherwise.
+     */
     @JsonCreator
-    public EquatableValueSet(
+    protected EquatableValueSet(
             @JsonProperty("valueBlock") Block valueBlock,
             @JsonProperty("whiteList") boolean whiteList,
             @JsonProperty("nullAllowed") boolean nullAllowed)
@@ -65,6 +73,20 @@ public class EquatableValueSet
         this.valueBlock = valueBlock;
         this.whiteList = whiteList;
         this.nullAllowed = nullAllowed;
+    }
+
+    /**
+     * Used to construct new Builder for EquatableValueSet.
+     *
+     * @param allocator The BlockAllocator to use when allocating Apache Arrow resources.
+     * @param type The type of the field that this EquatableValueSet will apply to.
+     * @param isWhiteList True if the EquatableValueSet will be a whitelist.
+     * @param nullAllowed True if the EquatableValueSet should include NULL.
+     * @return A new Builder that can be used to add values and create a new EquatableValueSet.
+     */
+    public static Builder newBuilder(BlockAllocator allocator, ArrowType type, boolean isWhiteList, boolean nullAllowed)
+    {
+        return new Builder(allocator, type, isWhiteList, nullAllowed);
     }
 
     static EquatableValueSet none(BlockAllocator allocator, ArrowType type)
@@ -97,6 +119,12 @@ public class EquatableValueSet
         return new EquatableValueSet(BlockUtils.newBlock(allocator, DEFAULT_COLUMN, type, values), true, nullAllowed);
     }
 
+    /**
+     * Conveys if nulls should be allowed.
+     *
+     * @return True if NULLs satisfy this constraint, false otherwise.
+     * @see ValueSet
+     */
     @JsonProperty("nullAllowed")
     @Override
     public boolean isNullAllowed()
@@ -105,17 +133,28 @@ public class EquatableValueSet
     }
 
     @Transient
-    public Schema getSchema()
+    protected Schema getSchema()
     {
         return valueBlock.getSchema();
     }
 
+    /**
+     * Provides access to all the values in this ValueSet.
+     *
+     * @return The Block of Apache Arrow records in this ValueSet.
+     */
     @JsonProperty
     public Block getValueBlock()
     {
         return valueBlock;
     }
 
+    /**
+     * The Arrow Type of the field this constraint applies to.
+     *
+     * @return The ArrowType of the field this ValueSet applies to.
+     * @see ValueSet
+     */
     @Transient
     @Override
     public ArrowType getType()
@@ -123,17 +162,34 @@ public class EquatableValueSet
         return valueBlock.getFieldReader(DEFAULT_COLUMN).getField().getType();
     }
 
+    /**
+     * Conveys if this ValueSet if a white list.
+     *
+     * @return True if the values in this ValueSet are part of a whitelist (e.g. list of values to include) vs a list of
+     * * values to exclude.
+     */
     @JsonProperty
     public boolean isWhiteList()
     {
         return whiteList;
     }
 
+    /**
+     * Provides access to all the values in this ValueSet.
+     *
+     * @return The Block of Apache Arrow records in this ValueSet.
+     */
     public Block getValues()
     {
         return valueBlock;
     }
 
+    /**
+     * Retrieves the value at a specific position in this ValueSet.
+     *
+     * @param pos The position to retrieve, should be < size of ValueSet
+     * @return The value at that position.
+     */
     public Object getValue(int pos)
     {
         FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
@@ -141,18 +197,35 @@ public class EquatableValueSet
         return reader.readObject();
     }
 
+    /**
+     * Conveys if no value can satisfy this ValueSet.
+     *
+     * @return True if no value can satisfy this ValueSet, false otherwise.
+     * @see ValueSet
+     */
     @Override
     public boolean isNone()
     {
         return whiteList && valueBlock.getRowCount() == 0 && !nullAllowed;
     }
 
+    /**
+     * Conveys if any value can satisfy this ValueSet.
+     *
+     * @return True if any value can satisfy this ValueSet, false otherwise.
+     * @see ValueSet
+     */
     @Override
     public boolean isAll()
     {
         return !whiteList && valueBlock.getRowCount() == 0 && nullAllowed;
     }
 
+    /**
+     * Conveys if this ValueSet contains a single value.
+     *
+     * @return True if this ValueSet contains only a single value.
+     */
     @Override
     public boolean isSingleValue()
     {
@@ -160,6 +233,12 @@ public class EquatableValueSet
                 (whiteList && valueBlock.getRowCount() == 0 && nullAllowed);
     }
 
+    /**
+     * Attempts to return the single value contained in this ValueSet.
+     *
+     * @return The single value contained in this ValueSet.
+     * @throws IllegalStateException if this ValueSet does not contain exactly 1 value.
+     */
     @Override
     public Object getSingleValue()
     {
@@ -176,6 +255,13 @@ public class EquatableValueSet
         return reader.readObject();
     }
 
+    /**
+     * Used to test if the supplied value (in the form of a Marker) is contained in this ValueSet.
+     *
+     * @param marker The value to test in the form of a Marker.
+     * @return True if the value is contained in the ValueSet, False otherwise.
+     * @note This method is a basic building block of constraint evaluation.
+     */
     @Override
     public boolean containsValue(Marker marker)
     {
@@ -196,6 +282,13 @@ public class EquatableValueSet
         return whiteList == result;
     }
 
+    /**
+     * Used to test if the supplied value  is contained in this ValueSet.
+     *
+     * @param value The value to test.
+     * @return True if the value is contained in the ValueSet, False otherwise.
+     * @note This method is a basic building block of constraint evaluation.
+     */
     protected boolean containsValue(Object value)
     {
         if (value == null && nullAllowed) {
@@ -410,11 +503,6 @@ public class EquatableValueSet
         valueBlock.close();
     }
 
-    public static Builder newBuilder(BlockAllocator allocator, ArrowType type, boolean isWhiteList, boolean nullAllowed)
-    {
-        return new Builder(allocator, type, isWhiteList, nullAllowed);
-    }
-
     public static class Builder
     {
         private ArrowType type;
@@ -423,6 +511,14 @@ public class EquatableValueSet
         private List<Object> values = new ArrayList<>();
         private BlockAllocator allocator;
 
+        /**
+         * Used to construct new Builder for EquatableValueSet.
+         *
+         * @param allocator The BlockAllocator to use when allocating Apache Arrow resources.
+         * @param type The type of the field that this EquatableValueSet will apply to.
+         * @param isWhiteList True if the EquatableValueSet will be a whitelist.
+         * @param nullAllowed True if the EquatableValueSet should include NULL.
+         */
         Builder(BlockAllocator allocator, ArrowType type, boolean isWhiteList, boolean nullAllowed)
         {
             requireNonNull(type, "minorType is null");
@@ -432,12 +528,24 @@ public class EquatableValueSet
             this.nullAllowed = nullAllowed;
         }
 
+        /**
+         * Adds a value to the builder.
+         *
+         * @param value The value to add. Be sure that this matches the ArrowType.
+         * @return The builder itself.
+         */
         public Builder add(Object value)
         {
             values.add(value);
             return this;
         }
 
+        /**
+         * Adds the values to the builder.
+         *
+         * @param value Collection of values to add. Be sure that this matches the ArrowType.
+         * @return The builder itself.
+         */
         public Builder addAll(Collection<Object> value)
         {
             values.addAll(value);
