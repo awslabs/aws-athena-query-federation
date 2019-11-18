@@ -2,6 +2,8 @@
 
 This module is meant to serve as a guided example for writing and deploying your own connector to enable Athena to query a custom source. The goal with this guided tutorial is to help you understand the development process and point out capabilities. Out of necessity some of the examples are rather contrived and make use of hard coded schemas to separate learning how to write a connector from learning how to interface with the target systems you will inevitably want to federate to. 
 
+Also in this tutorial is an example of creating scalar batch functions (aka User Defined Functions) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as stand alone Lambda functions completely independent of a connector.
+
 ## What is a 'Connector'?
 
 A 'Connector' is a piece of code that can translate between your target data source and Athena. Today this code is expected to run in an AWS Lambda function but in the future we hope to offer more options. You can think of a connector as an extension of Athena's query engine. Athena will delegate portions of the federated query plan to your connector. More specifically:
@@ -119,6 +121,52 @@ public class MyRecordHandler
     protected void readWithConstraint(ConstraintEvaluator constraints, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker){}
 }
 ```
+
+
+## What is a scalar UDF?
+
+A scalar UDF is a user Defined Function that is applied one row at a time and returns a single column value. Athena will call your scalar UDF with batches of rows (potentially in parallel) in order to limit the performance impact associated with making a remote call for the UDF itself. 
+
+In order for Athena to delegate UDF calls to your Lambda function, you need to implement a UserDefinedFunctionHandler in your Lambda function.  The Athena Query Federation SDK offers an abstract [UserDefinedFunctionHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.java) which handles all the boiler plate associated serialization and managing the lifecycle of a UDF and leaves you to simply implement the UDF methods themselves. 
+
+### UserDefinedFunctionHandler Details
+
+UDF implementation is a bit different from implementing a connector. Lets say you have the following query you want to run (we'll actually run this query for real later in the tutorial).
+
+```sql
+USING 
+FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) RETURNS INT TYPE LAMBDA_INVOKE WITH (lambda_name = 'my_lambda_function'),
+FUNCTION decrypt(payload VARCHAR ) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = 'my_lambda_function')
+SELECT year, month, day, account_id, decrypt(encrypted_payload) as decrypted_payload, extract_tx_id(transaction) as tx_id
+FROM schema1.table1 WHERE year=2017 AND month=11 AND day=1;
+```
+
+This query defined 2 UDFs: extract_tx_id and decrypt which are said to be hosted in a Lambda function called "my_lambda_function". My UserDefinedFunctionHandler would look like the one below. I simply need two methods which match the signature of the UDF I defined in my query. For full data type and method signature info, check the [SDK documentation](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md).
+
+```java
+public class MyUDF extends UserDefinedFunctionHandler
+{
+
+    /**
+     * This UDF extracts an 'Account' from the input STRUCT (provided as a Map). In this case 'Account' is
+     * an application specific concept and very custom to our test dataset's schema.
+     *
+     * @param transaction The transaction from which to extract the id field.
+     * @return An Integer containing the Transaction ID or -1 if the id couldn't be extracted.
+     */
+    public Integer extract_tx_id(Map<String, Object> transaction){}
+
+    /**
+     * Decrypts the provided value using our application's secret key and encryption Algo.
+     *
+     * @param payload The cipher text to decrypt.
+     * @return ClearText version if the input payload, null if the decrypt failed.
+     */
+    public String decrypt(String payload)
+
+}
+```
+
 
 ## How To Build & Deploy
 
