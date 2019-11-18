@@ -64,29 +64,31 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
     while true; do
         read -p "Do you wish to proceed? (yes or no) " yn
         case $yn in
-            [Yy]* ) echo "Proceeding..."; break;;
+            [Yy]* ) echo "Proceeding..."
+                cat > sar_bucket_policy.json <<- EOM
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service":  "serverlessrepo.amazonaws.com"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::$1/*"
+    }
+  ]
+}
+EOM
+                cat sar_bucket_policy.json
+                set -e
+                aws s3api put-bucket-policy --bucket $1 --region $REGION --policy  file://sar_bucket_policy.json
+                rm sar_bucket_policy.json
+                break;;
             [Nn]* ) echo "Skipping bucket policy, not that this may result in failed attempts to publish to Serverless Application Repository"; break;;
             * ) echo "Please answer yes or no.";;
         esac
     done
-
-cat > sar_bucket_policy.json <<- EOM
-{
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Principal": {
-            "Service":  "serverlessrepo.amazonaws.com"
-          },
-          "Action": "s3:GetObject",
-          "Resource": "arn:aws:s3:::$1/*"
-        }
-      ]
-    }
-EOM
-    set -e
-    aws s3api put-bucket-policy --bucket $1 --region $REGION --policy  file://sar_bucket_policy.json
 fi
 
 set -e
