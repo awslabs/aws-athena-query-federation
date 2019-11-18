@@ -46,7 +46,7 @@ public class GetTableResponse
      * Constructs a new GetTableResponse object.
      *
      * @param catalogName The catalog name the table belongs to.
-     * @param tableName The name of the table.
+     * @param tableName The name of the table (must be lowercase).
      * @param schema The schema of the table.
      * @param partitionColumns The partition column names of the table.
      */

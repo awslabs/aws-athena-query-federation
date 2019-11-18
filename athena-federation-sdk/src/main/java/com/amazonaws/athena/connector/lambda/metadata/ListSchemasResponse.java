@@ -42,7 +42,7 @@ public class ListSchemasResponse
      * Constructs a new ListSchemasResponse object.
      *
      * @param catalogName The catalog name that schemas were listed for.
-     * @param schemas The list of schema names.
+     * @param schemas The list of schema names (they all must be lowercase).
      */
     @JsonCreator
     public ListSchemasResponse(@JsonProperty("catalogName") String catalogName,

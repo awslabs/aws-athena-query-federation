@@ -43,8 +43,7 @@ public class ListTablesResponse
      * Constructs a new ListTablesResponse object.
      *
      * @param catalogName The catalog name that tables were listed for.
-     *
-     * @param tables The list of table names.
+     * @param tables The list of table names (they all must be lowercase).
      */
     @JsonCreator
     public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
