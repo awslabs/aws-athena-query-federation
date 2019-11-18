@@ -44,6 +44,8 @@ import static java.util.Objects.requireNonNull;
  * A set containing values that are uniquely identifiable.
  * Assumes an infinite number of possible values. The values may be collectively included (aka whitelist)
  * or collectively excluded (aka !whitelist).
+ *
+ * @see ValueSet
  */
 public class EquatableValueSet
         implements ValueSet

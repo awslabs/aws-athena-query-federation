@@ -30,11 +30,20 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.data.BlockUtils.setValue;
 
+/**
+ * Constraints require typed values in the form of Markers. Each Marker contains, at most, one typed value. This model
+ * is awkward to map into Apache Arrow's VectorSchema or RecordBatch constructs without significant memory overhead. To
+ * reduce the memory requirement associated with Markers and constraint processing we use a MarkerFactory that is capable
+ * of sharing an underlying Apache Arrow Block across multiple Markers. In Testing this was 100x more performant than
+ * having a 1-1 relationship between Markers and VectorSchema.
+ */
 public class MarkerFactory
         implements AutoCloseable
 {
     private final BlockAllocator allocator;
+    //For each supported Apache Arrow Type we maintain a Block for its values.
     private final Map<ArrowType, Block> sharedMarkerBlocks = new HashMap<>();
+    //For each shared Block in the above map, we maintain the 'next' available row.
     private final Map<ArrowType, Integer> markerLeases = new HashMap<>();
 
     public MarkerFactory(BlockAllocator allocator)

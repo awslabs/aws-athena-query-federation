@@ -59,6 +59,7 @@ public class MyMetadataHandler extends MetadataHandler
      *
      * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
+     * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
      * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
      * partition data are ignored by Athena but passed on to calls on GetSplits. Also note tat the BlockWriter handlers 
@@ -68,7 +69,7 @@ public class MyMetadataHandler extends MetadataHandler
      * for pushing down into the source you are querying.
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request) {}
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) {}
 
     /**
      * Used to split-up the reads required to scan the requested batch of partition(s).
@@ -110,17 +111,18 @@ public class MyRecordHandler
      *                           2. The Catalog, Database, and Table the read request is for.
      *                           3. The filtering predicate (if any)
      *                           4. The columns required for projection.
+     * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
      *       ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
     @Override
-    protected void readWithConstraint(ConstraintEvaluator constraints, BlockSpiller spiller, ReadRecordsRequest recordsRequest){}
+    protected void readWithConstraint(ConstraintEvaluator constraints, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker){}
 }
 ```
 
 ## How To Build & Deploy
 
-You can use any IDE or even just comman line editor to write your connector. The below steps show you how to use an AWS Cloud9 IDE running on EC2 to get started but most of the steps are applicable to any linux based development machine.
+You can use any IDE or even just command line editor to write your connector. The below steps show you how to use an AWS Cloud9 IDE running on EC2 to get started but most of the steps are applicable to any linux based development machine.
 
 
 ### Step 1: Create your Cloud9 Instance

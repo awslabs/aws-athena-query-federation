@@ -47,6 +47,8 @@ import java.util.Map;
  * For usage examples, please see the ExampleRecordHandler or connectors like athena-redis.
  *
  * TODO: We can improve the filtering performance of ConstraintEvaluator by refactoring how ValueSets works.
+ *
+ * @see ValueSet
  */
 public class ConstraintEvaluator
         implements AutoCloseable

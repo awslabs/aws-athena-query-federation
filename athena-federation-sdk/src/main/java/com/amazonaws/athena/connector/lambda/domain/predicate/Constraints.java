@@ -26,6 +26,17 @@ import com.google.common.base.Objects;
 
 import java.util.Map;
 
+/**
+ * Container which holds and maps column names to the corresponding constraint (e.g. ValueSet).
+ *
+ * @note Only associative predicates are supported. Where relevant, Athena will supply you with the associative
+ * portion of the query predicate so that you can perform filtering or push the predicate into your source system
+ * for even better performance. It is important to note that the predicate is not always the query's full predicate.
+ * For example, if the query's predicate was "where (col0 < 1 or col1 < 10) and col2 + 10 < 100 and function(col3) > 19"
+ * only the "col0 < 1 or col1 < 10" will be supplied to you at this time. We are still considering the best form for
+ * supplying connectors with a more complete view of the query and its predicate. We expect a future release to  provide
+ * full predicates to connectors and lets the connector decide which parts of the predicate it is capable of applying
+ */
 public class Constraints
         implements AutoCloseable
 {
