@@ -24,12 +24,21 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Parent class representing the generic output of all <code>Record</code> operations.
+ */
 public abstract class RecordResponse
         extends FederationResponse
 {
     private final RecordRequestType requestType;
     private final String catalogName;
 
+    /**
+     * Constructs a new RecordResponse object.
+     *
+     * @param requestType The type of request this response corresponds to.
+     * @param catalogName The catalog name that the data is for.
+     */
     public RecordResponse(RecordRequestType requestType, String catalogName)
     {
         requireNonNull(requestType, "requestType is null");
@@ -38,11 +47,21 @@ public abstract class RecordResponse
         this.catalogName = catalogName;
     }
 
+    /**
+     * Returns the type of request this response corresponds to.
+     *
+     * @return The type of request this response corresponds to.
+     */
     public RecordRequestType getRequestType()
     {
         return requestType;
     }
 
+    /**
+     * Returns the catalog name that the data is for.
+     *
+     * @return The catalog name that the data is for.
+     */
     public String getCatalogName()
     {
         return catalogName;

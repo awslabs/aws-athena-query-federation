@@ -22,8 +22,17 @@ package com.amazonaws.athena.connector.lambda.records;
 
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
 
+/**
+ * Lambda functions intended for <code>Record</code> operations associate with this interface.
+ */
 public interface RecordService
 {
+    /**
+     * Returns data/records corresponding to the request type.
+     *
+     * @param request The data/records request.
+     * @return The data/records.
+     */
     @LambdaFunction(functionName = "record")
     RecordResponse readRecords(final RecordRequest request);
 }

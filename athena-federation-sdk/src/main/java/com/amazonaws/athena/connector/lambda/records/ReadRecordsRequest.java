@@ -31,6 +31,9 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the input of a <code>ReadRecords</code> operation.
+ */
 public class ReadRecordsRequest
         extends RecordRequest
 {
@@ -41,6 +44,19 @@ public class ReadRecordsRequest
     private final long maxBlockSize;
     private final long maxInlineBlockSize;
 
+    /**
+     * Constructs a new ReadRecordsRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param catalogName The catalog name that records should be read for.
+     * @param queryId The ID of the query requesting data.
+     * @param tableName The name of the table being read from.
+     * @param schema The schema of the table being read from.
+     * @param split The split being read.
+     * @param constraints The constraints to apply to read records.
+     * @param maxBlockSize The maximum supported block size.
+     * @param maxInlineBlockSize The maximum block size before spilling.
+     */
     public ReadRecordsRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("catalogName") String catalogName,
             @JsonProperty("queryId") String queryId,
@@ -64,42 +80,75 @@ public class ReadRecordsRequest
         this.constraints = constraints;
     }
 
+    /**
+     * Returns the name of the table being read from.
+     *
+     * @return The name of the table being read from.
+     */
     @JsonProperty
     public TableName getTableName()
     {
         return tableName;
     }
 
+    /**
+     * Returns the schema of the table being read from.
+     *
+     * @return The schema of the table being read from.
+     */
     @JsonProperty
     public Schema getSchema()
     {
         return schema;
     }
 
+    /**
+     * Returns he split being read.
+     *
+     * @return The split being read.
+     */
     @JsonProperty
     public Split getSplit()
     {
         return split;
     }
 
+    /**
+     * Returns the maximum block size before spilling.
+     *
+     * @return The maximum block size before spilling.
+     */
     @JsonProperty
     public long getMaxInlineBlockSize()
     {
         return maxInlineBlockSize;
     }
 
+    /**
+     * Returns the maximum supported block size.
+     *
+     * @return The maximum supported block size.
+     */
     @JsonProperty
     public long getMaxBlockSize()
     {
         return maxBlockSize;
     }
 
+    /**
+     * Returns the constraints to apply to read records.
+     *
+     * @return The constraints to apply to read records.
+     */
     @JsonProperty
     public Constraints getConstraints()
     {
         return constraints;
     }
 
+    /**
+     * Frees up resources associated with the <code>constraints</code> Block.
+     */
     @Override
     public void close()
             throws Exception

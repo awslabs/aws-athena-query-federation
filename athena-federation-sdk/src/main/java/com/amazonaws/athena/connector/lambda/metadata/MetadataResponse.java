@@ -24,12 +24,21 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Parent class representing the generic output of all <code>Metadata</code> operations.
+ */
 public abstract class MetadataResponse
         extends FederationResponse
 {
     private final MetadataRequestType requestType;
     private final String catalogName;
 
+    /**
+     * Constructs a new MetadataResponse object.
+     *
+     * @param requestType The type of request this response corresponds to.
+     * @param catalogName The catalog name that the metadata is for.
+     */
     public MetadataResponse(MetadataRequestType requestType, String catalogName)
     {
         requireNonNull(requestType, "requestType is null");
@@ -38,11 +47,21 @@ public abstract class MetadataResponse
         this.catalogName = catalogName;
     }
 
+    /**
+     * Returns the type of request this response corresponds to.
+     *
+     * @return The type of request this response corresponds to.
+     */
     public MetadataRequestType getRequestType()
     {
         return requestType;
     }
 
+    /**
+     * Returns the catalog name that the metadata is for.
+     *
+     * @return The catalog name that the metadata is for.
+     */
     public String getCatalogName()
     {
         return catalogName;

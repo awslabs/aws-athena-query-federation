@@ -22,8 +22,17 @@ package com.amazonaws.athena.connector.lambda.metadata;
 
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
 
+/**
+ * Lambda functions intended for <code>Metadata</code> operations associate with this interface.
+ */
 public interface MetadataService
 {
+    /**
+     * Returns metadata corresponding to the request type.
+     *
+     * @param request The metadata request.
+     * @return The metadata.
+     */
     @LambdaFunction(functionName = "metadata")
     MetadataResponse getMetadata(final MetadataRequest request);
 }

@@ -20,7 +20,13 @@ package com.amazonaws.athena.connector.lambda.records;
  * #L%
  */
 
+/**
+ * Enumerates the support <code>Record</code> request types.
+ */
 public enum RecordRequestType
 {
+    /**
+     * For reading records.
+     */
     READ_RECORDS;
 }

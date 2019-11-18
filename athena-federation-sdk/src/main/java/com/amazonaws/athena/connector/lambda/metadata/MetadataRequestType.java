@@ -20,11 +20,33 @@ package com.amazonaws.athena.connector.lambda.metadata;
  * #L%
  */
 
+/**
+ * Enumerates the supported request types for <code>Metadata</code>.
+ */
 public enum MetadataRequestType
 {
+    /**
+     * For listing tables.
+     */
     LIST_TABLES,
+
+    /**
+     * For listing schemas.
+     */
     LIST_SCHEMAS,
+
+    /**
+     * For fetching a table's metadata including schema and partition columns.
+     */
     GET_TABLE,
+
+    /**
+     * For fetching a table's partitioning layout.
+     */
     GET_TABLE_LAYOUT,
+
+    /**
+     * For fetching splits.
+     */
     GET_SPLITS;
 }

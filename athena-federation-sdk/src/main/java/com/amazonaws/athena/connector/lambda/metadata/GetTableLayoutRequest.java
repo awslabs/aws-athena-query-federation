@@ -35,6 +35,9 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the input of a <code>GetTableLayout</code> operation.
+ */
 public class GetTableLayoutRequest
         extends MetadataRequest
 {
@@ -43,6 +46,17 @@ public class GetTableLayoutRequest
     private final Schema schema;
     private final Set<String> partitionCols;
 
+    /**
+     * Constructs a new GetTableLayoutRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that the table layout should be generated for.
+     * @param tableName The table name that the table layout should be generated for.
+     * @param constraints The constraints that can be applied to table layout generation.
+     * @param schema The table's schema.
+     * @param partitionCols The partition columns that can be used for table layout generation.
+     */
     @JsonCreator
     public GetTableLayoutRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("queryId") String queryId,
@@ -60,26 +74,49 @@ public class GetTableLayoutRequest
         this.partitionCols = Collections.unmodifiableSet(new HashSet<>(partitionCols));
     }
 
+    /**
+     * Returns the table name to generate a table layout for.
+     *
+     * @return The table name to generate a table layout for.
+     */
     public TableName getTableName()
     {
         return tableName;
     }
 
+    /**
+     * Returns the constraints that can be applied to table layout generation.
+     *
+     * @return The constraints that can be applied to table layout generation.
+     */
     public Constraints getConstraints()
     {
         return constraints;
     }
 
+    /**
+     * Returns the table's schema.
+     *
+     * @return The table's schema.
+     */
     public Schema getSchema()
     {
         return schema;
     }
 
+    /**
+     * Returns the partition columns that can be used for table layout generation.
+     *
+     * @return The partition columns that can be used for table layout generation.
+     */
     public Set<String> getPartitionCols()
     {
         return partitionCols;
     }
 
+    /**
+     * Frees up resources associated with the <code>constraints</code> Block.
+     */
     @Override
     public void close()
             throws Exception

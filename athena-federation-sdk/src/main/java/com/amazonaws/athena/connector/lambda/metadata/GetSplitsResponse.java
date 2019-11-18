@@ -31,12 +31,23 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>GetSplits</code> operation.
+ */
 public class GetSplitsResponse
         extends MetadataResponse
 {
     private final Set<Split> splits;
     private final String continuationToken;
 
+    /**
+     * Constructs a new GetSplitsResponse object.
+     *
+     * @param catalogName The catalog that splits were generated for.
+     * @param splits The splits that were generated.
+     * @param continuationToken A continuation token that, if present, can be used to request the next batch of splits.
+     *          This token is opaque and only needs to be understood by the same <code>MetadataHandler</code> that produces it.
+     */
     @JsonCreator
     public GetSplitsResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("splits") Set<Split> splits,
@@ -48,6 +59,12 @@ public class GetSplitsResponse
         this.continuationToken = continuationToken;
     }
 
+    /**
+     * Constructs a new GetSplitsResponse object. Convenience constructor for when there is no continuation token.
+     *
+     * @param catalogName The catalog that splits were generated for.
+     * @param splits The splits that were generated.
+     */
     public GetSplitsResponse(String catalogName,
             Set<Split> splits)
     {
@@ -57,6 +74,13 @@ public class GetSplitsResponse
         this.continuationToken = null;
     }
 
+    /**
+     * Constructs a new GetSplitsResponse object. Convenience constructor for when there is no continuation token
+     * and only a single split.
+     *
+     * @param catalogName The catalog that splits were generated for.
+     * @param split The splits that were generated.
+     */
     public GetSplitsResponse(String catalogName,
             Split split)
     {
@@ -68,12 +92,22 @@ public class GetSplitsResponse
         this.continuationToken = null;
     }
 
+    /**
+     * Returns the generated splits.
+     *
+     * @return The splits that were generated.
+     */
     @JsonProperty
     public Set<Split> getSplits()
     {
         return splits;
     }
 
+    /**
+     * Returns the continuation token that, if present, can be used to request the next batch of splits.
+     *
+     * @return The continuation token that, if present, can be used to request the next batch of splits.
+     */
     @JsonProperty
     public String getContinuationToken()
     {

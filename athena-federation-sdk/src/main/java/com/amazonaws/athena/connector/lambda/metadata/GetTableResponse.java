@@ -32,6 +32,9 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>GetTable</code> operation.
+ */
 public class GetTableResponse
         extends MetadataResponse
 {
@@ -39,6 +42,14 @@ public class GetTableResponse
     private final Schema schema;
     private final Set<String> partitionColumns;
 
+    /**
+     * Constructs a new GetTableResponse object.
+     *
+     * @param catalogName The catalog name the table belongs to.
+     * @param tableName The name of the table (must be lowercase).
+     * @param schema The schema of the table.
+     * @param partitionColumns The partition column names of the table.
+     */
     @JsonCreator
     public GetTableResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("tableName") TableName tableName,
@@ -54,21 +65,44 @@ public class GetTableResponse
         this.partitionColumns = partitionColumns;
     }
 
+    /**
+     * Constructs a new GetTableResponse object.  This constructor populates an empty set for the
+     * partition column names.
+     *
+     * @param catalogName The catalog name the table belongs to.
+     * @param tableName The name of the table that was fetched.
+     * @param schema The schema of the table.
+     */
     public GetTableResponse(String catalogName, TableName tableName, Schema schema)
     {
         this(catalogName, tableName, schema, Collections.emptySet());
     }
 
+    /**
+     * Returns the name of the table.
+     *
+     * @return The name of the table.
+     */
     public TableName getTableName()
     {
         return tableName;
     }
 
+    /**
+     * Returns the schema of the table.
+     *
+     * @return The schema of the table.
+     */
     public Schema getSchema()
     {
         return schema;
     }
 
+    /**
+     * Returns partition column names of the table.
+     *
+     * @return The partition column names of the table.
+     */
     public Set<String> getPartitionColumns()
     {
         return Collections.unmodifiableSet(partitionColumns);

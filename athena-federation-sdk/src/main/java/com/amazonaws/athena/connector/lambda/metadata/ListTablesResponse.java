@@ -31,11 +31,20 @@ import java.util.Collections;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>ListTables</code> operation.
+ */
 public class ListTablesResponse
         extends MetadataResponse
 {
     private final Collection<TableName> tables;
 
+    /**
+     * Constructs a new ListTablesResponse object.
+     *
+     * @param catalogName The catalog name that tables were listed for.
+     * @param tables The list of table names (they all must be lowercase).
+     */
     @JsonCreator
     public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("tables") Collection<TableName> tables)
@@ -45,6 +54,11 @@ public class ListTablesResponse
         this.tables = Collections.unmodifiableCollection(tables);
     }
 
+    /**
+     * Returns the list of table names.
+     *
+     * @return The list of table names.
+     */
     public Collection<TableName> getTables()
     {
         return tables;

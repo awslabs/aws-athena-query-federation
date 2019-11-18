@@ -25,14 +25,21 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
+/**
+ * Represents the input of a <code>ListTables</code> operation.
+ */
 public class ListTablesRequest
         extends MetadataRequest
 {
     private final String schemaName;
 
     /**
-     * @param catalogName The name of the catalog being requested.
-     * @param schemaName This may be null if no specific schema is requested.
+     * Constructs a new ListTablesRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that tables should be listed for.
+     * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is requested.
      */
     @JsonCreator
     public ListTablesRequest(@JsonProperty("identity") FederatedIdentity identity,
@@ -44,6 +51,11 @@ public class ListTablesRequest
         this.schemaName = schemaName;
     }
 
+    /**
+     * Returns the schema name that tables should be listed for. This may be null if no specific schema is requested.
+     *
+     * @return The schema name that tables should be listed for. This may be null if no specific schema is requested.
+     */
     public String getSchemaName()
     {
         return schemaName;

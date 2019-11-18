@@ -28,11 +28,22 @@ import com.google.common.base.Objects;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the input of a <code>GetTable</code> operation.
+ */
 public class GetTableRequest
         extends MetadataRequest
 {
     private final TableName tableName;
 
+    /**
+     * Constructs a new GetTableRequest object.
+     *
+     * @param identity The identity of the caller.
+     * @param queryId The ID of the query requesting metadata.
+     * @param catalogName The catalog name that the table belongs to.
+     * @param tableName The name of the table metadata is being requested for.
+     */
     @JsonCreator
     public GetTableRequest(@JsonProperty("identity") FederatedIdentity identity,
             @JsonProperty("queryId") String queryId,
@@ -44,6 +55,11 @@ public class GetTableRequest
         this.tableName = tableName;
     }
 
+    /**
+     * Returns the name of the table metadata is being requested for.
+     *
+     * @return The name of the table metadata is being requested for.
+     */
     public TableName getTableName()
     {
         return tableName;

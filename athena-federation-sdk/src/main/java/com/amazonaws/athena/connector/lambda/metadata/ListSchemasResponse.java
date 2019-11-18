@@ -30,11 +30,20 @@ import java.util.Collections;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Represents the output of a <code>ListSchemas</code> operation.
+ */
 public class ListSchemasResponse
         extends MetadataResponse
 {
     private final Collection<String> schemas;
 
+    /**
+     * Constructs a new ListSchemasResponse object.
+     *
+     * @param catalogName The catalog name that schemas were listed for.
+     * @param schemas The list of schema names (they all must be lowercase).
+     */
     @JsonCreator
     public ListSchemasResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("schemas") Collection<String> schemas)
@@ -44,6 +53,11 @@ public class ListSchemasResponse
         this.schemas = Collections.unmodifiableCollection(schemas);
     }
 
+    /**
+     * Returns the list of schema names.
+     *
+     * @return The list of schema names.
+     */
     public Collection<String> getSchemas()
     {
         return schemas;
