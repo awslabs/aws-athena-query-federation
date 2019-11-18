@@ -36,7 +36,7 @@ import java.util.Map;
  * constraints into your source system (e.g. RDBMS via SQL). For each value you'd like to write for a given row,
  * you call the 'apply' function on this class and if the values for all columns in the row return 'true' that
  * indicates that the row passes the constraints.
- *
+ * <p>
  * After being used, ConstraintEvaluator instance must be closed to ensure no Apache Arrow resources used by
  * Markers that it creates as part of evaluation are leaked.
  *
@@ -45,10 +45,9 @@ import java.util.Map;
  * in the future. Additionally, we do not support constraints on complex types are this time.
  * <p>
  * For usage examples, please see the ExampleRecordHandler or connectors like athena-redis.
- *
- * TODO: We can improve the filtering performance of ConstraintEvaluator by refactoring how ValueSets works.
- *
- * @see ValueSet
+ * <p>
+ * TODO: We can improve the filtering performance of ConstraintEvaluator by refactoring how ValueSets and Markers works.
+ * @see ValueSet for details on how Constraints are represented and individually applied.
  */
 public class ConstraintEvaluator
         implements AutoCloseable
@@ -74,11 +73,24 @@ public class ConstraintEvaluator
         markerFactory = new MarkerFactory(allocator);
     }
 
+    /**
+     * This convenience method builds an empty Evaluator that can be useful when no constraints are present.
+     *
+     * @return An empty ConstraintEvaluator which always returns true when applied to a value for any field.
+     */
     public static ConstraintEvaluator emptyEvaluator()
     {
         return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>()));
     }
 
+    /**
+     * Used check if the provided value passes all constraints on the given field.
+     *
+     * @param fieldName The name of the field whoe's constraints we'd like to apply to the value.
+     * @param value The value to test.
+     * @return True if the value passed all constraints for the given field, False otherwise. This method also returns
+     * True if the field has no constraints, including if the field is unknown.
+     */
     public boolean apply(String fieldName, Object value)
     {
         try {
@@ -98,6 +110,11 @@ public class ConstraintEvaluator
         }
     }
 
+    /**
+     * Frees any Apache Arrow resources held by this Constraint Evaluator.
+     *
+     * @throws Exception
+     */
     @Override
     public void close()
             throws Exception

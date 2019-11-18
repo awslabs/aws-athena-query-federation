@@ -40,6 +40,12 @@ import java.util.TreeMap;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * A set containing values that are represented as ranges that are sorted by their lower bound. For example:
+ * col between 10 and 30, or col between 40 and 60, or col between 90 and 1000.
+ *
+ * @see ValueSet
+ */
 public class SortedRangeSet
         implements ValueSet
 {
@@ -142,6 +148,12 @@ public class SortedRangeSet
         return copyOf(type, (Iterable<Range>) ranges, nullAllowed);
     }
 
+    /**
+     * Conveys if nulls should be allowed.
+     *
+     * @return True if NULLs satisfy this constraint, false otherwise.
+     * @see ValueSet
+     */
     @JsonProperty("nullAllowed")
     @Override
     public boolean isNullAllowed()
@@ -149,6 +161,12 @@ public class SortedRangeSet
         return nullAllowed;
     }
 
+    /**
+     * The Arrow Type of the field this constraint applies to.
+     *
+     * @return The ArrowType of the field this ValueSet applies to.
+     * @see ValueSet
+     */
     @JsonProperty
     public ArrowType getType()
     {
@@ -167,6 +185,12 @@ public class SortedRangeSet
         return lowIndexedRanges.size();
     }
 
+    /**
+     * Conveys if no value can satisfy this ValueSet.
+     *
+     * @return True if no value can satisfy this ValueSet, false otherwise.
+     * @see ValueSet
+     */
     @Transient
     @Override
     public boolean isNone()
@@ -174,6 +198,12 @@ public class SortedRangeSet
         return lowIndexedRanges.isEmpty();
     }
 
+    /**
+     * Conveys if any value can satisfy this ValueSet.
+     *
+     * @return True if any value can satisfy this ValueSet, false otherwise.
+     * @see ValueSet
+     */
     @Transient
     @Override
     public boolean isAll()
@@ -181,6 +211,11 @@ public class SortedRangeSet
         return lowIndexedRanges.size() == 1 && lowIndexedRanges.values().iterator().next().isAll();
     }
 
+    /**
+     * Conveys if this ValueSet contains a single value.
+     *
+     * @return True if this ValueSet contains only a single value.
+     */
     @Transient
     @Override
     public boolean isSingleValue()
@@ -189,6 +224,12 @@ public class SortedRangeSet
                 lowIndexedRanges.isEmpty() && nullAllowed;
     }
 
+    /**
+     * Attempts to return the single value contained in this ValueSet.
+     *
+     * @return The single value contained in this ValueSet.
+     * @throws IllegalStateException if this ValueSet does not contain exactly 1 value.
+     */
     @Transient
     @Override
     public Object getSingleValue()
@@ -204,6 +245,13 @@ public class SortedRangeSet
         return lowIndexedRanges.values().iterator().next().getSingleValue();
     }
 
+    /**
+     * Used to test if the supplied value (in the form of a Marker) is contained in this ValueSet.
+     *
+     * @param marker The value to test in the form of a Marker.
+     * @return True if the value is contained in the ValueSet, False otherwise.
+     * @note This method is a basic building block of constraint evaluation.
+     */
     @Override
     public boolean containsValue(Marker marker)
     {
@@ -238,6 +286,13 @@ public class SortedRangeSet
         return floorEntry != null && floorEntry.getValue().includes(marker);
     }
 
+    /**
+     * Gets a summary of the lowest lower bound and the highest upper bound that represents this ValueSet, keep in mind
+     * that this summary may include more than the actual SortedRangeSet (e.g. col between 10 and 40 or col between 50 and 80
+     * would yield a span of between 10 and 80).
+     *
+     * @return A Span which encompasses the lower bound and upper bound of the ValueSet.
+     */
     @Transient
     public Range getSpan()
     {
@@ -247,6 +302,11 @@ public class SortedRangeSet
         return lowIndexedRanges.firstEntry().getValue().span(lowIndexedRanges.lastEntry().getValue());
     }
 
+    /**
+     * Provides access to the Ranges that comprise this ValueSet.
+     *
+     * @return The Ranges in the ValueSet.
+     */
     @Override
     public Ranges getRanges()
     {

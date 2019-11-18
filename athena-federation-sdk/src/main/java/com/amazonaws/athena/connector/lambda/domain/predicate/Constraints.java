@@ -48,6 +48,11 @@ public class Constraints
         this.summary = summary;
     }
 
+    /**
+     * Provides access to the associative predicates that are part of the Constraints.
+     *
+     * @return A Map of column name to ValueSet representing the associative predicates on each column.
+     */
     public Map<String, ValueSet> getSummary()
     {
         return summary;

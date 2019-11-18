@@ -45,6 +45,12 @@ public class AllOrNoneValueSet
     private final boolean all;
     private final boolean nullAllowed;
 
+    /**
+     * Constructs a new AllOrNoneValueSet.
+     * @param type The Apache Arrow type of the field that this ValueSet applies to.
+     * @param all True if all non-null values are in this ValueSet.
+     * @param nullAllowed True is all null values are in this ValueSet.
+     */
     @JsonCreator
     public AllOrNoneValueSet(@JsonProperty("type") ArrowType type,
             @JsonProperty("all") boolean all,
@@ -75,6 +81,12 @@ public class AllOrNoneValueSet
         return new AllOrNoneValueSet(type, true, false);
     }
 
+    /**
+     * Conveys if nulls should be allowed.
+     *
+     * @return True if NULLs satisfy this constraint, false otherwise.
+     * @see ValueSet
+     */
     @Override
     @JsonProperty("nullAllowed")
     public boolean isNullAllowed()
@@ -82,6 +94,12 @@ public class AllOrNoneValueSet
         return nullAllowed;
     }
 
+    /**
+     * The Arrow Type of the field this constraint applies to.
+     *
+     * @return The ArrowType of the field this ValueSet applies to.
+     * @see ValueSet
+     */
     @Override
     @JsonProperty
     public ArrowType getType()
@@ -89,12 +107,24 @@ public class AllOrNoneValueSet
         return type;
     }
 
+    /**
+     * Conveys if no value can satisfy this ValueSet.
+     *
+     * @return True if no value can satisfy this ValueSet, false otherwise.
+     * @see ValueSet
+     */
     @Override
     public boolean isNone()
     {
         return !all && !nullAllowed;
     }
 
+    /**
+     * Conveys if any value can satisfy this ValueSet.
+     *
+     * @return True if any value can satisfy this ValueSet, false otherwise.
+     * @see ValueSet
+     */
     @Override
     @JsonProperty
     public boolean isAll()
@@ -102,18 +132,36 @@ public class AllOrNoneValueSet
         return all && nullAllowed;
     }
 
+    /**
+     * Conveys if this ValueSet contains a single value.
+     *
+     * @return True if this ValueSet contains only a single value.
+     * @note This is always false for AllOrNoneValueSet.
+     */
     @Override
     public boolean isSingleValue()
     {
         return false;
     }
 
+    /**
+     * Attempts to return the single value contained in this ValueSet.
+     *
+     * @return AllOrNoneValueSet never contains a single value, hence this method always throws UnsupportedOperationException.
+     */
     @Override
     public Object getSingleValue()
     {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Used to test if the supplied value (in the form of a Marker) is contained in this ValueSet.
+     *
+     * @param value The value to test in the form of a Marker.
+     * @return True if the value is contained in the ValueSet, False otherwise.
+     * @note This method is a basic building block of constraint evaluation.
+     */
     @Override
     public boolean containsValue(Marker value)
     {
@@ -127,6 +175,9 @@ public class AllOrNoneValueSet
         return all;
     }
 
+    /**
+     * @see ValueSet
+     */
     @Override
     public ValueSet intersect(BlockAllocator allocator, ValueSet other)
     {
@@ -134,6 +185,9 @@ public class AllOrNoneValueSet
         return new AllOrNoneValueSet(type, all && otherValueSet.all, nullAllowed && other.isNullAllowed());
     }
 
+    /**
+     * @see ValueSet
+     */
     @Override
     public ValueSet union(BlockAllocator allocator, ValueSet other)
     {
@@ -141,6 +195,9 @@ public class AllOrNoneValueSet
         return new AllOrNoneValueSet(type, all || otherValueSet.all, nullAllowed || other.isNullAllowed());
     }
 
+    /**
+     * @see ValueSet
+     */
     @Override
     public ValueSet complement(BlockAllocator allocator)
     {

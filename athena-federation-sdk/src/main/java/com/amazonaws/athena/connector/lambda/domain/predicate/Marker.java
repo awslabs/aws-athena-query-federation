@@ -51,6 +51,9 @@ import static java.util.Objects.requireNonNull;
 /**
  * A point on the continuous space defined by the specified type.
  * Each point may be just below, exact, or just above the specified value according to the Bound.
+ * <p>
+ * TODO: Add better support for SharedBlock Markers so that we have fewer Apache Arrow Blocks used to describe
+ * constraints.
  */
 public class Marker
         implements Comparable<Marker>, AutoCloseable
@@ -107,12 +110,22 @@ public class Marker
         return nullValue;
     }
 
+    /**
+     * The Arrow Type of the field this constraint applies to.
+     *
+     * @return The ArrowType of the field this ValueSet applies to.
+     */
     @Transient
     public ArrowType getType()
     {
         return valueBlock.getFieldReader(DEFAULT_COLUMN).getField().getType();
     }
 
+    /**
+     * Retrieves the value held in this Marker.
+     *
+     * @return The value.
+     */
     @Transient
     public Object getValue()
     {
@@ -125,18 +138,34 @@ public class Marker
         return reader.readObject();
     }
 
+    /**
+     * Retrieves the Bound (BELOW, EXACTLY, ABOVE, etce...) used by this Marker.
+     * @return The Bound.
+     */
     @JsonProperty
     public Bound getBound()
     {
         return bound;
     }
 
+    /**
+     * Provides access to the Apache Arrow Schema used to store the value of this marker.
+     *
+     * @return The Apache Arrow Schema used to store the value of this marker.
+     * @note This is only used to avoid in serialization.
+     */
     @Transient
     public Schema getSchema()
     {
         return valueBlock.getSchema();
     }
 
+    /**
+     * Provides access to the Apache Arrow Block used to store the value of this marker.
+     *
+     * @return The Apache Arrow Block used to store the value of this marker.
+     * @note This is only used to avoid in serialization and will throw when called on a Marker that uses as SharedBlock.
+     */
     @JsonProperty
     public Block getValueBlock()
     {

@@ -46,11 +46,25 @@ public class MarkerFactory
     //For each shared Block in the above map, we maintain the 'next' available row.
     private final Map<ArrowType, Integer> markerLeases = new HashMap<>();
 
+    /**
+     * Creates a new MarkerFactory using the provided BlockAllocator.
+     *
+     * @param allocator The BlockAllocator to use when creating Apache Arrow resources.
+     */
     public MarkerFactory(BlockAllocator allocator)
     {
         this.allocator = allocator;
     }
 
+    /**
+     * Creates a nullable Marker.
+     *
+     * @param type The type of the value represented by this Marker.
+     * @param value The value of this Marker.
+     * @param bound The Bound of this Marker.
+     * @return The newly created SharedBlockMarker satisfying the supplied criteria.
+     * @note SharedBlockMarker allow for sharing a single Apache Arrow Block across multiple Markers to reduce memory overhead.
+     */
     public Marker createNullable(ArrowType type, Object value, Marker.Bound bound)
     {
         BlockLease lease = getOrCreateBlock(type);
@@ -60,6 +74,15 @@ public class MarkerFactory
         return new SharedBlockMarker(this, lease.getBlock(), lease.getPos(), bound, value == null);
     }
 
+    /**
+     * Creates a Marker without nulls.
+     *
+     * @param type The type of the value represented by this Marker.
+     * @param value The value of this Marker.
+     * @param bound The Bound of this Marker.
+     * @return The newly created Marker satisfying the supplied criteria.
+     * @note SharedBlockMarker allow for sharing a single Apache Arrow Block across multiple Markers to reduce memory overhead.
+     */
     public Marker create(ArrowType type, Object value, Marker.Bound bound)
     {
         BlockLease lease = getOrCreateBlock(type);
@@ -67,6 +90,14 @@ public class MarkerFactory
         return new SharedBlockMarker(this, lease.getBlock(), lease.getPos(), bound, false);
     }
 
+    /**
+     * Creates an empty Marker without nulls.
+     *
+     * @param type The type of the value represented by this Marker.
+     * @param bound The Bound of this Marker.
+     * @return The newly created Marker satisfying the supplied criteria.
+     * @note SharedBlockMarker allow for sharing a single Apache Arrow Block across multiple Markers to reduce memory overhead.
+     */
     public Marker create(ArrowType type, Marker.Bound bound)
     {
         BlockLease lease = getOrCreateBlock(type);
@@ -91,6 +122,10 @@ public class MarkerFactory
     /**
      * This leasing strategy optimizes for the create, return usecase it does not attempt to handle fragmentation
      * in any meaningful way beyond what the columnar nature of Arrow provides.
+     *
+     * @note In practice we see Markers get allocated and freed one at a time as they are used for Constraint Evaluation
+     * so even this crude logic works well at present. As we improve the constraint system we expect to refactor the concept
+     * of a Marker significantly to improve on this awkward lifecycle.
      */
     private synchronized void returnBlockLease(ArrowType type, int pos)
     {
@@ -136,6 +171,9 @@ public class MarkerFactory
         }
     }
 
+    /**
+     * Extends Marker with functionality to allow for sharing the same underlying Apache Arrow Block.
+     */
     public class SharedBlockMarker
             extends Marker
     {
@@ -149,6 +187,10 @@ public class MarkerFactory
             this.valuePosition = valuePosition;
         }
 
+        /**
+         * Signals to the MarkerFactory that created this SharedBlockMarker that the row are valuePosition can be considered
+         * free.
+         */
         @Override
         public void close()
                 throws Exception
