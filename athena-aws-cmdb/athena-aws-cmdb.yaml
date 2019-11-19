@@ -3,7 +3,7 @@ Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaAwsCmdbConnector
     Description: 'This connector enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL.'
-    Author: 'Amazon Athena'
+    Author: 'default_author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
