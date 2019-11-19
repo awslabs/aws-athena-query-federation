@@ -233,11 +233,29 @@ If everything worked as expected you should see the script generate useful debug
 Ok, now we are ready to try running some queries using our new connector. Some good examples to try include (be sure to put in your actual database and table names):
 
 ```sql
-USING 
-FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) RETURNS INT TYPE LAMBDA_INVOKE WITH (lambda_name = '<function_name>'),
-FUNCTION decrypt(payload VARCHAR ) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<function_name>')
-SELECT year, month, day, account_id, decrypt(encrypted_payload) as decrypted_payload, extract_tx_id(transaction) as tx_id
-FROM "lambda:<function_name>".schema1.table1 WHERE year=2017 AND month=11 AND day=1;
+USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
+		RETURNS INT TYPE LAMBDA_INVOKE
+WITH (lambda_name = '<function_name>'), FUNCTION decrypt(payload VARCHAR ) 
+		RETURNS VARCHAR TYPE LAMBDA_INVOKE
+WITH (lambda_name = '<function_name>')
+SELECT year,
+         month,
+         day,
+         account_id,
+         decrypt(encrypted_payload) AS decrypted_payload,
+         extract_tx_id(transaction) AS tx_id
+FROM "lambda:<function_name>".schema1.table1
+WHERE year=2017
+        AND month=11
+        AND day=1;
+```
+
+You can also try a DDL query:
+
+```sql
+show databases in `lambda:<function_name>`;
+show tables in `lambda:<function_name>`.<database>;
+describe `lambda:<function_name>`.<database>.<table>;
 ```
 
 *note that the <function_name> corresponds to the name of your Lambda function.
