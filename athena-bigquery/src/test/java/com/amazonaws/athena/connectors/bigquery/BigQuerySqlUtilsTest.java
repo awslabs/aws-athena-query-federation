@@ -39,6 +39,7 @@ import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,11 +57,11 @@ public class BigQuerySqlUtilsTest
 
     @Test
     public void testSqlWithConstraintsRanges()
-        throws Exception
+            throws Exception
     {
         Map<String, ValueSet> constraintMap = new LinkedHashMap<>();
         ValueSet rangeSet = SortedRangeSet.newBuilder(INT_TYPE, true).add(new Range(Marker.above(new BlockAllocatorImpl(), INT_TYPE, 10),
-            Marker.exactly(new BlockAllocatorImpl(), INT_TYPE, 20))).build();
+                Marker.exactly(new BlockAllocatorImpl(), INT_TYPE, 20))).build();
 
         ValueSet isNullRangeSet = SortedRangeSet.newBuilder(INT_TYPE, true).build();
 
@@ -96,13 +97,11 @@ public class BigQuerySqlUtilsTest
         try (Constraints constraints = new Constraints(constraintMap)) {
             List<QueryParameterValue> parameterValues = new ArrayList<>();
             String sql = BigQuerySqlUtils.buildSqlFromSplit(tableName, makeSchema(constraintMap), constraints, split, parameterValues);
-            assertEquals(expectedParameterValues, parameterValues);
-            assertEquals("SELECT `integerRange`,`isNullRange`,`isNotNullRange`,`stringRange`,`booleanRange`,`integerInRange` from `schema`.`table` " +
-                    "WHERE ((integerRange IS NULL) OR (`integerRange` > ? AND `integerRange` <= ?)) " +
-                    "AND (isNullRange IS NULL) AND (isNotNullRange IS NOT NULL) " +
-                    "AND ((`stringRange` >= ? AND `stringRange` < ?)) " +
-                    "AND (`booleanRange` = ?) " +
-                    "AND (`integerInRange` IN (?,?))", sql);
+            assertEquals(new HashSet<>(expectedParameterValues), new HashSet<>(parameterValues));
+            assertEquals("SELECT `isNullRange`,`stringRange`,`integerInRange`,`isNotNullRange`,`booleanRange`," +
+                    "`integerRange` from `schema`.`table` WHERE (isNullRange IS NULL) AND ((`stringRange` >= ? AND " +
+                    "`stringRange` < ?)) AND (`integerInRange` IN (?,?)) AND (isNotNullRange IS NOT NULL) AND " +
+                    "(`booleanRange` = ?) AND ((integerRange IS NULL) OR (`integerRange` > ? AND `integerRange` <= ?))", sql);
         }
     }
 

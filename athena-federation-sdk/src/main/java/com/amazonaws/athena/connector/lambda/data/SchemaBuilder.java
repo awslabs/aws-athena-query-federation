@@ -20,7 +20,6 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -30,6 +29,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,13 +39,14 @@ import java.util.Map;
  */
 public class SchemaBuilder
 {
-    private final ImmutableList.Builder<Field> fields = ImmutableList.builder();
+    private final Map<String, Field> fields = new HashMap<>();
     private final ImmutableMap.Builder<String, String> metadata = ImmutableMap.builder();
-    private final Map<String, FieldBuilder> nestedFieldBuilderMap = new HashMap<>();
+    //Using LinkedHashMap because Apache Arrow makes field order important so honoring that contract here
+    private final Map<String, FieldBuilder> nestedFieldBuilderMap = new LinkedHashMap<>();
 
     public SchemaBuilder addField(Field field)
     {
-        fields.add(field);
+        fields.put(field.getName(), field);
         return this;
     }
 
@@ -58,7 +59,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addField(String fieldName, ArrowType type)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(type), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(type), null));
         return this;
     }
 
@@ -72,7 +73,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addField(String fieldName, ArrowType type, List<Field> children)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(type), children));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(type), children));
         return this;
     }
 
@@ -97,7 +98,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addListField(String fieldName, ArrowType type)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.LIST.getType()),
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.LIST.getType()),
                 Collections.singletonList(new Field("", FieldType.nullable(type), null))));
         return this;
     }
@@ -139,7 +140,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addStringField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
         return this;
     }
 
@@ -151,7 +152,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addIntField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.INT.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.INT.getType()), null));
         return this;
     }
 
@@ -163,7 +164,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addTinyIntField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.TINYINT.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.TINYINT.getType()), null));
         return this;
     }
 
@@ -175,7 +176,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addSmallIntField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.SMALLINT.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.SMALLINT.getType()), null));
         return this;
     }
 
@@ -187,7 +188,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addFloat8Field(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null));
         return this;
     }
 
@@ -199,7 +200,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addFloat4Field(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null));
         return this;
     }
 
@@ -211,7 +212,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addBigIntField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.BIGINT.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.BIGINT.getType()), null));
         return this;
     }
 
@@ -223,7 +224,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addBitField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.BIT.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.BIT.getType()), null));
         return this;
     }
 
@@ -237,7 +238,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addDecimalField(String fieldName, int precision, int scale)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(new ArrowType.Decimal(precision, scale)), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(new ArrowType.Decimal(precision, scale)), null));
         return this;
     }
 
@@ -249,7 +250,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addDateDayField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.DATEDAY.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.DATEDAY.getType()), null));
         return this;
     }
 
@@ -261,7 +262,7 @@ public class SchemaBuilder
      */
     public SchemaBuilder addDateMilliField(String fieldName)
     {
-        fields.add(new Field(fieldName, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null));
+        fields.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null));
         return this;
     }
 
@@ -276,6 +277,16 @@ public class SchemaBuilder
     {
         metadata.put(key, value);
         return this;
+    }
+
+    public Field getField(String name)
+    {
+        return fields.get(name);
+    }
+
+    public FieldBuilder getNestedField(String name)
+    {
+        return nestedFieldBuilderMap.get(name);
     }
 
     /**
@@ -296,9 +307,9 @@ public class SchemaBuilder
      */
     public Schema build()
     {
-        for (FieldBuilder next : nestedFieldBuilderMap.values()) {
-            fields.add(next.build());
+        for (Map.Entry<String, FieldBuilder> next : nestedFieldBuilderMap.entrySet()) {
+            fields.put(next.getKey(), next.getValue().build());
         }
-        return new Schema(fields.build(), metadata.build());
+        return new Schema(fields.values(), metadata.build());
     }
 }
