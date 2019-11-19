@@ -85,6 +85,10 @@ public abstract class GlueMetadataHandler
     //name of the environment variable that can be used to set which Glue catalog to use (e.g. setting this to
     //a different aws account id allows you to use cross-account catalogs)
     private static final String CATALOG_NAME_ENV_OVERRIDE = "glue_catalog";
+    //This is to override the connection timeout on the Glue client.
+    //The default is 10 seconds, which when retried is 40 seconds.
+    //Lower to 250 ms, 1 second with retry.
+    private static final int CONNECT_TIMEOUT = 250;
 
     private final AWSGlue awsGlue;
 
@@ -103,10 +107,7 @@ public abstract class GlueMetadataHandler
         }
         else {
             awsGlue = AWSGlueClientBuilder.standard()
-                    //Override the connection timeout.
-                    //The default is 10 seconds, which when retried is 40 seconds.
-                    //Lower to 250 ms, 1 second with retry.
-                    .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(250))
+                    .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT))
                     .build();
         }
     }
