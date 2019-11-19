@@ -109,53 +109,57 @@ public abstract class JdbcRecordHandler
     {
         LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
-        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider());
-                PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(), readRecordsRequest.getSchema(),
-                        readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
-                ResultSet resultSet = preparedStatement.executeQuery()) {
-            ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
+        try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
+            connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
+                    readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
+                    ResultSet resultSet = preparedStatement.executeQuery()) {
+                ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
 
-            Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
+                Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
 
-            final Map<String, Types.MinorType> typeMap = new HashMap<>();
-            int columnIndex = 1;
-            for (Field nextField : readRecordsRequest.getSchema().getFields()) {
-                if (partitionValues.containsKey(nextField.getName())) {
-                    continue; //ignore partition columns
+                final Map<String, Types.MinorType> typeMap = new HashMap<>();
+                int columnIndex = 1;
+                for (Field nextField : readRecordsRequest.getSchema().getFields()) {
+                    if (partitionValues.containsKey(nextField.getName())) {
+                        continue; //ignore partition columns
+                    }
+                    Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(JdbcToArrowUtils.getArrowTypeForJdbcField(new JdbcFieldInfo(resultSetMetaData, columnIndex),
+                            Calendar.getInstance()));
+                    typeMap.put(nextField.getName(), minorTypeForArrowType);
+                    columnIndex++;
                 }
-                Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(JdbcToArrowUtils.getArrowTypeForJdbcField(new JdbcFieldInfo(resultSetMetaData, columnIndex),
-                        Calendar.getInstance()));
-                typeMap.put(nextField.getName(), minorTypeForArrowType);
-                columnIndex++;
-            }
 
-            while (resultSet.next()) {
-                if (!queryStatusChecker.isQueryRunning()) {
-                    return;
-                }
-                blockSpiller.writeRows((Block block, int rowNum) -> {
-                    try {
-                        boolean matched;
-                        for (Field nextField : readRecordsRequest.getSchema().getFields()) {
-                            Object value;
-                            if (partitionValues.containsKey(nextField.getName())) {
-                                value = partitionValues.get(nextField.getName());
+                while (resultSet.next()) {
+                    if (!queryStatusChecker.isQueryRunning()) {
+                        return;
+                    }
+                    blockSpiller.writeRows((Block block, int rowNum) -> {
+                        try {
+                            boolean matched;
+                            for (Field nextField : readRecordsRequest.getSchema().getFields()) {
+                                Object value;
+                                if (partitionValues.containsKey(nextField.getName())) {
+                                    value = partitionValues.get(nextField.getName());
+                                }
+                                else {
+                                    value = getArrowValue(resultSet, nextField.getName(), typeMap.get(nextField.getName()));
+                                }
+                                matched = block.offerValue(nextField.getName(), rowNum, value);
+                                if (!matched) {
+                                    return 0;
+                                }
                             }
-                            else {
-                                value = getArrowValue(resultSet, nextField.getName(), typeMap.get(nextField.getName()));
-                            }
-                            matched = block.offerValue(nextField.getName(), rowNum, value);
-                            if (!matched) {
-                                return 0;
-                            }
+
+                            return 1;
                         }
+                        catch (SQLException sqlException) {
+                            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
+                        }
+                    });
+                }
 
-                        return 1;
-                    }
-                    catch (SQLException sqlException) {
-                        throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-                    }
-                });
+                connection.commit();
             }
         }
         catch (SQLException sqlException) {
