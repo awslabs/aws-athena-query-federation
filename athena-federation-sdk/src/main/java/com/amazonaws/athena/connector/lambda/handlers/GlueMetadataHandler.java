@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * #L%
  */
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -34,6 +35,7 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.GetDatabasesRequest;
@@ -89,6 +91,29 @@ public abstract class GlueMetadataHandler
     /**
      * Basic constructor which is recommended when extending this class.
      *
+     * @param disable Whether to disable Glue usage. Useful for users that wish to rely on their handlers' schema inference.
+     * @param sourceType The source type, used in diagnostic logging.
+     */
+    public GlueMetadataHandler(boolean disable, String sourceType)
+    {
+        super(sourceType);
+        if (disable) {
+            //Only disable if env var is present and not explicitly set to false
+            awsGlue = null;
+        }
+        else {
+            awsGlue = AWSGlueClientBuilder.standard()
+                    //Override the connection timeout.
+                    //The default is 10 seconds, which when retried is 40 seconds.
+                    //Lower to 250 ms, 1 second with retry.
+                    .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(250))
+                    .build();
+        }
+    }
+
+    /**
+     * Constructor that allows injection of a customized Glue client.
+     *
      * @param awsGlue The glue client to use.
      * @param sourceType The source type, used in diagnostic logging.
      */
@@ -122,9 +147,10 @@ public abstract class GlueMetadataHandler
     }
 
     /**
-     * Provides access to the Glue client if the extender should need it.
+     * Provides access to the Glue client if the extender should need it. This will return null if Glue
+     * use is disabled.
      *
-     * @return The AWSGlue client being used by this class.
+     * @return The AWSGlue client being used by this class, or null if disabled.
      */
     protected AWSGlue getAwsGlue()
     {

@@ -54,7 +54,6 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -115,7 +114,9 @@ public class DynamoDBMetadataHandler
     static final int MAX_SPLITS_PER_REQUEST = 1000;
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
     static final String DYNAMODB = "dynamodb";
-    private static final String sourceType = "ddb";
+    private static final String SOURCE_TYPE = "ddb";
+    // Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
+    // metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
     // defines the value that should be present in the Glue Database URI to enable the DB for DynamoDB.
     static final String DYNAMO_DB_FLAG = "dynamo-db-flag";
@@ -134,8 +135,8 @@ public class DynamoDBMetadataHandler
 
     public DynamoDBMetadataHandler()
     {
-        super((System.getenv(GLUE_ENV) == null || !Boolean.parseBoolean(System.getenv(GLUE_ENV))) ? AWSGlueClientBuilder.standard().build() : null,
-                sourceType);
+        // disable Glue if the env var is present and not explicitly set to "false"
+        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         ddbClient = AmazonDynamoDBClientBuilder.standard().build();
         glueClient = getAwsGlue();
         tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
@@ -150,7 +151,7 @@ public class DynamoDBMetadataHandler
             AmazonDynamoDB ddbClient,
             AWSGlue glueClient)
     {
-        super(glueClient, keyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix);
+        super(glueClient, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.glueClient = glueClient;
         this.ddbClient = ddbClient;
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
@@ -228,7 +229,7 @@ public class DynamoDBMetadataHandler
                 return super.doGetTable(allocator, request);
             }
             catch (RuntimeException e) {
-                logger.debug("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}", request.getTableName().getSchemaName(), e);
+                logger.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}", request.getTableName().getSchemaName(), e);
             }
         }
 

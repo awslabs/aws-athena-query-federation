@@ -40,7 +40,6 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.mongodb.client.MongoClient;
@@ -74,7 +73,7 @@ public class DocDBMetadataHandler
     private static final String SOURCE_TYPE = "documentdb";
     //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
     //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV_VAR = "disable_glue";
+    private static final String GLUE_ENV = "disable_glue";
     //Field name used to store the connection string as a property on Split objects.
     protected static final String DOCDB_CONN_STR = "connStr";
     //The Env variable name used to store the default DocDB connection string if no catalog specific
@@ -93,7 +92,8 @@ public class DocDBMetadataHandler
 
     public DocDBMetadataHandler()
     {
-        super((System.getenv(GLUE_ENV_VAR) == null) ? AWSGlueClientBuilder.standard().build() : null, SOURCE_TYPE);
+        // disable Glue if the env var is present and not explicitly set to "false"
+        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         glue = getAwsGlue();
         connectionFactory = new DocDBConnectionFactory();
     }
