@@ -4,7 +4,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: AthenaBigQueryConnector
     Description: An Athena connector to interact with BigQuery
-    Author: Amazon Athena
+    Author: 'default_author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md

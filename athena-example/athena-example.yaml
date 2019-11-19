@@ -4,7 +4,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: ExampleAthenaConnector
     Description: ExampleAthenaConnector Description
-    Author: user1
+    Author: 'default_author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
