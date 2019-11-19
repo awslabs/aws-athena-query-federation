@@ -39,7 +39,6 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
@@ -99,7 +98,7 @@ public class HbaseMetadataHandler
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
     //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
     //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV_VAR = "disable_glue";
+    private static final String GLUE_ENV = "disable_glue";
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
     //The number of rows to scan when attempting to infer schema from an HBase table.
@@ -109,7 +108,8 @@ public class HbaseMetadataHandler
 
     public HbaseMetadataHandler()
     {
-        super((System.getenv(GLUE_ENV_VAR) == null) ? AWSGlueClientBuilder.standard().build() : null, SOURCE_TYPE);
+        //Disable Glue if the env var is present and not explicitly set to "false"
+        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
         this.connectionFactory = new HbaseConnectionFactory();
     }

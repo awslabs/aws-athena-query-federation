@@ -42,7 +42,6 @@ import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -116,7 +115,7 @@ public class RedisMetadataHandler
 
     public RedisMetadataHandler()
     {
-        super(AWSGlueClientBuilder.standard().build(), SOURCE_TYPE);
+        super(false, SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
         this.jedisPoolFactory = new JedisPoolFactory();
     }
