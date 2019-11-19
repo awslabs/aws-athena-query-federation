@@ -45,7 +45,6 @@ public class ArrowTypeComparator
         return compare(reader.getField().getType(), lhs, rhs);
     }
 
-    //TODO: Add support for Struct
     public static int compare(ArrowType arrowType, Object lhs, Object rhs)
     {
         if (lhs == null && rhs == null) {
@@ -90,6 +89,7 @@ public class ArrowTypeComparator
             case DATEDAY:
                 return ((Integer) lhs).compareTo((Integer) rhs);
             case LIST:
+            case STRUCT: // struct maps to java.util.map
                 //This could lead to thrashing if used to sort a collection
                 if (lhs.equals(rhs)) {
                     return 0;

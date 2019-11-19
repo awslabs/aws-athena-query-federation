@@ -24,6 +24,8 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 import static java.util.Objects.requireNonNull;
 
 public class UserDefinedFunctionResponse extends FederationResponse
@@ -55,5 +57,25 @@ public class UserDefinedFunctionResponse extends FederationResponse
     public void close() throws Exception
     {
         records.close();
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof UserDefinedFunctionResponse)) {
+            return false;
+        }
+        UserDefinedFunctionResponse that = (UserDefinedFunctionResponse) o;
+        return getRecords().equals(that.getRecords()) &&
+                getMethodName().equals(that.getMethodName());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getRecords(), getMethodName());
     }
 }

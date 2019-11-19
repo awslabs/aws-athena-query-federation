@@ -26,11 +26,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.UnitTestBlockUtils;
-import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,7 +88,7 @@ public class UserDefinedFunctionHandlerTest
     public void testInvocationWithBasicType()
     {
         int rowCount = 20;
-        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Integer.class, "testScalarUDF", true, Integer.class, Integer.class);
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Integer.class, "test_scalar_udf", true, Integer.class, Integer.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
         Block responseBlock = udfResponse.getRecords();
@@ -104,7 +101,7 @@ public class UserDefinedFunctionHandlerTest
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
             int val = (int) UnitTestBlockUtils.getValue(fieldReader, pos);
-            int expected = handler.testScalarUDF(pos + 100, pos + 100);
+            int expected = handler.test_scalar_udf(pos + 100, pos + 100);
             assertEquals(expected, val);
         }
     }
@@ -113,7 +110,7 @@ public class UserDefinedFunctionHandlerTest
     public void testInvocationWithListType()
     {
         int rowCount = 20;
-        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, List.class, "testListType", true, List.class);
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, List.class, "test_list_type", true, List.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
         Block responseBlock = udfResponse.getRecords();
@@ -126,7 +123,7 @@ public class UserDefinedFunctionHandlerTest
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
             List<Integer> result = (List) UnitTestBlockUtils.getValue(fieldReader, pos);
-            List<Integer> expected = handler.testListType(ImmutableList.of(pos + 100, pos + 200, pos + 300));
+            List<Integer> expected = handler.test_list_type(ImmutableList.of(pos + 100, pos + 200, pos + 300));
             assertArrayEquals(expected.toArray(), result.toArray());
         }
     }
@@ -135,7 +132,7 @@ public class UserDefinedFunctionHandlerTest
     public void testInvocationWithStructType()
     {
         int rowCount = 20;
-        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Map.class, "testRowType", true, Map.class);
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Map.class, "test_row_type", true, Map.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
         Block responseBlock = udfResponse.getRecords();
@@ -150,7 +147,7 @@ public class UserDefinedFunctionHandlerTest
             Map<String, Object> actual = (Map) UnitTestBlockUtils.getValue(fieldReader, pos);
 
             Map<String, Object> input = ImmutableMap.of("intVal", pos + 100, "doubleVal", pos + 200.2);
-            Map<String, Object> expected = handler.testRowType(input);
+            Map<String, Object> expected = handler.test_row_type(input);
 
             for (Map.Entry<String, Object> entry : expected.entrySet()) {
                 String key = entry.getKey();
@@ -164,7 +161,7 @@ public class UserDefinedFunctionHandlerTest
     public void testInvocationWithNullVAlue()
     {
         int rowCount = 20;
-        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Boolean.class, "testScalarUDFWithNullCheck", false, Integer.class);
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Boolean.class, "test_scalar_function_with_null_value", false, Integer.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
         Block responseBlock = udfResponse.getRecords();
@@ -177,7 +174,7 @@ public class UserDefinedFunctionHandlerTest
         for (int pos = 0; pos < rowCount; ++pos) {
             fieldReader.setPosition(pos);
             assertTrue(fieldReader.isSet());
-            Boolean expected = handler.testScalarUDFWithNullCheck(null);
+            Boolean expected = handler.test_scalar_function_with_null_value(null);
             Boolean actual = fieldReader.readBoolean();
             assertEquals(expected, actual);
         }
@@ -203,6 +200,21 @@ public class UserDefinedFunctionHandlerTest
         }
         catch (Exception e) {
             assertTrue(e.getMessage().contains("Expected a UserDefinedFunctionRequest but found"));
+        }
+    }
+
+    @Test
+    public void testMethodNotFound()
+    {
+        int rowCount = 20;
+        UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Integer.class, "method_that_does_not_exsit", true, Integer.class, Integer.class);
+
+        try {
+            UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
+            fail("Expected function to fail due to method not found, but succeeded.");
+        }
+        catch (Exception e) {
+            assertTrue(e.getCause() instanceof NoSuchMethodException);
         }
     }
 
@@ -342,12 +354,12 @@ public class UserDefinedFunctionHandlerTest
             super("test_type");
         }
 
-        public Integer testScalarUDF(Integer col1, Integer col2)
+        public Integer test_scalar_udf(Integer col1, Integer col2)
         {
             return col1 + col2;
         }
 
-        public Boolean testScalarUDFWithNullCheck(Integer col1)
+        public Boolean test_scalar_function_with_null_value(Integer col1)
         {
             if (col1 == null) {
                 return true;
@@ -355,12 +367,12 @@ public class UserDefinedFunctionHandlerTest
             return false;
         }
 
-        public List<Integer> testListType(List<Integer> input)
+        public List<Integer> test_list_type(List<Integer> input)
         {
             return input.stream().map(val -> val + 1).collect(Collectors.toList());
         }
 
-        public Map<String, Object> testRowType(Map<String, Object> input)
+        public Map<String, Object> test_row_type(Map<String, Object> input)
         {
             Integer intVal = (Integer) input.get("intVal");
             Double doubleVal = (Double) input.get("doubleVal");
