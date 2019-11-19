@@ -32,20 +32,34 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
+ * Utility that implements a basic form of Additive Increase, Multiplicative Decrease for handling
+ * retries and backoff against a dependency that is experience congestion. For best results share one
+ * instance of this class across as many callers of the same shared resource. If you give each calling
+ * thread or entity its own instance the logic will still work but may take a bit longer (couple extra calls)
+ * to detect the congestion and converge. This utility works best when all callers use it, otherwise callers
+ * that do not use this logic will get a larger % of the available call capacity because the other callers
+ * will back off when they see congestion and get starved out by the greedy caller
  */
 public class ThrottlingInvoker
 {
     private static final Logger logger = LoggerFactory.getLogger(ThrottlingInvoker.class);
 
+    //Controls the delay applied between calls at the initial occurrence of Congestion.
     private static final String THROTTLE_INITIAL_DELAY_MS = "throttle_initial_delay_ms";
+    //The max milliseconds to wait between calls in periods of high congestion.
     private static final String THROTTLE_MAX_DELAY_MS = "throttle_max_delay_ms";
+    //The multiplicative factor by which we should decrease our call rate (e.g. increase delay) when congestion occurs.
     private static final String THROTTLE_DECREASE_FACTOR = "throttle_decrease_factor";
+    //The additive factor by which we should increase our call rate (e.g. decrease delay) when we seem free of congestion.
     private static final String THROTTLE_INCREASE_MS = "throttle_increase_ms";
 
+    //10ms is our initial delay, this takes us from unlimited TPS to 100 TPS as a first step.
     private static final long DEFAULT_INITIAL_DELAY_MS = 10;
+    //In a worse case we'd generate 1 TPS against the congested source.
     private static final long DEFAULT_MAX_DELAY_MS = 1_000;
+    //We cut out call rate in 1/2 every time we encounter congestion by doubling our delay.
     private static final double DEFAULT_DECREASE_FACTOR = 0.5D;
+    //We reduce our delay by 10ms every time we appear free of congestion.
     private static final long DEFAULT_INCREASE_MS = 10;
 
     private final long initialDelayMs;
@@ -75,7 +89,8 @@ public class ThrottlingInvoker
                 builder.spiller);
     }
 
-    public ThrottlingInvoker(long initialDelayMs,
+    @VisibleForTesting
+    protected ThrottlingInvoker(long initialDelayMs,
             long maxDelayMs,
             double decrease,
             long increase,
@@ -102,11 +117,22 @@ public class ThrottlingInvoker
         this.spillerRef = new AtomicReference<>(spiller);
     }
 
+    /**
+     * Create a new, empty, Builder.
+     *
+     * @return The new Builder.
+     */
     public static Builder newBuilder()
     {
         return new Builder();
     }
 
+    /**
+     * Produces a Builder with default values set allowing you to override only specific defaults.
+     *
+     * @param filter The exception filter to apply to any exception when attemtping to identify congestion.
+     * @return The new Builder with default values.
+     */
     public static Builder newDefaultBuilder(ExceptionFilter filter)
     {
         long initialDelayMs = (System.getenv(THROTTLE_INITIAL_DELAY_MS) != null) ?
@@ -126,12 +152,30 @@ public class ThrottlingInvoker
                 .withFilter(filter);
     }
 
+    /**
+     * Attempts to invoke the callable while applying our congestion control logic.
+     *
+     * @param callable The callable to invoke.
+     * @param <T> The return type of the Callable
+     * @return The value returned by the Callable.
+     * @throws TimeoutException
+     */
     public <T> T invoke(Callable<T> callable)
             throws TimeoutException
     {
         return invoke(callable, 0);
     }
 
+    /**
+     * Attempts to invoke the callable while applying our congestion control logic.
+     *
+     * @param callable The callable to invoke.
+     * @param <T> The return type of the Callable
+     * @param timeoutMillis The max number of milliseconds we should spend retrying if congestion
+     * prevents us from making a successful call.
+     * @return The value returned by the Callable, null if we exceeded the timeout.
+     * @throws TimeoutException
+     */
     public <T> T invoke(Callable<T> callable, long timeoutMillis)
             throws TimeoutException
     {
@@ -156,11 +200,19 @@ public class ThrottlingInvoker
         throw new TimeoutException("Timed out before call succeeded after " + (System.currentTimeMillis() - startTime) + " ms");
     }
 
+    /**
+     * Throttling Invoker can decide to propogate the congestion events to Athena if your Lambda has not generated any data
+     * yet. To do this ThrottlingInvoker needs access to your BlockSpiller so that it can see if any data was spilled. Once
+     * data is spilled you can not longer throw FederationThrottleException to Athena or the query may fail in order to ensure
+     * consistency.
+     *
+     * @param spiller The BlockSpiller to monitor for spill events.
+     */
     public void setBlockSpiller(BlockSpiller spiller)
     {
         spillerRef.set(spiller);
     }
-
+    
     public State getState()
     {
         return state;

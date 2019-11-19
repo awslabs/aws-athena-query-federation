@@ -31,6 +31,9 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
+/**
+ * Used to enhance Jackson's stock ObjectMapper with the ability to deserialize Apache Arrow Schema objects.
+ */
 public class SchemaDeserializer
         extends StdDeserializer<Schema>
 {

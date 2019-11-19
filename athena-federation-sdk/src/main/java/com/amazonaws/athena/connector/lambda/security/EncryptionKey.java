@@ -25,6 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Arrays;
 
+/**
+ * Holder for an AES-GCM compatible encryption key and nonce.
+ */
 public class EncryptionKey
 {
     private final byte[] key;

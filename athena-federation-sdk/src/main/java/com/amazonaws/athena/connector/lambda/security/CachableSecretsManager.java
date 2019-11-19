@@ -33,6 +33,12 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Since Athena may call your connector or UDF at a high TPS or concurrency you may want to have a short lived
+ * cache in front of SecretsManager to avoid bottlenecking on SecretsManager. This class offers such a cache. This class
+ * also has utilities for idetifying and replacing secrets in scripts. For example: MyString${WithSecret} would have
+ * ${WithSecret} replaced by the corresponding value of the secret in AWS Secrets Manager with that name.
+ */
 public class CachableSecretsManager
 {
     private static final Logger logger = LoggerFactory.getLogger(CachableSecretsManager.class);
@@ -55,8 +61,12 @@ public class CachableSecretsManager
 
     /**
      * Resolves any secrets found in the supplied string, for example: MyString${WithSecret} would have ${WithSecret}
-     * by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
+     * repalced by the corresponding value of the secret in AWS Secrets Manager with that name. If no such secret is found
      * the function throws.
+     *
+     * @param rawString The string in which to find and replace/inject secrets.
+     * @return The processed rawString that has had all secrets replaced with their secret value from SecretsManager.
+     * Throws if any of the secrets can not be found.
      */
     public String resolveSecrets(String rawString)
     {
@@ -75,6 +85,12 @@ public class CachableSecretsManager
         return result;
     }
 
+    /**
+     * Retrieves a secret from SecretsManager, first checking the cache. Newly fetched secrets are added to the cache.
+     *
+     * @param secretName The name of the secret to retrieve.
+     * @return The value of the secret, throws if no such secret is found.
+     */
     public String getSecret(String secretName)
     {
         CacheEntry cacheEntry = cache.get(secretName);

@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.serde;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -30,6 +30,18 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+/**
+ * Uses either an explicit BlockAllocator or a BlockAllocatorRegistry to handle memory pooling associated with
+ * serializing blocks. Blocks are serialized as an Apache Arrow Schema + Apache Arrow Record Batch. If you
+ * need to serialize multiple Blocks of the same Schema we do not recommend using this class since it will
+ * result in the same schema being serialized multiple times. It may be more efficient for you to serialize
+ * the Schema once, separately, and then each Record Batch.
+ *
+ * This class also attempts to make use of the allocator_id field of the Block so that it will reuse the
+ * same allocator id when deserializing. This can be helpful when attempting to limit the number of copy
+ * operations that are required to move a Block around. It also allows you to put tighter control around
+ * which parts of your query execution get which memory pool / limit.
+ */
 public class BlockSerializer
         extends StdSerializer<Block>
 {

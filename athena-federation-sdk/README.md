@@ -13,7 +13,8 @@ For those seeking to write their own connectors, we recommend you being by going
 ## Features
 
 * **Federated Metadata** - It is not always practical to centralize table metadata in a centralized meta-store. As such, this SDK allows Athena to delegate portions of its query planning to your connector in order to retrieve metadata about your data source.
-* Glue DataCatalog Support - You can optionally enable a pre-built Glue MetadataHandler in your connector which will first attempt to fetch metadata from Glue about any table being queried before given you an opportunitiy to modify or re-write the retrieved metadata. This can be handy when you are using a custom format it S3 or if your data source doesn't have its own source of metadata (e.g. redis). 
+* **Glue DataCatalog Support** - You can optionally enable a pre-built Glue MetadataHandler in your connector which will first attempt to fetch metadata from Glue about any table being queried before given you an opportunitiy to modify or re-write the retrieved metadata. This can be handy when you are using a custom format it S3 or if your data source doesn't have its own source of metadata (e.g. redis). 
+* **Federated UDFs** - Athena can delegate calls for batchable Scalar UDFs to your Lambda function, allowing you to write your own custom User Defined Functions.
 * **AWS Secrets Manager Integration** - If your connectors need passwords or other sensitive information, you can optionally use the SDK's built in tooling to resolve secrets. For example, if you have a config with a jdbc connection string you can do: "jdbc://${username}:${password}@hostname:post?options" and the SDK will automatically replace ${username} and ${password} with AWS Secrets Manager secrets of the same name.
 * **Federated Identity** - When Athena federates a query to your connector, you may want to perform Authz based on the identitiy of the entity that executed the Athena Query. 
 * **Partition Pruning** - Athena will call you connector to understand how the table being queried is partitioned as well as to obtain which partitions need to be read for a given query. If your source supports partitioning, this give you an opportunity to use the query predicate to perform partition prunning.
@@ -46,6 +47,24 @@ The below table lists the supported Apache Arrow types as well as the correspond
 |STRUCT|Object (w/ FieldResolver)|
 |LIST|iterable<Object> (w/Optional FieldResolver)|
 
+UDFs have access to the same type system. When extending UserDefinedFunctionHandler you can expect to recieve the below concrete type mapping. 
+ 
+ | Athena type | Java type                                      |
+ | ----------- | ---------------------------------------------- |
+ | TIMESTAMP   | java.time.LocalDateTime (UTC)                  |
+ | DATE        | java.time.LocalDate (UTC)                      |
+ | TINYINT     | java.lang.Byte                                 |
+ | SMALLINT    | java.lang.Short                                |
+ | REAL        | java.lang.Float                                |
+ | DOUBLE      | java.lang.Double                               |
+ | DECIMAL     | java.math.BigDecimal                           |
+ | BIGINT      | java.lang.Long                                 |
+ | INTEGER     | java.lang.Int                                  |
+ | VARCHAR     | java.lang.String                               |
+ | VARBINARY   | byte[]                                         |
+ | BOOLEAN     | java.lang.Boolean                              |
+ | ARRAY       | java.util.List                                 |
+ | ROW         | java.util.Map<String, Object>                  |
 
 ## What is a 'Connector'?
 
@@ -139,6 +158,50 @@ public class MyRecordHandler
        //down into your source. You can also use the provided ConstraintEvaluator to performing filtering
        //in this code block.
     }
+}
+```
+
+## What is a scalar UDF?
+
+A scalar UDF is a user Defined Function that is applied one row at a time and returns a single column value. Athena will call your scalar UDF with batches of rows (potentially in parallel) in order to limit the performance impact associated with making a remote call for the UDF itself. 
+
+In order for Athena to delegate UDF calls to your Lambda function, you need to implement a UserDefinedFunctionHandler in your Lambda function.  The Athena Query Federation SDK offers an abstract [UserDefinedFunctionHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.java) which handles all the boiler plate associated serialization and managing the lifecycle of a UDF and leaves you to simply implement the UDF methods themselves. 
+
+### UserDefinedFunctionHandler Details
+
+UDF implementation is a bit different from implementing a connector. Lets say you have the following query you want to run (we'll actually run this query for real later in the tutorial).
+
+```sql
+USING 
+FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) RETURNS INT TYPE LAMBDA_INVOKE WITH (lambda_name = 'my_lambda_function'),
+FUNCTION decrypt(payload VARCHAR ) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = 'my_lambda_function')
+SELECT year, month, day, account_id, decrypt(encrypted_payload) as decrypted_payload, extract_tx_id(transaction) as tx_id
+FROM schema1.table1 WHERE year=2017 AND month=11 AND day=1;
+```
+
+This query defined 2 UDFs: extract_tx_id and decrypt which are said to be hosted in a Lambda function called "my_lambda_function". My UserDefinedFunctionHandler would look like the one below. I simply need two methods which match the signature of the UDF I defined in my query. For full data type and method signature info, check the [SDK documentation](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md).
+
+```java
+public class MyUDF extends UserDefinedFunctionHandler
+{
+
+    /**
+     * This UDF extracts an 'Account' from the input STRUCT (provided as a Map). In this case 'Account' is
+     * an application specific concept and very custom to our test dataset's schema.
+     *
+     * @param transaction The transaction from which to extract the id field.
+     * @return An Integer containing the Transaction ID or -1 if the id couldn't be extracted.
+     */
+    public Integer extract_tx_id(Map<String, Object> transaction){}
+
+    /**
+     * Decrypts the provided value using our application's secret key and encryption Algo.
+     *
+     * @param payload The cipher text to decrypt.
+     * @return ClearText version if the input payload, null if the decrypt failed.
+     */
+    public String decrypt(String payload)
+
 }
 ```
 
