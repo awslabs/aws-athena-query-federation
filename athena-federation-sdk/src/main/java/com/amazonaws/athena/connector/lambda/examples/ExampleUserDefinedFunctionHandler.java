@@ -21,106 +21,78 @@ package com.amazonaws.athena.connector.lambda.examples;
  */
 
 import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
-import com.google.common.collect.ImmutableMap;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+/**
+ * Example user-defined-handler that demonstrates how to write user defined functions. We don't recommend that you use
+ * this class directly. Instead, please create new classes that extends
+ * {@link UserDefinedFunctionHandler UserDefinedFunctionHandler} and copy-paste codes as needed.
+ */
 public class ExampleUserDefinedFunctionHandler
         extends UserDefinedFunctionHandler
 {
     //Used to aid in diagnostic logging
     private static final String SOURCE_TYPE = "custom";
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public ExampleUserDefinedFunctionHandler()
     {
         super(SOURCE_TYPE);
     }
 
-    public Boolean example_udf(Boolean value)
+    /**
+     * This UDF takes 2 integers, returns the produce of the 2 integers.
+     *
+     * @param factor1
+     * @param factor2
+     * @return product
+     */
+    public Integer multiply(Integer factor1, Integer factor2)
     {
-        return !value;
+        return factor1 * factor2;
     }
 
-    public Byte example_udf(Byte value)
+    /**
+     * This UDF takes in a list of String as input, concatenate every element in the list and returns.
+     * @param list
+     * @return
+     */
+    public String concatenate(List<String> list)
     {
-        return (byte) (value + 1);
-    }
-
-    public Short example_udf(Short value)
-    {
-        return (short) (value + 1);
-    }
-
-    public Integer example_udf(Integer value)
-    {
-        return value + 1;
-    }
-
-    public Long example_udf(Long value)
-    {
-        return value + 1;
-    }
-
-    public Float example_udf(Float value)
-    {
-        return value + 1;
-    }
-
-    public Double example_udf(Double value)
-    {
-        return value + 1;
-    }
-
-    public BigDecimal example_udf(BigDecimal value)
-    {
-        BigDecimal one = new BigDecimal(1);
-        one.setScale(value.scale(), RoundingMode.HALF_UP);
-        return value.add(one);
-    }
-
-    public String example_udf(String value)
-    {
-        return value + "_dada";
-    }
-
-    public LocalDateTime example_udf(LocalDateTime value)
-    {
-        return value.minusDays(1);
-    }
-
-    public LocalDate example_udf(LocalDate value)
-    {
-        return value.minusDays(1);
-    }
-
-    public List<Integer> example_udf(List<Integer> value)
-    {
-        System.out.println("Array input: " + value);
-        List<Integer> result = value.stream().map(o -> ((Integer) o) + 1).collect(Collectors.toList());
-        System.out.println("Array output: " + result);
-        return result;
-    }
-
-    public Map<String, Object> example_udf(Map<String, Object> value)
-    {
-        Long longVal = (Long) value.get("x");
-        Double doubleVal = (Double) value.get("y");
-
-        return ImmutableMap.of("x", longVal + 1, "y", doubleVal + 1.0);
-    }
-
-    public byte[] example_udf(byte[] value)
-    {
-        byte[] output = new byte[value.length];
-        for (int i = 0; i < value.length; ++i) {
-            output[i] = (byte) (value[i] + 1);
+        StringBuilder sb = new StringBuilder();
+        for (String value : list) {
+            sb.append(value);
         }
-        return output;
+        return sb.toString();
+    }
+
+    /**
+     * This UDF writes the complext struct type value to Json string.
+     * @param struct
+     * @return Json string of the struct object
+     */
+    public String to_json(Map<String, Object> struct)
+    {
+        try {
+            return objectMapper.writeValueAsString(struct);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * This UDF takes in a Long value, and returns a default value if the input value is not set.
+     * @param value
+     * @return original value or 0 if value is not set (null)
+     */
+    public Long get_default_value_if_null(Long value)
+    {
+        return value == null ? 0 : value;
     }
 }
