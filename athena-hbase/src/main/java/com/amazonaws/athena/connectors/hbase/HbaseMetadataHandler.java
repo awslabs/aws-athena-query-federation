@@ -108,7 +108,7 @@ public class HbaseMetadataHandler
 
     public HbaseMetadataHandler()
     {
-        // disable Glue if the env var is present and not explicitly set to "false"
+        //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
         this.connectionFactory = new HbaseConnectionFactory();

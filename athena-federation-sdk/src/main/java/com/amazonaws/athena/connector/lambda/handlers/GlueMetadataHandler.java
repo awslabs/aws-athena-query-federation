@@ -98,7 +98,7 @@ public abstract class GlueMetadataHandler
     {
         super(sourceType);
         if (disable) {
-            //Only disable if env var is present and not explicitly set to false
+            //The current instance does not want to leverage Glue for metadata
             awsGlue = null;
         }
         else {

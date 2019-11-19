@@ -92,7 +92,7 @@ public class DocDBMetadataHandler
 
     public DocDBMetadataHandler()
     {
-        // disable Glue if the env var is present and not explicitly set to "false"
+        //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         glue = getAwsGlue();
         connectionFactory = new DocDBConnectionFactory();
