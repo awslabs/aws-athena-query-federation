@@ -6,6 +6,21 @@ The Amazon Athena Query Federation SDK allows you to customize Amazon Athena wit
 
 This functionality is currently in **Public Preview** while customers provide us feedback on usability, ease of using the service or building new connectors. We do not recommend that you use these connectors in production or use this preview to make assumptions about the performance of Athena’s Federation features. As we receive more feedback, we will make improvements to the preview and lift raise limits associated with query/connector performance, APIs, SDKs, and user experience. The best way to understand the performance of Athena Data Source Connectors is to run a benchmark when they become generally available (GA) or review our performance guidance.
 
+For more information please consult:
+
+ 1. [SDK ReadMe](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md)
+ 1. [Quick Start Guide](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-example)
+ 1. [Available Connectors](https://github.com/awslabs/aws-athena-query-federation/wiki/Available-Connectors)
+ 1. [Federation Features](Features)
+ 1. [How To Build A Connector or UDF](How_To_Build_A_Connector_or_UDF)
+ 1. [Gathering diagnostic info for support](Gather_Diagnostic_Info)
+ 1. [Frequently Asked Questions](FAQ)
+ 1. [Common Problems](Common_Problems)
+ 1. [Installation Pre-requisites](Installation_Prerequisites)
+ 1. [Known Limitations & Open Issues](Limitations_And_Issues)
+ 1. [Predicate Pushdown How-To](Predicate-Pushdown-How-To)
+ 1. [Our Github Wiki](https://github.com/awslabs/aws-athena-query-federation/wiki).
+
 ![Architecture Image](https://github.com/awslabs/aws-athena-query-federation/blob/master/docs/img/athena_federation_summary.png?raw=true)
 
 We've written integrations with more than 20 databases, storage formats, and live APIs in order to refine this interface and balance flexibility with ease of use. We hope that making this SDK and initial set of connectors Open Source will allow us to continue to improve the experience and performance of Athena Query Federation.
@@ -13,11 +28,6 @@ We've written integrations with more than 20 databases, storage formats, and liv
 ## Serverless Big Data Using AWS Lambda
 
 ![Architecture Image](https://github.com/awslabs/aws-athena-query-federation/blob/master/docs/img/athena_federation_flow.png?raw=true)
-
-## Example Usages
-
-- SecretsManager integration
-- Serverless Application Repository
 
 ### Queries That Span Data Stores
 

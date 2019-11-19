@@ -188,7 +188,7 @@ You can use any IDE or even just command line editor to write your connector. Th
 1. This step may be optional if you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build tool for Serverless Applications. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the github project you checked out.
 2. To ensure your terminal can see the new tools we installed run `source ~/.profile` or open a fresh terminal. If you skip this step you will get errors later about the aws cli or sam build tool not being able to publish your connector.
 
-Now run `mvn clean install -DskipTests=true` from the athena-federation-sdk directory within the github project you checked out earlier. We are skipping tests just to make the build faster. Normally you should let the tests as a matter of best practice.
+Now run `mvn clean install -DskipTests=true > /tmp/log` from the athena-federation-sdk directory within the github project you checked out earlier. We are skipping tests just to make the build faster. Normally you should let the tests as a matter of best practice. If you are building on Cloud9 we've found that redirecting stdout to a log speeds up the build by 4x due to the browser trying to keep up with all the output logging associated with maven downloading dependencies. 
 
 ### Step 4: Write The Code
 
@@ -205,7 +205,7 @@ We have two options for deploying our connector: directly to Lambda or via Serve
 
 *Publish Your Connector To Serverless Application Repository*
 
-Run `../tools/publish.sh S3_BUCKET_NAME athena-example` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form.
+Run `../tools/publish.sh S3_BUCKET_NAME athena-example AWS_REGION` to publish the connector to your private AWS Serverless Application Repository. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form.
 
 If the publish command gave you an error about the aws cli or sam tool not recognizing an argument, you likely forgot to source the new bash profile after
 updating your development environment so run `source ~/.profile` and try again.
