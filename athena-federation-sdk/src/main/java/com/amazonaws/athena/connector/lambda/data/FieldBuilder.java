@@ -27,7 +27,9 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Convenience builder that can be used to create new Apache Arrow fields for common
@@ -37,7 +39,8 @@ public class FieldBuilder
 {
     private final String name;
     private final ArrowType type;
-    private final List<Field> children = new ArrayList<>();
+    //Using LinkedHashMap because Apache Arrow makes field order important so honoring that contract here
+    private final Map<String, Field> children = new LinkedHashMap<>();
 
     /**
      * Creates a FieldBuilder for a Field with the given name and type.
@@ -73,7 +76,7 @@ public class FieldBuilder
      */
     public FieldBuilder addField(String fieldName, ArrowType type, List<Field> children)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(type), children));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(type), children));
         return this;
     }
 
@@ -85,7 +88,7 @@ public class FieldBuilder
      */
     public FieldBuilder addField(Field child)
     {
-        this.children.add(child);
+        this.children.put(child.getName(), child);
         return this;
     }
 
@@ -97,7 +100,7 @@ public class FieldBuilder
      */
     public FieldBuilder addStringField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null));
         return this;
     }
 
@@ -114,7 +117,7 @@ public class FieldBuilder
         Field field = new Field(fieldName,
                 FieldType.nullable(Types.MinorType.LIST.getType()),
                 Collections.singletonList(baseField));
-        this.children.add(field);
+        this.children.put(fieldName, field);
         return this;
     }
 
@@ -126,7 +129,7 @@ public class FieldBuilder
      */
     public FieldBuilder addIntField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.INT.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.INT.getType()), null));
         return this;
     }
 
@@ -138,7 +141,7 @@ public class FieldBuilder
      */
     public FieldBuilder addFloat8Field(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null));
         return this;
     }
 
@@ -150,7 +153,7 @@ public class FieldBuilder
      */
     public FieldBuilder addBigIntField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.BIGINT.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.BIGINT.getType()), null));
         return this;
     }
 
@@ -162,7 +165,7 @@ public class FieldBuilder
      */
     public FieldBuilder addBitField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.BIT.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.BIT.getType()), null));
         return this;
     }
 
@@ -174,7 +177,7 @@ public class FieldBuilder
      */
     public FieldBuilder addTinyIntField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.TINYINT.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.TINYINT.getType()), null));
         return this;
     }
 
@@ -186,7 +189,7 @@ public class FieldBuilder
      */
     public FieldBuilder addSmallIntField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.SMALLINT.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.SMALLINT.getType()), null));
         return this;
     }
 
@@ -198,7 +201,7 @@ public class FieldBuilder
      */
     public FieldBuilder addFloat4Field(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.FLOAT4.getType()), null));
         return this;
     }
 
@@ -210,7 +213,7 @@ public class FieldBuilder
      */
     public FieldBuilder addDecimalField(String fieldName, int precision, int scale)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(new ArrowType.Decimal(precision, scale)), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(new ArrowType.Decimal(precision, scale)), null));
         return this;
     }
 
@@ -222,7 +225,7 @@ public class FieldBuilder
      */
     public FieldBuilder addDateDayField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.DATEDAY.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.DATEDAY.getType()), null));
         return this;
     }
 
@@ -234,8 +237,13 @@ public class FieldBuilder
      */
     public FieldBuilder addDateMilliField(String fieldName)
     {
-        this.children.add(new Field(fieldName, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null));
+        this.children.put(fieldName, new Field(fieldName, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null));
         return this;
+    }
+
+    public Field getChild(String fieldName)
+    {
+        return children.get(fieldName);
     }
 
     /**
@@ -245,6 +253,6 @@ public class FieldBuilder
      */
     public Field build()
     {
-        return new Field(name, FieldType.nullable(type), children);
+        return new Field(name, FieldType.nullable(type), new ArrayList<>(children.values()));
     }
 }

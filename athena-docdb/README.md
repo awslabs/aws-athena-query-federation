@@ -14,7 +14,7 @@ The Amazon Athena DocumentDB Connector exposes several configuration options via
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 5. **disable_glue** - (Optional) If present, with any valye, the connector will no longer attempt to retrieve supplemental metadata from Glue.
 6. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
-7. **default_docdb** If present, this DocDB connection string is used when there is not a catalog specific environment variable (as explained below). (e.g. mongodb://<username>:<password>@<hostname>:<port>/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0)
+7. **default_docdb** If present, this DocDB connection string is used when there is not a catalog specific environment variable (as explained below). (e.g. mongodb://<username>:<password>@<hostname>:<port>/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0&readPreference=secondaryPreferred)
 
 You can also provide one or more properties which define the DocumentDB connection details for the DocumentDB instance(s) you'd like this connector to use. You can do this by setting a Lambda environment variable that corresponds to the catalog name you'd like to use in Athena. For example, if I'd like to query two different DocumentDB instances from Athena in the below queries:
 
