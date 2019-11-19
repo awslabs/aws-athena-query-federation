@@ -3,7 +3,7 @@ Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaUserDefinedFunctions
     Description: 'This connector enables Amazon Athena to leverage common UDFs made available via Lambda.'
-    Author: 'default_author'
+    Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
