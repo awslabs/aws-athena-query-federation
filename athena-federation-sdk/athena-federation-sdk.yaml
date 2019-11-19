@@ -3,7 +3,7 @@ Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaDataGeneratorConnector
     Description: 'This connector enables Amazon Athena to communicate with a randomly generated data source.'
-    Author: 'default_author'
+    Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
