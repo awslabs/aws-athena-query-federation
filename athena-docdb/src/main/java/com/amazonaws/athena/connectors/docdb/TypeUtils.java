@@ -22,7 +22,10 @@ package com.amazonaws.athena.connectors.docdb;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.bson.BsonTimestamp;
 import org.bson.types.ObjectId;
+
+import java.util.Date;
 
 /**
  * Helper class with useful methods for type conversion and coercion.
@@ -83,6 +86,11 @@ public class TypeUtils
                 }
                 else if (origVal instanceof Double) {
                     return ((Double) origVal).intValue();
+                }
+                return origVal;
+            case DATEMILLI:
+                if (origVal instanceof BsonTimestamp) {
+                    return new Date(((BsonTimestamp) origVal).getTime() * 1_000);
                 }
                 return origVal;
             default:

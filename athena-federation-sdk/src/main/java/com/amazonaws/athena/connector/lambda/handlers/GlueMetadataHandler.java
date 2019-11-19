@@ -301,6 +301,14 @@ public abstract class GlueMetadataHandler
                 partitionCols);
     }
 
+    /**
+     * Maps a Glue field to an Apache Arrow Field.
+     *
+     * @param name The name of the field in Glue.
+     * @param glueType The type of the field in Glue.
+     * @return The corresponding Apache Arrow Field.
+     * @note You can override this implementation to provide your own mappings.
+     */
     protected Field convertField(String name, String glueType)
     {
         return GlueFieldLexer.lex(name, glueType);

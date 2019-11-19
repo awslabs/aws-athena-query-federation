@@ -27,6 +27,9 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Parses Glue type definitions into tokenized form.
+ */
 public class GlueTypeParser
 {
     private static final Logger logger = LoggerFactory.getLogger(GlueTypeParser.class);
@@ -48,17 +51,32 @@ public class GlueTypeParser
     private int pos;
     private Token current = null;
 
+    /**
+     * Creates a new parser for the provided field type definition as a String.
+     *
+     * @param input The string representation of the field type definition from Glue.
+     */
     public GlueTypeParser(String input)
     {
         this.input = input;
         this.pos = 0;
     }
 
+    /**
+     * Does the parser have any more tokens.
+     *
+     * @return True if the parser may have additional tokens, False otherwise.
+     */
     public boolean hasNext()
     {
         return pos < input.length();
     }
 
+    /**
+     * Gets the next token.
+     *
+     * @return The next token or null if no such Token exists.
+     */
     public Token next()
     {
         StringBuilder sb = new StringBuilder();
@@ -86,6 +104,11 @@ public class GlueTypeParser
         return current;
     }
 
+    /**
+     * Give the last Token returned by next()
+     *
+     * @return The Token.
+     */
     public Token currentToken()
     {
         return current;

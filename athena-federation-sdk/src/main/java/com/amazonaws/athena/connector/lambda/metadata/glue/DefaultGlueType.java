@@ -26,6 +26,10 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Defines the default mapping of AWS Glue Data Catalog types to Apache Arrow types. You can override these by
+ * overriding convertField(...) on GlueMetadataHandler.
+ */
 public enum DefaultGlueType
 {
     INT("int", Types.MinorType.INT.getType()),

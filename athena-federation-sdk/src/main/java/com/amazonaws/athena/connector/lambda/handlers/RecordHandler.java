@@ -59,6 +59,10 @@ import java.io.OutputStream;
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
 
+/**
+ * More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ * source. Athena will call readWithConstraint(...) on this class for each 'Split' we generated in MetadataHandler.
+ */
 public abstract class RecordHandler
         implements RequestStreamHandler
 {

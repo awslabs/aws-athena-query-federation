@@ -27,6 +27,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Extracts field definitions, including complex types like List and STRUCT, from AWS Glue Data Catalog's
+ * definition of a field. This class makes use of GlueTypeParser to tokenize the definition of the field.
+ * For basic fields, the Lexer's job is straight forward but for complex types it is more involved.
+ */
 public class GlueFieldLexer
 {
     private static final Logger logger = LoggerFactory.getLogger(GlueFieldLexer.class);

@@ -28,6 +28,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.bson.BsonTimestamp;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -118,6 +119,9 @@ public class SchemaUtils
             return new Field(key, FieldType.nullable(Types.MinorType.FLOAT8.getType()), null);
         }
         else if (value instanceof Date) {
+            return new Field(key, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null);
+        }
+        else if (value instanceof BsonTimestamp) {
             return new Field(key, FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null);
         }
         else if (value instanceof ObjectId) {

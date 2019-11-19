@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.security;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,6 +27,11 @@ import com.amazonaws.services.kms.model.GenerateDataKeyResult;
 import com.amazonaws.services.kms.model.GenerateRandomRequest;
 import com.amazonaws.services.kms.model.GenerateRandomResult;
 
+/**
+ * An EncryptionKeyFactory that is backed by AWS KMS.
+ *
+ * @see com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory
+ */
 public class KmsKeyFactory
         implements EncryptionKeyFactory
 {
@@ -39,6 +44,9 @@ public class KmsKeyFactory
         this.masterKeyId = masterKeyId;
     }
 
+    /**
+     * @return A key that satisfies the specification defined in BlockCrypto
+     */
     public EncryptionKey create()
     {
         GenerateDataKeyResult dataKeyResult =
