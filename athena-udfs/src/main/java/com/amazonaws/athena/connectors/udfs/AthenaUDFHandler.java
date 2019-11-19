@@ -20,15 +20,14 @@
 package com.amazonaws.athena.connectors.udfs;
 
 import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
-import com.google.common.collect.ImmutableMap;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 public class AthenaUDFHandler
         extends UserDefinedFunctionHandler
@@ -40,85 +39,68 @@ public class AthenaUDFHandler
         super(SOURCE_TYPE);
     }
 
-    public Boolean example_udf(Boolean value)
+    public String compress(String input)
     {
-        return !value;
-    }
+        byte[] inputBytes = input.getBytes(StandardCharsets.UTF_8);
 
-    public Byte example_udf(Byte value)
-    {
-        return (byte) (value + 1);
-    }
+        // create compressor
+        Deflater compressor = new Deflater();
+        compressor.setInput(inputBytes);
+        compressor.finish();
 
-    public Short example_udf(Short value)
-    {
-        return (short) (value + 1);
-    }
-
-    public Integer example_udf(Integer value)
-    {
-        return value + 1;
-    }
-
-    public Long example_udf(Long value)
-    {
-        return value + 1;
-    }
-
-    public Float example_udf(Float value)
-    {
-        return value + 1;
-    }
-
-    public Double example_udf(Double value)
-    {
-        return value + 1;
-    }
-
-    public BigDecimal example_udf(BigDecimal value)
-    {
-        BigDecimal one = new BigDecimal(1);
-        one.setScale(value.scale(), RoundingMode.HALF_UP);
-        return value.add(one);
-    }
-
-    public String example_udf(String value)
-    {
-        return value + "_dada";
-    }
-
-    public LocalDateTime example_udf(LocalDateTime value)
-    {
-        return value.minusDays(1);
-    }
-
-    public LocalDate example_udf(LocalDate value)
-    {
-        return value.minusDays(1);
-    }
-
-    public List<Integer> example_udf(List<Integer> value)
-    {
-        System.out.println("Array input: " + value);
-        List<Integer> result = value.stream().map(o -> ((Integer) o) + 1).collect(Collectors.toList());
-        System.out.println("Array output: " + result);
-        return result;
-    }
-
-    public Map<String, Object> example_udf(Map<String, Object> value)
-    {
-        Long longVal = (Long) value.get("x");
-        Double doubleVal = (Double) value.get("y");
-
-        return ImmutableMap.of("x", longVal + 1, "y", doubleVal + 1.0);
-    }
-
-    public byte[] example_udf(byte[] value)
-    {
-        byte[] output = new byte[value.length];
-        for (int i = 0; i < value.length; ++i) {
-            output[i] = (byte) (value[i] + 1);
+        // compress bytes to output stream
+        byte[] buffer = new byte[4096];
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(inputBytes.length);
+        while (!compressor.finished()) {
+            int bytes = compressor.deflate(buffer);
+            byteArrayOutputStream.write(buffer, 0, bytes);
         }
-        return output;
+
+        try {
+            byteArrayOutputStream.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Failed to close ByteArrayOutputStream", e);
+        }
+
+        // return encoded string
+        byte[] compressedBytes = byteArrayOutputStream.toByteArray();
+        return Base64.getEncoder().encodeToString(compressedBytes);
+    }
+
+    public String decompress(String input)
+    {
+        byte[] inputBytes = Base64.getDecoder().decode((input));
+
+        // create decompressor
+        Inflater decompressor = new Inflater();
+        decompressor.setInput(inputBytes, 0, inputBytes.length);
+
+        // decompress bytes to output stream
+        byte[] buffer = new byte[4096];
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(inputBytes.length);
+        try {
+            while (!decompressor.finished()) {
+                int bytes = decompressor.inflate(buffer);
+                if (bytes == 0 && decompressor.needsInput()) {
+                    throw new DataFormatException("Input is truncated");
+                }
+                byteArrayOutputStream.write(buffer, 0, bytes);
+            }
+        }
+        catch (DataFormatException e) {
+            throw new RuntimeException("Failed to decompress string", e);
+        }
+
+        try {
+            byteArrayOutputStream.close();
+        }
+        catch (IOException e) {
+            throw new RuntimeException("Failed to close ByteArrayOutputStream", e);
+        }
+
+        // return decoded string
+        byte[] decompressedBytes = byteArrayOutputStream.toByteArray();
+        return new String(decompressedBytes, StandardCharsets.UTF_8);
     }
 }
