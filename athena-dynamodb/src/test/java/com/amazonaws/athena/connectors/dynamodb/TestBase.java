@@ -121,7 +121,7 @@ public class TestBase
             if (Math.floor(doubleVal) != doubleVal) {
                 item.put("col_2", toAttributeValue(200000.0 + i / 2.0));
             }
-            item.put("col_3", toAttributeValue(ImmutableMap.of("modulo", i % 2 == 0, "nextModulos", ImmutableList.of((i + 1) % 2 == 0, ((i + 2) % 2 == 0)))));
+            item.put("col_3", toAttributeValue(ImmutableMap.of("modulo", i % 2, "nextModulos", ImmutableList.of((i + 1) % 2, ((i + 2) % 2)))));
             item.put("col_4", toAttributeValue(dateTime.toLocalDate().toEpochDay()));
             item.put("col_5", toAttributeValue(Timestamp.valueOf(dateTime).toInstant().toEpochMilli()));
             item.put("col_6", toAttributeValue(i % 128 == 0 ? null : i % 128));

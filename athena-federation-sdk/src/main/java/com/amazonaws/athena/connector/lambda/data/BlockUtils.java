@@ -896,15 +896,15 @@ public class BlockUtils
                     break;
                 case DECIMAL:
                     int scale = ((ArrowType.Decimal) type).getScale();
+                    int precision = ((ArrowType.Decimal) type).getPrecision();
                     if (value instanceof Double) {
-                        int precision = ((ArrowType.Decimal) type).getPrecision();
                         BigDecimal bdVal = new BigDecimal((double) value);
                         bdVal = bdVal.setScale(scale, RoundingMode.HALF_UP);
                         writer.decimal(field.getName(), scale, precision).writeDecimal(bdVal);
                     }
                     else {
                         BigDecimal scaledValue = ((BigDecimal) value).setScale(scale, RoundingMode.HALF_UP);
-                        writer.decimal(field.getName()).writeDecimal(scaledValue);
+                        writer.decimal(field.getName(), scale, precision).writeDecimal(scaledValue);
                     }
                     break;
                 case VARCHAR:

@@ -169,7 +169,8 @@ public class DynamoDBRecordHandler
                             case STRUCT:
                                 matched &= block.offerComplexValue(nextField.getName(),
                                         rowNum,
-                                        (Field field, Object val) -> ((Map) val).get(field.getName()), value);
+                                        (Field field, Object val) -> ((Map) val).get(field.getName()),
+                                        value);
                                 break;
                             default:
                                 matched &= block.offerValue(nextField.getName(), rowNum, value);
