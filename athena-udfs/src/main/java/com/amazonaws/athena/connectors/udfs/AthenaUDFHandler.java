@@ -190,7 +190,8 @@ public class AthenaUDFHandler
      * own data key in a safe place, encrypt them and store them properly.
      */
     @VisibleForTesting
-    static final byte[] plainTextDataKeyForSetup = new byte[]{1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6};
+    static final byte[] plainTextDataKeyForSetup
+            = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6};
 
     /**
      * For demo purpose, we generate a new data key here. In practice, this method should download a encrypted data
