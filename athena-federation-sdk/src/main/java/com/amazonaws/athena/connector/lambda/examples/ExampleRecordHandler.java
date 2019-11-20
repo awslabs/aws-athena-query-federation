@@ -23,8 +23,9 @@ package com.amazonaws.athena.connector.lambda.examples;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.FieldResolver;
-import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -37,20 +38,43 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateDayVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt1Vector;
+import org.apache.arrow.vector.UInt2Vector;
+import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.UInt8Vector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.codec.Charsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * All items in the "com.amazonaws.athena.connector.lambda.examples" that this class belongs to are part of an
@@ -143,7 +167,8 @@ public class ExampleRecordHandler
     /**
      * Here we generate our simulated row data. A real connector would instead connect to the actual source and read
      * the data corresponding to the requested split.
-     *  @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
+     *
+     * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
      * The BlockSpiller automatically handles applying constraints, chunking the response, encrypting, and spilling to S3.
      * @param request The ReadRecordsRequest containing the split and other details about what to read.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
@@ -151,6 +176,8 @@ public class ExampleRecordHandler
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
     {
+        long startTime = System.currentTimeMillis();
+
         /**
          * It is important to try and throw any throttling events before writing data since Athena may not be able to
          * continue the query, due to consistency errors, if you throttle after writing data.
@@ -161,149 +188,276 @@ public class ExampleRecordHandler
         }
 
         logCaller(request);
-        for (int i = 0; i < numRowsPerSplit; i++) {
-            if (!queryStatusChecker.isQueryRunning()) {
-                return;
-            }
-            final int seed = i;
-            spiller.writeRows((Block block, int rowNum) -> {
-                //This is just filling the row with random data and then partition values that match the split
-                //in a real implementation you would read your real data.
-                boolean rowMatched = makeRandomRow(block, rowNum, seed);
-                addPartitionColumns(request.getSplit(), block, rowNum);
-                return rowMatched ? 1 : 0;
-            });
-        }
-    }
 
-    /**
-     * Helper function that we use to ensure the partition columns values are not randomly generated and instead
-     * correspond to the partition that the Split belongs to. This is important because if they do not match
-     * then the rows will likely get filtered out of the result. This method is only applicable to our random
-     * row data as a real connector would not have to worry about a missmatch of these values because they would
-     * of course match their storage.
-     *
-     * @param split The Split that we are generating partition column values for.
-     * @param block The Block we need to write the partition column values into.
-     * @param blockRow The row twe need to write the partition column values into.
-     */
-    private void addPartitionColumns(Split split, Block block, int blockRow)
-    {
-        for (String nextPartition : ExampleMetadataHandler.ExampleTable.schema.getCustomMetadata().get("partitionCols").split(",")) {
-            FieldVector vector = block.getFieldVector(nextPartition);
-            if (vector != null) {
-                switch (vector.getMinorType()) {
-                    case INT:
-                    case UINT2:
-                    case BIGINT:
-                        block.setValue(nextPartition, blockRow, Integer.valueOf(split.getProperty(nextPartition)));
-                        break;
-                    default:
-                        throw new RuntimeException(vector.getMinorType() + " is not supported");
-                }
-            }
-        }
-    }
-
-    /**
-     * This should be replaced with something that actually reads useful data.
-     */
-    private boolean makeRandomRow(Block block, int blockRow, int seed)
-    {
         Set<String> partitionCols = new HashSet<>();
-        String partitionColsMetadata = block.getSchema().getCustomMetadata().get("partitionCols");
+        String partitionColsMetadata = request.getSchema().getCustomMetadata().get("partitionCols");
         if (partitionColsMetadata != null) {
             partitionCols.addAll(Arrays.asList(partitionColsMetadata.split(",")));
         }
 
-        boolean matches = true;
-        for (Field next : block.getSchema().getFields()) {
+        Set<Field> requiredFields = new HashSet<>();
+        for (Field next : request.getSchema().getFields()) {
             String fieldName = next.getName();
             if (!partitionCols.contains(fieldName)) {
-                if (!matches) {
-                    return false;
-                }
-                boolean negative = seed % 2 == 1;
-                Types.MinorType fieldType = Types.getMinorTypeForArrowType(next.getType());
-                switch (fieldType) {
-                    case INT:
-                        int iVal = seed * (negative ? -1 : 1);
-                        matches &= block.setValue(fieldName, blockRow, iVal);
-                        break;
-                    case DATEMILLI:
-                        matches &= block.setValue(fieldName, blockRow, 100_000L);
-                        break;
-                    case DATEDAY:
-                        matches &= block.setValue(fieldName, blockRow, 100_000);
-                        break;
-                    case TINYINT:
-                    case SMALLINT:
-                        int stVal = (seed % 4) * (negative ? -1 : 1);
-                        matches &= block.setValue(fieldName, blockRow, stVal);
-                        break;
-                    case UINT1:
-                    case UINT2:
-                    case UINT4:
-                    case UINT8:
-                        int uiVal = seed % 4;
-                        matches &= block.setValue(fieldName, blockRow, uiVal);
-                        break;
-                    case FLOAT4:
-                        float fVal = seed * 1.1f * (negative ? -1 : 1);
-                        matches &= block.setValue(fieldName, blockRow, fVal);
-                        break;
-                    case FLOAT8:
-                    case DECIMAL:
-                        double d8Val = seed * 1.1D * (negative ? -1 : 1);
-                        matches &= block.setValue(fieldName, blockRow, d8Val);
-                        break;
-                    case BIT:
-                        boolean bVal = seed % 2 == 0;
-                        matches &= block.setValue(fieldName, blockRow, bVal);
-                        break;
-                    case BIGINT:
-                        long lVal = seed * 1L * (negative ? -1 : 1);
-                        matches &= block.setValue(fieldName, blockRow, lVal);
-                        break;
-                    case VARCHAR:
-                        String vVal = "VarChar" + seed;
-                        matches &= block.setValue(fieldName, blockRow, vVal);
-                        break;
-                    case VARBINARY:
-                        byte[] binaryVal = ("VarChar" + seed).getBytes();
-                        matches &= block.setValue(fieldName, blockRow, binaryVal);
-                        break;
-                    case LIST:
-                        //This is setup for the specific kinds of lists we have in our example schema,
-                        //it is not universal. List<String> and List<Struct{string,bigint}> is what
-                        //this block supports.
-                        Field child = block.getFieldVector(fieldName).getField().getChildren().get(0);
-                        List<Object> value = new ArrayList<>();
-                        Types.MinorType childType = Types.getMinorTypeForArrowType(child.getType());
-                        switch (childType) {
-                            case LIST:
-                                List<String> list = new ArrayList<>();
-                                list.add(String.valueOf(1000));
-                                list.add(String.valueOf(1001));
-                                list.add(String.valueOf(1002));
-                                value.add(list);
-                                break;
-                            case STRUCT:
-                                Map<String, Object> struct = new HashMap<>();
-                                struct.put("varchar", "chars");
-                                struct.put("bigint", 100L);
-                                value.add(struct);
-                                break;
-                            default:
-                                throw new RuntimeException(childType + " is not supported");
-                        }
-                        matches &= block.setComplexValue(fieldName, blockRow, FieldResolver.DEFAULT, value);
-                        break;
-                    default:
-                        throw new RuntimeException(fieldType + " is not supported");
+                requiredFields.add(next);
+            }
+        }
+
+        int year = Integer.valueOf(request.getSplit().getProperty("year"));
+        int month = Integer.valueOf(request.getSplit().getProperty("month"));
+        int day = Integer.valueOf(request.getSplit().getProperty("day"));
+
+        GeneratedRowWriter rowWriter = new GeneratedRowWriter(getConstraintEvaluator(), year, month, day);
+        for (int i = 0; i < numRowsPerSplit; i++) {
+            if (!queryStatusChecker.isQueryRunning()) {
+                return;
+            }
+            spiller.writeRows(rowWriter);
+        }
+
+        logger.info("readWithConstraint: Completed generating rows in {} ms", System.currentTimeMillis() - startTime);
+    }
+
+    private static class GeneratedRowWriter
+            implements BlockWriter.RowWriter
+    {
+        private final List<Projector> projectors = new ArrayList<>();
+        private Block block;
+        private final int year;
+        private final int month;
+        private final int day;
+        private final ConstraintEvaluator evaluator;
+        private final AtomicLong seed = new AtomicLong(0);
+
+        public GeneratedRowWriter(ConstraintEvaluator evaluator, int year, int month, int day)
+        {
+            this.year = year;
+            this.month = month;
+            this.day = day;
+            this.evaluator = evaluator;
+        }
+
+        private void init(Block block)
+        {
+            if (this.block == null || this.block.getRowCount() != block.getRowCount()) {
+                logger.info("init: Detected a new block, rebuilding projectors");
+                this.block = block;
+                projectors.clear();
+                //TODO this doesn't actually check if the block changed, need to do that
+                for (FieldVector vector : block.getFieldVectors()) {
+                    Projector projector = checkAndMakePartitionCol(vector);
+                    if (projector == null) {
+                        projector = makeRandomValueProjector(vector);
+                    }
+                    projectors.add(projector);
                 }
             }
         }
-        return matches;
+
+        @Override
+        public int writeRows(Block block, int rowNum)
+        {
+            init(block);
+            boolean negative = rowNum % 2 == 1;
+            boolean matched = true;
+            int rowSeed = (int) seed.getAndIncrement();
+            for (Projector next : projectors) {
+                matched &= next.project(rowSeed, rowNum, negative);
+            }
+            return matched ? 1 : 0;
+        }
+
+        private Projector checkAndMakePartitionCol(FieldVector vector)
+        {
+            //Handle our partition columns
+            if (vector.getField().getName().equals("year")) {
+                return (int seed, int rowNum, boolean negative) -> {
+                    ((IntVector) vector).setSafe(rowNum, year);
+                    return true;
+                };
+            }
+            else if (vector.getField().getName().equals("month")) {
+                return (int seed, int rowNum, boolean negative) -> {
+                    ((IntVector) vector).setSafe(rowNum, month);
+                    return true;
+                };
+            }
+            else if (vector.getField().getName().equals("day")) {
+                return (int seed, int rowNum, boolean negative) -> {
+                    ((IntVector) vector).setSafe(rowNum, day);
+                    return true;
+                };
+            }
+            return null;
+        }
+
+        private Projector makeRandomValueProjector(FieldVector fieldVector)
+        {
+            Field field = fieldVector.getField();
+            String fieldName = field.getName();
+            Optional<ConstraintProjector> constraintProjector = evaluator.makeConstraintProjector(fieldName);
+            ConstraintProjector constraint = constraintProjector.isPresent() ? constraintProjector.get() : (Object value) -> true;
+            Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+            switch (fieldType) {
+                case INT:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int iVal = seed * (negative ? -1 : 1);
+                        ((IntVector) fieldVector).setSafe(rowNum, iVal);
+                        return constraint.apply(iVal);
+                    };
+                case DATEMILLI:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int iVal = seed * (negative ? -1 : 1);
+                        ((DateMilliVector) fieldVector).setSafe(rowNum, iVal);
+                        return constraint.apply(iVal);
+                    };
+                case DATEDAY:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int iVal = seed * (negative ? -1 : 1);
+                        ((DateDayVector) fieldVector).setSafe(rowNum, iVal);
+                        return constraint.apply(iVal);
+                    };
+                case TINYINT:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int stVal = (seed % 4) * (negative ? -1 : 1);
+                        ((TinyIntVector) fieldVector).setSafe(rowNum, stVal);
+                        return constraint.apply(stVal);
+                    };
+                case SMALLINT:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int stVal = (seed % 4) * (negative ? -1 : 1);
+                        ((SmallIntVector) fieldVector).setSafe(rowNum, stVal);
+                        return constraint.apply(stVal);
+                    };
+
+                case UINT1:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int uVal = seed % 4;
+                        ((UInt1Vector) fieldVector).setSafe(rowNum, uVal);
+                        return constraint.apply(uVal);
+                    };
+                case UINT2:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int uVal = seed % 4;
+                        ((UInt2Vector) fieldVector).setSafe(rowNum, uVal);
+                        return constraint.apply(uVal);
+                    };
+                case UINT4:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int uVal = seed % 4;
+                        ((UInt4Vector) fieldVector).setSafe(rowNum, uVal);
+                        return constraint.apply(uVal);
+                    };
+                case UINT8:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int uVal = seed % 4;
+                        ((UInt8Vector) fieldVector).setSafe(rowNum, uVal);
+                        return constraint.apply(uVal);
+                    };
+                case FLOAT4:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        float fVal = seed * 1.1f * (negative ? -1 : 1);
+                        ((Float4Vector) fieldVector).setSafe(rowNum, fVal);
+                        return constraint.apply(fVal);
+                    };
+                case FLOAT8:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        double d8Val = seed * 1.1D;
+                        ((Float8Vector) fieldVector).setSafe(rowNum, d8Val);
+                        return constraint.apply(d8Val);
+                    };
+                case DECIMAL:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        double d8Val = seed * 1.1D * (negative ? -1 : 1);
+                        DecimalVector dVector = ((DecimalVector) fieldVector);
+                        BigDecimal bdVal = new BigDecimal(d8Val);
+                        bdVal = bdVal.setScale(dVector.getScale(), RoundingMode.HALF_UP);
+                        dVector.setSafe(rowNum, bdVal);
+                        return constraint.apply(bdVal);
+                    };
+                case BIT:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        int bVal = seed % 2;
+                        ((BitVector) fieldVector).setSafe(rowNum, bVal);
+                        return constraint.apply(bVal);
+                    };
+                case BIGINT:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        long lVal = seed * 1L * (negative ? -1 : 1);
+                        ((BigIntVector) fieldVector).setSafe(rowNum, lVal);
+                        return constraint.apply(lVal);
+                    };
+                case VARCHAR:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        String vVal = "VarChar" + seed;
+                        ((VarCharVector) fieldVector).setSafe(rowNum, (vVal).getBytes(Charsets.UTF_8));
+                        return constraint.apply(vVal);
+                    };
+                case VARBINARY:
+                    return (int seed, int rowNum, boolean negative) -> {
+                        String vVal = "VarChar" + seed;
+                        ((VarBinaryVector) fieldVector).setSafe(rowNum, (vVal).getBytes(Charsets.UTF_8));
+                        return constraint.apply((vVal).getBytes(Charsets.UTF_8));
+                    };
+                case LIST:
+                    //This is setup for the specific kinds of lists we have in our example schema,
+                    //it is not universal. List<String> and List<Struct{string,bigint}> is what
+                    //this block supports.
+                    Field child = block.getFieldVector(fieldName).getField().getChildren().get(0);
+                    Types.MinorType childType = Types.getMinorTypeForArrowType(child.getType());
+
+                    switch (childType) {
+                        case LIST:
+                            return (int seed, int rowNum, boolean negative) -> {
+                                UnionListWriter writer = ((ListVector) fieldVector).getWriter();
+                                writer.setPosition(rowNum);
+                                writer.startList();
+                                BaseWriter.ListWriter innerWriter = writer.list();
+                                innerWriter.startList();
+                                for (int i = 0; i < 3; i++) {
+                                    byte[] bytes = String.valueOf(1000 + i).getBytes(Charsets.UTF_8);
+                                    try (ArrowBuf buf = fieldVector.getAllocator().buffer(bytes.length)) {
+                                        buf.writeBytes(bytes);
+                                        innerWriter.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                                    }
+                                }
+                                innerWriter.endList();
+                                writer.endList();
+                                ((ListVector) fieldVector).setNotNull(rowNum);
+                                return true;
+                            };
+                        case STRUCT:
+                            return (int seed, int rowNum, boolean negative) -> {
+                                UnionListWriter writer = ((ListVector) fieldVector).getWriter();
+                                writer.setPosition(rowNum);
+                                writer.startList();
+
+                                BaseWriter.StructWriter structWriter = writer.struct();
+                                structWriter.start();
+
+                                byte[] bytes = "chars".getBytes(Charsets.UTF_8);
+                                try (ArrowBuf buf = fieldVector.getAllocator().buffer(bytes.length)) {
+                                    buf.writeBytes(bytes);
+                                    structWriter.varChar("varchar").writeVarChar(0, buf.readableBytes(), buf);
+                                }
+                                structWriter.bigInt("bigint").writeBigInt(100L);
+                                structWriter.end();
+
+                                writer.endList();
+                                ((ListVector) fieldVector).setNotNull(rowNum);
+                                return true;
+                            };
+                        default:
+                            throw new RuntimeException(childType + " is not supported");
+                    }
+                default:
+                    throw new RuntimeException(fieldType + " is not supported");
+            }
+        }
+    }
+
+    private interface Projector
+    {
+        boolean project(int seed, int rowNum, boolean negative);
     }
 }

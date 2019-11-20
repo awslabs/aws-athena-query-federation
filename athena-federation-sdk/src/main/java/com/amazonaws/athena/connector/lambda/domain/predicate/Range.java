@@ -139,23 +139,20 @@ public class Range
         return low.isLowerUnbounded() && high.isUpperUnbounded();
     }
 
-    public boolean includes(Marker marker)
+    public boolean includes(ValueMarker marker)
     {
         requireNonNull(marker, "marker is null");
-        checkTypeCompatibility(marker);
         return low.compareTo(marker) <= 0 && high.compareTo(marker) >= 0;
     }
 
     public boolean contains(Range other)
     {
-        checkTypeCompatibility(other);
         return this.getLow().compareTo(other.getLow()) <= 0 &&
                 this.getHigh().compareTo(other.getHigh()) >= 0;
     }
 
     public Range span(Range other)
     {
-        checkTypeCompatibility(other);
         Marker lowMarker = Marker.min(low, other.getLow());
         Marker highMarker = Marker.max(high, other.getHigh());
 
@@ -164,36 +161,18 @@ public class Range
 
     public boolean overlaps(Range other)
     {
-        checkTypeCompatibility(other);
         return this.getLow().compareTo(other.getHigh()) <= 0 &&
                 other.getLow().compareTo(this.getHigh()) <= 0;
     }
 
     public Range intersect(Range other)
     {
-        checkTypeCompatibility(other);
         if (!this.overlaps(other)) {
             throw new IllegalArgumentException("Cannot intersect non-overlapping ranges");
         }
         Marker lowMarker = Marker.max(low, other.getLow());
         Marker highMarker = Marker.min(high, other.getHigh());
         return new Range(lowMarker, highMarker);
-    }
-
-    private void checkTypeCompatibility(Range range)
-    {
-        if (!getType().equals(range.getType())) {
-            throw new IllegalArgumentException(String.format("Mismatched Range types: %s vs %s",
-                    getType(), range.getType()));
-        }
-    }
-
-    private void checkTypeCompatibility(Marker marker)
-    {
-        if (!getType().equals(marker.getType())) {
-            throw new IllegalArgumentException(String.format("Marker of %s does not match Range of %s",
-                    marker.getType(), getType()));
-        }
     }
 
     @Override

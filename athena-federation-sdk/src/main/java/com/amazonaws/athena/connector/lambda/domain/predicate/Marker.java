@@ -56,7 +56,7 @@ import static java.util.Objects.requireNonNull;
  * constraints.
  */
 public class Marker
-        implements Comparable<Marker>, AutoCloseable
+        implements Comparable<ValueMarker>, AutoCloseable, ValueMarker
 {
     protected static final String DEFAULT_COLUMN = "col1";
 
@@ -71,6 +71,8 @@ public class Marker
     private final Block valueBlock;
     private final Bound bound;
     private final boolean nullValue;
+    private final ArrowType arrowType;
+    private final Object value;
 
     /**
      * LOWER UNBOUNDED is specified with an empty value and a ABOVE bound
@@ -89,6 +91,15 @@ public class Marker
         this.bound = bound;
         this.nullValue = nullValue;
         this.valuePosition = 0;
+        this.arrowType = valueBlock.getFieldReader(DEFAULT_COLUMN).getField().getType();
+        if (!nullValue) {
+            FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
+            reader.setPosition(valuePosition);
+            this.value = reader.readObject();
+        }
+        else {
+            this.value = null;
+        }
     }
 
     protected Marker(Block block,
@@ -103,6 +114,15 @@ public class Marker
         this.bound = bound;
         this.nullValue = nullValue;
         this.valuePosition = valuePosition;
+        this.arrowType = valueBlock.getFieldReader(DEFAULT_COLUMN).getField().getType();
+        if (!nullValue) {
+            FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
+            reader.setPosition(valuePosition);
+            this.value = reader.readObject();
+        }
+        else {
+            this.value = null;
+        }
     }
 
     public boolean isNullValue()
@@ -118,7 +138,7 @@ public class Marker
     @Transient
     public ArrowType getType()
     {
-        return valueBlock.getFieldReader(DEFAULT_COLUMN).getField().getType();
+        return arrowType;
     }
 
     /**
@@ -132,14 +152,12 @@ public class Marker
         if (nullValue) {
             throw new IllegalStateException("No value to get");
         }
-
-        FieldReader reader = valueBlock.getFieldReader(DEFAULT_COLUMN);
-        reader.setPosition(valuePosition);
-        return reader.readObject();
+        return value;
     }
 
     /**
      * Retrieves the Bound (BELOW, EXACTLY, ABOVE, etce...) used by this Marker.
+     *
      * @return The Bound.
      */
     @JsonProperty
@@ -194,7 +212,6 @@ public class Marker
     @Transient
     public boolean isAdjacent(Marker other)
     {
-        checkTypeCompatibility(other);
         if (isUpperUnbounded() || isLowerUnbounded() || other.isUpperUnbounded() || other.isLowerUnbounded()) {
             return false;
         }
@@ -239,51 +256,6 @@ public class Marker
             default:
                 throw new AssertionError("Unsupported type: " + bound);
         }
-    }
-
-    private void checkTypeCompatibility(Marker marker)
-    {
-        if (!getType().equals(marker.getType())) {
-            throw new IllegalArgumentException(String.format("Mismatched Marker types: %s vs %s", getType(), marker.getType()));
-        }
-    }
-
-    public int compareTo(Marker o)
-    {
-        checkTypeCompatibility(o);
-        if (isUpperUnbounded()) {
-            return o.isUpperUnbounded() ? 0 : 1;
-        }
-        if (isLowerUnbounded()) {
-            return o.isLowerUnbounded() ? 0 : -1;
-        }
-        if (o.isUpperUnbounded()) {
-            return -1;
-        }
-        if (o.isLowerUnbounded()) {
-            return 1;
-        }
-
-        // INVARIANT: value and o.value are present
-        if (valueBlock.getRowCount() < 1 || o.valueBlock.getRowCount() < 1) {
-            return Integer.compare(valueBlock.getRowCount(), o.valueBlock.getRowCount());
-        }
-
-        int compare = ArrowTypeComparator.compare(getType(), getValue(), o.getValue());
-        if (compare == 0) {
-            if (bound == o.bound) {
-                return 0;
-            }
-            if (bound == Bound.BELOW) {
-                return -1;
-            }
-            if (bound == Bound.ABOVE) {
-                return 1;
-            }
-            // INVARIANT: bound == EXACTLY
-            return (o.bound == Bound.BELOW) ? 1 : -1;
-        }
-        return compare;
     }
 
     public static Marker min(Marker marker1, Marker marker2)
@@ -375,6 +347,12 @@ public class Marker
         }
 
         return result;
+    }
+
+    @Override
+    public int compareTo(ValueMarker o)
+    {
+        return ValueMarkerComparator.doCompare(this, o);
     }
 
     @Override

@@ -94,6 +94,10 @@ public class S3BlockSpiller
     private final AtomicReference<RuntimeException> asyncException = new AtomicReference<>(null);
     //
     private final ConstraintEvaluator constraintEvaluator;
+    //Used to track total bytes written
+    private final AtomicLong totalBytesSpilled = new AtomicLong();
+    //Time this BlockSpiller wss created.
+    private final long startTime = System.currentTimeMillis();
 
     /**
      * Constructor which uses the default maxRowsPerCall.
@@ -267,6 +271,8 @@ public class S3BlockSpiller
      */
     public void close()
     {
+        logger.info("close: Spilled a total of {} bytes in {} ms", totalBytesSpilled.get(), System.currentTimeMillis() - startTime);
+
         if (asyncSpillPool == null) {
             return;
         }
@@ -294,6 +300,8 @@ public class S3BlockSpiller
 
             logger.info("write: Started encrypting block for write to {}", spillLocation);
             byte[] bytes = blockCrypto.encrypt(encryptionKey, block);
+
+            totalBytesSpilled.addAndGet(bytes.length);
 
             logger.info("write: Started spilling block of size {} bytes", bytes.length);
             amazonS3.putObject(spillLocation.getBucket(),
