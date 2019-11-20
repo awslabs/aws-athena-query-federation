@@ -20,10 +20,21 @@
 package com.amazonaws.athena.connectors.udfs;
 
 import com.amazonaws.athena.connector.lambda.handlers.UserDefinedFunctionHandler;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
+import com.amazonaws.services.secretsmanager.AWSSecretsManagerClient;
+import com.google.common.annotations.VisibleForTesting;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.SecretKeySpec;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -34,9 +45,18 @@ public class AthenaUDFHandler
 {
     private static final String SOURCE_TYPE = "athena_common_udfs";
 
+    private final CachableSecretsManager cachableSecretsManager;
+
     public AthenaUDFHandler()
     {
+        this(new CachableSecretsManager(AWSSecretsManagerClient.builder().build()));
+    }
+
+    @VisibleForTesting
+    AthenaUDFHandler(CachableSecretsManager cachableSecretsManager)
+    {
         super(SOURCE_TYPE);
+        this.cachableSecretsManager = cachableSecretsManager;
     }
 
     /**
@@ -116,5 +136,70 @@ public class AthenaUDFHandler
         // return decoded string
         byte[] decompressedBytes = byteArrayOutputStream.toByteArray();
         return new String(decompressedBytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * This method decrypts the ciphertext with a data key stored AWS Secret Manager. Before using this function, create
+     * a secret in AWS Secret Manager. Do a base64 encode to your data key and convert it to string. Store it as
+     * _PLAINTEXT_ in the secret (do not include any quotes, brackets, etc). Also make sure to use DefaultEncryptionKey
+     * as the KMS key. Otherwise you would need to update athena-udfs.yaml to allow access to your KMS key.
+     *
+     * @param ciphertext
+     * @param secretName
+     * @return plaintext
+     */
+    public String decrypt(String ciphertext, String secretName)
+    {
+        String secretString = cachableSecretsManager.getSecret(secretName);
+        byte[] plaintextKey = Base64.getDecoder().decode(secretString);
+
+        try {
+            Cipher cipher = getCipher(Cipher.DECRYPT_MODE, plaintextKey);
+            byte[] encryptedContent = Base64.getDecoder().decode(ciphertext.getBytes());
+            byte[] plainTextBytes = cipher.doFinal(encryptedContent);
+            return new String(plainTextBytes);
+        }
+        catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * This method encrypts the plaintext with a data key stored AWS Secret Manager. Before using this function, create
+     * a secret in AWS Secret Manager. Do a base64 encode to your data key and convert it to string. Store it as
+     * _PLAINTEXT_ in the secret (do not include any quotes, brackets, etc). Also make sure to use DefaultEncryptionKey
+     * as the KMS key. Otherwise you would need to update athena-udfs.yaml to allow access to your KMS key.
+     *
+     * @param plaintext
+     * @param secretName
+     * @return ciphertext
+     */
+    public String encrypt(String plaintext, String secretName)
+    {
+        String secretString = cachableSecretsManager.getSecret(secretName);
+        byte[] plaintextKey = Base64.getDecoder().decode(secretString);
+
+        try {
+            Cipher cipher = getCipher(Cipher.ENCRYPT_MODE, plaintextKey);
+            byte[] encryptedContent = cipher.doFinal(plaintext.getBytes());
+            byte[] encodedContent = Base64.getEncoder().encode(encryptedContent);
+            return new String(encodedContent);
+        }
+        catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Cipher getCipher(int cipherMode, byte[] plainTextDataKey)
+    {
+        try {
+            Cipher cipher = Cipher.getInstance("AES");
+            SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKey, "AES");
+            cipher.init(cipherMode, skeySpec);
+            return cipher;
+        }
+        catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

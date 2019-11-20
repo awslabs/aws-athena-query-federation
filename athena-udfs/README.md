@@ -18,6 +18,21 @@ This would return result 'eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w=='.
 
 This would return result 'StringToBeCompressed'.
 
+3. "encrypt": encrypt the data with a data key stored in AWS Secrets Manager
+
+Before testing this query, you would need to create a secret in AWS Secrets Manager. Make sure to use "DefaultEncryptionKey". If you choose to use your KMS key, you would need to update ./athena-udfs.yaml to allow access to your KMS key. Remove all the json brackets and store a base64 encoded string as data key. Sample data is like `AQIDBAUGBwgJAAECAwQFBg==`. 
+
+Example query:
+
+`USING FUNCTION encrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT encrypt('plaintext', 'my_secret_name');`
+
+3. "decrypt": decrypt the data with a data key stored in AWS Secrets Manager
+
+Example query:
+
+`USING FUNCTION decyprt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT decyprt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
+
+
 ### Deploying The Connector
 
 To use this connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps or use the more detailed tutorial in the athena-example module:

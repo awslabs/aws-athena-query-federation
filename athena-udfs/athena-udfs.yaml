@@ -24,6 +24,9 @@ Parameters:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'
     Default: 3008
     Type: Number
+  SecretNameOrPrefix:
+    Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. database-*).'
+    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -35,3 +38,10 @@ Resources:
       Runtime: java8
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+          Version: '2012-10-17'
