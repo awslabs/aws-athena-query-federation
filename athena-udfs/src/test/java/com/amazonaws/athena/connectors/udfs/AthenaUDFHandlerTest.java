@@ -19,16 +19,39 @@
  */
 package com.amazonaws.athena.connectors.udfs;
 
+import com.amazonaws.services.kms.AWSKMS;
+import com.amazonaws.services.kms.model.DecryptResult;
+import com.amazonaws.services.kms.model.EncryptResult;
+import org.apache.commons.codec.binary.Base64;
+import org.junit.Before;
 import org.junit.Test;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+
+import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 
+import static com.amazonaws.athena.connectors.udfs.AthenaUDFHandler.plainTextDataKeyForSetup;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class AthenaUDFHandlerTest
 {
-    private AthenaUDFHandler athenaUDFHandler = new AthenaUDFHandler();
+    private AthenaUDFHandler athenaUDFHandler;
+
+    @Before
+    public void setup()
+    {
+        AWSKMS kms = mock(AWSKMS.class);
+        byte[] dummyData = new byte[]{1,2,3,4,5};
+        when(kms.encrypt(any())).thenReturn(new EncryptResult().withCiphertextBlob(ByteBuffer.wrap(dummyData)));
+        when(kms.decrypt(any())).thenReturn(new DecryptResult().withPlaintext(ByteBuffer.wrap(plainTextDataKeyForSetup)));
+        this.athenaUDFHandler = new AthenaUDFHandler(kms);
+    }
 
     @Test
     public void testCompressAndDecompressHappyCase()
@@ -76,6 +99,21 @@ public class AthenaUDFHandlerTest
             assertTrue(e.getCause() instanceof DataFormatException);
             assertEquals("Input is truncated", e.getCause().getMessage());
         }
+    }
+
+    @Test
+    public void testKmsEncryption() throws Exception
+    {
+        SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKeyForSetup, "AES");
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+
+        String expected = "abcdef";
+        String encryptedString = new String(Base64.encodeBase64(cipher.doFinal(expected.getBytes())));
+
+        String result = athenaUDFHandler.decrypt(encryptedString);
+
+        assertEquals(expected, result);
     }
 
 }
