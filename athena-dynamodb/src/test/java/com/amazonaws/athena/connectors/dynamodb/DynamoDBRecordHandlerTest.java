@@ -42,7 +42,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -88,12 +87,6 @@ public class DynamoDBRecordHandlerTest
     public void tearDown()
     {
         allocator.close();
-    }
-
-    @Test
-    public void repro()
-    {
-        logger.info(schema.toString());
     }
 
     @Test
