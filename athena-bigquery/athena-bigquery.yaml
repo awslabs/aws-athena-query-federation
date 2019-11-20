@@ -61,7 +61,7 @@ Resources:
           gcp_project_id: !Ref GCPProjectID
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.bigquery.BigQueryCompositeHandler"
-      CodeUri: "./target/athena-bigquery-1.0-SNAPSHOT.jar"
+      CodeUri: "./target/athena-bigquery-1.0.jar"
       Description: "Allows Athena to call and execute BigQuery queries and process the results."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
