@@ -19,11 +19,7 @@
  */
 package com.amazonaws.athena.connectors.udfs;
 
-import com.amazonaws.services.kms.AWSKMS;
-import com.amazonaws.services.kms.AWSKMSClientBuilder;
-import com.amazonaws.services.kms.model.DecryptResult;
-import com.amazonaws.services.kms.model.EncryptResult;
-import org.apache.commons.codec.binary.Base64;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -31,28 +27,31 @@ import org.junit.Test;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
-import java.nio.ByteBuffer;
+import java.util.Base64;
 import java.util.zip.DataFormatException;
 
-import static com.amazonaws.athena.connectors.udfs.AthenaUDFHandler.plainTextDataKeyForSetup;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class AthenaUDFHandlerTest
 {
+    private static final String DUMMY_SECRET_NAME = "dummy_secret";
+
     private AthenaUDFHandler athenaUDFHandler;
+
+    private static final String PLAINTEXT_DATA_KEY = "AQIDBAUGBwgJAAECAwQFBg==";
+
+    private Base64.Decoder decoder = Base64.getDecoder();
+    private Base64.Encoder encoder = Base64.getEncoder();
 
     @Before
     public void setup()
     {
-        AWSKMS kms = mock(AWSKMS.class);
-        byte[] dummyData = new byte[]{1,2,3,4,5};
-        when(kms.encrypt(any())).thenReturn(new EncryptResult().withCiphertextBlob(ByteBuffer.wrap(dummyData)));
-        when(kms.decrypt(any())).thenReturn(new DecryptResult().withPlaintext(ByteBuffer.wrap(plainTextDataKeyForSetup)));
-        this.athenaUDFHandler = new AthenaUDFHandler(kms);
+        CachableSecretsManager cachableSecretsManager = mock(CachableSecretsManager.class);
+        when(cachableSecretsManager.getSecret(DUMMY_SECRET_NAME)).thenReturn(PLAINTEXT_DATA_KEY);
+        this.athenaUDFHandler = new AthenaUDFHandler(cachableSecretsManager);
     }
 
     @Test
@@ -106,40 +105,82 @@ public class AthenaUDFHandlerTest
     @Test
     public void testKmsDecryption() throws Exception
     {
-        SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKeyForSetup, "AES");
+        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(PLAINTEXT_DATA_KEY), "AES");
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
 
         String expected = "abcdef";
-        String encryptedString = new String(Base64.encodeBase64(cipher.doFinal(expected.getBytes())));
+        String encryptedString = new String(encoder.encode(cipher.doFinal(expected.getBytes())));
 
-        String result = athenaUDFHandler.decrypt(encryptedString);
+        String result = athenaUDFHandler.decrypt(encryptedString, DUMMY_SECRET_NAME);
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testKmsEncryption() throws Exception
+    {
+        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(PLAINTEXT_DATA_KEY), "AES");
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+
+        String content = "abcdef";
+        String expected = new String(encoder.encode(cipher.doFinal(content.getBytes())));
+
+        String result = athenaUDFHandler.encrypt(content, DUMMY_SECRET_NAME);
 
         assertEquals(expected, result);
     }
 
     /**
-     * This UT is used to test {@link AthenaUDFHandler#decrypt(String)} method end-to-end.
-     * It requires KMS key setup and credential setup.
+     * This UT is used to test {@link AthenaUDFHandler#decrypt(String, String)} method end-to-end.
+     * It requires AWS Secret Manager setup and AWS credential setup.
      * @throws Exception
      */
     @Ignore("Enabled as needed to do end-to-end test")
     @Test
     public void testKmsDecryptionEndToEnd() throws Exception
     {
-        AWSKMS kms = AWSKMSClientBuilder.standard().build();
-        this.athenaUDFHandler = new AthenaUDFHandler(kms);
+        String secretName = "<fill-in-your-secret-name>";
+        String secretValue = "<fill-in-secret-value>";
 
-        SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKeyForSetup, "AES");
+        this.athenaUDFHandler = new AthenaUDFHandler();
+
+        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(secretValue), "AES");
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
 
         String expected = "abcdef";
-        String encryptedString = new String(Base64.encodeBase64(cipher.doFinal(expected.getBytes())));
+        String encryptedString = new String(encoder.encode(cipher.doFinal(expected.getBytes())));
 
-        String result = athenaUDFHandler.decrypt(encryptedString);
+        String result = athenaUDFHandler.decrypt(encryptedString, secretName);
 
         assertEquals(expected, result);
     }
 
+    /**
+     * This UT is used to test {@link AthenaUDFHandler#encrypt(String, String)} method end-to-end.
+     * It requires AWS Secret Manager setup and AWS credential setup.
+     * @throws Exception
+     */
+    @Ignore("Enabled as needed to do end-to-end test")
+    @Test
+    public void testKmsEncryptionEndToEnd() throws Exception
+    {
+        String secretName = "<fill-in-your-secret-name>";
+        String secretValue = "<fill-in-secret-value>";
+
+        this.athenaUDFHandler = new AthenaUDFHandler();
+
+        SecretKeySpec skeySpec = new SecretKeySpec(decoder.decode(secretValue), "AES");
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+
+        String expected = "abcdef";
+        String encryptedString = new String(encoder.encode(cipher.doFinal(expected.getBytes())));
+
+        String result = athenaUDFHandler.decrypt(encryptedString, secretName);
+
+        assertEquals(expected, result);
+    }
 }
