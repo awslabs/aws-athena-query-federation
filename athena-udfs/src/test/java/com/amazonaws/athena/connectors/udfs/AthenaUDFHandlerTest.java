@@ -104,7 +104,7 @@ public class AthenaUDFHandlerTest
     }
 
     @Test
-    public void testKmsEncryption() throws Exception
+    public void testKmsDecryption() throws Exception
     {
         SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKeyForSetup, "AES");
         Cipher cipher = Cipher.getInstance("AES");
@@ -125,7 +125,7 @@ public class AthenaUDFHandlerTest
      */
     @Ignore("Enabled as needed to do end-to-end test")
     @Test
-    public void testKmsEncryptionEndToEnd() throws Exception
+    public void testKmsDecryptionEndToEnd() throws Exception
     {
         AWSKMS kms = AWSKMSClientBuilder.standard().build();
         this.athenaUDFHandler = new AthenaUDFHandler(kms);
