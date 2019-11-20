@@ -205,7 +205,8 @@ public class AthenaUDFHandler
         //todo: set the keyId to a KMS key id you own.
         String keyId = "<KMS key id you own>";
 
-        ByteBuffer plaintext = ByteBuffer.wrap(new byte[]{1,2,3,4,5,6,7,8,9,0,1,2,3,4,5,6});
+        ByteBuffer plaintext
+                = ByteBuffer.wrap(plainTextDataKeyForSetup);
         EncryptRequest req = new EncryptRequest().withKeyId(keyId).withPlaintext(plaintext);
         ByteBuffer ciphertext = kms.encrypt(req).getCiphertextBlob();
         return ciphertext.array();
