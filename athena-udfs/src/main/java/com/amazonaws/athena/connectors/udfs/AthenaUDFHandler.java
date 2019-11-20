@@ -39,6 +39,13 @@ public class AthenaUDFHandler
         super(SOURCE_TYPE);
     }
 
+    /**
+     * Compresses a valid UTF-8 String using the zlib compression library.
+     * Encodes bytes with Base64 encoding scheme.
+     *
+     * @param input the String to be compressed
+     * @return the compressed String
+     */
     public String compress(String input)
     {
         byte[] inputBytes = input.getBytes(StandardCharsets.UTF_8);
@@ -68,6 +75,13 @@ public class AthenaUDFHandler
         return Base64.getEncoder().encodeToString(compressedBytes);
     }
 
+    /**
+     * Decompresses a valid String that has been compressed using the zlib compression library.
+     * Decodes bytes with Base64 decoding scheme.
+     *
+     * @param input the String to be decompressed
+     * @return the decompressed String
+     */
     public String decompress(String input)
     {
         byte[] inputBytes = Base64.getDecoder().decode((input));
