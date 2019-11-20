@@ -4,7 +4,19 @@ This connector extends Amazon Athena's capability by adding customizable UDFs vi
 
 ## Supported UDFs
 
-TODO: Add supported UDFs 
+1. "compress": Compresses a String
+
+Example query:
+
+`USING FUNCTION compress(col1 VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT compress('StringToBeCompressed');`
+
+This would return result 'eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w=='.
+
+2. "decompress": Decompresses a String
+
+`USING FUNCTION decompress(col1 VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT decompress('eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w==');`
+
+This would return result 'StringToBeCompressed'.
 
 ### Deploying The Connector
 
@@ -14,8 +26,6 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 2. From the athena-udfs dir, run `mvn clean install`.
 3. From the athena-udfs dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-udfs` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 4. Try using your UDF(s) in a query.
-
-
 
 ## License
 
