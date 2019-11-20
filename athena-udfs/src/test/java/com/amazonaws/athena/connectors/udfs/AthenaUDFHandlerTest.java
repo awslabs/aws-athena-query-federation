@@ -20,10 +20,12 @@
 package com.amazonaws.athena.connectors.udfs;
 
 import com.amazonaws.services.kms.AWSKMS;
+import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.kms.model.DecryptResult;
 import com.amazonaws.services.kms.model.EncryptResult;
 import org.apache.commons.codec.binary.Base64;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.crypto.Cipher;
@@ -104,6 +106,30 @@ public class AthenaUDFHandlerTest
     @Test
     public void testKmsEncryption() throws Exception
     {
+        SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKeyForSetup, "AES");
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
+
+        String expected = "abcdef";
+        String encryptedString = new String(Base64.encodeBase64(cipher.doFinal(expected.getBytes())));
+
+        String result = athenaUDFHandler.decrypt(encryptedString);
+
+        assertEquals(expected, result);
+    }
+
+    /**
+     * This UT is used to test {@link AthenaUDFHandler#decrypt(String)} method end-to-end.
+     * It requires KMS key setup and credential setup.
+     * @throws Exception
+     */
+    @Ignore("Enabled as needed to do end-to-end test")
+    @Test
+    public void testKmsEncryptionEndToEnd() throws Exception
+    {
+        AWSKMS kms = AWSKMSClientBuilder.standard().build();
+        this.athenaUDFHandler = new AthenaUDFHandler(kms);
+
         SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKeyForSetup, "AES");
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
