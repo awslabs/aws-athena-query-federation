@@ -198,6 +198,8 @@ public class ExampleRecordHandler
          });
          */
 
+        //Used some basic code-gen to optimize how we generate response data.
+        GeneratedRowWriter rowWriter = builder.build();
 
         //We read the transaction data line by line from our S3 object.
         String line;
@@ -206,8 +208,6 @@ public class ExampleRecordHandler
 
             //The sample_data.csv file is structured as year,month,day,account_id,transaction.id,transaction.complete
             String[] lineParts = line.split(",");
-
-            GeneratedRowWriter rowWriter = builder.build();
 
             //We use the provided BlockSpiller to write our row data into the response. This utility is provided by
             //the Amazon Athena Query Federation SDK and automatically handles breaking the data into reasonably sized
