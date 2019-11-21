@@ -186,8 +186,8 @@ public class ExampleRecordHandler
                 (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                     (Object context, int rowNum) -> {
                          Map<String, Object> eventMap = new HashMap<>();
-                         eventMap.put("id", Integer.parseInt(context[4]));
-                         eventMap.put("completed", Boolean.parseBoolean(context[5]));
+                         eventMap.put("id", Integer.parseInt(((String[])context)[4]));
+                         eventMap.put("completed", Boolean.parseBoolean(((String[])context)[5]));
                          BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, eventMap);
                          return true;    //we don't yet support predicate pushdown on complex types
          });
