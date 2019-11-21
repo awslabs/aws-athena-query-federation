@@ -44,9 +44,7 @@
         <module>athena-cloudwatch</module>
         <module>athena-docdb</module>
         <module>athena-redis</module>
-        <module>athena-bigquery</module>
         <module>athena-aws-cmdb</module>
-        <module>athena-android</module>
         <module>athena-dynamodb</module>
         <module>athena-hbase</module>
         <module>athena-cloudwatch-metrics</module>
