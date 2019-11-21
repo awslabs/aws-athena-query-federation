@@ -1,12 +1,10 @@
 com.amazonaws.athena.connectors.cloudwatch
 com.amazonaws.athena.connectors.docdb
 com.amazonaws.athena.connectors.redis
-com.amazonaws.athena.connectors.bigquery
 com.amazonaws.athena.connectors.aws.cmdb.tables.s3
 com.amazonaws.athena.connectors.aws.cmdb.tables
 com.amazonaws.athena.connectors.aws.cmdb.tables.ec2
 com.amazonaws.athena.connectors.aws.cmdb
-com.amazonaws.athena.connectors.android
 com.amazonaws.athena.connectors.dynamodb.util
 com.amazonaws.athena.connectors.dynamodb
 com.amazonaws.athena.connectors.dynamodb.constants
