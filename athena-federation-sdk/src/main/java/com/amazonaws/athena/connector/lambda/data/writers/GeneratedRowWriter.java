@@ -141,6 +141,10 @@ public class GeneratedRowWriter
             return factory.create(vector, extractor, constraint);
         }
 
+        if (extractor == null) {
+            throw new IllegalStateException("Missing extractor for field[" + fieldName + "]");
+        }
+
         switch (fieldType) {
             case INT:
                 return new IntFieldWriter((IntExtractor) extractor, (IntVector) vector, constraint);
