@@ -27,6 +27,15 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Encapsulates RDS secrets deserialization. AWS Secrets Manager managed RDS credentials are stored in following JSON format (showing minimal required for extraction):
+ * <code>
+ * {
+ *     "username": "${user}",
+ *     "password": "${password}"
+ * }
+ * </code>
+ */
 public class RdsSecretsCredentialProvider
         implements JdbcCredentialProvider
 {

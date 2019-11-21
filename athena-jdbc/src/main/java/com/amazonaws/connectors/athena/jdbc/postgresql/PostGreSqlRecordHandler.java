@@ -55,6 +55,11 @@ public class PostGreSqlRecordHandler
 
     private static final String POSTGRES_QUOTE_CHARACTER = "\"";
 
+    /**
+     * Instantiates handler to be used by Lambda function directly.
+     *
+     * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
+     */
     public PostGreSqlRecordHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.POSTGRES));

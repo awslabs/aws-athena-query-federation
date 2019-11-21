@@ -61,6 +61,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Abstracts JDBC metadata handler and provides common reusable metadata handling.
+ */
 public abstract class JdbcMetadataHandler
         extends MetadataHandler
 {
@@ -247,6 +250,12 @@ public abstract class JdbcMetadataHandler
                 null);
     }
 
+    /**
+     * Delegates creation of partition schema to database type implementation.
+     *
+     * @param catalogName Athena provided catalog name.
+     * @return schema. See {@link Schema}
+     */
     public abstract Schema getPartitionSchema(final String catalogName);
 
     @Override

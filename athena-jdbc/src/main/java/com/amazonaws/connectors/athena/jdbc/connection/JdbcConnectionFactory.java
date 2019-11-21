@@ -27,22 +27,20 @@ import java.sql.Connection;
 public interface JdbcConnectionFactory
 {
     /**
-     * Used to connect with standard databases. Default port for the engine will be used if value is negative.
+     * Retrieves database connection for a database type.
      *
-     * @param jdbcCredentialProvider jdbc user and password provider
-     * @return {@link Connection}
+     * @param jdbcCredentialProvider jdbc user and password provider.
+     * @return JDBC connection. See {@link Connection}.
      */
     Connection getConnection(JdbcCredentialProvider jdbcCredentialProvider);
 
     /**
-     * Databases supported to create JDBC connection. These would be connector names as well.
+     * Databases supported to create JDBC connection.
      */
     enum DatabaseEngine
     {
         MYSQL("mysql"),
         POSTGRES("postgres"),
-        ORACLE("oracle"),
-        SQLSERVER("sqlserver"),
         REDSHIFT("redshift");
 
         private final String dbName;

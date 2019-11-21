@@ -23,11 +23,18 @@ import org.apache.commons.lang3.Validate;
 
 import java.util.Objects;
 
+/**
+ * Encapsulates database and JDBC driver defaults for a database type.
+ */
 public class DatabaseConnectionInfo
 {
     private final String driverClassName;
     private final int defaultPort;
 
+    /**
+     * @param driverClassName JDBC driver class name.
+     * @param defaultPort Database default port.
+     */
     public DatabaseConnectionInfo(final String driverClassName, final int defaultPort)
     {
         this.driverClassName = Validate.notBlank(driverClassName, "driverClassName must not be blank");

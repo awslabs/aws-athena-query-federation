@@ -38,17 +38,25 @@ public final class JDBCUtil
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
     private JDBCUtil() {}
 
+    /**
+     * Extracts default database configuration for a database. Used when a specific database instance handler is used by Lambda function.
+     *
+     * @param databaseEngine database type. See {@link com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory.DatabaseEngine}.
+     * @return database connection confuiguration. See {@link DatabaseConnectionConfig}.
+     */
     public static DatabaseConnectionConfig getSingleDatabaseConfigFromEnv(final JdbcConnectionFactory.DatabaseEngine databaseEngine)
     {
         List<DatabaseConnectionConfig> databaseConnectionConfigs = DatabaseConnectionConfigBuilder.buildFromSystemEnv();
 
         for (DatabaseConnectionConfig databaseConnectionConfig : databaseConnectionConfigs) {
-            if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())) {
+            if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())
+                    && databaseEngine.equals(databaseConnectionConfig.getType())) {
                 return databaseConnectionConfig;
             }
         }
 
-        throw new RuntimeException("Must provide default connection string parameter " + DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY);
+        throw new RuntimeException(String.format("Must provide default connection string parameter %s for database type %s",
+                DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine.getDbName()));
     }
 
     /**

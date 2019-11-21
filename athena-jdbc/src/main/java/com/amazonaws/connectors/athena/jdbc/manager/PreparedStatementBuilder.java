@@ -28,6 +28,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
+/**
+ * Encapsulates prepared statement string and parameters.
+ */
 public class PreparedStatementBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PreparedStatementBuilder.class);
@@ -54,6 +57,11 @@ public class PreparedStatementBuilder
         return this;
     }
 
+    /**
+     * Builds prepared statement from query string and string parameters.
+     *
+     * @return prepared statement. See {@link PreparedStatement}.
+     */
     public PreparedStatement build()
     {
         Validate.notEmpty(parameters, "parameters must not be null");

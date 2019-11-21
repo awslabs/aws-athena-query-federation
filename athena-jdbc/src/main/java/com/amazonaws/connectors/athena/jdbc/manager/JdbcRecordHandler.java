@@ -54,6 +54,9 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Abstracts JDBC record handler and provides common reusable split records handling.
+ */
 public abstract class JdbcRecordHandler
         extends RecordHandler
 {
@@ -176,6 +179,18 @@ public abstract class JdbcRecordHandler
                 .call(resultSet, columnName);
     }
 
+    /**
+     * Builds split SQL string and returns prepared statement.
+     *
+     * @param jdbcConnection jdbc connection. See {@link Connection}
+     * @param catalogName Athena provided catalog name.
+     * @param tableName database table name.
+     * @param schema table schema.
+     * @param constraints constraints to push down to the database.
+     * @param split table split.
+     * @return prepared statement with sql. See {@link PreparedStatement}
+     * @throws SQLException JDBC database exception.
+     */
     public abstract PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
             throws SQLException;
 

@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link PostGreSqlMetadataHandler} and {@link PostGreSqlRecordHandler}.
+ *
+ * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
  */
 public class PostGreSqlCompositeHandler
         extends CompositeHandler

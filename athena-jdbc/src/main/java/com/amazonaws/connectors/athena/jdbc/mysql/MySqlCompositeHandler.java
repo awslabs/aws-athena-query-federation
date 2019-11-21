@@ -24,6 +24,8 @@ import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link MySqlMetadataHandler} and {@link MySqlRecordHandler}.
+ *
+ * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
  */
 public class MySqlCompositeHandler
         extends CompositeHandler

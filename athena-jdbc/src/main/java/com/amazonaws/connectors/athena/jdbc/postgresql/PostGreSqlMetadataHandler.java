@@ -55,6 +55,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Handles metadata for PostGreSql. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
+ * information_schema.
+ */
 public class PostGreSqlMetadataHandler
         extends JdbcMetadataHandler
 {
@@ -71,6 +75,11 @@ public class PostGreSqlMetadataHandler
     private static final String PARTITION_NAME = "child";
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
+    /**
+     * Instantiates handler to be used by Lambda function directly.
+     *
+     * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
+     */
     public PostGreSqlMetadataHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.POSTGRES));
