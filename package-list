@@ -16,12 +16,10 @@ com.amazonaws.athena.connector.lambda.security
 com.amazonaws.athena.connector.lambda.serde
 com.amazonaws.athena.connector.lambda.udf
 com.amazonaws.athena.connector.validation
-com.amazonaws.athena.connectors.android
 com.amazonaws.athena.connectors.aws.cmdb
 com.amazonaws.athena.connectors.aws.cmdb.tables
 com.amazonaws.athena.connectors.aws.cmdb.tables.ec2
 com.amazonaws.athena.connectors.aws.cmdb.tables.s3
-com.amazonaws.athena.connectors.bigquery
 com.amazonaws.athena.connectors.cloudwatch
 com.amazonaws.athena.connectors.cloudwatch.metrics
 com.amazonaws.athena.connectors.cloudwatch.metrics.tables
