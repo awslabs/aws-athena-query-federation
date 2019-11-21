@@ -23,8 +23,25 @@ package com.amazonaws.athena.connector.lambda.examples;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
@@ -38,43 +55,33 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.google.common.base.Charsets;
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.DateDayVector;
-import org.apache.arrow.vector.DateMilliVector;
-import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.Float4Vector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.SmallIntVector;
-import org.apache.arrow.vector.TinyIntVector;
-import org.apache.arrow.vector.UInt1Vector;
-import org.apache.arrow.vector.UInt2Vector;
-import org.apache.arrow.vector.UInt4Vector;
-import org.apache.arrow.vector.UInt8Vector;
-import org.apache.arrow.vector.VarBinaryVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDateDayHolder;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.NullableSmallIntHolder;
+import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.codec.Charsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * All items in the "com.amazonaws.athena.connector.lambda.examples" that this class belongs to are part of an
@@ -195,269 +202,250 @@ public class ExampleRecordHandler
             partitionCols.addAll(Arrays.asList(partitionColsMetadata.split(",")));
         }
 
-        Set<Field> requiredFields = new HashSet<>();
-        for (Field next : request.getSchema().getFields()) {
-            String fieldName = next.getName();
-            if (!partitionCols.contains(fieldName)) {
-                requiredFields.add(next);
-            }
-        }
-
         int year = Integer.valueOf(request.getSplit().getProperty("year"));
         int month = Integer.valueOf(request.getSplit().getProperty("month"));
         int day = Integer.valueOf(request.getSplit().getProperty("day"));
 
-        GeneratedRowWriter rowWriter = new GeneratedRowWriter(getConstraintEvaluator(), year, month, day);
+        final RowContext rowContext = new RowContext(year, month, day);
+
+        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(request.getConstraints());
+        for (Field next : request.getSchema().getFields()) {
+            Extractor extractor = makeExtractor(next, rowContext);
+            if (extractor != null) {
+                builder.withExtractor(next.getName(), extractor);
+            }
+            else {
+                builder.withFieldWriterFactory(next.getName(), makeFactory(next, rowContext));
+            }
+        }
+
+        GeneratedRowWriter rowWriter = builder.build();
         for (int i = 0; i < numRowsPerSplit; i++) {
+            rowContext.seed = i;
+            rowContext.negative = i % 2 == 0;
             if (!queryStatusChecker.isQueryRunning()) {
                 return;
             }
-            spiller.writeRows(rowWriter);
+            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
         }
 
         logger.info("readWithConstraint: Completed generating rows in {} ms", System.currentTimeMillis() - startTime);
     }
 
-    private static class GeneratedRowWriter
-            implements BlockWriter.RowWriter
+    private Extractor makeExtractor(Field field, RowContext rowContext)
     {
-        private final List<Projector> projectors = new ArrayList<>();
-        private Block block;
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+
+        //This is an artifact of us generating data, you can't generate the partitions cols
+        //they need to match the split otherwise filtering will brake in unexpected ways.
+        if (field.getName().equals("year")) {
+            return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+            {
+                dst.isSet = 1;
+                dst.value = rowContext.getYear();
+            };
+        }
+        else if (field.getName().equals("month")) {
+            return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+            {
+                dst.isSet = 1;
+                dst.value = rowContext.getMonth();
+            };
+        }
+        else if (field.getName().equals("day")) {
+            return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+            {
+                dst.isSet = 1;
+                dst.value = rowContext.getDay();
+            };
+        }
+
+        switch (fieldType) {
+            case INT:
+                return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((RowContext) context).seed * (((RowContext) context).negative ? -1 : 1);
+                };
+            case DATEMILLI:
+                return (DateMilliExtractor) (Object context, int row, NullableDateMilliHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((RowContext) context).seed * (((RowContext) context).negative ? -1 : 1);
+                };
+            case DATEDAY:
+                return (DateDayExtractor) (Object context, int row, NullableDateDayHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((RowContext) context).seed * (((RowContext) context).negative ? -1 : 1);
+                };
+            case TINYINT:
+                return (TinyIntExtractor) (Object context, int row, NullableTinyIntHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = (byte) ((((RowContext) context).seed % 4) * (((RowContext) context).negative ? -1 : 1));
+                };
+            case SMALLINT:
+                return (SmallIntExtractor) (Object context, int row, NullableSmallIntHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = (short) ((((RowContext) context).seed % 4) * (((RowContext) context).negative ? -1 : 1));
+                };
+            case FLOAT4:
+                return (Float4Extractor) (Object context, int row, NullableFloat4Holder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((float) ((RowContext) context).seed) * 1.1f * (((RowContext) context).negative ? -1f : 1f);
+                };
+            case FLOAT8:
+                return (Float8Extractor) (Object context, int row, NullableFloat8Holder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((double) ((RowContext) context).seed) * 1.1D;
+                };
+            case DECIMAL:
+                return (DecimalExtractor) (Object context, int row, NullableDecimalHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    double d8Val = ((RowContext) context).seed * 1.1D * (((RowContext) context).negative ? -1d : 1d);
+                    BigDecimal bdVal = new BigDecimal(d8Val);
+                    dst.value = bdVal.setScale(((ArrowType.Decimal) field.getType()).getScale(), RoundingMode.HALF_UP);
+                };
+            case BIT:
+                return (BitExtractor) (Object context, int row, NullableBitHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((RowContext) context).seed % 2;
+                };
+            case BIGINT:
+                return (BigIntExtractor) (Object context, int row, NullableBigIntHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ((RowContext) context).seed * 1L * (((RowContext) context).negative ? -1 : 1);
+                };
+            case VARCHAR:
+                return (VarCharExtractor) (Object context, int row, NullableVarCharHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = "VarChar" + ((RowContext) context).seed;
+                };
+            case VARBINARY:
+                return (VarBinaryExtractor) (Object context, int row, NullableVarBinaryHolder dst) ->
+                {
+                    dst.isSet = 1;
+                    dst.value = ("VarChar" + ((RowContext) context).seed).getBytes(Charsets.UTF_8);
+                };
+            default:
+                return null;
+        }
+    }
+
+    private FieldWriterFactory makeFactory(Field field, RowContext rowContext)
+    {
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        switch (fieldType) {
+            case LIST:
+                Field child = field.getChildren().get(0);
+                Types.MinorType childType = Types.getMinorTypeForArrowType(child.getType());
+                switch (childType) {
+                    case LIST:
+                        return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                                (FieldWriter) (Object context, int rowNum) -> {
+                                    UnionListWriter writer = ((ListVector) vector).getWriter();
+                                    writer.setPosition(rowNum);
+                                    writer.startList();
+                                    BaseWriter.ListWriter innerWriter = writer.list();
+                                    innerWriter.startList();
+                                    for (int i = 0; i < 3; i++) {
+                                        byte[] bytes = String.valueOf(1000 + i).getBytes(Charsets.UTF_8);
+                                        try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
+                                            buf.writeBytes(bytes);
+                                            innerWriter.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                                        }
+                                    }
+                                    innerWriter.endList();
+                                    writer.endList();
+                                    ((ListVector) vector).setNotNull(rowNum);
+                                    return true;
+                                };
+                    case STRUCT:
+                        return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                                (FieldWriter) (Object context, int rowNum) -> {
+                                    UnionListWriter writer = ((ListVector) vector).getWriter();
+                                    writer.setPosition(rowNum);
+                                    writer.startList();
+
+                                    BaseWriter.StructWriter structWriter = writer.struct();
+                                    structWriter.start();
+
+                                    byte[] bytes = "chars".getBytes(Charsets.UTF_8);
+                                    try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
+                                        buf.writeBytes(bytes);
+                                        structWriter.varChar("varchar").writeVarChar(0, buf.readableBytes(), buf);
+                                    }
+                                    structWriter.bigInt("bigint").writeBigInt(100L);
+                                    structWriter.end();
+
+                                    writer.endList();
+                                    ((ListVector) vector).setNotNull(rowNum);
+                                    return true;
+                                };
+                    default:
+                        throw new IllegalArgumentException("Unsupported type " + childType);
+                }
+            default:
+                throw new IllegalArgumentException("Unsupported type " + fieldType);
+        }
+    }
+
+    private static class RowContext
+    {
+        private int seed;
+        private boolean negative;
         private final int year;
         private final int month;
         private final int day;
-        private final ConstraintEvaluator evaluator;
-        private final AtomicLong seed = new AtomicLong(0);
 
-        public GeneratedRowWriter(ConstraintEvaluator evaluator, int year, int month, int day)
+        public RowContext(int year, int month, int day)
         {
             this.year = year;
             this.month = month;
             this.day = day;
-            this.evaluator = evaluator;
         }
 
-        private void init(Block block)
+        public int getYear()
         {
-            if (this.block == null || this.block.getRowCount() != block.getRowCount()) {
-                logger.info("init: Detected a new block, rebuilding projectors");
-                this.block = block;
-                projectors.clear();
-                //TODO this doesn't actually check if the block changed, need to do that
-                for (FieldVector vector : block.getFieldVectors()) {
-                    Projector projector = checkAndMakePartitionCol(vector);
-                    if (projector == null) {
-                        projector = makeRandomValueProjector(vector);
-                    }
-                    projectors.add(projector);
-                }
-            }
+            return year;
         }
 
-        @Override
-        public int writeRows(Block block, int rowNum)
+        public int getMonth()
         {
-            init(block);
-            boolean negative = rowNum % 2 == 1;
-            boolean matched = true;
-            int rowSeed = (int) seed.getAndIncrement();
-            for (Projector next : projectors) {
-                matched &= next.project(rowSeed, rowNum, negative);
-            }
-            return matched ? 1 : 0;
+            return month;
         }
 
-        private Projector checkAndMakePartitionCol(FieldVector vector)
+        public int getDay()
         {
-            //Handle our partition columns
-            if (vector.getField().getName().equals("year")) {
-                return (int seed, int rowNum, boolean negative) -> {
-                    ((IntVector) vector).setSafe(rowNum, year);
-                    return true;
-                };
-            }
-            else if (vector.getField().getName().equals("month")) {
-                return (int seed, int rowNum, boolean negative) -> {
-                    ((IntVector) vector).setSafe(rowNum, month);
-                    return true;
-                };
-            }
-            else if (vector.getField().getName().equals("day")) {
-                return (int seed, int rowNum, boolean negative) -> {
-                    ((IntVector) vector).setSafe(rowNum, day);
-                    return true;
-                };
-            }
-            return null;
+            return day;
         }
 
-        private Projector makeRandomValueProjector(FieldVector fieldVector)
+        public int getSeed()
         {
-            Field field = fieldVector.getField();
-            String fieldName = field.getName();
-            Optional<ConstraintProjector> constraintProjector = evaluator.makeConstraintProjector(fieldName);
-            ConstraintProjector constraint = constraintProjector.isPresent() ? constraintProjector.get() : (Object value) -> true;
-            Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
-            switch (fieldType) {
-                case INT:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int iVal = seed * (negative ? -1 : 1);
-                        ((IntVector) fieldVector).setSafe(rowNum, iVal);
-                        return constraint.apply(iVal);
-                    };
-                case DATEMILLI:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int iVal = seed * (negative ? -1 : 1);
-                        ((DateMilliVector) fieldVector).setSafe(rowNum, iVal);
-                        return constraint.apply(iVal);
-                    };
-                case DATEDAY:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int iVal = seed * (negative ? -1 : 1);
-                        ((DateDayVector) fieldVector).setSafe(rowNum, iVal);
-                        return constraint.apply(iVal);
-                    };
-                case TINYINT:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int stVal = (seed % 4) * (negative ? -1 : 1);
-                        ((TinyIntVector) fieldVector).setSafe(rowNum, stVal);
-                        return constraint.apply(stVal);
-                    };
-                case SMALLINT:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int stVal = (seed % 4) * (negative ? -1 : 1);
-                        ((SmallIntVector) fieldVector).setSafe(rowNum, stVal);
-                        return constraint.apply(stVal);
-                    };
-
-                case UINT1:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int uVal = seed % 4;
-                        ((UInt1Vector) fieldVector).setSafe(rowNum, uVal);
-                        return constraint.apply(uVal);
-                    };
-                case UINT2:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int uVal = seed % 4;
-                        ((UInt2Vector) fieldVector).setSafe(rowNum, uVal);
-                        return constraint.apply(uVal);
-                    };
-                case UINT4:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int uVal = seed % 4;
-                        ((UInt4Vector) fieldVector).setSafe(rowNum, uVal);
-                        return constraint.apply(uVal);
-                    };
-                case UINT8:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int uVal = seed % 4;
-                        ((UInt8Vector) fieldVector).setSafe(rowNum, uVal);
-                        return constraint.apply(uVal);
-                    };
-                case FLOAT4:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        float fVal = seed * 1.1f * (negative ? -1 : 1);
-                        ((Float4Vector) fieldVector).setSafe(rowNum, fVal);
-                        return constraint.apply(fVal);
-                    };
-                case FLOAT8:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        double d8Val = seed * 1.1D;
-                        ((Float8Vector) fieldVector).setSafe(rowNum, d8Val);
-                        return constraint.apply(d8Val);
-                    };
-                case DECIMAL:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        double d8Val = seed * 1.1D * (negative ? -1 : 1);
-                        DecimalVector dVector = ((DecimalVector) fieldVector);
-                        BigDecimal bdVal = new BigDecimal(d8Val);
-                        bdVal = bdVal.setScale(dVector.getScale(), RoundingMode.HALF_UP);
-                        dVector.setSafe(rowNum, bdVal);
-                        return constraint.apply(bdVal);
-                    };
-                case BIT:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        int bVal = seed % 2;
-                        ((BitVector) fieldVector).setSafe(rowNum, bVal);
-                        return constraint.apply(bVal);
-                    };
-                case BIGINT:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        long lVal = seed * 1L * (negative ? -1 : 1);
-                        ((BigIntVector) fieldVector).setSafe(rowNum, lVal);
-                        return constraint.apply(lVal);
-                    };
-                case VARCHAR:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        String vVal = "VarChar" + seed;
-                        ((VarCharVector) fieldVector).setSafe(rowNum, (vVal).getBytes(Charsets.UTF_8));
-                        return constraint.apply(vVal);
-                    };
-                case VARBINARY:
-                    return (int seed, int rowNum, boolean negative) -> {
-                        String vVal = "VarChar" + seed;
-                        ((VarBinaryVector) fieldVector).setSafe(rowNum, (vVal).getBytes(Charsets.UTF_8));
-                        return constraint.apply((vVal).getBytes(Charsets.UTF_8));
-                    };
-                case LIST:
-                    //This is setup for the specific kinds of lists we have in our example schema,
-                    //it is not universal. List<String> and List<Struct{string,bigint}> is what
-                    //this block supports.
-                    Field child = block.getFieldVector(fieldName).getField().getChildren().get(0);
-                    Types.MinorType childType = Types.getMinorTypeForArrowType(child.getType());
-
-                    switch (childType) {
-                        case LIST:
-                            return (int seed, int rowNum, boolean negative) -> {
-                                UnionListWriter writer = ((ListVector) fieldVector).getWriter();
-                                writer.setPosition(rowNum);
-                                writer.startList();
-                                BaseWriter.ListWriter innerWriter = writer.list();
-                                innerWriter.startList();
-                                for (int i = 0; i < 3; i++) {
-                                    byte[] bytes = String.valueOf(1000 + i).getBytes(Charsets.UTF_8);
-                                    try (ArrowBuf buf = fieldVector.getAllocator().buffer(bytes.length)) {
-                                        buf.writeBytes(bytes);
-                                        innerWriter.varChar().writeVarChar(0, buf.readableBytes(), buf);
-                                    }
-                                }
-                                innerWriter.endList();
-                                writer.endList();
-                                ((ListVector) fieldVector).setNotNull(rowNum);
-                                return true;
-                            };
-                        case STRUCT:
-                            return (int seed, int rowNum, boolean negative) -> {
-                                UnionListWriter writer = ((ListVector) fieldVector).getWriter();
-                                writer.setPosition(rowNum);
-                                writer.startList();
-
-                                BaseWriter.StructWriter structWriter = writer.struct();
-                                structWriter.start();
-
-                                byte[] bytes = "chars".getBytes(Charsets.UTF_8);
-                                try (ArrowBuf buf = fieldVector.getAllocator().buffer(bytes.length)) {
-                                    buf.writeBytes(bytes);
-                                    structWriter.varChar("varchar").writeVarChar(0, buf.readableBytes(), buf);
-                                }
-                                structWriter.bigInt("bigint").writeBigInt(100L);
-                                structWriter.end();
-
-                                writer.endList();
-                                ((ListVector) fieldVector).setNotNull(rowNum);
-                                return true;
-                            };
-                        default:
-                            throw new RuntimeException(childType + " is not supported");
-                    }
-                default:
-                    throw new RuntimeException(fieldType + " is not supported");
-            }
+            return seed;
         }
-    }
 
-    private interface Projector
-    {
-        boolean project(int seed, int rowNum, boolean negative);
+        public void setSeed(int seed)
+        {
+            this.seed = seed;
+        }
+
+        public boolean isNegative()
+        {
+            return negative;
+        }
+
+        public void setNegative(boolean negative)
+        {
+            this.negative = negative;
+        }
     }
 }

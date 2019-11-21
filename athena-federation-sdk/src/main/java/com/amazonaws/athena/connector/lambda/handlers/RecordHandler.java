@@ -74,10 +74,6 @@ public abstract class RecordHandler
     private final CachableSecretsManager secretsManager;
     private final AmazonAthena athena;
     private final ThrottlingInvoker athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER).build();
-    //holds the BlockAllocator for the current request.
-    private BlockAllocator blockAllocator;
-    //holds the ConstraintEvaluator for the current request.
-    private ConstraintEvaluator constraintEvaluator;
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
@@ -125,7 +121,6 @@ public abstract class RecordHandler
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            this.blockAllocator = allocator;
             ObjectMapper objectMapper = ObjectMapperFactory.create(allocator);
             try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
                 if (rawReq instanceof PingRequest) {
@@ -146,9 +141,6 @@ public abstract class RecordHandler
                 logger.warn("handleRequest: Completed with an exception.", ex);
                 throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
             }
-        }
-        finally {
-            this.blockAllocator = null;
         }
     }
 
@@ -196,7 +188,6 @@ public abstract class RecordHandler
                 S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator);
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
-            this.constraintEvaluator = evaluator;
             readWithConstraint(spiller, request, queryStatusChecker);
 
             if (!spiller.spilled()) {
@@ -209,29 +200,6 @@ public abstract class RecordHandler
                         spillConfig.getEncryptionKey());
             }
         }
-        finally {
-            this.constraintEvaluator = null;
-        }
-    }
-
-    /**
-     * Provides access to the BlockAllocator for the current request.
-     *
-     * @return The BlockAllocator for the current request or null if there is no valid BlockAllocator.
-     */
-    protected BlockAllocator getBlockAllocator()
-    {
-        return this.blockAllocator;
-    }
-
-    /**
-     * Provides access to the ConstraintEvaluator for the current request.
-     *
-     * @return The ConstraintEvaluator for the current request or null if there is no valid ConstraintEvaluator.
-     */
-    protected ConstraintEvaluator getConstraintEvaluator()
-    {
-        return this.constraintEvaluator;
     }
 
     /**
