@@ -25,12 +25,23 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Utility abstracts Jdbc to Arrow type conversions.
+ */
 public final class JdbcArrowTypeConverter
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
 
     private JdbcArrowTypeConverter() {}
 
+    /**
+     * Coverts Jdbc data type to Arrow data type.
+     *
+     * @param jdbcType Jdbc integer type. See {@link java.sql.Types}.
+     * @param precision Decimal precision.
+     * @param scale Decimal scale.
+     * @return Arrow type. See {@link ArrowType}.
+     */
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
         return JdbcToArrowUtils.getArrowTypeForJdbcField(

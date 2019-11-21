@@ -24,13 +24,17 @@ import org.apache.commons.lang3.Validate;
 import java.util.Objects;
 
 /**
- * Used to store Jdbc user and password information.
+ * Encapsulates database connection user name and password information.
  */
 public class JdbcCredential
 {
     private final String user;
     private final String password;
 
+    /**
+     * @param user Database user name.
+     * @param password Database password.
+     */
     public JdbcCredential(String user, String password)
     {
         this.user = Validate.notBlank(user, "User must not be blank");

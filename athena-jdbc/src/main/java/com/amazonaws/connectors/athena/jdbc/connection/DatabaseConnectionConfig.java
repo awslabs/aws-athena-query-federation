@@ -23,6 +23,9 @@ import org.apache.commons.lang3.Validate;
 
 import java.util.Objects;
 
+/**
+ * Encapsulates database JDBC connection configuration.
+ */
 public class DatabaseConnectionConfig
 {
     private String catalog;
@@ -30,6 +33,14 @@ public class DatabaseConnectionConfig
     private final String jdbcConnectionString;
     private String secret;
 
+    /**
+     * Creates configuration for credentials managed by AWS Secrets Manager.
+     *
+     * @param catalog catalog name passed by Athena.
+     * @param type database type. See {@link JdbcConnectionFactory.DatabaseEngine}.
+     * @param jdbcConnectionString jdbc native database connection string of database type.
+     * @param secret AWS Secrets Manager secret name.
+     */
     public DatabaseConnectionConfig(final String catalog, final JdbcConnectionFactory.DatabaseEngine type, final String jdbcConnectionString, final String secret)
     {
         this.catalog = Validate.notBlank(catalog, "catalog must not be blank");
@@ -38,6 +49,13 @@ public class DatabaseConnectionConfig
         this.secret = Validate.notBlank(secret, "secret must not be blank");
     }
 
+    /**
+     * Creates configuration for credentials passed through JDBC connection string.
+     *
+     * @param catalog catalog name passed by Athena.
+     * @param type database type. See {@link JdbcConnectionFactory.DatabaseEngine}.
+     * @param jdbcConnectionString jdbc native database connection string of database type.
+     */
     public DatabaseConnectionConfig(final String catalog, final JdbcConnectionFactory.DatabaseEngine type, final String jdbcConnectionString)
     {
         this.catalog = Validate.notBlank(catalog, "catalog must not be blank");

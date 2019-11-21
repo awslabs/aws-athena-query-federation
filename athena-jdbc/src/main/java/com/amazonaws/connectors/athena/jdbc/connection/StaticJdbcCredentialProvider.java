@@ -22,11 +22,17 @@ package com.amazonaws.connectors.athena.jdbc.connection;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 
+/**
+ * Static credential provider.
+ */
 public class StaticJdbcCredentialProvider
         implements JdbcCredentialProvider
 {
     private final JdbcCredential jdbcCredential;
 
+    /**
+     * @param jdbcCredential JDBC credential. See {@link JdbcCredential}.
+     */
     public StaticJdbcCredentialProvider(final JdbcCredential jdbcCredential)
     {
         this.jdbcCredential = Validate.notNull(jdbcCredential, "jdbcCredential must not be null.");

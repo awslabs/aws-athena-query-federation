@@ -71,6 +71,11 @@ public class MySqlMetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
+    /**
+     * Instantiates handler to be used by Lambda function directly.
+     *
+     * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
+     */
     public MySqlMetadataHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.MYSQL));

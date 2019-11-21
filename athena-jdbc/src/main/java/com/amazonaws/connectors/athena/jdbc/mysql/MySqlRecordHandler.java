@@ -56,6 +56,11 @@ public class MySqlRecordHandler
 
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
+    /**
+     * Instantiates handler to be used by Lambda function directly.
+     *
+     * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
+     */
     public MySqlRecordHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.MYSQL));

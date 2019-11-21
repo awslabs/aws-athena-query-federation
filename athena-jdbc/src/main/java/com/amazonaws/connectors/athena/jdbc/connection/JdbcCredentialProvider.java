@@ -27,7 +27,7 @@ public interface JdbcCredentialProvider
     /**
      * Retrieves credential for database.
      *
-     * @return {@link JdbcCredential}
+     * @return JDBC credential. See {@link JdbcCredential}.
      */
     JdbcCredential getCredential();
 }

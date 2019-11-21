@@ -45,7 +45,9 @@ import org.apache.commons.lang3.Validate;
 import java.util.Map;
 
 /**
- * Metadata handler multiplexer that supports multiple engines e.g. MySQL, Oracle, etc. in same Lambda.
+ * Metadata handler multiplexer that supports multiple engines e.g. MySQL, PostGreSql and Redshift in same Lambda.
+ *
+ * Uses catalog name and associations to database types to route operations.
  */
 public class MultiplexingJdbcMetadataHandler
         extends JdbcMetadataHandler

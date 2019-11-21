@@ -23,6 +23,11 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
+/**
+ * Extends {@link JdbcSplitQueryBuilder} and implements MySql specific SQL clauses for split.
+ *
+ * MySql provides named partitions which can be used in a FROM clause.
+ */
 public class MySqlQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {

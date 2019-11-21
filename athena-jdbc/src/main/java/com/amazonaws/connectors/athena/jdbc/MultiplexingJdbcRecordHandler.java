@@ -42,7 +42,9 @@ import java.sql.SQLException;
 import java.util.Map;
 
 /**
- * Record handler multiplexer that supports multiple engines e.g. MySQL, Oracle, etc. in same Lambda.
+ * Record handler multiplexer that supports multiple engines e.g. MySQL, PostGreSql and Redshift in same Lambda.
+ *
+ * Uses catalog name and associations to database types to route operations.
  */
 public class MultiplexingJdbcRecordHandler
         extends JdbcRecordHandler

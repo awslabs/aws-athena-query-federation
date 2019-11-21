@@ -23,6 +23,11 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
+/**
+ * Extends {@link JdbcSplitQueryBuilder} and implements PostGreSql specific SQL clauses for split.
+ *
+ * PostGreSql partitions through child tables that can be used in a FROM clause.
+ */
 public class PostGreSqlQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {

@@ -51,7 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Query builder for DB split.
+ * Query builder for database table split.
  */
 public abstract class JdbcSplitQueryBuilder
 {
@@ -61,11 +61,27 @@ public abstract class JdbcSplitQueryBuilder
 
     private final String quoteCharacters;
 
+    /**
+     * @param quoteCharacters database quote character for enclosing identifiers.
+     */
     public JdbcSplitQueryBuilder(String quoteCharacters)
     {
         this.quoteCharacters = Validate.notBlank(quoteCharacters, "quoteCharacters must not be blank");
     }
 
+    /**
+     * Common logic to build Split SQL including constraints translated in where clause.
+     *
+     * @param jdbcConnection JDBC connection. See {@link Connection}.
+     * @param catalog Athena provided catalog name.
+     * @param schema table schema name.
+     * @param table table name.
+     * @param tableSchema table schema (column and type information).
+     * @param constraints constraints passed by Athena to push down.
+     * @param split table split.
+     * @return prepated statement with SQL. See {@link PreparedStatement}.
+     * @throws SQLException JDBC database exception.
+     */
     public PreparedStatement buildSql(
             final Connection jdbcConnection,
             final String catalog,

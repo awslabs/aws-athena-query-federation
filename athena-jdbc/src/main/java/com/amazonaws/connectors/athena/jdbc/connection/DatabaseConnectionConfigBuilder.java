@@ -30,7 +30,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Builds database connection configuration per database instance.
+ * Builds connection configurations for all catalogs and databases provided in environment properties.
  */
 public class DatabaseConnectionConfigBuilder
 {
@@ -48,7 +48,7 @@ public class DatabaseConnectionConfigBuilder
     /**
      * Utility to build database instance connection configurations from Environment variables.
      *
-     * @return List of {@link DatabaseConnectionConfig}
+     * @return List of database connection configurations. See {@link DatabaseConnectionConfig}.
      */
     public static List<DatabaseConnectionConfig> buildFromSystemEnv()
     {
@@ -60,8 +60,8 @@ public class DatabaseConnectionConfigBuilder
     /**
      * Builder input all system properties.
      *
-     * @param properties system properties
-     * @return {@link DatabaseConnectionConfigBuilder}
+     * @param properties system environment properties.
+     * @return database connection configuration builder. See {@link DatabaseConnectionConfigBuilder}.
      */
     public DatabaseConnectionConfigBuilder properties(final Map<String, String> properties)
     {
@@ -72,7 +72,7 @@ public class DatabaseConnectionConfigBuilder
     /**
      * Builds Database instance configurations from input properties.
      *
-     * @return List of {@link DatabaseConnectionConfig}
+     * @return List of database connection configurations. See {@link DatabaseConnectionConfig}.
      */
     public List<DatabaseConnectionConfig> build()
     {
