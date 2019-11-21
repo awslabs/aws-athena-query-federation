@@ -232,6 +232,9 @@ public class ExampleRecordHandler
         logger.info("readWithConstraint: Completed generating rows in {} ms", System.currentTimeMillis() - startTime);
     }
 
+    /**
+     * Creates an Extractor for the given field. In this example the extractor just creates some random data.
+     */
     private Extractor makeExtractor(Field field, RowContext rowContext)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
@@ -239,21 +242,21 @@ public class ExampleRecordHandler
         //This is an artifact of us generating data, you can't generate the partitions cols
         //they need to match the split otherwise filtering will brake in unexpected ways.
         if (field.getName().equals("year")) {
-            return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+            return (IntExtractor) (Object context, NullableIntHolder dst) ->
             {
                 dst.isSet = 1;
                 dst.value = rowContext.getYear();
             };
         }
         else if (field.getName().equals("month")) {
-            return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+            return (IntExtractor) (Object context, NullableIntHolder dst) ->
             {
                 dst.isSet = 1;
                 dst.value = rowContext.getMonth();
             };
         }
         else if (field.getName().equals("day")) {
-            return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+            return (IntExtractor) (Object context, NullableIntHolder dst) ->
             {
                 dst.isSet = 1;
                 dst.value = rowContext.getDay();
@@ -262,49 +265,49 @@ public class ExampleRecordHandler
 
         switch (fieldType) {
             case INT:
-                return (IntExtractor) (Object context, int row, NullableIntHolder dst) ->
+                return (IntExtractor) (Object context, NullableIntHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((RowContext) context).seed * (((RowContext) context).negative ? -1 : 1);
                 };
             case DATEMILLI:
-                return (DateMilliExtractor) (Object context, int row, NullableDateMilliHolder dst) ->
+                return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((RowContext) context).seed * (((RowContext) context).negative ? -1 : 1);
                 };
             case DATEDAY:
-                return (DateDayExtractor) (Object context, int row, NullableDateDayHolder dst) ->
+                return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((RowContext) context).seed * (((RowContext) context).negative ? -1 : 1);
                 };
             case TINYINT:
-                return (TinyIntExtractor) (Object context, int row, NullableTinyIntHolder dst) ->
+                return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = (byte) ((((RowContext) context).seed % 4) * (((RowContext) context).negative ? -1 : 1));
                 };
             case SMALLINT:
-                return (SmallIntExtractor) (Object context, int row, NullableSmallIntHolder dst) ->
+                return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = (short) ((((RowContext) context).seed % 4) * (((RowContext) context).negative ? -1 : 1));
                 };
             case FLOAT4:
-                return (Float4Extractor) (Object context, int row, NullableFloat4Holder dst) ->
+                return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((float) ((RowContext) context).seed) * 1.1f * (((RowContext) context).negative ? -1f : 1f);
                 };
             case FLOAT8:
-                return (Float8Extractor) (Object context, int row, NullableFloat8Holder dst) ->
+                return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((double) ((RowContext) context).seed) * 1.1D;
                 };
             case DECIMAL:
-                return (DecimalExtractor) (Object context, int row, NullableDecimalHolder dst) ->
+                return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
                     dst.isSet = 1;
                     double d8Val = ((RowContext) context).seed * 1.1D * (((RowContext) context).negative ? -1d : 1d);
@@ -312,25 +315,25 @@ public class ExampleRecordHandler
                     dst.value = bdVal.setScale(((ArrowType.Decimal) field.getType()).getScale(), RoundingMode.HALF_UP);
                 };
             case BIT:
-                return (BitExtractor) (Object context, int row, NullableBitHolder dst) ->
+                return (BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((RowContext) context).seed % 2;
                 };
             case BIGINT:
-                return (BigIntExtractor) (Object context, int row, NullableBigIntHolder dst) ->
+                return (BigIntExtractor) (Object context, NullableBigIntHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ((RowContext) context).seed * 1L * (((RowContext) context).negative ? -1 : 1);
                 };
             case VARCHAR:
-                return (VarCharExtractor) (Object context, int row, NullableVarCharHolder dst) ->
+                return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = "VarChar" + ((RowContext) context).seed;
                 };
             case VARBINARY:
-                return (VarBinaryExtractor) (Object context, int row, NullableVarBinaryHolder dst) ->
+                return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
                     dst.isSet = 1;
                     dst.value = ("VarChar" + ((RowContext) context).seed).getBytes(Charsets.UTF_8);
@@ -340,6 +343,12 @@ public class ExampleRecordHandler
         }
     }
 
+    /**
+     * Since GeneratedRowWriter doesn't yet support complex types (STRUCT, LIST) we use this to
+     * create our own FieldWriters via customer FieldWriterFactory. In this case we are producing
+     * FieldWriters that only work for our exact example schema. This will be enhanced with a more
+     * generic solution in a future release.
+     */
     private FieldWriterFactory makeFactory(Field field, RowContext rowContext)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());

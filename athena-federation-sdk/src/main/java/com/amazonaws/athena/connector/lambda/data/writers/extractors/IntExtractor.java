@@ -21,8 +21,23 @@ package com.amazonaws.athena.connector.lambda.data.writers.extractors;
 
 import org.apache.arrow.vector.holders.NullableIntHolder;
 
+/**
+ * Used to extract a Int value from the context object. This interface enables the use of a pseudo-code generator
+ * for RowWriter which reduces object and branching overhead when translating from your source system to Apache
+ * Arrow.
+ * <p>
+ * For example of how to use this, see ExampleRecordHandler in athena-federation-sdk.
+ */
 public interface IntExtractor
         extends Extractor
 {
-    void extract(Object context, int row, NullableIntHolder dst);
+    /**
+     * Used to extract a value from the context.
+     *
+     * @param context This is the object you provided to GeneratorRowWriter and is frequently the handle to the source
+     * system row/query from which you need to extract a value.
+     * @param dst The 'Holder' that you should write your value to and optionally set the isSet flag to > 0 for non-null
+     * or 0 for null.
+     */
+    void extract(Object context, NullableIntHolder dst);
 }

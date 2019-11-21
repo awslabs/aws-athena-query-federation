@@ -24,6 +24,15 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjecto
 import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.holders.NullableDateDayHolder;
 
+/**
+ * Used to write a value and apply constraints for a particular column to the row currently being processed.
+ * This interface enables the use of a pseudo-code generator for RowWriter which reduces object and branching
+ * overhead when translating from your source system to Apache
+ * <p>
+ * For example of how to use this, see ExampleRecordHandler in athena-federation-sdk.
+ *
+ * @see FieldWriter
+ */
 public class DateDayFieldWriter
         implements FieldWriter
 {
@@ -32,6 +41,14 @@ public class DateDayFieldWriter
     private final DateDayVector vector;
     private final ConstraintApplier constraint;
 
+    /**
+     * Creates a new instance of this FieldWriter and configures is such that writing a value required minimal
+     * branching or secondary operations (metadata lookups, etc..)
+     *
+     * @param extractor The Extractor that can be used to obtain the value for the required column from the context.
+     * @param vector The ApacheArrow vector to write the value to.
+     * @param rawConstraint The Constraint to apply to the value when returning if the value was valid.
+     */
     public DateDayFieldWriter(DateDayExtractor extractor, DateDayVector vector, ConstraintProjector rawConstraint)
     {
         this.extractor = extractor;
@@ -44,10 +61,17 @@ public class DateDayFieldWriter
         }
     }
 
+    /**
+     * Attempts to write a value to the Apache Arrow vector provided at construction time.
+     *
+     * @param context The context (specific to the extractor) from which to extract a value.
+     * @param rowNum The row to write the value into.
+     * @return True if the value passed constraints and should be considered valid, False otherwise.
+     */
     @Override
     public boolean write(Object context, int rowNum)
     {
-        extractor.extract(context, rowNum, holder);
+        extractor.extract(context, holder);
         vector.setSafe(rowNum, holder);
         return constraint.apply(holder);
     }
