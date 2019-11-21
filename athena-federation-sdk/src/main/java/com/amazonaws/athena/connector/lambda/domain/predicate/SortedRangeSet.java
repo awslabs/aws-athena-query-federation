@@ -51,9 +51,9 @@ public class SortedRangeSet
 {
     private final boolean nullAllowed;
     private final ArrowType type;
-    private final NavigableMap<Marker, Range> lowIndexedRanges;
+    private final NavigableMap<ValueMarker, Range> lowIndexedRanges;
 
-    private SortedRangeSet(ArrowType type, NavigableMap<Marker, Range> lowIndexedRanges, boolean nullAllowed)
+    private SortedRangeSet(ArrowType type, NavigableMap<ValueMarker, Range> lowIndexedRanges, boolean nullAllowed)
     {
         requireNonNull(type, "type is null");
         requireNonNull(lowIndexedRanges, "lowIndexedRanges is null");
@@ -269,7 +269,28 @@ public class SortedRangeSet
             throw new RuntimeException("Expected Bound.EXACTLY but found " + marker.getBound());
         }
 
-        Map.Entry<Marker, Range> floorEntry = lowIndexedRanges.floorEntry(marker);
+        Map.Entry<ValueMarker, Range> floorEntry = lowIndexedRanges.floorEntry(marker);
+        return floorEntry != null && floorEntry.getValue().includes(marker);
+    }
+
+    /**
+     * Used to test if the supplied value (in the form of a Marker) is contained in this ValueSet.
+     *
+     * @param value The value to test in the form of a Marker.
+     * @return True if the value is contained in the ValueSet, False otherwise.
+     * @note This method is a basic building block of constraint evaluation.
+     */
+    @Override
+    public boolean containsValue(Object value)
+    {
+        if (value == null && nullAllowed) {
+            return true;
+        }
+        else if (value == null && !nullAllowed) {
+            return false;
+        }
+        LiteralValueMarker marker = new LiteralValueMarker(value, type);
+        Map.Entry<ValueMarker, Range> floorEntry = lowIndexedRanges.floorEntry(marker);
         return floorEntry != null && floorEntry.getValue().includes(marker);
     }
 
@@ -282,7 +303,7 @@ public class SortedRangeSet
             return true;
         }
 
-        Map.Entry<Marker, Range> floorEntry = lowIndexedRanges.floorEntry(marker);
+        Map.Entry<ValueMarker, Range> floorEntry = lowIndexedRanges.floorEntry(marker);
         return floorEntry != null && floorEntry.getValue().includes(marker);
     }
 
@@ -527,7 +548,7 @@ public class SortedRangeSet
         {
             Collections.sort(ranges, Comparator.comparing(Range::getLow));
 
-            NavigableMap<Marker, Range> result = new TreeMap<>();
+            NavigableMap<ValueMarker, Range> result = new TreeMap<>();
 
             Range current = null;
             for (Range next : ranges) {
@@ -557,8 +578,10 @@ public class SortedRangeSet
     public void close()
             throws Exception
     {
-        for (Map.Entry<Marker, Range> next : lowIndexedRanges.entrySet()) {
-            next.getKey().close();
+        for (Map.Entry<ValueMarker, Range> next : lowIndexedRanges.entrySet()) {
+            if (next.getKey() instanceof Marker) {
+                ((Marker) next.getKey()).close();
+            }
             next.getValue().close();
         }
     }

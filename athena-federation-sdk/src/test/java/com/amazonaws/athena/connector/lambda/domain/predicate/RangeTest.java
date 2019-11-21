@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -119,6 +119,7 @@ public class RangeTest
         assertFalse(range.includes(Marker.lowerUnbounded(allocator, BIGINT.getType())));
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 1L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 2L)));
+        assertTrue(range.includes(new LiteralValueMarker(2L, BIGINT.getType())));
         assertTrue(range.includes(Marker.upperUnbounded(allocator, BIGINT.getType())));
     }
 
@@ -136,6 +137,7 @@ public class RangeTest
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 0L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 1L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 2L)));
+        assertTrue(range.includes(new LiteralValueMarker(2L, BIGINT.getType())));
         assertTrue(range.includes(Marker.upperUnbounded(allocator, BIGINT.getType())));
     }
 
@@ -152,6 +154,7 @@ public class RangeTest
         assertTrue(range.includes(Marker.lowerUnbounded(allocator, BIGINT.getType())));
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 1L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 0L)));
+        assertTrue(range.includes(new LiteralValueMarker(0L, BIGINT.getType())));
         assertFalse(range.includes(Marker.upperUnbounded(allocator, BIGINT.getType())));
     }
 
@@ -169,6 +172,7 @@ public class RangeTest
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 2L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 1L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 0L)));
+        assertFalse(range.includes(new LiteralValueMarker(2L, BIGINT.getType())));
         assertFalse(range.includes(Marker.upperUnbounded(allocator, BIGINT.getType())));
     }
 
@@ -186,6 +190,7 @@ public class RangeTest
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 0L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 1L)));
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 2L)));
+        assertFalse(range.includes(new LiteralValueMarker(2L, BIGINT.getType())));
         assertFalse(range.includes(Marker.upperUnbounded(allocator, BIGINT.getType())));
     }
 
@@ -204,6 +209,10 @@ public class RangeTest
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 1L)));
         assertTrue(range.includes(Marker.exactly(allocator, BIGINT.getType(), 2L)));
         assertFalse(range.includes(Marker.exactly(allocator, BIGINT.getType(), 3L)));
+        assertFalse(range.includes(new LiteralValueMarker(0L, BIGINT.getType())));
+        assertTrue(range.includes(new LiteralValueMarker(1L, BIGINT.getType())));
+        assertTrue(range.includes(new LiteralValueMarker(2L, BIGINT.getType())));
+        assertFalse(range.includes(new LiteralValueMarker(3L, BIGINT.getType())));
         assertFalse(range.includes(Marker.upperUnbounded(allocator, BIGINT.getType())));
     }
 

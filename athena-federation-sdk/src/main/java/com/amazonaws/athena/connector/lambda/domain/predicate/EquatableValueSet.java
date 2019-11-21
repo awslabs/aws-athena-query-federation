@@ -289,7 +289,8 @@ public class EquatableValueSet
      * @return True if the value is contained in the ValueSet, False otherwise.
      * @note This method is a basic building block of constraint evaluation.
      */
-    protected boolean containsValue(Object value)
+    @Override
+    public boolean containsValue(Object value)
     {
         if (value == null && nullAllowed) {
             return true;

@@ -177,6 +177,26 @@ public class AllOrNoneValueSet
     }
 
     /**
+     * Used to test if the supplied value (in the form of a Marker) is contained in this ValueSet.
+     *
+     * @param value The value to test in the form of a Marker.
+     * @return True if the value is contained in the ValueSet, False otherwise.
+     * @note This method is a basic building block of constraint evaluation.
+     */
+    @Override
+    public boolean containsValue(Object value)
+    {
+        if (value == null && nullAllowed) {
+            return true;
+        }
+        else if (value == null && !nullAllowed) {
+            return false;
+        }
+
+        return all;
+    }
+
+    /**
      * @see ValueSet
      */
     @Override

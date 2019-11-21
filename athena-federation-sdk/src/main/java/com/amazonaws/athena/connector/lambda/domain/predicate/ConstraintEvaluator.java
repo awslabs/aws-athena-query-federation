@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Used to apply predicates to values inside your connector. Ideally you would also be able to push
@@ -108,6 +109,15 @@ public class ConstraintEvaluator
         catch (Exception ex) {
             throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
         }
+    }
+
+    public Optional<ConstraintProjector> makeConstraintProjector(String fieldName)
+    {
+        ValueSet constraint = constraints.getSummary().get(fieldName);
+        if (constraint != null && typeMap.get(fieldName) != null) {
+            return Optional.of((Object value) -> constraint.containsValue(value));
+        }
+        return Optional.empty();
     }
 
     /**

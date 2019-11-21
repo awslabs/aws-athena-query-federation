@@ -104,6 +104,8 @@ public interface ValueSet
      */
     boolean containsValue(Marker value);
 
+    boolean containsValue(Object value);
+
     /**
      * @return range predicates for orderable Types
      */

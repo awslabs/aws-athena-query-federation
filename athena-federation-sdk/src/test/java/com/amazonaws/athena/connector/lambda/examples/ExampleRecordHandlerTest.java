@@ -101,17 +101,15 @@ public class ExampleRecordHandlerTest
         logger.info("setUpBefore - enter");
 
         schemaForRead = SchemaBuilder.newBuilder()
-                .addField("col1", new ArrowType.Int(32, true))
+                .addField("year", new ArrowType.Int(32, true))
+                .addField("month", new ArrowType.Int(32, true))
+                .addField("day", new ArrowType.Int(32, true))
                 .addField("col2", new ArrowType.Utf8())
                 .addField("col3", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
                 .addField("int", Types.MinorType.INT.getType())
                 .addField("tinyint", Types.MinorType.TINYINT.getType())
                 .addField("smallint", Types.MinorType.SMALLINT.getType())
                 .addField("bigint", Types.MinorType.BIGINT.getType())
-                .addField("uint1", Types.MinorType.UINT1.getType())
-                .addField("uint2", Types.MinorType.UINT2.getType())
-                .addField("uint4", Types.MinorType.UINT4.getType())
-                .addField("uint8", Types.MinorType.UINT8.getType())
                 .addField("float4", Types.MinorType.FLOAT4.getType())
                 .addField("float8", Types.MinorType.FLOAT8.getType())
                 .addField("bit", Types.MinorType.BIT.getType())
@@ -134,7 +132,7 @@ public class ExampleRecordHandlerTest
                         FieldBuilder.newBuilder("outerlist", new ArrowType.List())
                                 .addListField("innerList", Types.MinorType.VARCHAR.getType())
                                 .build())
-                .addMetadata("partitionCols", "col1")
+                .addMetadata("partitionCols", "year,month,day")
                 .build();
 
         allocator = new BlockAllocatorImpl();
@@ -204,7 +202,7 @@ public class ExampleRecordHandlerTest
                     "queryId-" + System.currentTimeMillis(),
                     new TableName("schema", "table"),
                     schemaForRead,
-                    Split.newBuilder(makeSpillLocation(), encryptionKey).add("col1", "10").build(),
+                    Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
                     new Constraints(constraintsMap),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
@@ -238,14 +236,14 @@ public class ExampleRecordHandlerTest
             constraintsMap.put("col3", SortedRangeSet.copyOf(Types.MinorType.FLOAT8.getType(),
                     ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D)), false));
             constraintsMap.put("unknown", EquatableValueSet.newBuilder(allocator, Types.MinorType.FLOAT8.getType(), false, true).add(1.1D).build());
-            constraintsMap.put("unknown2", new  AllOrNoneValueSet(Types.MinorType.FLOAT8.getType(), false, true));
+            constraintsMap.put("unknown2", new AllOrNoneValueSet(Types.MinorType.FLOAT8.getType(), false, true));
 
             ReadRecordsRequest request = new ReadRecordsRequest(IdentityUtil.fakeIdentity(),
                     "catalog",
                     "queryId-" + System.currentTimeMillis(),
                     new TableName("schema", "table"),
                     schemaForRead,
-                    Split.newBuilder(makeSpillLocation(), encryptionKey).add("col1", "1").build(),
+                    Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
                     new Constraints(constraintsMap),
                     1_600_000L, //~1.5MB so we should see some spill
                     1000L
