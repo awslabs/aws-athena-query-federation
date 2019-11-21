@@ -134,11 +134,21 @@ In order for Athena to delegate UDF calls to your Lambda function, you need to i
 UDF implementation is a bit different from implementing a connector. Lets say you have the following query you want to run (we'll actually run this query for real later in the tutorial).
 
 ```sql
-USING 
-FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) RETURNS INT TYPE LAMBDA_INVOKE WITH (lambda_name = 'my_lambda_function'),
-FUNCTION decrypt(payload VARCHAR ) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = 'my_lambda_function')
-SELECT year, month, day, account_id, decrypt(encrypted_payload) as decrypted_payload, extract_tx_id(transaction) as tx_id
-FROM schema1.table1 WHERE year=2017 AND month=11 AND day=1;
+USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
+    RETURNS INT TYPE LAMBDA_INVOKE
+WITH (lambda_name = 'my_lambda_function'), FUNCTION decrypt(payload VARCHAR ) 
+    RETURNS VARCHAR TYPE LAMBDA_INVOKE
+WITH (lambda_name = 'my_lambda_function')
+SELECT year,
+         month,
+         day,
+         account_id,
+         decrypt(encrypted_payload) AS decrypted_payload,
+         extract_tx_id(transaction) AS tx_id
+FROM schema1.table1
+WHERE year=2017
+        AND month=11
+        AND day=1;
 ```
 
 This query defined 2 UDFs: extract_tx_id and decrypt which are said to be hosted in a Lambda function called "my_lambda_function". My UserDefinedFunctionHandler would look like the one below. I simply need two methods which match the signature of the UDF I defined in my query. For full data type and method signature info, check the [SDK documentation](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md).
@@ -210,9 +220,7 @@ Run `../tools/publish.sh S3_BUCKET_NAME athena-example AWS_REGION` to publish th
 If the publish command gave you an error about the aws cli or sam tool not recognizing an argument, you likely forgot to source the new bash profile after
 updating your development environment so run `source ~/.profile` and try again.
 
-Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/) to search for your application and deploy it before using it from Athena.
-
-(Alternatively you can publish your connector directly to Lambda but for simplicity this tutorial uses Serverless Application Repository.)
+Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and click on 'Private applications' to search for your application and deploy it before using it from Athena.
 
 ### Step 6: Validate our Connector.
 
@@ -230,7 +238,7 @@ If everything worked as expected you should see the script generate useful debug
 
 ### Step 7: Run a Query!
 
-Ok, now we are ready to try running some queries using our new connector. Some good examples to try include (be sure to put in your actual database and table names):
+Ok, now we are ready to try running some queries using our new connector. To do so, create a new workgroup called "AmazonAthenaPreviewFunctionality". This workgroup will ensure your queries are enabled for our Preview features (UDFs, Federation, Athena ML). Some good examples to try include (be sure to put in your actual database and table names):
 
 ```sql
 USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
