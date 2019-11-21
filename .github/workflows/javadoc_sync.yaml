@@ -33,7 +33,7 @@ jobs:
           git config --local user.name "GitHub Action"
           #add any untracked files in the com dir
           git add com
-          #commits only if there is a diff
+          #commit only if there is a diff
           git diff-index --quiet HEAD || git commit -m "Syncing javadoc from master:$GITHUB_SHA" -a
 
       - name: Push changes
