@@ -71,4 +71,4 @@ sam --version
 
 echo ""
 echo ""
-echo "To ensure your terminal can see the new tools we installed run `source ~/.profile` or open a fresh terminal."
+echo "To ensure your terminal can see the new tools we installed run \"source ~/.profile\" or open a fresh terminal."
