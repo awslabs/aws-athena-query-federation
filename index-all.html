@@ -287,10 +287,6 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html#ArrowValueProjectorImpl--">ArrowValueProjectorImpl()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ArrowValueProjectorImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connector/lambda/data/writers/ArrowValueWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers"><span class="typeNameLink">ArrowValueWriter</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/data/writers/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers</a></dt>
-<dd>
-<div class="block">Implementation of this interface is expected to project java values into Arrow vectors.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/AthenaExceptionFilter.html#ATHENA_EXCEPTION_FILTER">ATHENA_EXCEPTION_FILTER</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/AthenaExceptionFilter.html" title="class in com.amazonaws.athena.connector.lambda.handlers">AthenaExceptionFilter</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/handlers/AthenaExceptionFilter.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">AthenaExceptionFilter</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
@@ -770,10 +766,6 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html#complement-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">complement(BlockAllocator)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connector/lambda/data/writers/ComplexArrowValueWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers"><span class="typeNameLink">ComplexArrowValueWriter</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/writers/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/ComplexArrowValueWriter.html#ComplexArrowValueWriter-org.apache.arrow.vector.FieldVector-com.amazonaws.athena.connector.lambda.data.FieldResolver-">ComplexArrowValueWriter(FieldVector, FieldResolver)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/ComplexArrowValueWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">ComplexArrowValueWriter</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">CompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
 <dd>
 <div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
@@ -919,8 +911,6 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html#create-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">create(BlockAllocator)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">ObjectMapperFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ProjectorUtils.html#createArrowValueProjector-org.apache.arrow.vector.complex.reader.FieldReader-">createArrowValueProjector(FieldReader)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ProjectorUtils.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ProjectorUtils</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/WriterUtils.html#createArrowValueWriter-org.apache.arrow.vector.FieldVector-">createArrowValueWriter(FieldVector)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/WriterUtils.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">WriterUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html#createBlock-org.apache.arrow.vector.types.pojo.Schema-">createBlock(Schema)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a></dt>
 <dd>
@@ -3707,6 +3697,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/GeneratedRowWriter.html#newBuilder-com.amazonaws.athena.connector.lambda.domain.predicate.Constraints-">newBuilder(Constraints)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/GeneratedRowWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">GeneratedRowWriter</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/GeneratedRowWriter.html#newBuilder--">newBuilder()</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/GeneratedRowWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">GeneratedRowWriter</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html#newBuilder-com.amazonaws.athena.connector.lambda.data.BlockAllocator-org.apache.arrow.vector.types.pojo.ArrowType-boolean-boolean-">newBuilder(BlockAllocator, ArrowType, boolean, boolean)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">EquatableValueSet</a></dt>
 <dd>
 <div class="block">Used to construct new Builder for EquatableValueSet.</div>
@@ -4399,10 +4391,6 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/SimpleArrowValueProjector.html#SimpleArrowValueProjector-org.apache.arrow.vector.complex.reader.FieldReader-">SimpleArrowValueProjector(FieldReader)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/SimpleArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">SimpleArrowValueProjector</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connector/lambda/data/writers/SimpleArrowValueWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers"><span class="typeNameLink">SimpleArrowValueWriter</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/writers/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/SimpleArrowValueWriter.html#SimpleArrowValueWriter-org.apache.arrow.vector.FieldVector-">SimpleArrowValueWriter(FieldVector)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/SimpleArrowValueWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">SimpleArrowValueWriter</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/SimpleBlockWriter.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">SimpleBlockWriter</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
 <div class="block">Used to write a single Block using the BlockWriter programming model.</div>
@@ -4953,12 +4941,6 @@ the order they are declared.</div>
 <dd>
 <div class="block">Writes (aka spills) a Block.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/ArrowValueWriter.html#write-int-java.lang.Object-">write(int, Object)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/ArrowValueWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers">ArrowValueWriter</a></dt>
-<dd>
-<div class="block">Project the java value into Arrow's vector.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/ComplexArrowValueWriter.html#write-int-java.lang.Object-">write(int, Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/ComplexArrowValueWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">ComplexArrowValueWriter</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/BigIntFieldWriter.html#write-java.lang.Object-int-">write(Object, int)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.<a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/BigIntFieldWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">BigIntFieldWriter</a></dt>
 <dd>
 <div class="block">Attempts to write a value to the Apache Arrow vector provided at construction time.</div>
@@ -5011,8 +4993,6 @@ the order they are declared.</div>
 <dd>
 <div class="block">Attempts to write a value to the Apache Arrow vector provided at construction time.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/writers/SimpleArrowValueWriter.html#write-int-java.lang.Object-">write(int, Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.writers.<a href="com/amazonaws/athena/connector/lambda/data/writers/SimpleArrowValueWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers">SimpleArrowValueWriter</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/tpcds/TPCDSRecordHandler.CellWriter.html#write-com.amazonaws.athena.connector.lambda.data.Block-int-java.lang.String-">write(Block, int, String)</a></span> - Method in interface com.amazonaws.athena.connectors.tpcds.<a href="com/amazonaws/athena/connectors/tpcds/TPCDSRecordHandler.CellWriter.html" title="interface in com.amazonaws.athena.connectors.tpcds">TPCDSRecordHandler.CellWriter</a></dt>
 <dd>
 <div class="block">Converts a value from TPCDS' string representation into the appropriate Apache Arrow type
@@ -5045,8 +5025,6 @@ the order they are declared.</div>
 <dd>
 <div class="block">Used to write rows into the Block that is managed by this BlockWriter.</div>
 </dd>
-<dt><a href="com/amazonaws/athena/connector/lambda/data/writers/WriterUtils.html" title="class in com.amazonaws.athena.connector.lambda.data.writers"><span class="typeNameLink">WriterUtils</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/writers/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeStruct-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter-org.apache.arrow.vector.types.pojo.Field-int-java.lang.Object-com.amazonaws.athena.connector.lambda.data.FieldResolver-">writeStruct(BufferAllocator, BaseWriter.StructWriter, Field, int, Object, FieldResolver)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
 <dd>
 <div class="block">Used to write a Struct value.</div>
