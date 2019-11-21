@@ -50,6 +50,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.VarCharFi
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -98,6 +99,11 @@ public class GeneratedRowWriter
     public static RowWriterBuilder newBuilder(Constraints constraints)
     {
         return new RowWriterBuilder(constraints);
+    }
+
+    public static RowWriterBuilder newBuilder()
+    {
+        return new RowWriterBuilder(new Constraints(ImmutableMap.of()));
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)

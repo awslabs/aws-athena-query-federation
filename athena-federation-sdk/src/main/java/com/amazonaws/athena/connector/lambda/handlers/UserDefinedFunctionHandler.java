@@ -24,10 +24,28 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.projectors.ArrowValueProjector;
 import com.amazonaws.athena.connector.lambda.data.projectors.ProjectorUtils;
-import com.amazonaws.athena.connector.lambda.data.writers.ArrowValueWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.WriterUtils;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
@@ -43,6 +61,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDateDayHolder;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.NullableSmallIntHolder;
+import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -53,8 +80,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -167,34 +198,15 @@ public abstract class UserDefinedFunctionHandler
             valueProjectors.add(arrowValueProjector);
         }
 
+        Field outputField = outputSchema.getFields().get(0);
+        GeneratedRowWriter outputRowWriter = createOutputRowWriter(outputField, valueProjectors, udfMethod);
+
         Block outputRecords = allocator.createBlock(outputSchema);
         outputRecords.setRowCount(rowCount);
 
         try {
-            String outputFieldName = outputSchema.getFields().get(0).getName();
-            FieldVector outputVector = outputRecords.getFieldVector(outputFieldName);
-            ArrowValueWriter outputProjector = WriterUtils.createArrowValueWriter(outputVector);
-            Object[] arguments = new Object[valueProjectors.size()];
-
             for (int rowNum = 0; rowNum < rowCount; ++rowNum) {
-                for (int col = 0; col < valueProjectors.size(); ++col) {
-                    arguments[col] = valueProjectors.get(col).project(rowNum);
-                }
-
-                try {
-                    Object result = udfMethod.invoke(this, arguments);
-                    outputProjector.write(rowNum, result);
-                }
-                catch (IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException(e);
-                }
-                catch (IllegalArgumentException e) {
-                    String msg = String.format("%s. Expected function types %s, got types %s",
-                            e.getMessage(),
-                            Arrays.stream(udfMethod.getParameterTypes()).map(clazz -> clazz.getName()).collect(Collectors.toList()),
-                            Arrays.stream(arguments).map(arg -> arg.getClass().getName()).collect(Collectors.toList()));
-                    throw new RuntimeException(msg, e);
-                }
+                outputRowWriter.writeRow(outputRecords, rowNum, rowNum);
             }
         }
         catch (Throwable t) {
@@ -281,6 +293,244 @@ public abstract class UserDefinedFunctionHandler
     {
         if (response == null) {
             throw new RuntimeException("Response was null");
+        }
+    }
+
+    private GeneratedRowWriter createOutputRowWriter(Field outputField, List<ArrowValueProjector> valueProjectors, Method udfMethod)
+    {
+        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder();
+        Extractor extractor = makeExtractor(outputField, valueProjectors, udfMethod);
+        if (extractor != null) {
+            builder.withExtractor(outputField.getName(), extractor);
+        }
+        else {
+            builder.withFieldWriterFactory(outputField.getName(), makeFactory(outputField, valueProjectors, udfMethod));
+        }
+        return builder.build();
+    }
+
+    /**
+     * Creates an Extractor for the given outputField.
+     * @param outputField  outputField
+     * @param valueProjectors projectors that we use to read input data.
+     * @param udfMethod
+     * @return
+     */
+    private Extractor makeExtractor(Field outputField, List<ArrowValueProjector> valueProjectors, Method udfMethod)
+    {
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(outputField.getType());
+
+        Object[] arguments = new Object[valueProjectors.size()];
+
+        switch (fieldType) {
+            case INT:
+                return (IntExtractor) (Object inputRowNum, NullableIntHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (int) result;
+                    }
+                };
+            case DATEMILLI:
+                return (DateMilliExtractor) (Object inputRowNum, NullableDateMilliHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = ((LocalDateTime) result).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli();
+                    }
+                };
+            case DATEDAY:
+                return (DateDayExtractor) (Object inputRowNum, NullableDateDayHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (int) ((LocalDate) result).toEpochDay();
+                    }
+                };
+            case TINYINT:
+                return (TinyIntExtractor) (Object inputRowNum, NullableTinyIntHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (byte) result;
+                    }
+                };
+            case SMALLINT:
+                return (SmallIntExtractor) (Object inputRowNum, NullableSmallIntHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (short) result;
+                    }
+                };
+            case FLOAT4:
+                return (Float4Extractor) (Object inputRowNum, NullableFloat4Holder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (float) result;
+                    }
+                };
+            case FLOAT8:
+                return (Float8Extractor) (Object inputRowNum, NullableFloat8Holder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (double) result;
+                    }
+                };
+            case DECIMAL:
+                return (DecimalExtractor) (Object inputRowNum, NullableDecimalHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = ((BigDecimal) result);
+                    }
+                };
+            case BIT:
+                return (BitExtractor) (Object inputRowNum, NullableBitHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = ((boolean) result) ? 1 : 0;
+                    }
+                };
+            case BIGINT:
+                return (BigIntExtractor) (Object inputRowNum, NullableBigIntHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (long) result;
+                    }
+                };
+            case VARCHAR:
+                return (VarCharExtractor) (Object inputRowNum, NullableVarCharHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = ((String) result);
+                    }
+                };
+            case VARBINARY:
+                return (VarBinaryExtractor) (Object inputRowNum, NullableVarBinaryHolder dst) ->
+                {
+                    Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+
+                    if (result == null) {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.isSet = 1;
+                        dst.value = (byte[]) result;
+                    }
+                };
+            default:
+                return null;
+        }
+    }
+
+    private FieldWriterFactory makeFactory(Field field, List<ArrowValueProjector> valueProjectors, Method udfMethod)
+    {
+        Object[] arguments = new Object[valueProjectors.size()];
+
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        switch (fieldType) {
+            case LIST:
+            case STRUCT:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector ignored) ->
+                        (Object inputRowNum, int outputRowNum) -> {
+                            Object result = invokeMethod(udfMethod, arguments, (int) inputRowNum, valueProjectors);
+                            BlockUtils.setComplexValue(vector, outputRowNum, FieldResolver.DEFAULT, result);
+                            return true;    // push-down does not apply in UDFs
+                        };
+
+            default:
+                throw new IllegalArgumentException("Unsupported type " + fieldType);
+        }
+    }
+
+    private Object invokeMethod(Method udfMethod,
+                                Object[] arguments,
+                                int inputRowNum,
+                                List<ArrowValueProjector> valueProjectors)
+    {
+        for (int col = 0; col < valueProjectors.size(); ++col) {
+            arguments[col] = valueProjectors.get(col).project(inputRowNum);
+        }
+
+        try {
+            return udfMethod.invoke(this, arguments);
+        }
+        catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        catch (InvocationTargetException e) {
+            if (Objects.isNull(e)) {
+                throw new RuntimeException(e);
+            }
+            throw new RuntimeException(e.getCause());
+        }
+        catch (IllegalArgumentException e) {
+            String msg = String.format("%s. Expected function types %s, got types %s",
+                    e.getMessage(),
+                    Arrays.stream(udfMethod.getParameterTypes()).map(clazz -> clazz.getName()).collect(Collectors.toList()),
+                    Arrays.stream(arguments).map(arg -> arg.getClass().getName()).collect(Collectors.toList()));
+            throw new RuntimeException(msg, e);
         }
     }
 }

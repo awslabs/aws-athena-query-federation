@@ -22,11 +22,11 @@ package com.amazonaws.athena.connector.lambda.examples;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.projectors.ArrowValueProjector;
 import com.amazonaws.athena.connector.lambda.data.projectors.ProjectorUtils;
-import com.amazonaws.athena.connector.lambda.data.writers.ArrowValueWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.WriterUtils;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperUtil;
@@ -35,7 +35,9 @@ import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -49,6 +51,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -90,12 +93,10 @@ public class ExampleUserDefinedFunctionHandlerTest
 
         Block inputRecords = allocator.createBlock(inputSchema);
         inputRecords.setRowCount(1);
-        FieldVector inputVector1 = inputRecords.getFieldVector("factor1");
-        FieldVector inputVector2 = inputRecords.getFieldVector("factor2");
-        ArrowValueWriter inputWriter1 = WriterUtils.createArrowValueWriter(inputVector1);
-        ArrowValueWriter inputWriter2 = WriterUtils.createArrowValueWriter(inputVector2);
-        inputWriter1.write(0, 2);
-        inputWriter2.write(0, 3);
+        IntVector inputVector1 = (IntVector) inputRecords.getFieldVector("factor1");
+        IntVector inputVector2 = (IntVector) inputRecords.getFieldVector("factor2");
+        inputVector1.setSafe(0, 2);
+        inputVector2.setSafe(0, 3);
 
         UserDefinedFunctionResponse response = runAndAssertSerialization(inputRecords, outputSchema, "multiply");
 
@@ -119,8 +120,9 @@ public class ExampleUserDefinedFunctionHandlerTest
         Block inputRecords = allocator.createBlock(inputSchema);
         inputRecords.setRowCount(1);
         FieldVector fieldVector = inputRecords.getFieldVector("list");
-        ArrowValueWriter inputWriter = WriterUtils.createArrowValueWriter(fieldVector);
-        inputWriter.write(0, Lists.newArrayList("a", "b"));
+        List<String> value = Lists.newArrayList("a", "b");
+        BlockUtils.setComplexValue(fieldVector, 0, FieldResolver.DEFAULT, value);
+
 
         UserDefinedFunctionResponse response = runAndAssertSerialization(inputRecords, outputSchema, "concatenate");
 
@@ -148,12 +150,11 @@ public class ExampleUserDefinedFunctionHandlerTest
         Block inputRecords = allocator.createBlock(inputSchema);
         inputRecords.setRowCount(1);
         FieldVector fieldVector = inputRecords.getFieldVector("struct");
-        ArrowValueWriter inputWriter = WriterUtils.createArrowValueWriter(fieldVector);
         Map<String, Object> struct = new HashMap<>();
         struct.put("int", 10);
         struct.put("double", 2.3);
         struct.put("string", "test_string");
-        inputWriter.write(0, struct);
+        BlockUtils.setComplexValue(fieldVector, 0, FieldResolver.DEFAULT, struct);
 
         UserDefinedFunctionResponse response = runAndAssertSerialization(inputRecords, outputSchema, "to_json");
 
@@ -176,10 +177,9 @@ public class ExampleUserDefinedFunctionHandlerTest
 
         Block inputRecords = allocator.createBlock(inputSchema);
         inputRecords.setRowCount(2);
-        FieldVector fieldVector = inputRecords.getFieldVector("input");
-        ArrowValueWriter inputWriter = WriterUtils.createArrowValueWriter(fieldVector);
-        inputWriter.write(0, 123l);
-        inputWriter.write(1, null);
+        BigIntVector fieldVector = (BigIntVector) inputRecords.getFieldVector("input");
+        fieldVector.setSafe(0, 123l);
+        fieldVector.setNull(1);
 
         UserDefinedFunctionResponse response = runAndAssertSerialization(inputRecords, outputSchema, "get_default_value_if_null");
 
