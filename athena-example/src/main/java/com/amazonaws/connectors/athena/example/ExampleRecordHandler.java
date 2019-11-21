@@ -22,8 +22,16 @@ package com.amazonaws.connectors.athena.example;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -34,6 +42,8 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,6 +143,57 @@ public class ExampleRecordHandler
             return;
         }
 
+        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+
+        /**
+         * TODO: Add extractors for each field to our RowWRiterBuilder, the RowWriterBuilder will then 'generate'
+         * optomized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
+         * branches, etc... Later in the code when we call RowWriter for each line in our S3 file
+         *
+         builder.withExtractor("year", (IntExtractor) (Object context, NullableIntHolder value) -> {
+             value.isSet = 1;
+             value.value = Integer.parseInt(((String[]) context)[0]);
+         });
+
+         builder.withExtractor("month", (IntExtractor) (Object context, NullableIntHolder value) -> {
+             value.isSet = 1;
+             value.value = Integer.parseInt(((String[]) context)[1]);
+         });
+
+         builder.withExtractor("encrypted_payload", (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
+             value.isSet = 1;
+             value.value = ((String[]) context)[6];
+         });
+         */
+
+        /**
+         * TODO: The account_id field is a sensitive field, so we'd like to mask it to the last 4 before
+         *  returning it to Athena. Note that this will mean you can only filter (where/having)
+         *  on the masked value from Athena.
+         *
+         builder.withExtractor("account_id", (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
+             value.isSet = 1;
+             String accountId = ((String[]) context)[3];
+             value.value = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
+         });
+         */
+
+        /**
+         * TODO: Write data for our transaction STRUCT:
+         * For complex types like List and Struct, we can build a Map to conveniently set nested values
+         *
+         builder.withFieldWriterFactory("transaction",
+                (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                    (Object context, int rowNum) -> {
+                         Map<String, Object> eventMap = new HashMap<>();
+                         eventMap.put("id", Integer.parseInt(context[4]));
+                         eventMap.put("completed", Boolean.parseBoolean(context[5]));
+                         BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, eventMap);
+                         return true;    //we don't yet support predicate pushdown on complex types
+         });
+         */
+
+
         //We read the transaction data line by line from our S3 object.
         String line;
         while ((line = s3Reader.readLine()) != null) {
@@ -141,51 +202,12 @@ public class ExampleRecordHandler
             //The sample_data.csv file is structured as year,month,day,account_id,transaction.id,transaction.complete
             String[] lineParts = line.split(",");
 
+            GeneratedRowWriter rowWriter = builder.build();
+
             //We use the provided BlockSpiller to write our row data into the response. This utility is provided by
             //the Amazon Athena Query Federation SDK and automatically handles breaking the data into reasonably sized
             //chunks, encrypting it, and spilling to S3 if we've enabled these features.
-            spiller.writeRows((Block block, int rowNum) -> {
-                boolean rowMatched = true;
-
-                int year = Integer.parseInt(lineParts[0]);
-                int month = Integer.parseInt(lineParts[1]);
-                int day = Integer.parseInt(lineParts[2]);
-                String accountId = lineParts[3];
-                int transactionId = Integer.parseInt(lineParts[4]);
-                boolean transactionComplete = Boolean.parseBoolean(lineParts[5]);
-                String encryptedPayload = lineParts[6];
-
-                    /**
-                     * TODO: Write the data using the supplied Block and check if the writes passed all constraints
-                     * before retuning how many rows we wrote.
-                     *
-                     rowMatched &= block.offerValue("year", rowNum, year);
-                     rowMatched &= block.offerValue("month", rowNum, month);
-                     rowMatched &= block.offerValue("day", rowNum, day);
-                     rowMatched &= block.offerValue("encrypted_payload", rowNum, encryptedPayload);
-
-                     //For complex types like List and Struct, we can build a Map to conveniently set nested values
-                     Map<String, Object> eventMap = new HashMap<>();
-                     eventMap.put("id", transactionId);
-                     eventMap.put("completed", transactionComplete);
-
-                     rowMatched &= block.offerComplexValue("transaction", rowNum, FieldResolver.DEFAULT, eventMap);
-                     *
-                     */
-
-                    /**
-                     * TODO: The account_id field is a sensitive field, so we'd like to mask it to the last 4 before
-                     *  returning it to Athena. Note that this will mean you can only filter (where/having)
-                     *  on the masked value from Athena.
-                     *
-                     String maskedAcctId = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
-                     rowMatched &= block.offerValue("account_id", rowNum, maskedAcctId);
-                     *
-                     */
-
-                //We return the number of rows written for this invocation. In our case 1 or 0.
-                return rowMatched ? 1 : 0;
-            });
+            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, lineParts) ? 1 : 0);
         }
     }
 
