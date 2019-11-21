@@ -174,9 +174,9 @@ public class GeneratedRowWriter
     public static class RowWriterBuilder
     {
         private final Constraints constraints;
-        //some consumers may can about ordering
+        //some consumers may care about ordering
         private final LinkedHashMap<String, Extractor> extractors = new LinkedHashMap<>();
-        //some consumers may can about ordering
+        //some consumers may care about ordering
         private final LinkedHashMap<String, FieldWriterFactory> fieldWriterFactories = new LinkedHashMap<>();
 
         private RowWriterBuilder(Constraints constraints)
