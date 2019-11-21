@@ -266,8 +266,4 @@ show tables in `lambda:<function_name>`.<database>;
 describe `lambda:<function_name>`.<database>.<table>;
 ```
 
-*note that the <function_name> corresponds to the name of your Lambda function.
-
-
-
-
+*note that the <function_name> corresponds to the name of your Lambda function.*
