@@ -1,1 +1,1 @@
-/Library/Java/JavaVirtualMachines/jdk1.8.0_231.jdk/Contents/Home/jre/../bin/javadoc @options @packages
+/home/ec2-user/actions-runner/_work/_tool/Java/8.0.232/x64/jre/../bin/javadoc @options @packages
