@@ -180,6 +180,16 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <failOnError>false</failOnError>
+                    <notimestamp>true</notimestamp>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
