@@ -53,10 +53,9 @@ Using Amazon Athena Query Federation and many of the connectors found in this re
 2. Joins against any orders with 'WARN' or 'ERROR' events in Cloudwatch logs by using regex matching and extraction. (see athena-cloudwatch)
 3. Joins against our EC2 inventory to get the hostname(s) and status of the Order Processor(s) that logged the 'WARN' or 'ERROR'. (see athena-cmdb)
 4. Joins against DocumentDB to obtain customer contact details for the affected orders. (see athena-docdb)
-5. Joins against a scatter-gather query sent to the Driver Fleet via Android Push notification. (see athena-android)
-6. Joins against DynamoDB to get shipping status and tracking details. (see athena-dynamodb)
-8. Joins against HBase to get payment status for the affected orders. (see athena-hbase)
-7. Joins against the advertising conversion data in BigQuery to see which promotions need to be applied if a re-order is needed. (see athena-bigquery)
+5. Joins against DynamoDB to get shipping status and tracking details. (see athena-dynamodb)
+6. Joins against HBase to get payment status for the affected orders. (see athena-hbase)
+
 
 ```sql
 WITH logs 
@@ -85,16 +84,6 @@ WITH logs
                 is_residential, 
                 address.street AS street 
          FROM   docdb.customers.customer_addresses),
-     drivers
-     AS ( SELECT name as driver_name, 
-                 result_field as driver_order, 
-                 device_id as truck_id, 
-                 last_updated 
-         FROM android.android.live_query where query_timeout = 5000 and query_min_results=5),
-     impressions 
-     AS ( SELECT path as advertisement, 
-                 conversion
-         FROM bigquery.click_impressions.click_conversions),
      shipments 
      AS ( SELECT order_id, 
                  shipment_id, 
@@ -114,14 +103,10 @@ SELECT _key_            AS redis_order_id,
        "summary:cc_id"  AS credit_card,
        "details:network" AS CC_type,
        "summary:status" AS payment_status,
-       impressions.advertisement as advertisement,
        status           AS redis_status, 
        addresses.street AS street_address, 
        shipments.shipment_time as shipment_time,
        shipments.carrier as shipment_carrier,
-       driver_name     AS driver_name,
-       truck_id       AS truck_id,
-       last_updated AS driver_updated,
        publicipaddress  AS ec2_order_processor, 
        NAME             AS ec2_state, 
        log_level, 
@@ -135,10 +120,6 @@ FROM   active_orders
               ON customer.id = customer_id 
        LEFT JOIN addresses 
               ON addresses.id = address_id 
-       LEFT JOIN drivers 
-              ON drivers.driver_order = active_orders._key_ 
-       LEFT JOIN impressions
-              ON impressions.conversion = active_orders._key_
        LEFT JOIN shipments
               ON shipments.order_id = active_orders._key_
        LEFT JOIN payments
