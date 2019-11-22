@@ -18,10 +18,10 @@ com.amazonaws.connectors.athena.example
 com.amazonaws.athena.connector.lambda
 com.amazonaws.athena.connector.lambda.data
 com.amazonaws.athena.connector.lambda.data.projectors
-com.amazonaws.athena.connector.lambda.data.writers
 com.amazonaws.athena.connector.lambda.data.writers.extractors
 com.amazonaws.athena.connector.lambda.data.writers.fieldwriters
 com.amazonaws.athena.connector.lambda.data.writers.holders
+com.amazonaws.athena.connector.lambda.data.writers
 com.amazonaws.athena.connector.lambda.domain
 com.amazonaws.athena.connector.lambda.domain.predicate
 com.amazonaws.athena.connector.lambda.domain.spill
