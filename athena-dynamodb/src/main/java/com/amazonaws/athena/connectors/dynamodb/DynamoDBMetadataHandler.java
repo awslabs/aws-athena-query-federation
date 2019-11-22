@@ -124,8 +124,7 @@ public class DynamoDBMetadataHandler
             || (table.getParameters() != null && DYNAMODB.equals(table.getParameters().get("classification")))
             || (table.getStorageDescriptor().getParameters() != null && DYNAMODB.equals(table.getStorageDescriptor().getParameters().get("classification")));
     // used to filter out Glue databases which lack the DYNAMO_DB_FLAG in the URI.
-    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG))
-            || DEFAULT_SCHEMA.equals(database.getName());
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
 
     private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
     private final AmazonDynamoDB ddbClient;
