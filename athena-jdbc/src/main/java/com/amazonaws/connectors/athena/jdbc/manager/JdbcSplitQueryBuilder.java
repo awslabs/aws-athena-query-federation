@@ -116,6 +116,7 @@ public abstract class JdbcSplitQueryBuilder
                     .append(Joiner.on(" AND ").join(clauses));
         }
 
+        LOGGER.info("Generated SQL : {}", sql.toString());
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
         // TODO all types, converts Arrow values to JDBC.

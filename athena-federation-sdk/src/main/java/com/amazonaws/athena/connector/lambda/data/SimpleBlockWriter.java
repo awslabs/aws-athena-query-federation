@@ -56,7 +56,7 @@ public class SimpleBlockWriter
             rows = rowWriter.writeRows(block, rowCount);
         }
         catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
         }
 
         if (rows > 0) {

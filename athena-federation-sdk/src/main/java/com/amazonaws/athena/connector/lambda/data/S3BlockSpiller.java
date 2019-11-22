@@ -174,7 +174,7 @@ public class S3BlockSpiller
             rows = rowWriter.writeRows(block, rowCount);
         }
         catch (Exception ex) {
-            throw new RuntimeException(ex);
+            throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
         }
 
         if (rows > maxRowsPerCall) {

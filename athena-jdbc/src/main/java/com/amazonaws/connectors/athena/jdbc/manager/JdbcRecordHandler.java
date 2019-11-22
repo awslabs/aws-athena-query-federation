@@ -135,12 +135,15 @@ public abstract class JdbcRecordHandler
                 }
 
                 GeneratedRowWriter rowWriter = rowWriterBuilder.build();
+                int rowsReturnedFromDatabase = 0;
                 while (resultSet.next()) {
                     if (!queryStatusChecker.isQueryRunning()) {
                         return;
                     }
                     blockSpiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, resultSet) ? 1 : 0);
+                    rowsReturnedFromDatabase++;
                 }
+                LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
                 connection.commit();
             }
@@ -171,75 +174,79 @@ public abstract class JdbcRecordHandler
             case BIT:
                 return (BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
-                    dst.isSet = 1;
                     boolean value = resultSet.getBoolean(fieldName);
                     dst.value = value ? 1 : 0;
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case TINYINT:
                 return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getByte(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case SMALLINT:
                 return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getShort(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case INT:
                 return (IntExtractor) (Object context, NullableIntHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getInt(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case BIGINT:
                 return (BigIntExtractor) (Object context, NullableBigIntHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getLong(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case FLOAT4:
                 return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getFloat(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case FLOAT8:
                 return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getDouble(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case DECIMAL:
                 return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getBigDecimal(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case DATEDAY:
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
-                    dst.isSet = 1;
-                    dst.value = Days.daysBetween(EPOCH, new DateTime(((Date) resultSet.getDate(fieldName)).getTime())).getDays();
+                    if (resultSet.getDate(fieldName) != null) {
+                        dst.value = Days.daysBetween(EPOCH, new DateTime(((Date) resultSet.getDate(fieldName)).getTime())).getDays();
+                    }
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case DATEMILLI:
                 return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
                 {
-                    dst.isSet = 1;
-                    dst.value = resultSet.getTimestamp(fieldName).getTime();
+                    if (resultSet.getTimestamp(fieldName) != null) {
+                        dst.value = resultSet.getTimestamp(fieldName).getTime();
+                    }
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case VARCHAR:
                 return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getString(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case VARBINARY:
                 return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
-                    dst.isSet = 1;
                     dst.value = resultSet.getBytes(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             default:
                 throw new RuntimeException("Unhandled type " + fieldType);
