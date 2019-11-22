@@ -43,8 +43,9 @@ public interface BlockWriter
          * are made much simpler by being able to write a small number (<100) rows per call. These often
          * relate to batched operators, scan side joins, or field expansions. Writing too many rows
          * will result in errors related to Block size management and are implementation specific.
+         * @throws Exception internal exception.
          */
-        int writeRows(Block block, int rowNum);
+        int writeRows(Block block, int rowNum) throws Exception;
     }
 
     /**

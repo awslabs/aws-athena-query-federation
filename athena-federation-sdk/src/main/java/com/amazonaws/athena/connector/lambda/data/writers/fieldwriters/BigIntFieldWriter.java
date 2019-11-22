@@ -67,9 +67,11 @@ public class BigIntFieldWriter
      * @param context The context (specific to the extractor) from which to extract a value.
      * @param rowNum The row to write the value into.
      * @return True if the value passed constraints and should be considered valid, False otherwise.
+     * @throws Exception internal exception
      */
     @Override
     public boolean write(Object context, int rowNum)
+        throws Exception
     {
         extractor.extract(context, holder);
         vector.setSafe(rowNum, holder);

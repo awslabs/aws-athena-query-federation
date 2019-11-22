@@ -22,6 +22,23 @@ package com.amazonaws.connectors.athena.jdbc.manager;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateDayExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -34,24 +51,30 @@ import com.amazonaws.connectors.athena.jdbc.connection.RdsSecretsCredentialProvi
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.common.collect.ImmutableMap;
-import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
-import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDateDayHolder;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.NullableSmallIntHolder;
+import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
+import org.joda.time.DateTime;
+import org.joda.time.Days;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.Calendar;
-import java.util.HashMap;
+import java.util.Date;
 import java.util.Map;
 
 /**
@@ -60,22 +83,8 @@ import java.util.Map;
 public abstract class JdbcRecordHandler
         extends RecordHandler
 {
+    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime();
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
-    // TODO support all data types
-    private static final ImmutableMap<Types.MinorType, ResultSetValueExtractor<Object>> VALUE_EXTRACTOR = new ImmutableMap.Builder<Types.MinorType, ResultSetValueExtractor<Object>>()
-            .put(Types.MinorType.BIT, ResultSet::getBoolean)
-            .put(Types.MinorType.TINYINT, ResultSet::getByte)
-            .put(Types.MinorType.SMALLINT, ResultSet::getShort)
-            .put(Types.MinorType.INT, ResultSet::getInt)
-            .put(Types.MinorType.BIGINT, ResultSet::getLong)
-            .put(Types.MinorType.FLOAT4, ResultSet::getFloat)
-            .put(Types.MinorType.FLOAT8, ResultSet::getDouble)
-            .put(Types.MinorType.DATEDAY, ResultSet::getDate)
-            .put(Types.MinorType.DATEMILLI, ResultSet::getTimestamp)
-            .put(Types.MinorType.VARCHAR, ResultSet::getString)
-            .put(Types.MinorType.VARBINARY, ResultSet::getBytes)
-            .put(Types.MinorType.DECIMAL, ResultSet::getBigDecimal)
-            .build();
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
 
@@ -117,50 +126,24 @@ public abstract class JdbcRecordHandler
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
-                ResultSetMetaData resultSetMetaData = resultSet.getMetaData();
-
                 Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
 
-                final Map<String, Types.MinorType> typeMap = new HashMap<>();
-                int columnIndex = 1;
-                for (Field nextField : readRecordsRequest.getSchema().getFields()) {
-                    if (partitionValues.containsKey(nextField.getName())) {
-                        continue; //ignore partition columns
-                    }
-                    Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(JdbcToArrowUtils.getArrowTypeForJdbcField(new JdbcFieldInfo(resultSetMetaData, columnIndex),
-                            Calendar.getInstance()));
-                    typeMap.put(nextField.getName(), minorTypeForArrowType);
-                    columnIndex++;
+                GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(readRecordsRequest.getConstraints());
+                for (Field next : readRecordsRequest.getSchema().getFields()) {
+                    Extractor extractor = makeExtractor(next, resultSet, partitionValues);
+                    rowWriterBuilder.withExtractor(next.getName(), extractor);
                 }
 
+                GeneratedRowWriter rowWriter = rowWriterBuilder.build();
+                int rowsReturnedFromDatabase = 0;
                 while (resultSet.next()) {
                     if (!queryStatusChecker.isQueryRunning()) {
                         return;
                     }
-                    blockSpiller.writeRows((Block block, int rowNum) -> {
-                        try {
-                            boolean matched;
-                            for (Field nextField : readRecordsRequest.getSchema().getFields()) {
-                                Object value;
-                                if (partitionValues.containsKey(nextField.getName())) {
-                                    value = partitionValues.get(nextField.getName());
-                                }
-                                else {
-                                    value = getArrowValue(resultSet, nextField.getName(), typeMap.get(nextField.getName()));
-                                }
-                                matched = block.offerValue(nextField.getName(), rowNum, value);
-                                if (!matched) {
-                                    return 0;
-                                }
-                            }
-
-                            return 1;
-                        }
-                        catch (SQLException sqlException) {
-                            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-                        }
-                    });
+                    blockSpiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, resultSet) ? 1 : 0);
+                    rowsReturnedFromDatabase++;
                 }
+                LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
                 connection.commit();
             }
@@ -170,13 +153,104 @@ public abstract class JdbcRecordHandler
         }
     }
 
-    private Object getArrowValue(final ResultSet resultSet, final String columnName, final Types.MinorType minorType)
-            throws SQLException
+    /**
+     * Creates an Extractor for the given field. In this example the extractor just creates some random data.
+     */
+    private Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
-        return VALUE_EXTRACTOR.getOrDefault(minorType, (rs, col) -> {
-            throw new RuntimeException("Unhandled column type " + minorType);
-        })
-                .call(resultSet, columnName);
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+
+        final String fieldName = field.getName();
+
+        if (partitionValues.containsKey(fieldName)) {
+            return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
+            {
+                dst.isSet = 1;
+                dst.value = partitionValues.get(fieldName);
+            };
+        }
+
+        switch (fieldType) {
+            case BIT:
+                return (BitExtractor) (Object context, NullableBitHolder dst) ->
+                {
+                    boolean value = resultSet.getBoolean(fieldName);
+                    dst.value = value ? 1 : 0;
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case TINYINT:
+                return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
+                {
+                    dst.value = resultSet.getByte(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case SMALLINT:
+                return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) ->
+                {
+                    dst.value = resultSet.getShort(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case INT:
+                return (IntExtractor) (Object context, NullableIntHolder dst) ->
+                {
+                    dst.value = resultSet.getInt(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case BIGINT:
+                return (BigIntExtractor) (Object context, NullableBigIntHolder dst) ->
+                {
+                    dst.value = resultSet.getLong(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case FLOAT4:
+                return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
+                {
+                    dst.value = resultSet.getFloat(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case FLOAT8:
+                return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
+                {
+                    dst.value = resultSet.getDouble(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case DECIMAL:
+                return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
+                {
+                    dst.value = resultSet.getBigDecimal(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case DATEDAY:
+                return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
+                {
+                    if (resultSet.getDate(fieldName) != null) {
+                        dst.value = Days.daysBetween(EPOCH, new DateTime(((Date) resultSet.getDate(fieldName)).getTime())).getDays();
+                    }
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case DATEMILLI:
+                return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
+                {
+                    if (resultSet.getTimestamp(fieldName) != null) {
+                        dst.value = resultSet.getTimestamp(fieldName).getTime();
+                    }
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case VARCHAR:
+                return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
+                {
+                    dst.value = resultSet.getString(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            case VARBINARY:
+                return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
+                {
+                    dst.value = resultSet.getBytes(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                };
+            default:
+                throw new RuntimeException("Unhandled type " + fieldType);
+        }
     }
 
     /**
@@ -193,10 +267,4 @@ public abstract class JdbcRecordHandler
      */
     public abstract PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
             throws SQLException;
-
-    private interface ResultSetValueExtractor<T>
-    {
-        T call(ResultSet resultSet, String columnName)
-                throws SQLException;
-    }
 }

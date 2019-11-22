@@ -23,6 +23,8 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliEx
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import org.apache.arrow.vector.DateMilliVector;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
 
 /**
  * Used to write a value and apply constraints for a particular column to the row currently being processed.
@@ -54,7 +56,7 @@ public class DateMilliFieldWriter
         this.extractor = extractor;
         this.vector = vector;
         if (rawConstraint != null) {
-            constraint = (NullableDateMilliHolder value) -> rawConstraint.apply(value.isSet == 0 ? null : value.value);
+            constraint = (NullableDateMilliHolder value) -> rawConstraint.apply(value.isSet == 0 ? null : new LocalDateTime(value.value, DateTimeZone.UTC));
         }
         else {
             constraint = (NullableDateMilliHolder value) -> true;
@@ -67,9 +69,11 @@ public class DateMilliFieldWriter
      * @param context The context (specific to the extractor) from which to extract a value.
      * @param rowNum The row to write the value into.
      * @return True if the value passed constraints and should be considered valid, False otherwise.
+     * @throws Exception internal exception
      */
     @Override
     public boolean write(Object context, int rowNum)
+            throws Exception
     {
         extractor.extract(context, holder);
         vector.setSafe(rowNum, holder);

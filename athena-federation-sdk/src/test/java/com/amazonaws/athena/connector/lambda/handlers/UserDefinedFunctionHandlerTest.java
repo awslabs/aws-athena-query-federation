@@ -86,6 +86,7 @@ public class UserDefinedFunctionHandlerTest
 
     @Test
     public void testInvocationWithBasicType()
+            throws Exception
     {
         int rowCount = 20;
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Integer.class, "test_scalar_udf", true, Integer.class, Integer.class);
@@ -108,6 +109,7 @@ public class UserDefinedFunctionHandlerTest
 
     @Test
     public void testInvocationWithListType()
+            throws Exception
     {
         int rowCount = 20;
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, List.class, "test_list_type", true, List.class);
@@ -130,6 +132,7 @@ public class UserDefinedFunctionHandlerTest
 
     @Test
     public void testInvocationWithStructType()
+            throws Exception
     {
         int rowCount = 20;
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Map.class, "test_row_type", true, Map.class);
@@ -159,6 +162,7 @@ public class UserDefinedFunctionHandlerTest
 
     @Test
     public void testInvocationWithNullVAlue()
+            throws Exception
     {
         int rowCount = 20;
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Boolean.class, "test_scalar_function_with_null_value", false, Integer.class);

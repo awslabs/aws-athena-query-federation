@@ -34,6 +34,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -116,6 +116,7 @@ public abstract class JdbcSplitQueryBuilder
                     .append(Joiner.on(" AND ").join(clauses));
         }
 
+        LOGGER.info("Generated SQL : {}", sql.toString());
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
         // TODO all types, converts Arrow values to JDBC.
@@ -147,11 +148,12 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
                     break;
                 case DATEDAY:
-                    long millis = TimeUnit.DAYS.toMillis((long) typeAndValue.getValue());
-                    statement.setDate(i + 1, new Date(DateTimeZone.UTC.getMillisKeepLocal(DateTimeZone.getDefault(), millis)));
+                    LocalDateTime dateTime = ((LocalDateTime) typeAndValue.getValue());
+                    statement.setDate(i + 1, new Date(dateTime.toDateTime(DateTimeZone.UTC).getMillis()));
                     break;
                 case DATEMILLI:
-                    statement.setTimestamp(i + 1, new Timestamp((long) typeAndValue.getValue()));
+                    LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
+                    statement.setTimestamp(i + 1, new Timestamp(timestamp.toDateTime(DateTimeZone.UTC).getMillis()));
                     break;
                 case VARCHAR:
                     statement.setString(i + 1, String.valueOf(typeAndValue.getValue()));
@@ -300,6 +302,15 @@ public abstract class JdbcSplitQueryBuilder
         Object getValue()
         {
             return value;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "TypeAndValue{" +
+                    "type=" + type +
+                    ", value=" + value +
+                    '}';
         }
     }
 }
