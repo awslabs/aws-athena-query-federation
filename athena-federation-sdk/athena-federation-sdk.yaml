@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 1.0.0
+    SemanticVersion: 2019.48.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -46,7 +46,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connector.lambda.examples.ExampleCompositeHandler"
-      CodeUri: "./target/aws-athena-federation-sdk-2019.47.1-withdep.jar"
+      CodeUri: "./target/aws-athena-federation-sdk-2019.48.1-withdep.jar"
       Description: "This connector enables Amazon Athena to communicate with a randomly generated data source."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
