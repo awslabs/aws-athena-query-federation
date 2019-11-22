@@ -41,7 +41,7 @@ Imagine a hypothetical e-commerce company who's architecture uses:
 6. A write-once-read-many datawarehouse on Redshift.
 7. Shipment tracking data in DynamoDB.
 8. A fleet of Drivers performing last-mile delivery while utilizing IoT enabled tablets. 
-9. Advertising conversion data from a 3rd part cloud provider.
+9. Advertising conversion data from a 3rd party source.
 
 ![Architecture Image](https://github.com/awslabs/aws-athena-query-federation/blob/master/docs/img/athena_federation_demo.png?raw=true)
 
