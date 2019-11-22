@@ -1,15 +1,15 @@
 ## Example Athena Connector
 
-This module is meant to serve as a guided example for writing and deploying your own connector to enable Athena to query a custom source. The goal with this guided tutorial is to help you understand the development process and point out capabilities. Out of necessity some of the examples are rather contrived and make use of hard coded schemas to separate learning how to write a connector from learning how to interface with the target systems you will inevitably want to federate to. 
+This module is meant to serve as a guided example for writing and deploying a connector to enable Amazon Athena to query a custom data source. The goal is to help you understand the development process and point out capabilities. In some examples we use of hard coded schemas to separate learning how to write a connector from learning how to interface with the target systems you ultimately want to federate to. 
 
-Also in this tutorial is an example of creating scalar batch functions (aka User Defined Functions) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as stand alone Lambda functions completely independent of a connector.
+This tutorial also includes an an example of creating scalar User Defined Functions(UDFs) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as standalone Lambda functions completely independent of a connector.
 
 ## What is a 'Connector'?
 
-A 'Connector' is a piece of code that can translate between your target data source and Athena. Today this code is expected to run in an AWS Lambda function but in the future we hope to offer more options. You can think of a connector as an extension of Athena's query engine. Athena will delegate portions of the federated query plan to your connector. More specifically:
+A 'connector' is a piece of code that can translate between your target data source and Athena. Today this code must run in an AWS Lambda function but in future releases we may offer additional options. You can think of a connector as an extension of Athena's query engine. Athena delegates portions of the federated query plan to your connector. You connector must provide the following:
 
-1. Your connector must provide a source of meta-data for Athena to get schema information about what databases, tables, and columns your connector has. This is done by building and deploying a lambda function that extends com.amazonaws.athena.connector.lambda.handlers.MetadataHandler in the athena-federation-sdk module. 
-2. Your connector must provide a way for Athena to read the data stored in your tables. This is done by building and deploying a lambda function that extends com.amazonaws.athena.connector.lambda.handlers.RecordHandler in the athena-federation-sdk module. 
+1. A source of meta-data for Athena to get schema information about what databases, tables, and columns your connector has. This is done by building and deploying a lambda function that extends com.amazonaws.athena.connector.lambda.handlers.MetadataHandler in the athena-federation-sdk module. 
+2. A way for Athena to read the data stored in your tables. This is done by building and deploying a lambda function that extends com.amazonaws.athena.connector.lambda.handlers.RecordHandler in the athena-federation-sdk module. 
 
 Alternatively, you can deploy a single Lambda function which combines the two above requirements by using com.amazonaws.athena.connector.lambda.handlers.CompositeHandler or com.amazonaws.athena.connector.lambda.handlers.UnifiedHandler. While breaking this into two separate Lambda functions allows you to independently control the cost and timeout of your Lambda functions, using a single Lambda function can be simpler and higher performance due to less cold start.
 
@@ -17,7 +17,7 @@ In the next section we take a closer look at the methods we must implement on th
 
 ### MetadataHandler Details
 
-Lets take a closer look at what is required for a MetadataHandler. Below we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new data source.
+Lets take a closer look at MetadataHandler requirements. In the following example, we have the basic functions that you need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new federated data source.
 
 ```java
 public class MyMetadataHandler extends MetadataHandler
@@ -91,13 +91,13 @@ public class MyMetadataHandler extends MetadataHandler
 }
 ```
 
-You can find example MetadataHandlers by looking at some of the connectors in the repository. athena-cloudwatch and athena-tpcds are fairly easy to follow along with.
+You can find example MetadataHandlers by looking at some of the connectors in the repository. [athena-cloudwatch](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-cloudwatch) and [athena-tpcds](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-tpcds) are fairly easy to follow along with.
 
-Alternatively, if you wish to use AWS Glue DataCatalog as the authoritative (or supplemental) source of meta-data for your connector you can extend com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler instead of com.amazonaws.athena.connector.lambda.handlers.MetadataHandler. GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the athena-docdb module is an example of using GlueMetadataHandler.
+You can also, use the AWS Glue DataCatalog as the authoritative (or supplemental) source of meta-data for your connector. To do this, you can extend [com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.java) instead of [com.amazonaws.athena.connector.lambda.handlers.MetadataHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.java). GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the [athena-docdb](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-docdb) module is an example of using GlueMetadataHandler.
 
 ### RecordHandler Details
 
-Lets take a closer look at what is required for a RecordHandler. Below we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new data source.
+Lets take a closer look at what is required for a RecordHandler requirements. In the following example, we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's [RecordHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/RecordHandler.java) to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new data source.
 
 ```java
 public class MyRecordHandler
@@ -125,13 +125,13 @@ public class MyRecordHandler
 
 ## What is a scalar UDF?
 
-A scalar UDF is a user Defined Function that is applied one row at a time and returns a single column value. Athena will call your scalar UDF with batches of rows (potentially in parallel) in order to limit the performance impact associated with making a remote call for the UDF itself. 
+A scalar UDF is a specific kind of UDF that is applied one row at a time and returns a single column value. Athena calls your scalar UDF with batches of rows (potentially in parallel) to limit the performance impact associated with making a remote call to the UDF itself.
 
-In order for Athena to delegate UDF calls to your Lambda function, you need to implement a UserDefinedFunctionHandler in your Lambda function.  The Athena Query Federation SDK offers an abstract [UserDefinedFunctionHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.java) which handles all the boiler plate associated serialization and managing the lifecycle of a UDF and leaves you to simply implement the UDF methods themselves. 
+For Athena to delegate UDF calls to your Lambda function, you need to implement a "UserDefinedFunctionHandler" in your Lambda function. The Athena Query Federation SDK offers an abstract [UserDefinedFunctionHandler](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.java) that handles all the boilerplate-associated serialization and management of the UDF lifecycle. This allows you to simply implement the UDF methods themselves.
 
 ### UserDefinedFunctionHandler Details
 
-UDF implementation is a bit different from implementing a connector. Lets say you have the following query you want to run (we'll actually run this query for real later in the tutorial).
+UDF implementation is a bit different from implementing a connector. Let’s say you have the following query you want to run (we'll actually run this query for real later in the tutorial). The query defines two UDFs: "extract_tx_id" and "decrypt" which are hosted in a Lambda function specified as "my_lambda_function".
 
 ```sql
 USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
@@ -151,7 +151,8 @@ WHERE year=2017
         AND day=1;
 ```
 
-This query defined 2 UDFs: extract_tx_id and decrypt which are said to be hosted in a Lambda function called "my_lambda_function". My UserDefinedFunctionHandler would look like the one below. I simply need two methods which match the signature of the UDF I defined in my query. For full data type and method signature info, check the [SDK documentation](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md).
+For this query, "UserDefinedFunctionHandler" would look like the one in the following example. Two methods in the example match the signatures of the UDFs I called in my query. For full data type and method signature information, see the [SDK documentation](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md).
+
 
 ```java
 public class MyUDF extends UserDefinedFunctionHandler
@@ -180,25 +181,25 @@ public class MyUDF extends UserDefinedFunctionHandler
 
 ## How To Build & Deploy
 
-You can use any IDE or even just command line editor to write your connector. The below steps show you how to use an AWS Cloud9 IDE running on EC2 to get started but most of the steps are applicable to any linux based development machine.
+You can use any IDE or even just a command line editor to write your connector. The following steps show you how to use an AWS Cloud9 IDE running on EC2 to get started but most of the steps are applicable to any Linux based development machine.
 
 
-### Step 1: Create your Cloud9 Instance
+### Step 1: Create Your Cloud9 Instance
 
-1. Open the AWS Console and navigate to the [Cloud9 Service or Click Here](https://console.aws.amazon.com/cloud9/)
-2. Click 'Create Environment' and follow the steps to create a new instance using a new EC2 Instance (we recommend m4.large) running Amazon Linux.
+1. Open the AWS Console and navigate to the [Cloud9 Service](https://console.aws.amazon.com/cloud9/)
+2. Click **Create Environment** and follow the steps to create a new instance using a new EC2 Instance (we recommend m4.large) running Amazon Linux.
 
 
 ### Step 2: Download The SDK + Connectors
 
 1. At your Cloud9 terminal run `git clone https://github.com/awslabs/aws-athena-query-federation.git` to get a copy of the Amazon Athena Query Federation SDK, Connector Suite, and Example Connector.
 
-### Step 3: Install Development Tools (Pre-Requisites)
+### Step 3: Install Prerequisites for Development
 
-1. This step may be optional if you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build tool for Serverless Applications. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the github project you checked out.
-2. To ensure your terminal can see the new tools we installed run `source ~/.profile` or open a fresh terminal. If you skip this step you will get errors later about the aws cli or sam build tool not being able to publish your connector.
+1. If you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the Github project you checked out.
+2. To ensure your terminal can see the new tools that we installed run `source ~/.profile` or open a fresh terminal. If you skip this step you will get errors later about the AWS CLI or SAM build tool not being able to publish your connector.
 
-Now run `mvn clean install -DskipTests=true > /tmp/log` from the athena-federation-sdk directory within the github project you checked out earlier. We are skipping tests just to make the build faster. Normally you should let the tests as a matter of best practice. If you are building on Cloud9 we've found that redirecting stdout to a log speeds up the build by 4x due to the browser trying to keep up with all the output logging associated with maven downloading dependencies. 
+Now run `mvn clean install -DskipTests=true > /tmp/log` from the athena-federation-sdk directory within the Github project you checked out earlier. We are skipping tests with the `-DskipTests=true` option to make the build faster. As a best practice, you should let the tests run. If you are building on Cloud9 we've found that redirecting stdout to a log with `> /tmp/log` speeds up the build by 4x due to the browser trying to keep up with all the output logging associated with maven downloading dependencies. 
 
 ### Step 4: Write The Code
 

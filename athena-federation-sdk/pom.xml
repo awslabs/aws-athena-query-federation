@@ -7,7 +7,7 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2019.47.1</version>
+    <version>2019.48.1</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
 
