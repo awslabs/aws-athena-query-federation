@@ -47,6 +47,8 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.GetDatabasesResult;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
@@ -62,7 +64,6 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.MutableDateTime;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -78,6 +79,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DYNAMO_DB_FLAG;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
@@ -90,12 +94,9 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SCAN_PARTITION_TYPE;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
-import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
-import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -135,7 +136,7 @@ public class DynamoDBMetadataHandlerTest
     }
 
     @Test
-    public void doListSchemaNamesDynamo()
+    public void doListSchemaNamesGlueError()
             throws Exception
     {
         logger.info("doListSchemaNamesDynamo: enter");
@@ -150,6 +151,31 @@ public class DynamoDBMetadataHandlerTest
         assertThat(new ArrayList<>(res.getSchemas()), equalTo(Collections.singletonList(DEFAULT_SCHEMA)));
 
         logger.info("doListSchemaNamesDynamo: exit");
+    }
+
+    @Test
+    public void doListSchemaNamesGlue()
+            throws Exception
+    {
+        logger.info("doListSchemaNamesGlue: enter");
+
+        GetDatabasesResult result = new GetDatabasesResult().withDatabaseList(
+                new Database().withName(DEFAULT_SCHEMA),
+                new Database().withName("ddb").withLocationUri(DYNAMO_DB_FLAG),
+                new Database().withName("s3").withLocationUri("blah"));
+
+        when(glueClient.getDatabases(any())).thenReturn(result);
+
+        ListSchemasRequest req = new ListSchemasRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
+        ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
+
+        logger.info("doListSchemas - {}", res.getSchemas());
+
+        assertThat(res.getSchemas().size(), equalTo(2));
+        assertThat(res.getSchemas().contains("default"), is(true));
+        assertThat(res.getSchemas().contains("ddb"), is(true));
+
+        logger.info("doListSchemaNamesGlue: exit");
     }
 
     @Test
