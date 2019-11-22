@@ -51,7 +51,13 @@ public class SimpleBlockWriter
     {
         int rowCount = block.getRowCount();
 
-        int rows = rowWriter.writeRows(block, rowCount);
+        int rows;
+        try {
+            rows = rowWriter.writeRows(block, rowCount);
+        }
+        catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
 
         if (rows > 0) {
             block.setRowCount(rowCount + rows);

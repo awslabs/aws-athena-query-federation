@@ -169,7 +169,13 @@ public class S3BlockSpiller
         Block block = inProgressBlock.get();
         int rowCount = block.getRowCount();
 
-        int rows = rowWriter.writeRows(block, rowCount);
+        int rows;
+        try {
+            rows = rowWriter.writeRows(block, rowCount);
+        }
+        catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
 
         if (rows > maxRowsPerCall) {
             throw new RuntimeException("Call generated more than " + maxRowsPerCall + "rows. Generating " +

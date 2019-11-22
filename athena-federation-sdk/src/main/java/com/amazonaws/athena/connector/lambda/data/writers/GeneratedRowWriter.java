@@ -107,6 +107,7 @@ public class GeneratedRowWriter
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)
+            throws Exception
     {
         checkAndRecompile(block);
 

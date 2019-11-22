@@ -151,6 +151,7 @@ public abstract class UserDefinedFunctionHandler
 
     @VisibleForTesting
     UserDefinedFunctionResponse processFunction(BlockAllocator allocator, UserDefinedFunctionRequest req)
+            throws Exception
     {
         UserDefinedFunctionType functionType = req.getFunctionType();
         switch (functionType) {
@@ -162,6 +163,7 @@ public abstract class UserDefinedFunctionHandler
     }
 
     private UserDefinedFunctionResponse processScalarFunction(BlockAllocator allocator, UserDefinedFunctionRequest req)
+            throws Exception
     {
         Method udfMethod = extractScalarFunctionMethod(req);
         Block inputRecords = req.getInputRecords();
@@ -187,6 +189,7 @@ public abstract class UserDefinedFunctionHandler
      * @return output data in Arrow format
      */
     protected Block processRows(BlockAllocator allocator, Method udfMethod, Block inputRecords, Schema outputSchema)
+            throws Exception
     {
         int rowCount = inputRecords.getRowCount();
 
