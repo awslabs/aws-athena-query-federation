@@ -6,6 +6,12 @@ The Amazon Athena Query Federation SDK allows you to customize Amazon Athena wit
 
 This functionality is currently in **Public Preview** while customers provide us feedback on usability, ease of using the service or building new connectors. We do not recommend that you use these connectors in production or use this preview to make assumptions about the performance of Athena’s Federation features. As we receive more feedback, we will make improvements to the preview and lift raise limits associated with query/connector performance, APIs, SDKs, and user experience. The best way to understand the performance of Athena Data Source Connectors is to run a benchmark when they become generally available (GA) or review our performance guidance.
 
+tldr; Get Started:
+1. Navigate to [Servless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and search for "athena-federation". 
+1. Look for entries published by the "Amazon Athena Federation" author.
+1. Deploy the application
+1. Go to the [Athena Console](https://console.aws.amazon.com/athena/home) and run a query "show databses in `lambda:<func_name>` where <func_name> is the name of the Lambda function you deployed in the previous step.
+
 For more information please consult:
 
  1. [SDK ReadMe](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md)
