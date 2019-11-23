@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2019.48.1
+    SemanticVersion: 2019.49.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -57,6 +57,7 @@ Resources:
                 - cloudwatch:Describe*
                 - cloudwatch:Get*
                 - cloudwatch:List*
+                - athena:GetQueryExecution
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
