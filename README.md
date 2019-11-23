@@ -24,7 +24,7 @@ For more information please consult:
  1. [Common Problems](https://github.com/awslabs/aws-athena-query-federation/wiki/Common_Problems)
  1. [Installation Pre-requisites](https://github.com/awslabs/aws-athena-query-federation/wiki/Installation_Prerequisites)
  1. [Known Limitations & Open Issues](https://github.com/awslabs/aws-athena-query-federation/wiki/Limitations_And_Issues)
- 1. [Predicate Pushdown How-To](https://github.com/awslabs/aws-athena-query-federation/wiki/Predicate-Pushdown-How-To-Pushdown-How-To)
+ 1. [Predicate Pushdown How-To](https://github.com/awslabs/aws-athena-query-federation/wiki/Predicate-Pushdown-How-To)
  1. [Our Github Wiki](https://github.com/awslabs/aws-athena-query-federation/wiki).
 
 ![Architecture Image](https://github.com/awslabs/aws-athena-query-federation/blob/master/docs/img/athena_federation_summary.png?raw=true)
