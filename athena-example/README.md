@@ -263,8 +263,8 @@ You can also try a DDL query:
 
 ```sql
 show databases in `lambda:<function_name>`;
-show tables in `lambda:<function_name>`.<database>;
-describe `lambda:<function_name>`.<database>.<table>;
+show tables in `lambda:<function_name>`.schema1;
+describe `lambda:<function_name>`.schema1.table1;
 ```
 
 *note that the <function_name> corresponds to the name of your Lambda function.*
