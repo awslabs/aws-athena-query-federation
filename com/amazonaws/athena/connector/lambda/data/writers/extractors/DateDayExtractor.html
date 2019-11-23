@@ -159,7 +159,8 @@ extends <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/d
 <li class="blockList">
 <h4>extract</h4>
 <pre>void&nbsp;extract(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;context,
-             org.apache.arrow.vector.holders.NullableDateDayHolder&nbsp;dst)</pre>
+             org.apache.arrow.vector.holders.NullableDateDayHolder&nbsp;dst)
+      throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></pre>
 <div class="block">Used to extract a value from the context.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -167,6 +168,8 @@ extends <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/d
  system row/query from which you need to extract a value.</dd>
 <dd><code>dst</code> - The 'Holder' that you should write your value to and optionally set the isSet flag to > 0 for non-null
  or 0 for null.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></code> - internal exception</dd>
 </dl>
 </li>
 </ul>

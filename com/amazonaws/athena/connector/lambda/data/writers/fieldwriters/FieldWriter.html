@@ -162,7 +162,8 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>write</h4>
 <pre>boolean&nbsp;write(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;context,
-              int&nbsp;rowNum)</pre>
+              int&nbsp;rowNum)
+       throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></pre>
 <div class="block">Attempts to write a value to the Apache Arrow vector provided at construction time.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -170,6 +171,8 @@ var activeTableTab = "activeTableTab";
 <dd><code>rowNum</code> - The row to write the value into.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>True if the value passed constraints and should be considered valid, False otherwise.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></code> - internal exception</dd>
 </dl>
 </li>
 </ul>

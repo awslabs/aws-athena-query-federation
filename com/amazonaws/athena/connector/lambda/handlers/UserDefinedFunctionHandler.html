@@ -262,7 +262,8 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <pre>protected&nbsp;<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&nbsp;processRows(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Method.html?is-external=true" title="class or interface in java.lang.reflect">Method</a>&nbsp;udfMethod,
                             <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&nbsp;inputRecords,
-                            org.apache.arrow.vector.types.pojo.Schema&nbsp;outputSchema)</pre>
+                            org.apache.arrow.vector.types.pojo.Schema&nbsp;outputSchema)
+                     throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></pre>
 <div class="block">Processes a group by rows. This method takes in a block of data (containing multiple rows), process them and
  returns multiple rows of the output column in a block.
  <p>
@@ -278,6 +279,8 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <dd><code>outputSchema</code> - output data schema in Arrow format</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>output data in Arrow format</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></code></dd>
 </dl>
 </li>
 </ul>
