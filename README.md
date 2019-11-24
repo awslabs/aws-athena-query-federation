@@ -10,7 +10,8 @@ tldr; Get Started:
 1. Navigate to [Servless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and search for "athena-federation". 
 1. Look for entries published by the "Amazon Athena Federation" author.
 1. Deploy the application
-1. Go to the [Athena Console](https://console.aws.amazon.com/athena/home) and run a query "show databses in \`lambda:<func_name>\`" where <func_name> is the name of the Lambda function you deployed in the previous step.
+1. Go to the [Athena Console in us-east-1 (N. Virginia)](https://console.aws.amazon.com/athena/home) and create a workgroup called "AmazonAthenaPreviewFunctionality", any queries run from that workgroup will be able to use Preview features described in this repository.
+1. Run a query "show databses in \`lambda:<func_name>\`" where <func_name> is the name of the Lambda function you deployed in the previous steps.
 
 For more information please consult:
 
