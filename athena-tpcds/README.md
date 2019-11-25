@@ -2,6 +2,8 @@
 
 This connector enables Amazon Athena to communicate with a source of randomly generated TPC-DS data for use in benchmarking and functional testing.
 
+**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+
 ## Usage
 
 ### Parameters
