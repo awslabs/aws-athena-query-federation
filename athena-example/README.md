@@ -273,3 +273,5 @@ describe `lambda:<function_name>`.schema1.table1;
 ```
 
 *note that the <function_name> corresponds to the name of your Lambda function.*
+
+Don't forget to try out [Amazon Athena ML](https://github.com/awslabs/aws-athena-query-federation/wiki/AthenaML-Tutorial) to apply SageMaker model inference right from your Amazon Athena queries.
