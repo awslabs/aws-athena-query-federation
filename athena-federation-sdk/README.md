@@ -51,22 +51,22 @@ The below table lists the supported Apache Arrow types as well as the correspond
 
 UDFs have access to the same type system. When extending UserDefinedFunctionHandler you can expect to recieve the below concrete type mapping. 
  
- | Athena type | Java type                                      |
- | ----------- | ---------------------------------------------- |
- | TIMESTAMP   | java.time.LocalDateTime (UTC)                  |
- | DATE        | java.time.LocalDate (UTC)                      |
- | TINYINT     | java.lang.Byte                                 |
- | SMALLINT    | java.lang.Short                                |
- | REAL        | java.lang.Float                                |
- | DOUBLE      | java.lang.Double                               |
- | DECIMAL     | java.math.BigDecimal                           |
- | BIGINT      | java.lang.Long                                 |
- | INTEGER     | java.lang.Int                                  |
- | VARCHAR     | java.lang.String                               |
- | VARBINARY   | byte[]                                         |
- | BOOLEAN     | java.lang.Boolean                              |
- | ARRAY       | java.util.List                                 |
- | ROW         | java.util.Map<String, Object>                  |
+ | Athena type | Java type                                      |Supported As Partition Col|
+ | ----------- | ---------------------------------------------- |----------------------|
+ | TIMESTAMP   | java.time.LocalDateTime (UTC)                  |No|
+ | DATE        | java.time.LocalDate (UTC)                      |No|
+ | TINYINT     | java.lang.Byte                                 |No|
+ | SMALLINT    | java.lang.Short                                |No|
+ | REAL        | java.lang.Float                                |No|
+ | DOUBLE      | java.lang.Double                               |Yes|
+ | DECIMAL     | java.math.BigDecimal                           |Yes|
+ | BIGINT      | java.lang.Long                                 |Yes|
+ | INTEGER     | java.lang.Int                                  |Yes, Int(32)|
+ | VARCHAR     | java.lang.String                               |Yes|
+ | VARBINARY   | byte[]                                         |No|
+ | BOOLEAN     | java.lang.Boolean                              |Yes|
+ | ARRAY       | java.util.List                                 |No|
+ | ROW         | java.util.Map<String, Object>                  |No|
 
 ## What is a 'Connector'?
 
