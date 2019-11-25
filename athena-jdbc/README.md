@@ -2,6 +2,8 @@
 
 This connector enables Amazon Athena to access your SQL database or RDS instance(s) using JDBC driver. 
 
+**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+
 Following databases are supported:
 
 1. MySql

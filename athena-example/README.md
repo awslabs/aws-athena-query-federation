@@ -4,6 +4,8 @@ This module is meant to serve as a guided example for writing and deploying a co
 
 This tutorial also includes an an example of creating scalar User Defined Functions(UDFs) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as standalone Lambda functions completely independent of a connector.
 
+**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+
 ## What is a 'Connector'?
 
 A 'connector' is a piece of code that can translate between your target data source and Athena. Today this code must run in an AWS Lambda function but in future releases we may offer additional options. You can think of a connector as an extension of Athena's query engine. Athena delegates portions of the federated query plan to your connector. You connector must provide the following:
@@ -183,6 +185,7 @@ public class MyUDF extends UserDefinedFunctionHandler
 
 You can use any IDE or even just a command line editor to write your connector. The following steps show you how to use an AWS Cloud9 IDE running on EC2 to get started but most of the steps are applicable to any Linux based development machine.
 
+Before starting this tutorial, ensure you have the [proper permissions/policies to deploy/use Athena Federated Queries](https://docs.aws.amazon.com/athena/latest/ug/federated-query-iam-access.html).
 
 ### Step 1: Create Your Cloud9 Instance
 
