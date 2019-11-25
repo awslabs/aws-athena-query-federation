@@ -26,7 +26,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -111,6 +110,7 @@ public abstract class JdbcSplitQueryBuilder
         List<TypeAndValue> accumulator = new ArrayList<>();
 
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator, split.getProperties());
+        clauses.addAll(getPartitionWhereClauses(split));
         if (!clauses.isEmpty()) {
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
@@ -175,9 +175,11 @@ public abstract class JdbcSplitQueryBuilder
 
     protected abstract String getFromClauseWithSplit(final String catalog, final String schema, final String table, final Split split);
 
+    protected abstract List<String> getPartitionWhereClauses(final Split split);
+
     private List<String> toConjuncts(List<Field> columns, Constraints constraints, List<TypeAndValue> accumulator, Map<String, String> partitionSplit)
     {
-        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        List<String> conjuncts = new ArrayList<>();
         for (Field column : columns) {
             if (partitionSplit.containsKey(column.getName())) {
                 continue; // Ignore constraints on partition name as RDBMS does not contain these as columns. Presto will filter these values.
@@ -186,11 +188,11 @@ public abstract class JdbcSplitQueryBuilder
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
                 if (valueSet != null) {
-                    builder.add(toPredicate(column.getName(), valueSet, type, accumulator));
+                    conjuncts.add(toPredicate(column.getName(), valueSet, type, accumulator));
                 }
             }
         }
-        return builder.build();
+        return conjuncts;
     }
 
     private String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)

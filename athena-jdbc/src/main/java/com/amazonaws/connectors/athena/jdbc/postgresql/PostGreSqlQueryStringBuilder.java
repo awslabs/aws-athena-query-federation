@@ -23,6 +23,9 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Extends {@link JdbcSplitQueryBuilder} and implements PostGreSql specific SQL clauses for split.
  *
@@ -51,11 +54,22 @@ public class PostGreSqlQueryStringBuilder
         String partitionSchemaName = split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME);
         String partitionName = split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
 
-        if (PostGreSqlMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
+        if (PostGreSqlMetadataHandler.ALL_PARTITIONS.equals(partitionSchemaName) || PostGreSqlMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
             // No partitions
             return String.format(" FROM %s ", tableName);
         }
 
         return String.format(" FROM %s.%s ", quote(partitionSchemaName), quote(partitionName));
+    }
+
+    @Override
+    protected List<String> getPartitionWhereClauses(final Split split)
+    {
+        if (split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME).equals("*")
+                && !split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME).equals("*")) {
+            return Collections.singletonList(split.getProperty(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME));
+        }
+
+        return Collections.emptyList();
     }
 }

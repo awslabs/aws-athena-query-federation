@@ -156,26 +156,54 @@ public class PostGreSqlMetadataHandler
         Set<Split> splits = new HashSet<>();
         Block partitions = getSplitsRequest.getPartitions();
 
-        // TODO consider splitting further depending on #rows or data size. Could use Hash key for splitting if no partitions. i/ATHENA-3979
-        for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+        boolean splitterUsed = false;
+        if (partitions.getRowCount() == 1) {
             FieldReader partitionsSchemaFieldReader = partitions.getFieldReader(BLOCK_PARTITION_SCHEMA_COLUMN_NAME);
-            partitionsSchemaFieldReader.setPosition(curPartition);
+            partitionsSchemaFieldReader.setPosition(0);
             FieldReader partitionsFieldReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
-            partitionsFieldReader.setPosition(curPartition);
+            partitionsFieldReader.setPosition(0);
 
-            //Every split must have a unique location if we wish to spill to avoid failures
-            SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+            if (ALL_PARTITIONS.equals(partitionsSchemaFieldReader.readText().toString()) && ALL_PARTITIONS.equals(partitionsFieldReader.readText().toString())) {
+                for (String splitClause : getSplitClauses(getSplitsRequest.getTableName())) {
+                    //Every split must have a unique location if we wish to spill to avoid failures
+                    SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
 
-            LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), String.valueOf(partitionsFieldReader.readText()));
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
-                    .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
+                    Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                            .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
+                            .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(splitClause));
 
-            splits.add(splitBuilder.build());
+                    splits.add(splitBuilder.build());
 
-            if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
-                //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition));
+                    if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
+                        throw new RuntimeException("Max splits supported with splitter " + MAX_SPLITS_PER_REQUEST);
+                    }
+
+                    splitterUsed = true;
+                }
+            }
+        }
+
+        if (!splitterUsed) {
+            for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+                FieldReader partitionsSchemaFieldReader = partitions.getFieldReader(BLOCK_PARTITION_SCHEMA_COLUMN_NAME);
+                partitionsSchemaFieldReader.setPosition(curPartition);
+                FieldReader partitionsFieldReader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
+                partitionsFieldReader.setPosition(curPartition);
+
+                //Every split must have a unique location if we wish to spill to avoid failures
+                SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
+
+                LOGGER.info("{}: Input partition is {}", getSplitsRequest.getQueryId(), String.valueOf(partitionsFieldReader.readText()));
+                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .add(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, String.valueOf(partitionsSchemaFieldReader.readText()))
+                        .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(partitionsFieldReader.readText()));
+
+                splits.add(splitBuilder.build());
+
+                if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
+                    //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
+                    return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition));
+                }
             }
         }
 

@@ -39,6 +39,8 @@ import com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.connectors.athena.jdbc.connection.RdsSecretsCredentialProvider;
+import com.amazonaws.connectors.athena.jdbc.splits.Splitter;
+import com.amazonaws.connectors.athena.jdbc.splits.SplitterFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
@@ -57,6 +59,8 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -68,8 +72,11 @@ public abstract class JdbcMetadataHandler
         extends MetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
+    private static final String SQL_SPLITS_STRING = "select min(%s), max(%s) from %s.%s;";
+    private static final int DEFAULT_NUM_SPLITS = 20;
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
+    private final SplitterFactory splitterFactory = new SplitterFactory();
 
     /**
      * Used only by Multiplexing handler. All calls will be delegated to respective database handler.
@@ -266,4 +273,38 @@ public abstract class JdbcMetadataHandler
 
     @Override
     public abstract GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest);
+
+    protected List<String> getSplitClauses(final TableName tableName)
+    {
+        List<String> splitClauses = new ArrayList<>();
+        try (Connection jdbcConnection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+                ResultSet resultSet = jdbcConnection.getMetaData().getPrimaryKeys(null, tableName.getSchemaName(), tableName.getTableName())) {
+            List<String> primaryKeyColumns = new ArrayList<>();
+            while (resultSet.next()) {
+                primaryKeyColumns.add(resultSet.getString("COLUMN_NAME"));
+            }
+            if (!primaryKeyColumns.isEmpty()) {
+                try (Statement statement = jdbcConnection.createStatement();
+                        ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
+                                tableName.getSchemaName(), tableName.getTableName()))) {
+                    minMaxResultSet.next(); // expecting one result row
+                    Splitter splitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
+
+                    while (splitter.hasNext()) {
+                        String splitClause = splitter.nextRangeClause();
+                        LOGGER.info("Split generated {}", splitClause);
+                        splitClauses.add(splitClause);
+                    }
+                }
+            }
+        }
+        catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
+        }
+        catch (Exception ex) {
+            LOGGER.warn("Unable to split data.", ex);
+        }
+
+        return splitClauses;
+    }
 }
