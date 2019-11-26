@@ -18,6 +18,7 @@ tldr; Get Started:
 
 For more information please consult:
 
+ 1. [Intro Video](https://www.youtube.com/watch?v=tZia_5qxPkY&feature=youtu.be)
  1. [SDK ReadMe](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md)
  1. [Quick Start Guide](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-example)
  1. [Available Connectors](https://github.com/awslabs/aws-athena-query-federation/wiki/Available-Connectors)
