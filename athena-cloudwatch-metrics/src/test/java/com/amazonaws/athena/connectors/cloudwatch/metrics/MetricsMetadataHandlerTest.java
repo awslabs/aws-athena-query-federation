@@ -67,12 +67,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.DimensionSerDe.SERIALZIE_DIM_FIELD_NAME;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -316,12 +317,9 @@ public class MetricsMetadataHandlerTest
             continuationToken = response.getContinuationToken();
 
             logger.info("doGetMetricSamplesSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
-            assertEquals(numMetrics, response.getSplits().size());
+            assertEquals(3, response.getSplits().size());
             for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(SERIALZIE_DIM_FIELD_NAME));
-                assertNotNull(nextSplit.getProperty(METRIC_NAME_FIELD));
-                assertEquals(statistic, nextSplit.getProperty(STATISTIC_FIELD));
-                assertEquals("60", nextSplit.getProperty(PERIOD_FIELD));
+                assertNotNull(nextSplit.getProperty(SERIALIZED_METRIC_STATS_FIELD_NAME));
             }
 
             if (continuationToken != null) {

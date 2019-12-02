@@ -50,7 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.DimensionSerDe.SERIALZIE_DIM_FIELD_NAME;
+import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.TestUtils.makeStringEquals;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_VALUE_FIELD;
@@ -161,12 +161,21 @@ public class MetricUtilsTest
         dimensions.add(new Dimension().withName("dim_name1").withValue("dim_value1"));
         dimensions.add(new Dimension().withName("dim_name2").withValue("dim_value2"));
 
+        List<MetricStat> metricStats = new ArrayList<>();
+        metricStats.add(new MetricStat()
+                .withMetric(new Metric()
+                        .withNamespace(namespace)
+                        .withMetricName(metricName)
+                        .withDimensions(dimensions))
+                .withPeriod(60)
+                .withStat(statistic));
+
         Split split = Split.newBuilder(null, null)
                 .add(NAMESPACE_FIELD, namespace)
                 .add(METRIC_NAME_FIELD, metricName)
                 .add(PERIOD_FIELD, String.valueOf(period))
                 .add(STATISTIC_FIELD, statistic)
-                .add(SERIALZIE_DIM_FIELD_NAME, DimensionSerDe.serialize(dimensions))
+                .add(SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
                 .build();
 
         Schema schemaForRead = SchemaBuilder.newBuilder().addStringField(METRIC_NAME_FIELD).build();

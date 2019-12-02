@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda;
 
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
+import com.google.common.base.MoreObjects;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +91,7 @@ public class ThrottlingInvoker
     }
 
     @VisibleForTesting
-    protected ThrottlingInvoker(long initialDelayMs,
+    ThrottlingInvoker(long initialDelayMs,
             long maxDelayMs,
             double decrease,
             long increase,
@@ -219,18 +220,26 @@ public class ThrottlingInvoker
     }
 
     @VisibleForTesting
-    protected long getDelay()
+    long getDelay()
     {
         return delay.get();
     }
 
+    @Override
+    public String toString()
+    {
+        return MoreObjects.toStringHelper(this)
+                .add("initialDelayMs", initialDelayMs)
+                .add("maxDelayMs", maxDelayMs)
+                .add("decrease", decrease)
+                .add("increase", increase)
+                .add("delay", delay)
+                .add("state", state)
+                .toString();
+    }
+
     private synchronized void handleThrottle(Exception ex)
     {
-        if (spillerRef.get() != null && !spillerRef.get().spilled()) {
-            //If no blocks have spilled, it is better to signal the Throttle to Athena by propagating.
-            throw new FederationThrottleException("ThrottlingInvoker requesting slow down due to " + ex, ex);
-        }
-
         long newDelay = (long) Math.ceil(delay.get() / decrease);
         if (newDelay == 0) {
             newDelay = initialDelayMs;
@@ -242,6 +251,11 @@ public class ThrottlingInvoker
                 ex, newDelay, 1000D / newDelay);
         state = State.CONGESTED;
         delay.set(newDelay);
+
+        if (spillerRef.get() != null && !spillerRef.get().spilled()) {
+            //If no blocks have spilled, it is better to signal the Throttle to Athena by propagating.
+            throw new FederationThrottleException("ThrottlingInvoker requesting slow down due to " + ex, ex);
+        }
     }
 
     private synchronized void handleAvoidance()

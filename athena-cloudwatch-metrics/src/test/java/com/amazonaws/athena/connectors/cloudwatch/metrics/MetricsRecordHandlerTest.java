@@ -82,7 +82,9 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ME
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
@@ -260,8 +262,17 @@ public class MetricsRecordHandlerTest
                 .withIsDirectory(true)
                 .build();
 
+        List<MetricStat> metricStats = new ArrayList<>();
+        metricStats.add(new MetricStat()
+                .withMetric(new Metric()
+                        .withNamespace(namespace)
+                        .withMetricName(metricName)
+                        .withDimensions(dimensions))
+                .withPeriod(60)
+                .withStat(statistic));
+
         Split split = Split.newBuilder(spillLocation, keyFactory.create())
-                .add(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME, DimensionSerDe.serialize(dimensions))
+                .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, MetricStatSerDe.serialize(metricStats))
                 .add(METRIC_NAME_FIELD, metricName)
                 .add(NAMESPACE_FIELD, namespace)
                 .add(STATISTIC_FIELD, statistic)
@@ -301,7 +312,9 @@ public class MetricsRecordHandlerTest
          */
         List<MetricDataQuery> queries = request.getMetricDataQueries();
         assertEquals(1, queries.size());
-        MetricStat stat = queries.get(0).getMetricStat();
+        MetricDataQuery query = queries.get(0);
+        MetricStat stat = query.getMetricStat();
+        assertEquals("m1", query.getId());
         assertNotNull(stat.getPeriod());
         assertNotNull(stat.getMetric());
         assertNotNull(stat.getStat());
@@ -320,7 +333,7 @@ public class MetricsRecordHandlerTest
                 values.add(j);
                 timestamps.add(new Date(System.currentTimeMillis() + (int) j));
             }
-            samples.add(new MetricDataResult().withValues(values).withTimestamps(timestamps));
+            samples.add(new MetricDataResult().withValues(values).withTimestamps(timestamps).withId("m1"));
         }
 
         return new GetMetricDataResult().withNextToken(nextToken).withMetricDataResults(samples);

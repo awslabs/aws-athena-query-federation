@@ -46,7 +46,6 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DI
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.DIMENSION_VALUE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.TIMESTAMP_FIELD;
 
@@ -135,26 +134,22 @@ public class MetricUtils
     protected static GetMetricDataRequest makeGetMetricDataRequest(ReadRecordsRequest readRecordsRequest)
     {
         Split split = readRecordsRequest.getSplit();
-        List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
+//        List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
+        String serializedMetricStats = split.getProperty(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME);
+        List<MetricStat> metricStats = MetricStatSerDe.deserialize(serializedMetricStats);
+        logger.info("Deserialized {} to {}", serializedMetricStats, metricStats);
         GetMetricDataRequest dataRequest = new GetMetricDataRequest();
         com.amazonaws.services.cloudwatch.model.Metric metric = new com.amazonaws.services.cloudwatch.model.Metric();
         metric.setNamespace(split.getProperty(NAMESPACE_FIELD));
         metric.setMetricName(split.getProperty(METRIC_NAME_FIELD));
 
-        List<Dimension> dList = new ArrayList<>();
-        for (Dimension nextDim : dimensions) {
-            dList.add(new Dimension().withName(nextDim.getName()).withValue(nextDim.getValue()));
+        List<MetricDataQuery> metricDataQueries = new ArrayList<>();
+        int metricId = 1;
+        for (MetricStat nextMetricStat : metricStats) {
+            metricDataQueries.add(new MetricDataQuery().withMetricStat(nextMetricStat).withId("m" + metricId++));
         }
-        metric.setDimensions(dList);
 
-        MetricDataQuery mds = new MetricDataQuery()
-                .withMetricStat(new MetricStat()
-                        .withMetric(metric)
-                        .withPeriod(Integer.valueOf(split.getProperty(PERIOD_FIELD)))
-                        .withStat(split.getProperty(STATISTIC_FIELD)))
-                .withId(METRIC_ID);
-
-        dataRequest.withMetricDataQueries(Collections.singletonList(mds));
+        dataRequest.withMetricDataQueries(metricDataQueries);
 
         ValueSet timeConstraint = readRecordsRequest.getConstraints().getSummary().get(TIMESTAMP_FIELD);
         if (timeConstraint instanceof SortedRangeSet && !timeConstraint.isNullAllowed()) {
