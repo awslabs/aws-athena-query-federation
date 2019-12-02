@@ -134,7 +134,6 @@ public class MetricUtils
     protected static GetMetricDataRequest makeGetMetricDataRequest(ReadRecordsRequest readRecordsRequest)
     {
         Split split = readRecordsRequest.getSplit();
-//        List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
         String serializedMetricStats = split.getProperty(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME);
         List<MetricStat> metricStats = MetricStatSerDe.deserialize(serializedMetricStats);
         logger.info("Deserialized {} to {}", serializedMetricStats, metricStats);
