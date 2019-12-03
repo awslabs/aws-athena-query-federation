@@ -224,7 +224,7 @@ Run `../tools/publish.sh S3_BUCKET_NAME athena-example AWS_REGION` to publish th
 If the publish command gave you an error about the aws cli or sam tool not recognizing an argument, you likely forgot to source the new bash profile after
 updating your development environment so run `source ~/.profile` and try again.
 
-Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and click on 'Private applications' to search for your application and deploy it before using it from Athena.
+Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and click on 'Private applications' and check the box to "Show apps that create custom IAM roles or resource policies" to search for your application and deploy it before using it from Athena.
 
 ### Step 6: Validate our Connector.
 
