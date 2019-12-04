@@ -187,6 +187,10 @@ You can use any IDE or even just a command line editor to write your connector. 
 
 Before starting this tutorial, ensure you have the [proper permissions/policies to deploy/use Athena Federated Queries](https://docs.aws.amazon.com/athena/latest/ug/federated-query-iam-access.html).
 
+### Step 0: How to deploy a pre-built connector
+
+If you have not previously used Athena Query Federation, we recommend you begin by deploying a pre-built connector to build an understanding of our basic building blocks (Lambda, Serverless Application Repository, and using Lambda in SQL). This deployment introduction takes just five minutes and can be found by [clicking here](https://github.com/awslabs/aws-athena-query-federation/wiki/How-To-Deploy-A-Connector).
+
 ### Step 1: Create Your Cloud9 Instance
 
 1. Open the AWS Console and navigate to the [Cloud9 Service](https://console.aws.amazon.com/cloud9/)
@@ -224,7 +228,7 @@ Run `../tools/publish.sh S3_BUCKET_NAME athena-example AWS_REGION` to publish th
 If the publish command gave you an error about the aws cli or sam tool not recognizing an argument, you likely forgot to source the new bash profile after
 updating your development environment so run `source ~/.profile` and try again.
 
-Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and click on 'Private applications' and check the box to "Show apps that create custom IAM roles or resource policies" to search for your application and deploy it before using it from Athena.
+Then you can navigate to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and click on 'Private applications' and check the box to "Show apps that create custom IAM roles or resource policies" to search for your application and deploy it before using it from Athena. Be sure to use a LOWER_CASE name for yoyr catalog / lambda function when you configure the connector on the Serverless Application Repository console.
 
 ### Step 6: Validate our Connector.
 
