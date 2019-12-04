@@ -246,7 +246,7 @@ If everything worked as expected you should see the script generate useful debug
 
 ### Step 7: Run a Query!
 
-Ok, now we are ready to try running some queries using our new connector. To do so, create a new workgroup called "AmazonAthenaPreviewFunctionality". This workgroup will ensure your queries are enabled for our Preview features (UDFs, Federation, Athena ML). Some good examples to try include (be sure to put in your actual database and table names):
+Ok, now we are ready to try running some queries using our new connector. To do so, create a new workgroup called "AmazonAthenaPreviewFunctionality" if you haven't already done so. This workgroup will ensure your queries are enabled for our Preview features (UDFs, Federation, Athena ML). Some good examples to try include (be sure to put in your actual database and table names):
 
 Dont forget to create and use an Athena workgroup called "AmazonAthenaPreviewFunctionality" in the us-east-1 region. When Athena sees a query come from a workgroup with this name, it will enable Federation, UDFs, and SageMaker capabilities for use by your query. Once this feature reaches General Availability this requirement will be lifted.
 
