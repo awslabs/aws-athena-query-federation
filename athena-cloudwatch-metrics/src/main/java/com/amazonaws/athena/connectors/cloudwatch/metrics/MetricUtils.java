@@ -136,7 +136,6 @@ public class MetricUtils
         Split split = readRecordsRequest.getSplit();
         String serializedMetricStats = split.getProperty(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME);
         List<MetricStat> metricStats = MetricStatSerDe.deserialize(serializedMetricStats);
-        logger.info("Deserialized {} to {}", serializedMetricStats, metricStats);
         GetMetricDataRequest dataRequest = new GetMetricDataRequest();
         com.amazonaws.services.cloudwatch.model.Metric metric = new com.amazonaws.services.cloudwatch.model.Metric();
         metric.setNamespace(split.getProperty(NAMESPACE_FIELD));

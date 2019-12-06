@@ -92,8 +92,16 @@ public class MetricsRecordHandler
     //Schema for the metric_samples table.
     private static final Table METRIC_DATA_TABLE = new MetricSamplesTable();
 
+    //Throttling configs derived from benchmarking
+    private static final long THROTTLING_INITIAL_DELAY = 140;
+    private static final long THROTTLING_INCREMENTAL_INCREASE = 20;
+
     //Used to handle throttling events by applying AIMD congestion control
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).withInitialDelayMs(140).withIncrease(20).build();
+    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER)
+            .withInitialDelayMs(THROTTLING_INITIAL_DELAY)
+            .withIncrease(THROTTLING_INCREMENTAL_INCREASE)
+            .build();
+
     private final AmazonS3 amazonS3;
     private final AmazonCloudWatch metrics;
 
@@ -195,7 +203,6 @@ public class MetricsRecordHandler
     private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
-//        List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
         GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricDataRequest(request);
         Map<String, MetricDataQuery> queries = new HashMap<>();
         for (MetricDataQuery query : dataRequest.getMetricDataQueries()) {
