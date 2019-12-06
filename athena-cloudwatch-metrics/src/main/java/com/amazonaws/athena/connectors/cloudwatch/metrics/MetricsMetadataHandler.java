@@ -48,7 +48,9 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
 import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
+import com.amazonaws.services.cloudwatch.model.MetricStat;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,10 +64,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsExceptionFilter.EXCEPTION_FILTER;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
-import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
 
 /**
  * Handles metadata requests for the Athena Cloudwatch Metrics Connector.
@@ -100,6 +99,10 @@ public class MetricsMetadataHandler
     private static final Map<String, Table> TABLES = new HashMap<>();
     //The default metric period to query (60 seconds)
     private static final int DEFAULT_PERIOD_SEC = 60;
+    //GetMetricData supports up to 100 Metrics per split
+    private static final int MAX_METRICS_PER_SPLIT = 100;
+    //The minimum number of splits we'd like to have for some parallelization
+    private static final int MIN_NUM_SPLITS_FOR_PARALLELIZATION = 3;
     //Used to handle throttling events by applying AIMD congestion control
     private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
 
@@ -111,7 +114,7 @@ public class MetricsMetadataHandler
         STATISTICS.add("Minimum");
         STATISTICS.add("Maximum");
         STATISTICS.add("Sum");
-        STATISTICS.add("Sample Count");
+        STATISTICS.add("SampleCount");
         STATISTICS.add("p99");
         STATISTICS.add("p95");
         STATISTICS.add("p90");
@@ -204,8 +207,9 @@ public class MetricsMetadataHandler
     }
 
     /**
-     * Each 'metric' in cloudwatch is uniquely identified by a quad of Namespace, List<Dimension>, MetricName, Statistic. As such
-     * we can parallelize each metric as a unique split.
+     * Each 'metric' in cloudwatch is uniquely identified by a quad of Namespace, List<Dimension>, MetricName, Statistic. If the
+     * query is for the METRIC_TABLE we return a single split.  If the query is for actual metrics data, we start forming batches
+     * of metrics now that will form the basis of GetMetricData requests during readSplits.
      *
      * @see MetadataHandler
      */
@@ -233,18 +237,28 @@ public class MetricsMetadataHandler
             String period = getPeriodFromConstraint(getSplitsRequest.getConstraints());
             Set<Split> splits = new HashSet<>();
             ListMetricsResult result = invoker.invoke(() -> metrics.listMetrics(listMetricsRequest));
+
+            List<MetricStat> metricStats = new ArrayList<>(100);
             for (Metric nextMetric : result.getMetrics()) {
                 for (String nextStatistic : STATISTICS) {
                     if (MetricUtils.applyMetricConstraints(constraintEvaluator, nextMetric, nextStatistic)) {
-                        splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
-                                .add(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME, DimensionSerDe.serialize(nextMetric.getDimensions()))
-                                .add(METRIC_NAME_FIELD, nextMetric.getMetricName())
-                                .add(NAMESPACE_FIELD, nextMetric.getNamespace())
-                                .add(STATISTIC_FIELD, nextStatistic)
-                                .add(PERIOD_FIELD, period)
-                                .build());
+                        metricStats.add(new MetricStat()
+                                .withMetric(new Metric()
+                                        .withNamespace(nextMetric.getNamespace())
+                                        .withMetricName(nextMetric.getMetricName())
+                                        .withDimensions(nextMetric.getDimensions()))
+                                .withPeriod(Integer.valueOf(period))
+                                .withStat(nextStatistic));
                     }
                 }
+            }
+
+            List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));
+            for (List<MetricStat> partition : partitions) {
+                String serializedMetricStats = MetricStatSerDe.serialize(partition);
+                splits.add(Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey())
+                        .add(MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME, serializedMetricStats)
+                        .build());
             }
 
             String continuationToken = null;
@@ -282,5 +296,16 @@ public class MetricsMetadataHandler
         if (TABLES.get(tableName.getTableName()) == null) {
             throw new RuntimeException("Unknown table " + tableName);
         }
+    }
+
+    /**
+     * Heuristically determines a split size by finding the minimum between:
+     * 1. a split size that will allow for some parallelization.
+     * 2. the maximum split size possible for a GetMetricData request.
+     */
+    private int calculateSplitSize(int datapointCount)
+    {
+        int numDataPointsForParallelization = (int) Math.ceil((double) datapointCount / MIN_NUM_SPLITS_FOR_PARALLELIZATION);
+        return Math.min(numDataPointsForParallelization, MAX_METRICS_PER_SPLIT);
     }
 }

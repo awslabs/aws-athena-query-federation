@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -40,7 +39,9 @@ import com.amazonaws.services.cloudwatch.model.GetMetricDataResult;
 import com.amazonaws.services.cloudwatch.model.ListMetricsRequest;
 import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
+import com.amazonaws.services.cloudwatch.model.MetricDataQuery;
 import com.amazonaws.services.cloudwatch.model.MetricDataResult;
+import com.amazonaws.services.cloudwatch.model.MetricStat;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -51,8 +52,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
@@ -89,8 +92,16 @@ public class MetricsRecordHandler
     //Schema for the metric_samples table.
     private static final Table METRIC_DATA_TABLE = new MetricSamplesTable();
 
+    //Throttling configs derived from benchmarking
+    private static final long THROTTLING_INITIAL_DELAY = 140;
+    private static final long THROTTLING_INCREMENTAL_INCREASE = 20;
+
     //Used to handle throttling events by applying AIMD congestion control
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER)
+            .withInitialDelayMs(THROTTLING_INITIAL_DELAY)
+            .withIncrease(THROTTLING_INCREMENTAL_INCREASE)
+            .build();
+
     private final AmazonS3 amazonS3;
     private final AmazonCloudWatch metrics;
 
@@ -192,19 +203,20 @@ public class MetricsRecordHandler
     private void readMetricSamplesWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest request, QueryStatusChecker queryStatusChecker)
             throws TimeoutException
     {
-        Split split = request.getSplit();
-        List<Dimension> dimensions = DimensionSerDe.deserialize(split.getProperty(DimensionSerDe.SERIALZIE_DIM_FIELD_NAME));
         GetMetricDataRequest dataRequest = MetricUtils.makeGetMetricDataRequest(request);
+        Map<String, MetricDataQuery> queries = new HashMap<>();
+        for (MetricDataQuery query : dataRequest.getMetricDataQueries()) {
+            queries.put(query.getId(), query);
+        }
 
         String prevToken;
-        Set<String> requiredFields = new HashSet<>();
-        request.getSchema().getFields().stream().forEach(next -> requiredFields.add(next.getName()));
         ValueSet dimensionNameConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
         ValueSet dimensionValueConstraint = request.getConstraints().getSummary().get(DIMENSION_NAME_FIELD);
         do {
             prevToken = dataRequest.getNextToken();
             GetMetricDataResult result = invoker.invoke(() -> metrics.getMetricData(dataRequest));
             for (MetricDataResult nextMetric : result.getMetricDataResults()) {
+                MetricStat metricStat = queries.get(nextMetric.getId()).getMetricStat();
                 List<Date> timestamps = nextMetric.getTimestamps();
                 List<Double> values = nextMetric.getValues();
                 for (int i = 0; i < nextMetric.getValues().size(); i++) {
@@ -214,9 +226,9 @@ public class MetricsRecordHandler
                          * Most constraints were already applied at split generation so we only need to apply
                          * a subset.
                          */
-                        block.offerValue(METRIC_NAME_FIELD, row, split.getProperty(METRIC_NAME_FIELD));
-                        block.offerValue(NAMESPACE_FIELD, row, split.getProperty(NAMESPACE_FIELD));
-                        block.offerValue(STATISTIC_FIELD, row, split.getProperty(STATISTIC_FIELD));
+                        block.offerValue(METRIC_NAME_FIELD, row, metricStat.getMetric().getMetricName());
+                        block.offerValue(NAMESPACE_FIELD, row, metricStat.getMetric().getNamespace());
+                        block.offerValue(STATISTIC_FIELD, row, metricStat.getStat());
 
                         block.offerComplexValue(DIMENSIONS_FIELD,
                                 row,
@@ -230,7 +242,7 @@ public class MetricsRecordHandler
 
                                     throw new RuntimeException("Unexpected field " + field.getName());
                                 },
-                                dimensions);
+                                metricStat.getMetric().getDimensions());
 
                         //This field is 'faked' in that we just use it as a convenient way to filter single dimensions. As such
                         //we always populate it with the value of the filter if the constraint passed and the filter was singleValue
@@ -244,7 +256,7 @@ public class MetricsRecordHandler
                                 ? null : dimensionValueConstraint.getSingleValue().toString();
                         block.offerValue(DIMENSION_VALUE_FIELD, row, dimVal);
 
-                        block.offerValue(PERIOD_FIELD, row, Integer.valueOf(split.getProperty(PERIOD_FIELD)));
+                        block.offerValue(PERIOD_FIELD, row, metricStat.getPeriod());
 
                         boolean matches = true;
                         block.offerValue(VALUE_FIELD, row, values.get(sampleNum));

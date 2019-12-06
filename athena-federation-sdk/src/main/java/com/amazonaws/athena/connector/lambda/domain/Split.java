@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
 
 import java.beans.Transient;
 import java.util.Collections;
@@ -181,6 +182,16 @@ public class Split
     public int hashCode()
     {
         return Objects.hash(spillLocation, encryptionKey, getProperties());
+    }
+
+    @Override
+    public String toString()
+    {
+        return MoreObjects.toStringHelper(this)
+                .add("spillLocation", spillLocation)
+                .add("encryptionKey", "<hidden>")
+                .add("properties", properties)
+                .toString();
     }
 
     public static class Builder

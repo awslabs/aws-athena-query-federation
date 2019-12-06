@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.cloudwatch.metrics;
 
-import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.amazonaws.services.cloudwatch.model.MetricStat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,26 +29,26 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Used to serialize and deserialize Cloudwatch Metrics Dimension objects. This is used
+ * Used to serialize and deserialize Cloudwatch Metrics MetricStat objects. This is used
  * when creating and processing Splits.
  */
-public class DimensionSerDe
+public class MetricStatSerDe
 {
-    protected static final String SERIALZIE_DIM_FIELD_NAME = "d";
+    protected static final String SERIALIZED_METRIC_STATS_FIELD_NAME = "m";
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    private DimensionSerDe() {}
+    private MetricStatSerDe() {}
 
     /**
-     * Serializes the provided List of Dimensions.
+     * Serializes the provided List of MetricStats.
      *
-     * @param dim The list of dimensions to serialize.
-     * @return A String containing the serialized list of Dimensions.
+     * @param metricStats The list of MetricStats to serialize.
+     * @return A String containing the serialized list of MetricStats.
      */
-    public static String serialize(List<Dimension> dim)
+    public static String serialize(List<MetricStat> metricStats)
     {
         try {
-            return mapper.writeValueAsString(new DimensionHolder(dim));
+            return mapper.writeValueAsString(new MetricStatHolder(metricStats));
         }
         catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
@@ -56,15 +56,15 @@ public class DimensionSerDe
     }
 
     /**
-     * Deserializes the provided String into a List of Dimensions.
+     * Deserializes the provided String into a List of MetricStats.
      *
-     * @param serializeDim A serialized list of Dimensions.
-     * @return The List of Dimensions represented by the serialized string.
+     * @param serializedMetricStats A serialized list of MetricStats.
+     * @return The List of MetricStats represented by the serialized string.
      */
-    public static List<Dimension> deserialize(String serializeDim)
+    public static List<MetricStat> deserialize(String serializedMetricStats)
     {
         try {
-            return mapper.readValue(serializeDim, DimensionHolder.class).getDimensions();
+            return mapper.readValue(serializedMetricStats, MetricStatHolder.class).getMetricStats();
         }
         catch (IOException ex) {
             throw new RuntimeException(ex);
@@ -72,22 +72,22 @@ public class DimensionSerDe
     }
 
     /**
-     * Helper which allows us to use Jackson's Object Mapper to serialize a List of Dimensions.
+     * Helper which allows us to use Jackson's Object Mapper to serialize a List of MetricStats.
      */
-    private static class DimensionHolder
+    private static class MetricStatHolder
     {
-        private final List<Dimension> dimensions;
+        private final List<MetricStat> metricStats;
 
         @JsonCreator
-        public DimensionHolder(@JsonProperty("dimensions") List<Dimension> dimensions)
+        public MetricStatHolder(@JsonProperty("metricStats") List<MetricStat> metricStats)
         {
-            this.dimensions = dimensions;
+            this.metricStats = metricStats;
         }
 
         @JsonProperty
-        public List<Dimension> getDimensions()
+        public List<MetricStat> getMetricStats()
         {
-            return dimensions;
+            return metricStats;
         }
     }
 }
