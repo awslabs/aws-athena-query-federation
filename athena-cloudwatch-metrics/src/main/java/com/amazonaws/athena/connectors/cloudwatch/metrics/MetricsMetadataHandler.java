@@ -114,7 +114,7 @@ public class MetricsMetadataHandler
         STATISTICS.add("Minimum");
         STATISTICS.add("Maximum");
         STATISTICS.add("Sum");
-        STATISTICS.add("Sample Count");
+        STATISTICS.add("SampleCount");
         STATISTICS.add("p99");
         STATISTICS.add("p95");
         STATISTICS.add("p90");
