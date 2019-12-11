@@ -94,12 +94,20 @@ public final class DDBTypeUtils
         }
         else if (value instanceof Map) {
             List<Field> children = new ArrayList<>();
+            // keys are always Strings in DDB's case
             Map<String, Object> doc = (Map<String, Object>) value;
             for (String childKey : doc.keySet()) {
                 Object childVal = doc.get(childKey);
                 Field child = getArrowField(childKey, childVal);
                 children.add(child);
             }
+
+            // Athena requires Maps to have child types and not be empty
+            // TODO handle this more generally
+            if (children.isEmpty()) {
+                children.add(getArrowField("placeHolderForEmptyMap", ""));
+            }
+
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 
