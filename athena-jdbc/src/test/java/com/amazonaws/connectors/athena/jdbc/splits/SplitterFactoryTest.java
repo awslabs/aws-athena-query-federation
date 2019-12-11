@@ -27,6 +27,7 @@ import org.mockito.Mockito;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Optional;
 
 public class SplitterFactoryTest
 {
@@ -46,46 +47,48 @@ public class SplitterFactoryTest
             throws SQLException
     {
         Mockito.when(resultSet.getMetaData().getColumnType(1)).thenReturn(Types.INTEGER);
-        Assert.assertEquals(IntegerSplitter.class, splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS).getClass());
+        Optional<Splitter> splitter = splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS);
+        Assert.assertTrue(splitter.isPresent());
+        Assert.assertEquals(IntegerSplitter.class, splitter.get().getClass());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void getStringSplitter()
             throws SQLException
     {
         Mockito.when(resultSet.getMetaData().getColumnType(1)).thenReturn(Types.VARCHAR);
-        splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS);
+        Assert.assertFalse(splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS).isPresent());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void getFloatSplitter()
             throws SQLException
     {
         Mockito.when(resultSet.getMetaData().getColumnType(1)).thenReturn(Types.FLOAT);
-        splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS);
+        Assert.assertFalse(splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS).isPresent());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void getDoubleSplitter()
             throws SQLException
     {
         Mockito.when(resultSet.getMetaData().getColumnType(1)).thenReturn(Types.DOUBLE);
-        splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS);
+        Assert.assertFalse(splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS).isPresent());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void getDateSplitter()
             throws SQLException
     {
         Mockito.when(resultSet.getMetaData().getColumnType(1)).thenReturn(Types.DATE);
-        splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS);
+        Assert.assertFalse(splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS).isPresent());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void getDecimalSplitter()
             throws SQLException
     {
         Mockito.when(resultSet.getMetaData().getColumnType(1)).thenReturn(Types.DECIMAL);
-        splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS);
+        Assert.assertFalse(splitterFactory.getSplitter(TEST_COLUMN_NAME, resultSet, MAX_SPLITS).isPresent());
     }
 }

@@ -28,8 +28,8 @@ import java.util.Objects;
  */
 public class SplitRange<T>
 {
-    T low;
-    T high;
+    private final T low;
+    private final T high;
 
     public SplitRange(T low, T high)
     {

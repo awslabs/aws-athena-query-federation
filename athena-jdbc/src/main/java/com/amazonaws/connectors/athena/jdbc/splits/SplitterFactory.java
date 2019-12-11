@@ -22,6 +22,7 @@ package com.amazonaws.connectors.athena.jdbc.splits;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.Optional;
 
 /**
  * Creates splitter depending on split column data type.
@@ -32,18 +33,18 @@ public class SplitterFactory
      * @param columnName split column name.
      * @param resultSet split min and max values.
      * @param maxSplits number of splits.
-     * @return {@link Splitter}
+     * @return {@link Splitter} optional.
      * @throws SQLException exception accessing min and max values from {@link ResultSet}.
      */
-    public Splitter getSplitter(final String columnName, final ResultSet resultSet, final int maxSplits)
+    public Optional<Splitter> getSplitter(final String columnName, final ResultSet resultSet, final int maxSplits)
             throws SQLException
     {
         int type = resultSet.getMetaData().getColumnType(1);
         switch (type) {
             case Types.INTEGER:
-                return new IntegerSplitter(new SplitInfo<>(new SplitRange<>(resultSet.getInt(1), resultSet.getInt(2)), columnName, type, maxSplits));
+                return Optional.of(new IntegerSplitter(new SplitInfo<>(new SplitRange<>(resultSet.getInt(1), resultSet.getInt(2)), columnName, type, maxSplits)));
             default:
-                throw new RuntimeException("No splitter found for type " + type);
+               return Optional.empty();
         }
     }
 }

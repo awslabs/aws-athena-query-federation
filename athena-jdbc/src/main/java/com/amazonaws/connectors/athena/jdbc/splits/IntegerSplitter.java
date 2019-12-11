@@ -69,6 +69,9 @@ public class IntegerSplitter
     @Override
     public boolean hasNext()
     {
+        if (this.step <= 1) {
+            return this.current <= splitInfo.getSplitRange().getHigh();
+        }
         return this.current < splitInfo.getSplitRange().getHigh();
     }
 

@@ -62,6 +62,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -288,12 +289,15 @@ public abstract class JdbcMetadataHandler
                         ResultSet minMaxResultSet = statement.executeQuery(String.format(SQL_SPLITS_STRING, primaryKeyColumns.get(0), primaryKeyColumns.get(0),
                                 tableName.getSchemaName(), tableName.getTableName()))) {
                     minMaxResultSet.next(); // expecting one result row
-                    Splitter splitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
+                    Optional<Splitter> optionalSplitter = splitterFactory.getSplitter(primaryKeyColumns.get(0), minMaxResultSet, DEFAULT_NUM_SPLITS);
 
-                    while (splitter.hasNext()) {
-                        String splitClause = splitter.nextRangeClause();
-                        LOGGER.info("Split generated {}", splitClause);
-                        splitClauses.add(splitClause);
+                    if (optionalSplitter.isPresent()) {
+                        Splitter splitter = optionalSplitter.get();
+                        while (splitter.hasNext()) {
+                            String splitClause = splitter.nextRangeClause();
+                            LOGGER.info("Split generated {}", splitClause);
+                            splitClauses.add(splitClause);
+                        }
                     }
                 }
             }

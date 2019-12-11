@@ -72,6 +72,10 @@ public class IntegerSplitterTest
         Object[][] data = new Object[][]{
                 {new SplitRange<>(1,10), 2, Arrays.asList(new SplitRange<>(1,5), new SplitRange<>(6, 10)),
                         Arrays.asList("(testColumn >= 1 AND testColumn <= 5)", "(testColumn >= 6 AND testColumn <= 10)")},
+                {new SplitRange<>(1,2), 10, Arrays.asList(new SplitRange<>(1,1), new SplitRange<>(2, 2)),
+                        Arrays.asList("(testColumn >= 1 AND testColumn <= 1)", "(testColumn >= 2 AND testColumn <= 2)")},
+                {new SplitRange<>(1,2), 2, Arrays.asList(new SplitRange<>(1,1), new SplitRange<>(2, 2)),
+                        Arrays.asList("(testColumn >= 1 AND testColumn <= 1)", "(testColumn >= 2 AND testColumn <= 2)")},
                 {new SplitRange<>(1,10), 1, Collections.singletonList(new SplitRange<>(1, 10)),
                         Collections.singletonList("(testColumn >= 1 AND testColumn <= 10)")},
                 {new SplitRange<>(1,10), 0, Collections.singletonList(new SplitRange<>(1, 10)),
