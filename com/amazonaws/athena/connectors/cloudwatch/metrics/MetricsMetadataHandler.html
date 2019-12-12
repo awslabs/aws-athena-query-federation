@@ -441,8 +441,9 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <pre>public&nbsp;<a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a>&nbsp;doGetSplits(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
                                      <a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;getSplitsRequest)
                               throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></pre>
-<div class="block">Each 'metric' in cloudwatch is uniquely identified by a quad of Namespace, List<Dimension>, MetricName, Statistic. As such
- we can parallelize each metric as a unique split.</div>
+<div class="block">Each 'metric' in cloudwatch is uniquely identified by a quad of Namespace, List<Dimension>, MetricName, Statistic. If the
+ query is for the METRIC_TABLE we return a single split.  If the query is for actual metrics data, we start forming batches
+ of metrics now that will form the basis of GetMetricData requests during readSplits.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></code>&nbsp;in class&nbsp;<code><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></code></dd>

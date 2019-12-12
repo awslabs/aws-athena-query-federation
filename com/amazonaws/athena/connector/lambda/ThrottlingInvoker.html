@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":9,"i6":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":9,"i4":9,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -160,21 +160,10 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Constructor Summary table, listing constructors, and an explanation">
 <caption><span>Constructors</span><span class="tabEnd">&nbsp;</span></caption>
 <tr>
-<th class="colFirst" scope="col">Modifier</th>
-<th class="colLast" scope="col">Constructor and Description</th>
+<th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#ThrottlingInvoker-long-long-double-long-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.ExceptionFilter-com.amazonaws.athena.connector.lambda.data.BlockSpiller-">ThrottlingInvoker</a></span>(long&nbsp;initialDelayMs,
-                 long&nbsp;maxDelayMs,
-                 double&nbsp;decrease,
-                 long&nbsp;increase,
-                 <a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.ExceptionFilter</a>&nbsp;filter,
-                 <a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller)</code>&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>&nbsp;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#ThrottlingInvoker-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.Builder-">ThrottlingInvoker</a></span>(<a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a>&nbsp;builder)</code>&nbsp;</td>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#ThrottlingInvoker-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.Builder-">ThrottlingInvoker</a></span>(<a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a>&nbsp;builder)</code>&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -192,44 +181,44 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>protected long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#getDelay--">getDelay</a></span>()</code>&nbsp;</td>
-</tr>
-<tr id="i1" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.State.html" title="enum in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.State</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#getState--">getState</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;T</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#invoke-java.util.concurrent.Callable-">invoke</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Callable.html?is-external=true" title="class or interface in java.util.concurrent">Callable</a>&lt;T&gt;&nbsp;callable)</code>
 <div class="block">Attempts to invoke the callable while applying our congestion control logic.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>&lt;T&gt;&nbsp;T</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#invoke-java.util.concurrent.Callable-long-">invoke</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Callable.html?is-external=true" title="class or interface in java.util.concurrent">Callable</a>&lt;T&gt;&nbsp;callable,
       long&nbsp;timeoutMillis)</code>
 <div class="block">Attempts to invoke the callable while applying our congestion control logic.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>static <a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#newBuilder--">newBuilder</a></span>()</code>
 <div class="block">Create a new, empty, Builder.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static <a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#newDefaultBuilder-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.ExceptionFilter-">newDefaultBuilder</a></span>(<a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.ExceptionFilter</a>&nbsp;filter)</code>
 <div class="block">Produces a Builder with default values set allowing you to override only specific defaults.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#setBlockSpiller-com.amazonaws.athena.connector.lambda.data.BlockSpiller-">setBlockSpiller</a></span>(<a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller)</code>
 <div class="block">Throttling Invoker can decide to propogate the congestion events to Athena if your Lambda has not generated any data
  yet.</div>
 </td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#toString--">toString</a></span>()</code>&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -237,7 +226,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;java.lang.<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></h3>
-<code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#clone--" title="class or interface in java.lang">clone</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#equals-java.lang.Object-" title="class or interface in java.lang">equals</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#finalize--" title="class or interface in java.lang">finalize</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#getClass--" title="class or interface in java.lang">getClass</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#hashCode--" title="class or interface in java.lang">hashCode</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#notify--" title="class or interface in java.lang">notify</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#notifyAll--" title="class or interface in java.lang">notifyAll</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#toString--" title="class or interface in java.lang">toString</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#wait--" title="class or interface in java.lang">wait</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#wait-long-" title="class or interface in java.lang">wait</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#wait-long-int-" title="class or interface in java.lang">wait</a></code></li>
+<code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#clone--" title="class or interface in java.lang">clone</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#equals-java.lang.Object-" title="class or interface in java.lang">equals</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#finalize--" title="class or interface in java.lang">finalize</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#getClass--" title="class or interface in java.lang">getClass</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#hashCode--" title="class or interface in java.lang">hashCode</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#notify--" title="class or interface in java.lang">notify</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#notifyAll--" title="class or interface in java.lang">notifyAll</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#wait--" title="class or interface in java.lang">wait</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#wait-long-" title="class or interface in java.lang">wait</a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#wait-long-int-" title="class or interface in java.lang">wait</a></code></li>
 </ul>
 </li>
 </ul>
@@ -256,24 +245,10 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <a name="ThrottlingInvoker-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.Builder-">
 <!--   -->
 </a>
-<ul class="blockList">
-<li class="blockList">
-<h4>ThrottlingInvoker</h4>
-<pre>public&nbsp;ThrottlingInvoker(<a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a>&nbsp;builder)</pre>
-</li>
-</ul>
-<a name="ThrottlingInvoker-long-long-double-long-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.ExceptionFilter-com.amazonaws.athena.connector.lambda.data.BlockSpiller-">
-<!--   -->
-</a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>ThrottlingInvoker</h4>
-<pre>protected&nbsp;ThrottlingInvoker(long&nbsp;initialDelayMs,
-                            long&nbsp;maxDelayMs,
-                            double&nbsp;decrease,
-                            long&nbsp;increase,
-                            <a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.ExceptionFilter</a>&nbsp;filter,
-                            <a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller)</pre>
+<pre>public&nbsp;ThrottlingInvoker(<a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a>&nbsp;builder)</pre>
 </li>
 </ul>
 </li>
@@ -385,13 +360,17 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <pre>public&nbsp;<a href="../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.State.html" title="enum in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.State</a>&nbsp;getState()</pre>
 </li>
 </ul>
-<a name="getDelay--">
+<a name="toString--">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
-<h4>getDelay</h4>
-<pre>protected&nbsp;long&nbsp;getDelay()</pre>
+<h4>toString</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;toString()</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true#toString--" title="class or interface in java.lang">toString</a></code>&nbsp;in class&nbsp;<code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></dd>
+</dl>
 </li>
 </ul>
 </li>

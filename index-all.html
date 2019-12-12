@@ -748,6 +748,8 @@
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/postgresql/package-summary.html">com.amazonaws.connectors.athena.jdbc.postgresql</a> - package com.amazonaws.connectors.athena.jdbc.postgresql</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a> - package com.amazonaws.connectors.athena.jdbc.splits</dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html#compare-org.apache.arrow.vector.complex.reader.FieldReader-java.lang.Object-java.lang.Object-">compare(FieldReader, Object, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html" title="class in com.amazonaws.athena.connector.lambda.data">ArrowTypeComparator</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html#compare-org.apache.arrow.vector.types.pojo.ArrowType-java.lang.Object-java.lang.Object-">compare(ArrowType, Object, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html" title="class in com.amazonaws.athena.connector.lambda.data">ArrowTypeComparator</a></dt>
@@ -1091,9 +1093,9 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaDeserializer</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html#deserialize-java.lang.String-">deserialize(String)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">DimensionSerDe</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#deserialize-java.lang.String-">deserialize(String)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
 <dd>
-<div class="block">Deserializes the provided String into a List of Dimensions.</div>
+<div class="block">Deserializes the provided String into a List of MetricStats.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#DIMENSION_NAME_FIELD">DIMENSION_NAME_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
@@ -1101,10 +1103,6 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#DIMENSIONS_FIELD">DIMENSIONS_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics"><span class="typeNameLink">DimensionSerDe</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics</a></dt>
-<dd>
-<div class="block">Used to serialize and deserialize Cloudwatch Metrics Dimension objects.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#DISABLE_SPILL_ENCRYPTION">DISABLE_SPILL_ENCRYPTION</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html#DOCDB_CONN_STR">DOCDB_CONN_STR</a></span> - Static variable in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBMetadataHandler</a></dt>
@@ -1588,6 +1586,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcCredential.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">JdbcCredential</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#equalsAsSet-java.lang.Object-">equalsAsSet(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
 <div class="block">Provides some basic equality checking for a Block ignoring ordering.</div>
@@ -1986,6 +1988,10 @@
 <dd>
 <div class="block">Provides access to the current HBase client config options used during connection construction.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getColumnName--">getColumnName()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getColumnType--">getColumnType()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html#getConnection-com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider-">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.html#getConnection-com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider-">getConnection(JdbcCredentialProvider)</a></span> - Method in interface com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.connectors.athena.jdbc.connection">JdbcConnectionFactory</a></dt>
@@ -2045,8 +2051,6 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.DatabaseEngine.html#getDbName--">getDbName()</a></span> - Method in enum com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.DatabaseEngine.html" title="enum in com.amazonaws.connectors.athena.jdbc.connection">JdbcConnectionFactory.DatabaseEngine</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionInfo.html#getDefaultPort--">getDefaultPort()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionInfo</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#getDelay--">getDelay()</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionInfo.html#getDriverClassName--">getDriverClassName()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionInfo</a></dt>
 <dd>&nbsp;</dd>
@@ -2116,6 +2120,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#getHigh--">getHigh()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#getHigh--">getHigh()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html#getId--">getId()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html" title="enum in com.amazonaws.athena.connector.lambda.examples">SplitProperties</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getId--">getId()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
@@ -2151,6 +2157,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#getLogStreamName--">getLogStreamName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#getLow--">getLow()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#getLow--">getLow()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#getMarker--">getMarker()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
 <dd>&nbsp;</dd>
@@ -2217,6 +2225,8 @@
 <dd>
 <div class="block">Gets the number of threads the BlockSpiller can use.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getNumSplits--">getNumSplits()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorRegistry.html#getOrCreateAllocator-java.lang.String-">getOrCreateAllocator(String)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorRegistry.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocatorRegistry</a></dt>
 <dd>
 <div class="block">Gets or creates a new Block Allocator for the given context (id).</div>
@@ -2348,6 +2358,12 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/mysql/MySqlMetadataHandler.html#getPartitionSchema-java.lang.String-">getPartitionSchema(String)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.mysql.<a href="com/amazonaws/connectors/athena/jdbc/mysql/MySqlMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.mysql">MySqlMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html#getPartitionSchema-java.lang.String-">getPartitionSchema(String)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.postgresql.<a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcSplitQueryBuilder.html#getPartitionWhereClauses-com.amazonaws.athena.connector.lambda.domain.Split-">getPartitionWhereClauses(Split)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/mysql/MySqlQueryStringBuilder.html#getPartitionWhereClauses-com.amazonaws.athena.connector.lambda.domain.Split-">getPartitionWhereClauses(Split)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.mysql.<a href="com/amazonaws/connectors/athena/jdbc/mysql/MySqlQueryStringBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.mysql">MySqlQueryStringBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlQueryStringBuilder.html#getPartitionWhereClauses-com.amazonaws.athena.connector.lambda.domain.Split-">getPartitionWhereClauses(Split)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.postgresql.<a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlQueryStringBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlQueryStringBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcCredential.html#getPassword--">getPassword()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">JdbcCredential</a></dt>
 <dd>&nbsp;</dd>
@@ -2610,6 +2626,10 @@
 <dd>
 <div class="block">Returns he split being read.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses-com.amazonaws.athena.connector.lambda.domain.TableName-">getSplitClauses(TableName)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getSplitRange--">getSplitRange()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html#getSplits--">getSplits()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></dt>
 <dd>
 <div class="block">Returns the generated splits.</div>
@@ -2646,6 +2666,8 @@
 <dd>
 <div class="block">Constructs a new GetSplitsResponse object.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html#getSplitter-java.lang.String-java.sql.ResultSet-int-">getSplitter(String, ResultSet, int)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitterFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#getState--">getState()</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#getSummary--">getSummary()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
@@ -3004,10 +3026,16 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcCredential.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcCredential.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">JdbcCredential</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.html#hasNext--">hasNext()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser</a></dt>
 <dd>
 <div class="block">Does the parser have any more tokens.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html#hasNext--">hasNext()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">IntegerSplitter</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#HBASE_CONN_STR">HBASE_CONN_STR</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#HBASE_NATIVE_STORAGE_FLAG">HBASE_NATIVE_STORAGE_FLAG</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
@@ -3092,6 +3120,12 @@
 <dd>
 <div class="block">Given a value from HBase attempt to infer it's type.</div>
 </dd>
+<dt><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits"><span class="typeNameLink">IntegerSplitter</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a></dt>
+<dd>
+<div class="block">Integer splits iterator.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html#IntegerSplitter-com.amazonaws.connectors.athena.jdbc.splits.SplitInfo-">IntegerSplitter(SplitInfo&lt;Integer&gt;)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">IntegerSplitter</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#internalGetSchema--">internalGetSchema()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SchemaAware.html#internalGetSchema--">internalGetSchema()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaAware.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaAware</a></dt>
@@ -3601,6 +3635,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html#MetricsTable--">MetricsTable()</a></span> - Constructor for class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">MetricsTable</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics"><span class="typeNameLink">MetricStatSerDe</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics</a></dt>
+<dd>
+<div class="block">Used to serialize and deserialize Cloudwatch Metrics MetricStat objects.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics"><span class="typeNameLink">MetricUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/cloudwatch/metrics/package-summary.html">com.amazonaws.athena.connectors.cloudwatch.metrics</a></dt>
 <dd>
 <div class="block">Helper which prepares and filters Cloudwatch Metrics requests.</div>
@@ -3726,6 +3764,14 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.html#next--">next()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser</a></dt>
 <dd>
 <div class="block">Gets the next token.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html#next--">next()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">IntegerSplitter</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html#nextRangeClause--">nextRangeClause()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">IntegerSplitter</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/Splitter.html#nextRangeClause--">nextRangeClause()</a></span> - Method in interface com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/Splitter.html" title="interface in com.amazonaws.connectors.athena.jdbc.splits">Splitter</a></dt>
+<dd>
+<div class="block">Provides the next split clause to be used in SQL queries.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#NON_KEY_FILTER_METADATA">NON_KEY_FILTER_METADATA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
@@ -4344,11 +4390,11 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html#serialize-org.apache.arrow.vector.types.pojo.Schema-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">serialize(Schema, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html#serialize-java.util.List-">serialize(List&lt;Dimension&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">DimensionSerDe</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#serialize-java.util.List-">serialize(List&lt;MetricStat&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
 <dd>
-<div class="block">Serializes the provided List of Dimensions.</div>
+<div class="block">Serializes the provided List of MetricStats.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html#SERIALZIE_DIM_FIELD_NAME">SERIALZIE_DIM_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/DimensionSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">DimensionSerDe</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#SERIALIZED_METRIC_STATS_FIELD_NAME">SERIALIZED_METRIC_STATS_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#setBlockSpiller-com.amazonaws.athena.connector.lambda.data.BlockSpiller-">setBlockSpiller(BlockSpiller)</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
 <dd>
@@ -4464,7 +4510,29 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/tpcds/TPCDSMetadataHandler.html#SPLIT_TOTAL_NUMBER_FIELD">SPLIT_TOTAL_NUMBER_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.tpcds.<a href="com/amazonaws/athena/connectors/tpcds/TPCDSMetadataHandler.html" title="class in com.amazonaws.athena.connectors.tpcds">TPCDSMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits"><span class="typeNameLink">SplitInfo</span></a>&lt;<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="type parameter in SplitInfo">T</a>&gt; - Class in <a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a></dt>
+<dd>
+<div class="block">Split information.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#SplitInfo-com.amazonaws.connectors.athena.jdbc.splits.SplitRange-java.lang.String-int-int-">SplitInfo(SplitRange&lt;T&gt;, String, int, int)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html" title="enum in com.amazonaws.athena.connector.lambda.examples"><span class="typeNameLink">SplitProperties</span></a> - Enum in <a href="com/amazonaws/athena/connector/lambda/examples/package-summary.html">com.amazonaws.athena.connector.lambda.examples</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits"><span class="typeNameLink">SplitRange</span></a>&lt;<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="type parameter in SplitRange">T</a>&gt; - Class in <a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a></dt>
+<dd>
+<div class="block">Represents a closed interval.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#SplitRange-T-T-">SplitRange(T, T)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/athena/jdbc/splits/Splitter.html" title="interface in com.amazonaws.connectors.athena.jdbc.splits"><span class="typeNameLink">Splitter</span></a>&lt;<a href="com/amazonaws/connectors/athena/jdbc/splits/Splitter.html" title="type parameter in Splitter">T</a>&gt; - Interface in <a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a></dt>
+<dd>
+<div class="block">Split iterator for type T.</div>
+</dd>
+<dt><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.splits"><span class="typeNameLink">SplitterFactory</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a></dt>
+<dd>
+<div class="block">Creates splitter depending on split column data type.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html#SplitterFactory--">SplitterFactory()</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitterFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#START_KEY_FIELD">START_KEY_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -4540,8 +4608,6 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#ThrottlingInvoker-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.Builder-">ThrottlingInvoker(ThrottlingInvoker.Builder)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#ThrottlingInvoker-long-long-double-long-com.amazonaws.athena.connector.lambda.ThrottlingInvoker.ExceptionFilter-com.amazonaws.athena.connector.lambda.data.BlockSpiller-">ThrottlingInvoker(long, long, double, long, ThrottlingInvoker.ExceptionFilter, BlockSpiller)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda"><span class="typeNameLink">ThrottlingInvoker.Builder</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda"><span class="typeNameLink">ThrottlingInvoker.ExceptionFilter</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a></dt>
@@ -4595,6 +4661,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/Split.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/TableName.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></dt>
@@ -4629,9 +4697,15 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html#toString--">toString()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionConfig</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#toString--">toString()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#toString--">toString()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#toTableName--">toTableName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>

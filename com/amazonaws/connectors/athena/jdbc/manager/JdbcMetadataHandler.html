@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":6,"i8":6};
+var methods = {"i0":6,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":6,"i8":6,"i9":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -246,6 +246,10 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <div class="block">Delegates creation of partition schema to database type implementation.</div>
 </td>
 </tr>
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses-com.amazonaws.athena.connector.lambda.domain.TableName-">getSplitClauses</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code>&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
@@ -453,7 +457,7 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <a name="doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>doGetSplits</h4>
 <pre>public abstract&nbsp;<a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a>&nbsp;doGetSplits(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
@@ -472,6 +476,15 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
  1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
  2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.</dd>
 </dl>
+</li>
+</ul>
+<a name="getSplitClauses-com.amazonaws.athena.connector.lambda.domain.TableName-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getSplitClauses</h4>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;getSplitClauses(<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</pre>
 </li>
 </ul>
 </li>

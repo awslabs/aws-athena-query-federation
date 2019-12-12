@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":6,"i2":10};
+var methods = {"i0":10,"i1":6,"i2":6,"i3":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -171,6 +171,10 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
                       <a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code>&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>protected abstract <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcSplitQueryBuilder.html#getPartitionWhereClauses-com.amazonaws.athena.connector.lambda.domain.Split-">getPartitionWhereClauses</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code>&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcSplitQueryBuilder.html#quote-java.lang.String-">quote</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;name)</code>&nbsp;</td>
 </tr>
@@ -258,6 +262,15 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
                                                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;schema,
                                                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;table,
                                                  <a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</pre>
+</li>
+</ul>
+<a name="getPartitionWhereClauses-com.amazonaws.athena.connector.lambda.domain.Split-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getPartitionWhereClauses</h4>
+<pre>protected abstract&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;getPartitionWhereClauses(<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</pre>
 </li>
 </ul>
 <a name="quote-java.lang.String-">

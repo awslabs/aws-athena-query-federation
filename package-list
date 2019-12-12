@@ -43,3 +43,4 @@ com.amazonaws.connectors.athena.jdbc.connection
 com.amazonaws.connectors.athena.jdbc.manager
 com.amazonaws.connectors.athena.jdbc.mysql
 com.amazonaws.connectors.athena.jdbc.postgresql
+com.amazonaws.connectors.athena.jdbc.splits
