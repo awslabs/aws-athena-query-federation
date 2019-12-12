@@ -303,11 +303,11 @@ public class BlockUtils
                     }
                     break;
                 case VARCHAR:
-                    if (value instanceof String) {
-                        ((VarCharVector) vector).setSafe(pos, ((String) value).getBytes(Charsets.UTF_8));
+                    if (value instanceof Text) {
+                        ((VarCharVector) vector).setSafe(pos, (Text) value);
                     }
                     else {
-                        ((VarCharVector) vector).setSafe(pos, (Text) value);
+                        ((VarCharVector) vector).setSafe(pos, value.toString().getBytes(Charsets.UTF_8));
                     }
                     break;
                 case BIT:

@@ -104,7 +104,7 @@ public final class DDBTypeUtils
                     }
                 }
                 if (allElementsAreSameType) {
-                    child = inferArrowField(key +".element", firstValue);
+                    child = inferArrowField(key + ".element", firstValue);
                 }
                 else {
                     logger.warn("Automatic schema inference encountered List or Set {} containing multiple element types. Falling back to VARCHAR representation of elements", key);
