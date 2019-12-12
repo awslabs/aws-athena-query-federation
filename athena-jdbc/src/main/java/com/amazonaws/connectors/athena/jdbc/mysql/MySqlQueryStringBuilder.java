@@ -23,6 +23,9 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Extends {@link JdbcSplitQueryBuilder} and implements MySql specific SQL clauses for split.
  *
@@ -56,5 +59,11 @@ public class MySqlQueryStringBuilder
         }
 
         return String.format(" FROM %s PARTITION(%s) ", tableName, partitionName);
+    }
+
+    @Override
+    protected List<String> getPartitionWhereClauses(final Split split)
+    {
+        return Collections.emptyList();
     }
 }
