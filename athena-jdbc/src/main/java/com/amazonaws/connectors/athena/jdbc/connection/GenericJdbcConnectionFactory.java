@@ -89,7 +89,7 @@ public class GenericJdbcConnectionFactory
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement = String.format("user=%s&password=%s", jdbcCredentialProvider.getCredential().getUser(),
                         jdbcCredentialProvider.getCredential().getPassword());
-                derivedJdbcString = secretMatcher.replaceAll(Pattern.quote(secretReplacement));
+                derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
                 derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();

@@ -80,7 +80,7 @@ public class CachableSecretsManager
             String nextSecret = m.group(1);
             Matcher m1 = NAME_PATTERN.matcher(nextSecret);
             m1.find();
-            result = result.replace(nextSecret, Pattern.quote(getSecret(m1.group(1))));
+            result = result.replace(nextSecret, Matcher.quoteReplacement(getSecret(m1.group(1))));
         }
         return result;
     }
