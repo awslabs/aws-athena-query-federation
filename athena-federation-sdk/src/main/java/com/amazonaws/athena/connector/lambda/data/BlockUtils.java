@@ -772,6 +772,14 @@ public class BlockUtils
                             writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
                         }
                     }
+                    else {
+                        // fall back to the object's toString()
+                        byte[] bytes = value.toString().getBytes(Charsets.UTF_8);
+                        try (ArrowBuf buf = allocator.buffer(bytes.length)) {
+                            buf.writeBytes(bytes);
+                            writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                        }
+                    }
                     break;
                 case BIT:
                     if (value instanceof Integer && (int) value > 0) {

@@ -125,8 +125,9 @@ public class TestBase
             item.put("col_4", toAttributeValue(dateTime.toLocalDate().toEpochDay()));
             item.put("col_5", toAttributeValue(Timestamp.valueOf(dateTime).toInstant().toEpochMilli()));
             item.put("col_6", toAttributeValue(i % 128 == 0 ? null : i % 128));
-            item.put("col_7", toAttributeValue(ImmutableMap.of("negative", -i, "mostlyEmptyMap", i % 100 == 0 ? ImmutableMap.of("rareKey", "rareValue") : ImmutableMap.of())));
-            item.put("col_8", toAttributeValue(ImmutableSet.of(i - 100, i - 200)));
+            item.put("col_7", toAttributeValue(ImmutableList.of(-i, String.valueOf(i))));
+            item.put("col_8", toAttributeValue(ImmutableList.of(ImmutableMap.of("mostlyEmptyMap",
+                    i % 128 == 0 ? ImmutableMap.of("subtractions", ImmutableSet.of(i - 100, i - 200)) : ImmutableMap.of()))));
             item.put("col_9", toAttributeValue(100.0f + i));
             tableWriteItems.addItemToPut(toItem(item));
 

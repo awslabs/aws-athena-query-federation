@@ -35,6 +35,7 @@ import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.TableDescription;
 import com.google.common.collect.ImmutableList;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,8 +143,11 @@ public final class DDBTableUtils
             for (Map<String, AttributeValue> item : items) {
                 for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
                     if (!discoveredColumns.contains(column.getKey()) && !Boolean.TRUE.equals(column.getValue().getNULL())) {
-                        schemaBuilder.addField(DDBTypeUtils.getArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue())));
-                        discoveredColumns.add(column.getKey());
+                        Field arrowField = DDBTypeUtils.inferArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue()));
+                        if (arrowField != null) {
+                            schemaBuilder.addField(arrowField);
+                            discoveredColumns.add(column.getKey());
+                        }
                     }
                 }
             }
