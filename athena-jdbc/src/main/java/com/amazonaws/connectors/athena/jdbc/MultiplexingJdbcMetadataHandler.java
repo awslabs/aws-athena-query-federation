@@ -55,6 +55,9 @@ public class MultiplexingJdbcMetadataHandler
     private static final int MAX_CATALOGS_TO_MULTIPLEX = 100;
     private final Map<String, JdbcMetadataHandler> metadataHandlerMap;
 
+    static final String CATALOG_NOT_REGISTERED_ERROR_TEMPLATE = "Catalog is not supported in multiplexer. After registering the catalog in Athena, must set " +
+            "'%s_connection_string' environment variable in Lambda. See JDBC connector README for further details.";
+
     /**
      * @param metadataHandlerMap catalog -> JdbcMetadataHandler
      */
@@ -81,7 +84,7 @@ public class MultiplexingJdbcMetadataHandler
     private void validateMultiplexer(final String catalogName)
     {
         if (this.metadataHandlerMap.get(catalogName) == null) {
-            throw new RuntimeException("Catalog not supported in multiplexer " + catalogName);
+            throw new RuntimeException(String.format(CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName));
         }
     }
 
