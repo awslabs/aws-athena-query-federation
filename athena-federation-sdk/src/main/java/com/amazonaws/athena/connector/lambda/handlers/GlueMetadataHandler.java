@@ -47,20 +47,24 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
  * MetadataHandler. More precisely, this implementation uses AWS Glue's DataCatalog to implement:
- * 1. doListSchemas(...)
- * 2. doListTables(...)
- * 3. doGetTable(...)
- * <p>
+ * <p><ul>
+ * <li>doListSchemas(...)
+ * <li>doListTables(...)
+ * <li>doGetTable(...)
+ * </ul><p>
  * When you extend this class you can optionally provide a DatabaseFilter and/or TableFilter to decide which Databases
  * (aka schemas) and Tables are eligible for use with your connector. You can find examples of this in the
  * athena-hbase and athena-docdb connector modules. A common reason for this is when you happen to have databases/tables
@@ -89,6 +93,12 @@ public abstract class GlueMetadataHandler
     //The default is 10 seconds, which when retried is 40 seconds.
     //Lower to 250 ms, 1 second with retry.
     private static final int CONNECT_TIMEOUT = 250;
+    //Metadata key for storing the source table name
+    private static final String TABLE_METADATA = "table";
+    //Regex we expect for a table resource ARN
+    private static final Pattern TABLE_ARN_REGEX = Pattern.compile("^arn:aws:[a-z]+:[a-z1-9-]+:[0-9]{12}:table\\/(.+)$");
+    //Table property that we expect to contain the source table name
+    public static final String SOURCE_TABLE_PROPERTY = "sourceTable";
 
     private final AWSGlue awsGlue;
 
@@ -322,6 +332,8 @@ public abstract class GlueMetadataHandler
             }
         }
 
+        populateSourceTableNameIfAvailable(table, schemaBuilder);
+
         return new GetTableResponse(request.getCatalogName(),
                 request.getTableName(),
                 schemaBuilder.build(),
@@ -361,5 +373,44 @@ public abstract class GlueMetadataHandler
          * @return True if the provided database should be in the result, False if not.
          */
         boolean filter(Database database);
+    }
+
+    /**
+     * Glue has strict table naming rules and may not be able to match the exact table name from the source. So this stores
+     * the source table name in the schema metadata to ease lookup later. It looks for it in the following places:
+     * <p><ul>
+     * <li>A table property called {@value SOURCE_TABLE_PROPERTY}
+     * <li>In StorageDescriptor.Location in the form of an ARN (e.g. arn:aws:dynamodb:us-east-1:012345678910:table/mytable)
+     * </ul><p>
+     * Override this method to fetch the source table name from somewhere else.
+     *
+     * @param table The Glue Table
+     * @param schemaBuilder The schema being generated
+     */
+    protected static void populateSourceTableNameIfAvailable(Table table, SchemaBuilder schemaBuilder)
+    {
+        String sourceTableProperty = table.getParameters().get(SOURCE_TABLE_PROPERTY);
+        if (sourceTableProperty != null) {
+            schemaBuilder.addMetadata(TABLE_METADATA, sourceTableProperty);
+            return;
+        }
+        String location = table.getStorageDescriptor().getLocation();
+        if (location != null) {
+            Matcher matcher = TABLE_ARN_REGEX.matcher(location);
+            if (matcher.matches()) {
+                schemaBuilder.addMetadata(TABLE_METADATA, matcher.group(1));
+            }
+        }
+    }
+
+    /**
+     * Will return the source table name stored by {@link #populateSourceTableNameIfAvailable}
+     *
+     * @param schema The schema returned by {@link #doGetTable}
+     * @return The source table name
+     */
+    protected static String getSourceTableName(Schema schema)
+    {
+        return schema.getCustomMetadata().get(TABLE_METADATA);
     }
 }

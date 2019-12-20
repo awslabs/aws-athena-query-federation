@@ -229,7 +229,8 @@ public class DynamoDBMetadataHandler
                 return super.doGetTable(allocator, request);
             }
             catch (RuntimeException e) {
-                logger.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}", request.getTableName().getSchemaName(), e);
+                logger.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}",
+                        request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
             }
         }
 
@@ -248,9 +249,14 @@ public class DynamoDBMetadataHandler
     @Override
     public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
+        // use the source table name from the schema if available (in case Glue table name != actual table name)
+        String tableName = getSourceTableName(request.getSchema());
+        if (tableName == null) {
+            tableName = request.getTableName().getTableName();
+        }
         DynamoDBTable table = null;
         try {
-            table = tableResolver.getTableMetadata(request.getTableName().getTableName());
+            table = tableResolver.getTableMetadata(tableName);
         }
         catch (TimeoutException e) {
             throw new RuntimeException(e);
@@ -308,7 +314,12 @@ public class DynamoDBMetadataHandler
             throws Exception
     {
         // TODO consider caching this repeated work in #enhancePartitionSchema
-        DynamoDBTable table = tableResolver.getTableMetadata(request.getTableName().getTableName());
+        // use the source table name from the schema if available (in case Glue table name != actual table name)
+        String tableName = getSourceTableName(request.getSchema());
+        if (tableName == null) {
+            tableName = request.getTableName().getTableName();
+        }
+        DynamoDBTable table = tableResolver.getTableMetadata(tableName);
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
         DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
         String hashKeyName = index.getHashKey();

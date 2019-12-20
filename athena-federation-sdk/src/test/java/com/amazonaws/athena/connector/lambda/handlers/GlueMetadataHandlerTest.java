@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -52,6 +53,7 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,6 +71,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -279,7 +284,31 @@ public class GlueMetadataHandlerTest
 
         assertTrue(res.getSchema().getFields().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
+        assertNull(getSourceTableName(res.getSchema()));
 
         logger.info("doGetTable - exit");
+    }
+
+    @Test
+    public void populateSourceTableFromProperty() {
+        String sourceTable = "My-Table";
+        Map<String, String> params = new HashMap<>();
+        params.put(SOURCE_TABLE_PROPERTY, sourceTable);
+        Table table = new Table().withParameters(params);
+        SchemaBuilder schemaBuilder = new SchemaBuilder();
+        populateSourceTableNameIfAvailable(table, schemaBuilder);
+        Schema schema = schemaBuilder.build();
+        assertEquals(sourceTable, getSourceTableName(schema));
+    }
+
+    @Test
+    public void populateSourceTableFromLocation() {
+        Map<String, String> params = new HashMap<>();
+        StorageDescriptor storageDescriptor = new StorageDescriptor().withLocation("arn:aws:dynamodb:us-east-1:012345678910:table/My-Table");
+        Table table = new Table().withParameters(params).withStorageDescriptor(storageDescriptor);
+        SchemaBuilder schemaBuilder = new SchemaBuilder();
+        populateSourceTableNameIfAvailable(table, schemaBuilder);
+        Schema schema = schemaBuilder.build();
+        assertEquals("My-Table", getSourceTableName(schema));
     }
 }

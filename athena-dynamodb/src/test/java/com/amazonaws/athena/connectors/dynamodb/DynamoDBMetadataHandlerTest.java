@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -49,6 +50,7 @@ import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.GetDatabasesResult;
+import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
@@ -79,6 +81,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DYNAMO_DB_FLAG;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
@@ -94,6 +97,7 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SCAN_PARTITION_TYPE;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -457,5 +461,39 @@ public class DynamoDBMetadataHandlerTest
         assertThat(response.getSplits().size(), equalTo(MAX_SPLITS_PER_REQUEST));
 
         logger.info("doGetSplitsQuery: exit");
+    }
+
+    @Test
+    public void validateSourceTableNamePropagation()
+            throws Exception
+    {
+        logger.info("validateSourceTableNamePropagation: enter");
+
+        Table table = new Table()
+                .withParameters(ImmutableMap.of(SOURCE_TABLE_PROPERTY, TEST_TABLE))
+                .withPartitionKeys()
+                .withStorageDescriptor(new StorageDescriptor().withColumns());
+        GetTableResult mockResult = new GetTableResult().withTable(table);
+        when(glueClient.getTable(any())).thenReturn(mockResult);
+
+        TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
+        logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
+        assertThat(getTableResponse.getSchema().getCustomMetadata().get("table"), equalTo(TEST_TABLE));
+
+        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                tableName,
+                new Constraints(ImmutableMap.of()),
+                getTableResponse.getSchema(),
+                Collections.EMPTY_SET);
+
+        GetTableLayoutResponse getTableLayoutResponse = handler.doGetTableLayout(allocator, getTableLayoutRequest);
+        logger.info("validateSourceTableNamePropagation: GetTableLayoutResponse[{}]", getTableLayoutResponse);
+        assertThat(getTableLayoutResponse.getPartitions().getSchema().getCustomMetadata().get(TABLE_METADATA), equalTo(TEST_TABLE));
+
+        logger.info("validateSourceTableNamePropagation: exit");
     }
 }
