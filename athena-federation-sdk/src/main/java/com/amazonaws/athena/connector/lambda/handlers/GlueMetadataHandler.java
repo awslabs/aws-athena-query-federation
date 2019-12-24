@@ -45,13 +45,19 @@ import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -86,6 +92,8 @@ import java.util.stream.Collectors;
 public abstract class GlueMetadataHandler
         extends MetadataHandler
 {
+    private static final Logger logger = LoggerFactory.getLogger(GlueMetadataHandler.class);
+
     //name of the environment variable that can be used to set which Glue catalog to use (e.g. setting this to
     //a different aws account id allows you to use cross-account catalogs)
     private static final String CATALOG_NAME_ENV_OVERRIDE = "glue_catalog";
@@ -93,12 +101,14 @@ public abstract class GlueMetadataHandler
     //The default is 10 seconds, which when retried is 40 seconds.
     //Lower to 250 ms, 1 second with retry.
     private static final int CONNECT_TIMEOUT = 250;
-    //Metadata key for storing the source table name
-    private static final String TABLE_METADATA = "table";
+    //Splitter for inline map properties
+    private static final Splitter.MapSplitter MAP_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
     //Regex we expect for a table resource ARN
     private static final Pattern TABLE_ARN_REGEX = Pattern.compile("^arn:aws:[a-z]+:[a-z1-9-]+:[0-9]{12}:table\\/(.+)$");
     //Table property that we expect to contain the source table name
     public static final String SOURCE_TABLE_PROPERTY = "sourceTable";
+    //Table property that we expect to contain the column name mapping
+    public static final String COLUMN_NAME_MAPPING_PROPERTY = "columnMapping";
 
     private final AWSGlue awsGlue;
 
@@ -322,13 +332,17 @@ public abstract class GlueMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         table.getParameters().entrySet().forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
 
+        //A column name mapping can be provided to get around restrictive Glue naming rules
+        Map<String, String> columnNameMapping = getColumnNameMapping(table);
+
         Set<String> partitionCols = table.getPartitionKeys()
-                .stream().map(next -> next.getName()).collect(Collectors.toSet());
+                .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
 
         for (Column next : table.getStorageDescriptor().getColumns()) {
-            schemaBuilder.addField(convertField(next.getName(), next.getType()));
+            String mappedColumnName = columnNameMapping.getOrDefault(next.getName(), next.getName());
+            schemaBuilder.addField(convertField(mappedColumnName, next.getType()));
             if (next.getComment() != null) {
-                schemaBuilder.addMetadata(next.getName(), next.getComment());
+                schemaBuilder.addMetadata(mappedColumnName, next.getComment());
             }
         }
 
@@ -377,7 +391,7 @@ public abstract class GlueMetadataHandler
 
     /**
      * Glue has strict table naming rules and may not be able to match the exact table name from the source. So this stores
-     * the source table name in the schema metadata to ease lookup later. It looks for it in the following places:
+     * the source table name in the schema metadata if necessary to ease lookup later. It looks for it in the following places:
      * <p><ul>
      * <li>A table property called {@value SOURCE_TABLE_PROPERTY}
      * <li>In StorageDescriptor.Location in the form of an ARN (e.g. arn:aws:dynamodb:us-east-1:012345678910:table/mytable)
@@ -391,14 +405,14 @@ public abstract class GlueMetadataHandler
     {
         String sourceTableProperty = table.getParameters().get(SOURCE_TABLE_PROPERTY);
         if (sourceTableProperty != null) {
-            schemaBuilder.addMetadata(TABLE_METADATA, sourceTableProperty);
+            // table property exists so nothing to do (assumes all table properties were already copied)
             return;
         }
         String location = table.getStorageDescriptor().getLocation();
         if (location != null) {
             Matcher matcher = TABLE_ARN_REGEX.matcher(location);
             if (matcher.matches()) {
-                schemaBuilder.addMetadata(TABLE_METADATA, matcher.group(1));
+                schemaBuilder.addMetadata(SOURCE_TABLE_PROPERTY, matcher.group(1));
             }
         }
     }
@@ -411,6 +425,23 @@ public abstract class GlueMetadataHandler
      */
     protected static String getSourceTableName(Schema schema)
     {
-        return schema.getCustomMetadata().get(TABLE_METADATA);
+        return schema.getCustomMetadata().get(SOURCE_TABLE_PROPERTY);
+    }
+
+    /**
+     * If available, will parse and return a column name mapping for cases when a data source's columns
+     * cannot be represented by Glue's quite restrictive naming rules. It looks a comma separated inline map
+     * in the {@value #COLUMN_NAME_MAPPING_PROPERTY} table property.
+     *
+     * @param table The glue table
+     * @return A column mapping if provided, otherwise an empty map
+     */
+    protected static Map<String, String> getColumnNameMapping(Table table)
+    {
+        String columnNameMappingParam = table.getParameters().get(COLUMN_NAME_MAPPING_PROPERTY);
+        if (!Strings.isNullOrEmpty(columnNameMappingParam)) {
+            return MAP_SPLITTER.split(columnNameMappingParam);
+        }
+        return ImmutableMap.of();
     }
 }

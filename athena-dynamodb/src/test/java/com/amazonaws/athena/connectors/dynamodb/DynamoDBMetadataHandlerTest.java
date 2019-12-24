@@ -480,7 +480,7 @@ public class DynamoDBMetadataHandlerTest
         GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
         GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
-        assertThat(getTableResponse.getSchema().getCustomMetadata().get("table"), equalTo(TEST_TABLE));
+        assertThat(getTableResponse.getSchema().getCustomMetadata().get(SOURCE_TABLE_PROPERTY), equalTo(TEST_TABLE));
 
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,
