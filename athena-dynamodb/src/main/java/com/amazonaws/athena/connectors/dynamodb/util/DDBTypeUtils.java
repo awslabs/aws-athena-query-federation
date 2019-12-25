@@ -158,4 +158,22 @@ public final class DDBTypeUtils
                 throw new RuntimeException("Unknown type[" + attributeType + "] for field[" + attributeName + "]");
         }
     }
+
+    public static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
+    {
+        switch (fieldType) {
+            case INT:
+            case TINYINT:
+            case SMALLINT:
+                return value.intValue();
+            case BIGINT:
+                return value.longValue();
+            case FLOAT4:
+                return value.floatValue();
+            case FLOAT8:
+                return value.doubleValue();
+            default:
+                return value;
+        }
+    }
 }

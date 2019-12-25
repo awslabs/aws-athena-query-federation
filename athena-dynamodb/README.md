@@ -28,11 +28,15 @@ question.  These properties are automatically set if you use Glue's DynamoDB Cra
 the columns and types that the Crawler discovered.
 
 1. **dynamodb** - String indicating that the table can be used for supplemental meta-data by the Athena DynamoDB Connector. This string can be in any one of the following places:
-    1. in the table properites/parameters under a field called "classification" (exact match).
+    1. in the table properties/parameters under a field called "classification" (exact match).
     2. in the table's storage descriptor's location field (substring match).
     3. in the table's storage descriptor's parameters under a field called "classification" (exact match).
 2. **dynamo-db-flag** - String indicating that the *database* contains tables used for supplemental meta-data by the Athena DynamoDB Connector.  This is required for any Glue databases other than "default"
 and is useful for filtering out irrelevant databases in accounts that have lots of them.  This string should be in the Location URI of the Glue Database (substring match).
+3. **sourceTable** - Optional table property/parameter that defines the source table name in DynamoDB.  Use this if Glue table naming rules prevent you from creating a Glue table with the same name as
+your DynamoDB table (e.g. capital letters are not permitted in Glue table names but are permitted in DynamoDB table names).
+4. **columnMapping** - Optional table property/parameter that define column name mappings.  Use this if Glue column naming rules prevent you from creating a Glue table with the same column names as
+your DynamoDB table (e.g. capital letters are not permitted in Glue column names but are permitted in DynamoDB column names).  This is expected be be in the format `col1=Col1,col2=Col2`.
 
 
 ### Required Permissions
