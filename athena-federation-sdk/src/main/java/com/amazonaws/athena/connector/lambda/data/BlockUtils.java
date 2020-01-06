@@ -303,11 +303,12 @@ public class BlockUtils
                     }
                     break;
                 case VARCHAR:
-                    if (value instanceof String) {
-                        ((VarCharVector) vector).setSafe(pos, ((String) value).getBytes(Charsets.UTF_8));
+                    if (value instanceof Text) {
+                        ((VarCharVector) vector).setSafe(pos, (Text) value);
                     }
                     else {
-                        ((VarCharVector) vector).setSafe(pos, (Text) value);
+                        // always fall back to the object's toString()
+                        ((VarCharVector) vector).setSafe(pos, value.toString().getBytes(Charsets.UTF_8));
                     }
                     break;
                 case BIT:
@@ -754,19 +755,20 @@ public class BlockUtils
                     }
                     break;
                 case VARCHAR:
-                    if (value instanceof String) {
-                        byte[] bytes = ((String) value).getBytes(Charsets.UTF_8);
-                        try (ArrowBuf buf = allocator.buffer(bytes.length)) {
-                            buf.writeBytes(bytes);
-                            writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
-                        }
-                    }
-                    else if (value instanceof ArrowBuf) {
+                    if (value instanceof ArrowBuf) {
                         ArrowBuf buf = (ArrowBuf) value;
                         writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
                     }
                     else if (value instanceof byte[]) {
                         byte[] bytes = (byte[]) value;
+                        try (ArrowBuf buf = allocator.buffer(bytes.length)) {
+                            buf.writeBytes(bytes);
+                            writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                        }
+                    }
+                    else {
+                        // always fall back to the object's toString()
+                        byte[] bytes = value.toString().getBytes(Charsets.UTF_8);
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
                             writer.varChar().writeVarChar(0, buf.readableBytes(), buf);

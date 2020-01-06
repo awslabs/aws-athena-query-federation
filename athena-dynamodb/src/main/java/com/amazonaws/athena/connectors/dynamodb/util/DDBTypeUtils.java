@@ -26,11 +26,14 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +43,8 @@ import java.util.Set;
  */
 public final class DDBTypeUtils
 {
+    private static final Logger logger = LoggerFactory.getLogger(DDBTypeUtils.class);
+
     // DDB attribute "types"
     private static final String STRING = "S";
     private static final String NUMBER = "N";
@@ -54,13 +59,14 @@ public final class DDBTypeUtils
     private DDBTypeUtils() {}
 
     /**
-     * Converts a given field's Java type to a corresponding Arrow type.
+     * Infers an Arrow field from an object.  This has limitations when it comes to complex types such as Lists and Maps
+     * and will fallback to VARCHAR fields in those cases.
      *
      * @param key the name of the field
-     * @param value the valie of the field
-     * @return the converted Arrow field
+     * @param value the value of the field
+     * @return the inferred Arrow field
      */
-    public static Field getArrowField(String key, Object value)
+    public static Field inferArrowField(String key, Object value)
     {
         if (value instanceof String) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
@@ -75,31 +81,55 @@ public final class DDBTypeUtils
             return new Field(key, FieldType.nullable(new ArrowType.Decimal(38, 9)), null);
         }
         else if (value instanceof List || value instanceof Set) {
-            Field child;
+            Field child = null;
             if (((Collection) value).isEmpty()) {
                 try {
                     Object subVal = ((Collection) value).getClass()
                             .getTypeParameters()[0].getGenericDeclaration().newInstance();
-                    child = getArrowField("", subVal);
+                    child = inferArrowField(key + ".child", subVal);
                 }
                 catch (IllegalAccessException | InstantiationException ex) {
                     throw new RuntimeException(ex);
                 }
             }
             else {
-                child = getArrowField("", ((Collection) value).iterator().next());
+                Iterator iterator = ((Collection) value).iterator();
+                Object firstValue = iterator.next();
+                Class<?> aClass = firstValue.getClass();
+                boolean allElementsAreSameType = true;
+                while (iterator.hasNext()) {
+                    if (!aClass.equals(iterator.next().getClass())) {
+                        allElementsAreSameType = false;
+                        break;
+                    }
+                }
+                if (allElementsAreSameType) {
+                    child = inferArrowField(key + ".element", firstValue);
+                }
+                else {
+                    logger.warn("Automatic schema inference encountered List or Set {} containing multiple element types. Falling back to VARCHAR representation of elements", key);
+                    child = inferArrowField("", "");
+                }
             }
             return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
                     Collections.singletonList(child));
         }
         else if (value instanceof Map) {
             List<Field> children = new ArrayList<>();
+            // keys are always Strings in DDB's case
             Map<String, Object> doc = (Map<String, Object>) value;
             for (String childKey : doc.keySet()) {
                 Object childVal = doc.get(childKey);
-                Field child = getArrowField(childKey, childVal);
+                Field child = inferArrowField(childKey, childVal);
                 children.add(child);
             }
+
+            // Athena requires Structs to have child types and not be empty
+            if (children.isEmpty()) {
+                logger.warn("Automatic schema inference encountered empty Map {}. Unable to determine element types. Falling back to VARCHAR representation", key);
+                return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
+            }
+
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 
