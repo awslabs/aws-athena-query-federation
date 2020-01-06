@@ -138,7 +138,6 @@ spill_prefix    Spill bucket key prefix. Required.
 |float|Float4|
 |Double|Float8|
 |Date|DateDay|
-|Timestamp|DateMilli|
 |String|Varchar|
 |Bytes|Varbinary|
 |BigDecimal|Decimal|

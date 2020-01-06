@@ -94,6 +94,43 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         logger.info("testReadScanSplit: enter");
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_NAME,
+                schema,
+                split,
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+
+        assertEquals(1000, response.getRecords().getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+
+        logger.info("testReadScanSplit: exit");
+    }
+
+    @Test
+    public void testReadScanSplitFiltered()
+            throws Exception
+    {
+        logger.info("testReadScanSplitFiltered: enter");
+
         Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
@@ -121,12 +158,12 @@ public class DynamoDBRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+        logger.info("testReadScanSplitFiltered: rows[{}]", response.getRecordCount());
 
         assertEquals(992, response.getRecords().getRowCount());
-        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("testReadScanSplitFiltered: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
-        logger.info("testReadScanSplit: exit");
+        logger.info("testReadScanSplitFiltered: exit");
     }
 
     @Test
@@ -134,6 +171,7 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         logger.info("testReadQuerySplit: enter");
+
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
@@ -174,6 +212,7 @@ public class DynamoDBRecordHandlerTest
             throws Exception
     {
         logger.info("testZeroRowQuery: enter");
+
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())

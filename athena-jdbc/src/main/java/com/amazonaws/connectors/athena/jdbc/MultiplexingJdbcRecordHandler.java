@@ -72,7 +72,7 @@ public class MultiplexingJdbcRecordHandler
     private void validateMultiplexer(final String catalogName)
     {
         if (this.recordHandlerMap.get(catalogName) == null) {
-            throw new RuntimeException("Catalog not supported in multiplexer " + catalogName);
+            throw new RuntimeException(String.format(MultiplexingJdbcMetadataHandler.CATALOG_NOT_REGISTERED_ERROR_TEMPLATE, catalogName));
         }
     }
 

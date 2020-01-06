@@ -229,7 +229,9 @@ public class DynamoDBMetadataHandler
                 return super.doGetTable(allocator, request);
             }
             catch (RuntimeException e) {
-                logger.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}",
+                logger.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
+                                "Falling back to schema inference. If inferred schema is incorrect, create " +
+                                "a matching table in Glue to define schema (see README)",
                         request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
             }
         }

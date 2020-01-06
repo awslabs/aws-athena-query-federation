@@ -142,7 +142,7 @@ public final class DDBTableUtils
             for (Map<String, AttributeValue> item : items) {
                 for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
                     if (!discoveredColumns.contains(column.getKey()) && !Boolean.TRUE.equals(column.getValue().getNULL())) {
-                        schemaBuilder.addField(DDBTypeUtils.getArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue())));
+                        schemaBuilder.addField(DDBTypeUtils.inferArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue())));
                         discoveredColumns.add(column.getKey());
                     }
                 }
