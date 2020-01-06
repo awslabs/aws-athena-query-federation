@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -52,6 +53,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -153,9 +155,13 @@ public class DynamoDBRecordHandler
 
                 boolean matched = true;
                 numResultRows.getAndIncrement();
+                // TODO refactor to use GeneratedRowWriter to improve performance
                 for (Field nextField : recordsRequest.getSchema().getFields()) {
                     Object value = ItemUtils.toSimpleValue(item.get(nextField.getName()));
                     Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
+                    if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
+                        value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
+                    }
                     try {
                         switch (fieldType) {
                             case LIST:

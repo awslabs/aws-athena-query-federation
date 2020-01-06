@@ -29,7 +29,7 @@ public final class DynamoDBConstants
     public static final String SCAN_PARTITION_TYPE = "scan";
     public static final String SEGMENT_COUNT_METADATA = "segmentCount";
     public static final String SEGMENT_ID_PROPERTY = "segmentId";
-    public static final String TABLE_METADATA = "table";
+    public static final String TABLE_METADATA = "sourceTable";
     public static final String INDEX_METADATA = "index";
     public static final String HASH_KEY_NAME_METADATA = "hashKeyName";
     public static final String RANGE_KEY_NAME_METADATA = "rangeKeyName";

@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -50,8 +51,10 @@ import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -64,11 +67,16 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -240,9 +248,11 @@ public class GlueMetadataHandlerTest
     {
         logger.info("doGetTable - enter");
 
+        String sourceTable = "My-Table";
+
         Map<String, String> expectedParams = new HashMap<>();
-        expectedParams.put("param1", "val1");
-        expectedParams.put("param2", "val2");
+        expectedParams.put(SOURCE_TABLE_PROPERTY, sourceTable);
+        expectedParams.put(COLUMN_NAME_MAPPING_PROPERTY, "col2=Col2,col3=Col3, col4=Col4");
 
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col1").withType("int").withComment("comment"));
@@ -277,9 +287,25 @@ public class GlueMetadataHandlerTest
 
         logger.info("doGetTable - {}", res);
 
-        assertTrue(res.getSchema().getFields().size() > 0);
+        assertTrue(res.getSchema().getFields().size() == 3);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
+        assertEquals(sourceTable, getSourceTableName(res.getSchema()));
+
+        //Verify column name mapping works
+        assertNotNull(res.getSchema().findField("col1"));
+        assertNotNull(res.getSchema().findField("Col2"));
 
         logger.info("doGetTable - exit");
+    }
+
+    @Test
+    public void populateSourceTableFromLocation() {
+        Map<String, String> params = new HashMap<>();
+        StorageDescriptor storageDescriptor = new StorageDescriptor().withLocation("arn:aws:dynamodb:us-east-1:012345678910:table/My-Table");
+        Table table = new Table().withParameters(params).withStorageDescriptor(storageDescriptor);
+        SchemaBuilder schemaBuilder = new SchemaBuilder();
+        populateSourceTableNameIfAvailable(table, schemaBuilder);
+        Schema schema = schemaBuilder.build();
+        assertEquals("My-Table", getSourceTableName(schema));
     }
 }
