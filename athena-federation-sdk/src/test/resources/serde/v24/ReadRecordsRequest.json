@@ -1,0 +1,85 @@
+{
+  "@type" : "ReadRecordsRequest",
+  "identity" : {
+    "id" : "test-id",
+    "principal" : "test-principal",
+    "account" : "0123456789"
+  },
+  "queryId" : "test-catalog",
+  "catalogName" : "test-query-id",
+  "tableName" : {
+    "schemaName" : "test-schema",
+    "tableName" : "test-table"
+  },
+  "schema" : "7AEAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAABwAAAHABAAAkAQAA5AAAAKwAAAB0AAAAPAAAAAQAAAC+/v//FAAAABQAAAAUAAAAAAADARQAAAAAAAAAAAAAAC7///8AAAIABAAAAGNvbDMAAAAA8v7//xQAAAAUAAAAFAAAAAAAAgEYAAAAAAAAAAAAAADg/v//AAAAASAAAAADAAAAZGF5ACb///8UAAAAFAAAABgAAAAAAAUBFAAAAAAAAAAAAAAABAAEAAQAAAAEAAAAY29sMgAAAABa////FAAAABQAAAAUAAAAAAADARQAAAAAAAAAAAAAAMr///8AAAIABAAAAGNvbDUAAAAAjv///xQAAAAUAAAAHAAAAAAAAwEcAAAAAAAAAAAAAAAAAAYACAAGAAYAAAAAAAIABAAAAGNvbDQAAAAAyv///xQAAAAUAAAAFAAAAAAAAgEYAAAAAAAAAAAAAAC4////AAAAASAAAAAEAAAAeWVhcgAAEgAYABQAEwASAAwAAAAIAAQAEgAAABQAAAAUAAAAHAAAAAAAAgEgAAAAAAAAAAAAAAAIAAwACAAHAAgAAAAAAAABIAAAAAUAAABtb250aAAAAA==",
+  "split" : {
+    "spillLocation" : {
+      "@type" : "S3SpillLocation",
+      "bucket" : "athena-virtuoso-test",
+      "key" : "lambda-spill/test-query-id/test-split-id",
+      "directory" : true
+    },
+    "encryptionKey" : {
+      "key" : "dGVzdC1rZXk=",
+      "nonce" : "dGVzdC1ub25jZQ=="
+    },
+    "properties" : {
+      "month" : "11",
+      "year" : "2017",
+      "day" : "1"
+    }
+  },
+  "constraints" : {
+    "summary" : {
+      "col4" : {
+        "@type" : "EquatableValueSet",
+        "valueBlock" : {
+          "aId" : "test-allocator-id",
+          "schema" : "lAAAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAAAQAAABgAAAAAABIAGAAUABMAEgAMAAAACAAEABIAAAAUAAAAFAAAABwAAAAAAAMBHAAAAAAAAAAAAAAAAAAGAAgABgAGAAAAAAACAAQAAABjb2wxAAAAAAAAAAA=",
+          "records" : "jAAAABQAAAAAAAAADAAWAA4AFQAQAAQADAAAABAAAAAAAAAAAAADABAAAAAAAwoAGAAMAAgABAAKAAAAFAAAADgAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAACAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAACamZmZmZnxPw=="
+        },
+        "whiteList" : false,
+        "nullAllowed" : true
+      },
+      "col5" : {
+        "@type" : "AllOrNoneValueSet",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "all" : false,
+        "nullAllowed" : true
+      },
+      "col3" : {
+        "@type" : "SortedRangeSet",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "ranges" : [ {
+          "low" : {
+            "valueBlock" : {
+              "aId" : "test-allocator-id",
+              "schema" : "lAAAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAAAQAAABgAAAAAABIAGAAUABMAEgAMAAAACAAEABIAAAAUAAAAFAAAABwAAAAAAAMBHAAAAAAAAAAAAAAAAAAGAAgABgAGAAAAAAACAAQAAABjb2wxAAAAAAAAAAA=",
+              "records" : "jAAAABQAAAAAAAAADAAWAA4AFQAQAAQADAAAABAAAAAAAAAAAAADABAAAAAAAwoAGAAMAAgABAAKAAAAFAAAADgAAAABAAAAAAAAAAAAAAACAAAAAAAAAAAAAAABAAAAAAAAAAgAAAAAAAAACAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAIjDwA=="
+            },
+            "bound" : "ABOVE",
+            "nullValue" : false
+          },
+          "high" : {
+            "valueBlock" : {
+              "aId" : "test-allocator-id",
+              "schema" : "lAAAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAAAQAAABgAAAAAABIAGAAUABMAEgAMAAAACAAEABIAAAAUAAAAFAAAABwAAAAAAAMBHAAAAAAAAAAAAAAAAAAGAAgABgAGAAAAAAACAAQAAABjb2wxAAAAAAAAAAA=",
+              "records" : ""
+            },
+            "bound" : "BELOW",
+            "nullValue" : true
+          }
+        } ],
+        "nullAllowed" : false
+      }
+    }
+  },
+  "maxBlockSize" : "100000000000",
+  "maxInlineBlockSize" : "100000000000"
+}

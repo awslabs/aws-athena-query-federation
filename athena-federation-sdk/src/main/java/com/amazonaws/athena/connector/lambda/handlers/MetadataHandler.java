@@ -55,6 +55,8 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.athena.connector.lambda.serde.v24.FederationRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v24.V24SerDeProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
@@ -62,6 +64,9 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -107,6 +112,8 @@ public abstract class MetadataHandler
     protected static final String KMS_KEY_ID_ENV = "kms_key_id";
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
 
+    private final JsonFactory jsonFactory = new JsonFactory();
+    private final V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private final CachableSecretsManager secretsManager;
     private final AmazonAthena athena;
     private final ThrottlingInvoker athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER).build();
@@ -196,11 +203,15 @@ public abstract class MetadataHandler
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
             ObjectMapper objectMapper = ObjectMapperFactory.create(allocator);
-            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
+            FederationRequestSerDe requestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
+            try (JsonParser jparser = jsonFactory.createParser(inputStream);
+                    JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
+                    FederationRequest rawReq = requestSerDe.deserialize(jparser)) {
                 if (rawReq instanceof PingRequest) {
                     try (PingResponse response = doPing((PingRequest) rawReq)) {
                         assertNotNull(response);
-                        objectMapper.writeValue(outputStream, response);
+//                        objectMapper.writeValue(outputStream, response);
+                        serDeProvider.getPingResponseSerDe().serialize(jgen, response);
                     }
                     return;
                 }
@@ -208,7 +219,7 @@ public abstract class MetadataHandler
                 if (!(rawReq instanceof MetadataRequest)) {
                     throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
                 }
-                doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
+                doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream, jgen);
             }
             catch (Exception ex) {
                 logger.warn("handleRequest: Completed with an exception.", ex);
@@ -220,7 +231,8 @@ public abstract class MetadataHandler
     protected final void doHandleRequest(BlockAllocator allocator,
             ObjectMapper objectMapper,
             MetadataRequest req,
-            OutputStream outputStream)
+            OutputStream outputStream,
+            JsonGenerator jgen)
             throws Exception
     {
         logger.info("doHandleRequest: request[{}]", req);
@@ -230,14 +242,17 @@ public abstract class MetadataHandler
                 try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
+//                    objectMapper.writeValue(outputStream, response);
+                    serDeProvider.getListSchemasResponseSerDe().serialize(jgen, response);
                 }
                 return;
             case LIST_TABLES:
                 try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
+                    logger.info("Response JSON: {}", objectMapper.writeValueAsString(response));
+//                    objectMapper.writeValue(outputStream, response);
+                    serDeProvider.getListTablesResponseSerDe().serialize(jgen, response);
                 }
                 return;
             case GET_TABLE:
@@ -245,21 +260,27 @@ public abstract class MetadataHandler
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
                     assertTypes(response);
-                    objectMapper.writeValue(outputStream, response);
+                    logger.info("Response JSON: {}", objectMapper.writeValueAsString(response));
+//                    objectMapper.writeValue(outputStream, response);
+                    serDeProvider.getGetTableResponseSerDe().serialize(jgen, response);
                 }
                 return;
             case GET_TABLE_LAYOUT:
                 try (GetTableLayoutResponse response = doGetTableLayout(allocator, (GetTableLayoutRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
+                    logger.info("Response JSON: {}", objectMapper.writeValueAsString(response));
+//                    objectMapper.writeValue(outputStream, response);
+                    serDeProvider.getGetTableLayoutResponseSerDe(allocator).serialize(jgen, response);
                 }
                 return;
             case GET_SPLITS:
                 try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
+                    logger.info("Response JSON: {}", objectMapper.writeValueAsString(response));
+//                    objectMapper.writeValue(outputStream, response);
+                    serDeProvider.getGetSplitsResponseSerDe().serialize(jgen, response);
                 }
                 return;
             default:

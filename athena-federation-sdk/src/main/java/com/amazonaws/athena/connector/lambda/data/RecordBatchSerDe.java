@@ -30,6 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * used to serialize and deserialize ArrowRecordBatch.
@@ -72,17 +73,17 @@ public class RecordBatchSerDe
     public ArrowRecordBatch deserialize(byte[] in)
             throws IOException
     {
-        ArrowRecordBatch batch = null;
+        AtomicReference<ArrowRecordBatch> batch = new AtomicReference<>();
         try {
-            return allocator.registerBatch((BufferAllocator root) ->
-                    (ArrowRecordBatch) MessageSerializer.deserializeMessageBatch(
-                            new ReadChannel(Channels.newChannel(new ByteArrayInputStream(in))),
-                            root)
-            );
+            return allocator.registerBatch((BufferAllocator root) -> {
+                batch.set((ArrowRecordBatch) MessageSerializer.deserializeMessageBatch(
+                        new ReadChannel(Channels.newChannel(new ByteArrayInputStream(in))), root));
+                return batch.get();
+            });
         }
         catch (Exception ex) {
-            if (batch != null) {
-                batch.close();
+            if (batch.get() != null) {
+                batch.get().close();
             }
             throw ex;
         }

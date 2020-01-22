@@ -1,0 +1,11 @@
+{
+  "@type" : "ListTablesResponse",
+  "tables" : [ {
+    "schemaName" : "schema1",
+    "tableName" : "table1"
+  }, {
+    "schemaName" : "schema1",
+    "tableName" : "table2"
+  } ],
+  "catalogName" : "test-catalog"
+}

@@ -1,0 +1,7 @@
+{
+  "@type" : "PingResponse",
+  "catalogName" : "test-catalog",
+  "queryId" : "test-query-id",
+  "sourceType" : "test-source-type",
+  "capabilities" : "24"
+}

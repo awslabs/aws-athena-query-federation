@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.request;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -116,5 +117,29 @@ public class PingResponse
                 ", sourceType='" + sourceType + '\'' +
                 ", capabilities='" + capabilities + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        PingResponse that = (PingResponse) o;
+
+        return Objects.equal(this.getCatalogName(), that.getCatalogName())
+                && Objects.equal(this.queryId, that.queryId)
+                && Objects.equal(this.sourceType, that.sourceType)
+                && Objects.equal(this.capabilities, that.capabilities);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hashCode(catalogName, queryId, sourceType, capabilities);
     }
 }
