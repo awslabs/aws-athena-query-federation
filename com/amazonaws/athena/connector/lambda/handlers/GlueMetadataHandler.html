@@ -18,8 +18,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":9,"i11":9};
+var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -75,13 +75,13 @@ var activeTableTab = "activeTableTab";
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
 <li><a href="#nested.class.summary">Nested</a>&nbsp;|&nbsp;</li>
-<li><a href="#fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">Field</a>&nbsp;|&nbsp;</li>
+<li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
@@ -126,10 +126,11 @@ var activeTableTab = "activeTableTab";
 extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></pre>
 <div class="block">This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
  MetadataHandler. More precisely, this implementation uses AWS Glue's DataCatalog to implement:
- 1. doListSchemas(...)
- 2. doListTables(...)
- 3. doGetTable(...)
- <p>
+ <p><ul>
+ <li>doListSchemas(...)
+ <li>doListTables(...)
+ <li>doGetTable(...)
+ </ul><p>
  When you extend this class you can optionally provide a DatabaseFilter and/or TableFilter to decide which Databases
  (aka schemas) and Tables are eligible for use with your connector. You can find examples of this in the
  athena-hbase and athena-docdb connector modules. A common reason for this is when you happen to have databases/tables
@@ -180,6 +181,21 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <!--   -->
 </a>
 <h3>Field Summary</h3>
+<table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Field Summary table, listing fields, and an explanation">
+<caption><span>Fields</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Field and Description</th>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#SOURCE_TABLE_PROPERTY">SOURCE_TABLE_PROPERTY</a></span></code>&nbsp;</td>
+</tr>
+</table>
 <ul class="blockList">
 <li class="blockList"><a name="fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
 <!--   -->
@@ -237,7 +253,7 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t1" class="tableTab"><span><a href="javascript:show(1);">Static Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -308,6 +324,26 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <div class="block">Provides access to the current AWS Glue DataCatalog being used by this class.</div>
 </td>
 </tr>
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#getColumnNameMapping-com.amazonaws.services.glue.model.Table-">getColumnNameMapping</a></span>(com.amazonaws.services.glue.model.Table&nbsp;table)</code>
+<div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
+ cannot be represented by Glue's quite restrictive naming rules.</div>
+</td>
+</tr>
+<tr id="i10" class="altColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#getSourceTableName-org.apache.arrow.vector.types.pojo.Schema-">getSourceTableName</a></span>(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema)</code>
+<div class="block">Will return the source table name stored by <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-"><code>populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
+</td>
+</tr>
+<tr id="i11" class="rowColor">
+<td class="colFirst"><code>protected static void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-">populateSourceTableNameIfAvailable</a></span>(com.amazonaws.services.glue.model.Table&nbsp;table,
+                                  <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;schemaBuilder)</code>
+<div class="block">Glue has strict table naming rules and may not be able to match the exact table name from the source.</div>
+</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
@@ -331,6 +367,40 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
+<!-- ============ FIELD DETAIL =========== -->
+<ul class="blockList">
+<li class="blockList"><a name="field.detail">
+<!--   -->
+</a>
+<h3>Field Detail</h3>
+<a name="SOURCE_TABLE_PROPERTY">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>SOURCE_TABLE_PROPERTY</h4>
+<pre>public static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> SOURCE_TABLE_PROPERTY</pre>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+<a name="COLUMN_NAME_MAPPING_PROPERTY">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>COLUMN_NAME_MAPPING_PROPERTY</h4>
+<pre>public static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> COLUMN_NAME_MAPPING_PROPERTY</pre>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+</li>
+</ul>
 <!-- ========= CONSTRUCTOR DETAIL ======== -->
 <ul class="blockList">
 <li class="blockList"><a name="constructor.detail">
@@ -576,7 +646,7 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <a name="convertField-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>convertField</h4>
 <pre>protected&nbsp;org.apache.arrow.vector.types.pojo.Field&nbsp;convertField(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;name,
@@ -588,6 +658,62 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <dd><code>glueType</code> - The type of the field in Glue.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The corresponding Apache Arrow Field.</dd>
+</dl>
+</li>
+</ul>
+<a name="populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>populateSourceTableNameIfAvailable</h4>
+<pre>protected static&nbsp;void&nbsp;populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table&nbsp;table,
+                                                         <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaBuilder</a>&nbsp;schemaBuilder)</pre>
+<div class="block">Glue has strict table naming rules and may not be able to match the exact table name from the source. So this stores
+ the source table name in the schema metadata if necessary to ease lookup later. It looks for it in the following places:
+ <p><ul>
+ <li>A table property called <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#SOURCE_TABLE_PROPERTY">"sourceTable"</a>
+ <li>In StorageDescriptor.Location in the form of an ARN (e.g. arn:aws:dynamodb:us-east-1:012345678910:table/mytable)
+ </ul><p>
+ Override this method to fetch the source table name from somewhere else.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>table</code> - The Glue Table</dd>
+<dd><code>schemaBuilder</code> - The schema being generated</dd>
+</dl>
+</li>
+</ul>
+<a name="getSourceTableName-org.apache.arrow.vector.types.pojo.Schema-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getSourceTableName</h4>
+<pre>protected static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;getSourceTableName(org.apache.arrow.vector.types.pojo.Schema&nbsp;schema)</pre>
+<div class="block">Will return the source table name stored by <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-"><code>populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>schema</code> - The schema returned by <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-"><code>doGetTable(com.amazonaws.athena.connector.lambda.data.BlockAllocator, com.amazonaws.athena.connector.lambda.metadata.GetTableRequest)</code></a></dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The source table name</dd>
+</dl>
+</li>
+</ul>
+<a name="getColumnNameMapping-com.amazonaws.services.glue.model.Table-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getColumnNameMapping</h4>
+<pre>protected static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;getColumnNameMapping(com.amazonaws.services.glue.model.Table&nbsp;table)</pre>
+<div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
+ cannot be represented by Glue's quite restrictive naming rules. It looks a comma separated inline map
+ in the <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#COLUMN_NAME_MAPPING_PROPERTY">"columnMapping"</a> table property.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>table</code> - The glue table</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>A column mapping if provided, otherwise an empty map</dd>
 </dl>
 </li>
 </ul>
@@ -645,13 +771,13 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
 <li><a href="#nested.class.summary">Nested</a>&nbsp;|&nbsp;</li>
-<li><a href="#fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">Field</a>&nbsp;|&nbsp;</li>
+<li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
@@ -660,6 +786,6 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <!--   -->
 </a></div>
 <!-- ======== END OF BOTTOM NAVBAR ======= -->
-<p class="legalCopy"><small>Copyright &#169; 2019 <a href="https://https://aws.amazon.com//">Amazon Web Services</a>. All rights reserved.</small></p>
+<p class="legalCopy"><small>Copyright &#169; 2019&#x2013;2020 <a href="https://https://aws.amazon.com//">Amazon Web Services</a>. All rights reserved.</small></p>
 </body>
 </html>

@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":9,"i1":9,"i2":9};
+var methods = {"i0":9,"i1":9,"i2":9,"i3":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -132,15 +132,13 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.Object-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</code>
-<div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
-</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceDecimalToExpectedType-java.math.BigDecimal-org.apache.arrow.vector.types.Types.MinorType-">coerceDecimalToExpectedType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/math/BigDecimal.html?is-external=true" title="class or interface in java.math">BigDecimal</a>&nbsp;value,
+                           org.apache.arrow.vector.types.Types.MinorType&nbsp;fieldType)</code>&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowField-java.lang.String-java.lang.Object-">getArrowField</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;key,
-             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value)</code>
-<div class="block">Converts a given field's Java type to a corresponding Arrow type.</div>
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.Object-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</code>
+<div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
@@ -148,6 +146,13 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowFieldFromDDBType-java.lang.String-java.lang.String-">getArrowFieldFromDDBType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeName,
                         <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeType)</code>
 <div class="block">Converts from DynamoDB Attribute Type to Arrow type.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#inferArrowField-java.lang.String-java.lang.Object-">inferArrowField</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;key,
+               <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value)</code>
+<div class="block">Infers an Arrow field from an object.</div>
 </td>
 </tr>
 </table>
@@ -172,21 +177,22 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="getArrowField-java.lang.String-java.lang.Object-">
+<a name="inferArrowField-java.lang.String-java.lang.Object-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getArrowField</h4>
-<pre>public static&nbsp;org.apache.arrow.vector.types.pojo.Field&nbsp;getArrowField(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;key,
-                                                                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value)</pre>
-<div class="block">Converts a given field's Java type to a corresponding Arrow type.</div>
+<h4>inferArrowField</h4>
+<pre>public static&nbsp;org.apache.arrow.vector.types.pojo.Field&nbsp;inferArrowField(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;key,
+                                                                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value)</pre>
+<div class="block">Infers an Arrow field from an object.  This has limitations when it comes to complex types such as Lists and Maps
+ and will fallback to VARCHAR fields in those cases.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>key</code> - the name of the field</dd>
-<dd><code>value</code> - the valie of the field</dd>
+<dd><code>value</code> - the value of the field</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>the converted Arrow field</dd>
+<dd>the inferred Arrow field</dd>
 </dl>
 </li>
 </ul>
@@ -209,7 +215,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <a name="getArrowFieldFromDDBType-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getArrowFieldFromDDBType</h4>
 <pre>public static&nbsp;org.apache.arrow.vector.types.pojo.Field&nbsp;getArrowFieldFromDDBType(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeName,
@@ -222,6 +228,16 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the converted-to Arrow Field</dd>
 </dl>
+</li>
+</ul>
+<a name="coerceDecimalToExpectedType-java.math.BigDecimal-org.apache.arrow.vector.types.Types.MinorType-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>coerceDecimalToExpectedType</h4>
+<pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;coerceDecimalToExpectedType(<a href="https://docs.oracle.com/javase/8/docs/api/java/math/BigDecimal.html?is-external=true" title="class or interface in java.math">BigDecimal</a>&nbsp;value,
+                                                 org.apache.arrow.vector.types.Types.MinorType&nbsp;fieldType)</pre>
 </li>
 </ul>
 </li>
@@ -293,6 +309,6 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <!--   -->
 </a></div>
 <!-- ======== END OF BOTTOM NAVBAR ======= -->
-<p class="legalCopy"><small>Copyright &#169; 2019 <a href="https://https://aws.amazon.com//">Amazon Web Services</a>. All rights reserved.</small></p>
+<p class="legalCopy"><small>Copyright &#169; 2019&#x2013;2020 <a href="https://https://aws.amazon.com//">Amazon Web Services</a>. All rights reserved.</small></p>
 </body>
 </html>

@@ -648,6 +648,8 @@
 <dd>
 <div class="block">Allows for coercing types in the event that schema has evolved or there were other data issues.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceDecimalToExpectedType-java.math.BigDecimal-org.apache.arrow.vector.types.Types.MinorType-">coerceDecimalToExpectedType(BigDecimal, Types.MinorType)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#coerceType-boolean-org.apache.arrow.vector.types.pojo.ArrowType-byte:A-">coerceType(boolean, ArrowType, byte[])</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
 <dd>
 <div class="block">Helper that can coerce the given HBase value to the requested Apache Arrow type.</div>
@@ -658,6 +660,8 @@
  on libraries that have some of these helpers built in but would bloat the deployment artifact of our
  Lambda functions.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a> - package com.amazonaws.athena.connector.lambda</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a> - package com.amazonaws.athena.connector.lambda.data</dt>
@@ -1910,10 +1914,6 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getApproxTableSizeInBytes--">getApproxTableSizeInBytes()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowField-java.lang.String-java.lang.Object-">getArrowField(String, Object)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
-<dd>
-<div class="block">Converts a given field's Java type to a corresponding Arrow type.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowFieldFromDDBType-java.lang.String-java.lang.String-">getArrowFieldFromDDBType(String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
 <dd>
 <div class="block">Converts from DynamoDB Attribute Type to Arrow type.</div>
@@ -1990,6 +1990,11 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getColumnName--">getColumnName()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#getColumnNameMapping-com.amazonaws.services.glue.model.Table-">getColumnNameMapping(Table)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>
+<div class="block">If available, will parse and return a column name mapping for cases when a data source's columns
+ cannot be represented by Glue's quite restrictive naming rules.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getColumnType--">getColumnType()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html#getConnection-com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider-">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
@@ -2593,6 +2598,10 @@
 <div class="block">Calculates the current used size in 'bytes' for all Apache Arrow Buffers that comprise the row data for
  this Block.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#getSourceTableName-org.apache.arrow.vector.types.pojo.Schema-">getSourceTableName(Schema)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>
+<div class="block">Will return the source table name stored by <a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-"><code>GlueMetadataHandler.populateSourceTableNameIfAvailable(com.amazonaws.services.glue.model.Table, com.amazonaws.athena.connector.lambda.data.SchemaBuilder)</code></a></div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#getSourceType--">getSourceType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
 <dd>
 <div class="block">Returns the source type ID of the pinged endpoint.</div>
@@ -3104,6 +3113,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#INDEX_METADATA">INDEX_METADATA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#inferArrowField-java.lang.String-java.lang.Object-">inferArrowField(String, Object)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
+<dd>
+<div class="block">Infers an Arrow field from an object.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html#inferSchema-com.mongodb.client.MongoClient-com.amazonaws.athena.connector.lambda.domain.TableName-int-">inferSchema(MongoClient, TableName, int)</a></span> - Static method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb">SchemaUtils</a></dt>
 <dd>
 <div class="block">This method will produce an Apache Arrow Schema for the given TableName and DocumentDB connection
@@ -3888,6 +3901,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#PingResponse-java.lang.String-java.lang.String-java.lang.String-int-">PingResponse(String, String, String, int)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-">populateSourceTableNameIfAvailable(Table, SchemaBuilder)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>
+<div class="block">Glue has strict table naming rules and may not be able to match the exact table name from the source.</div>
+</dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlCompositeHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql"><span class="typeNameLink">PostGreSqlCompositeHandler</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/postgresql/package-summary.html">com.amazonaws.connectors.athena.jdbc.postgresql</a></dt>
 <dd>
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -4465,6 +4482,8 @@
 <div class="block">A set containing values that are represented as ranges that are sorted by their lower bound.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">SortedRangeSet.Builder</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/domain/predicate/package-summary.html">com.amazonaws.athena.connector.lambda.domain.predicate</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#SOURCE_TABLE_PROPERTY">SOURCE_TABLE_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#span-com.amazonaws.athena.connector.lambda.domain.predicate.Range-">span(Range)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
 <dd>&nbsp;</dd>
@@ -5166,6 +5185,6 @@ the order they are declared.</div>
 <!--   -->
 </a></div>
 <!-- ======== END OF BOTTOM NAVBAR ======= -->
-<p class="legalCopy"><small>Copyright &#169; 2019 <a href="https://https://aws.amazon.com//">Amazon Web Services</a>. All rights reserved.</small></p>
+<p class="legalCopy"><small>Copyright &#169; 2019&#x2013;2020 <a href="https://https://aws.amazon.com//">Amazon Web Services</a>. All rights reserved.</small></p>
 </body>
 </html>
