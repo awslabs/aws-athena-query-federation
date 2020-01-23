@@ -3,14 +3,14 @@ Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaAwsCmdbConnector
     Description: 'This connector enables Amazon Athena to communicate with various AWS Services, making your resource inventories accessible via SQL.'
-    Author: 'default author'
+    Author: 'Amazon Athena Federation'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2020.04.1
+    SemanticVersion: 2020.4.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
