@@ -138,6 +138,7 @@ public class DocDBRecordHandlerTest
                 .addField("varbinary", Types.MinorType.VARBINARY.getType())
                 .addField("decimal", new ArrowType.Decimal(10, 2))
                 .addField("decimalLong", new ArrowType.Decimal(36, 2))
+                .addField("unsupported", Types.MinorType.VARCHAR.getType())
                 .addStructField("struct")
                 .addChildField("struct", "struct_string", Types.MinorType.VARCHAR.getType())
                 .addChildField("struct", "struct_int", Types.MinorType.INT.getType())
@@ -194,15 +195,6 @@ public class DocDBRecordHandlerTest
         allocator.close();
     }
 
-    private Document makeDocument(Schema schema, int seed)
-    {
-        Document doc = new Document();
-        doc.put("stringCol", "stringVal");
-        doc.put("intCol", 1);
-        doc.put("col3", 22.0D);
-        return doc;
-    }
-
     @Test
     public void doReadRecordsNoSpill()
             throws Exception
@@ -226,6 +218,7 @@ public class DocDBRecordHandlerTest
         Document doc3 = DocumentGenerator.makeRandomRow(schemaForRead.getFields(), docNum++);
         documents.add(doc3);
         doc3.put("col3", 21.0D);
+        doc3.put("unsupported",new UnsupportedType());
 
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         MongoCollection mockCollection = mock(MongoCollection.class);

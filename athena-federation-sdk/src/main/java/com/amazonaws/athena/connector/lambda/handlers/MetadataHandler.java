@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SimpleBlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
@@ -243,6 +244,7 @@ public abstract class MetadataHandler
                 try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
+                    assertTypes(response);
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
@@ -452,6 +454,21 @@ public abstract class MetadataHandler
     {
         if (response == null) {
             throw new RuntimeException("Response was null");
+        }
+    }
+
+    /**
+     * Helper function that is used to enforced we only return supported types.
+     *
+     * @param response The response to check.
+     * @note We check GetTableResponse because this is the gate-keeper to all other requests. If you can only
+     * discover valid (supported) schemas, then it follows that it would be difficult to develop a connector
+     * which unknowingly returns unsupported types.
+     */
+    private void assertTypes(GetTableResponse response)
+    {
+        for (Field next : response.getSchema().getFields()) {
+            SupportedTypes.assertSupported(next);
         }
     }
 }

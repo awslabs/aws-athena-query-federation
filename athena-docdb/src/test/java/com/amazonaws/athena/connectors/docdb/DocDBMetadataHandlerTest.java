@@ -184,6 +184,7 @@ public class DocDBMetadataHandlerTest
         doc1.put("intCol", 1);
         doc1.put("doubleCol", 2.2D);
         doc1.put("longCol", 100L);
+        doc1.put("unsupported", new UnsupportedType());
 
         Document doc2 = new Document();
         documents.add(doc2);
@@ -214,7 +215,7 @@ public class DocDBMetadataHandlerTest
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
-        assertEquals(8, res.getSchema().getFields().size());
+        assertEquals(9, res.getSchema().getFields().size());
 
         Field stringCol = res.getSchema().findField("stringCol");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(stringCol.getType()));
@@ -239,6 +240,9 @@ public class DocDBMetadataHandlerTest
 
         Field longCol2 = res.getSchema().findField("longCol2");
         assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(longCol2.getType()));
+
+        Field unsupported = res.getSchema().findField("unsupported");
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(unsupported.getType()));
 
         logger.info("doGetTable - exit");
     }

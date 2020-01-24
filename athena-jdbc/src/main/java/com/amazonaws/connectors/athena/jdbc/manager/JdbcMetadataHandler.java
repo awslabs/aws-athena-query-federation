@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -228,14 +229,20 @@ public abstract class JdbcMetadataHandler
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             boolean found = false;
             while (resultSet.next()) {
-                found = true;
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"));
                 String columnName = resultSet.getString("COLUMN_NAME");
-                schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    found = true;
+                }
+                else {
+                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                }
             }
+
             if (!found) {
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
