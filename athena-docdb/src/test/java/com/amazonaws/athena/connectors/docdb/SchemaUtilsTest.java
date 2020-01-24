@@ -30,7 +30,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
 import org.junit.Test;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,13 +38,40 @@ import java.util.Map;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class SchemaUtilsTest
 {
+
+    @Test
+    public void UnsupportedTypeTest()
+    {
+        List<Document> docs = new ArrayList<>();
+        Document unsupported = new Document();
+        unsupported.put("unsupported_col1", new UnsupportedType());
+        docs.add(unsupported);
+
+        MongoClient mockClient = mock(MongoClient.class);
+        MongoDatabase mockDatabase = mock(MongoDatabase.class);
+        MongoCollection mockCollection = mock(MongoCollection.class);
+        FindIterable mockIterable = mock(FindIterable.class);
+        when(mockClient.getDatabase(anyObject())).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(anyObject())).thenReturn(mockCollection);
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(docs.iterator()));
+
+        Schema schema = SchemaUtils.inferSchema(mockClient, new TableName("test", "test"), 10);
+        assertEquals(1, schema.getFields().size());
+
+        Map<String, Field> fields = new HashMap<>();
+        schema.getFields().stream().forEach(next -> fields.put(next.getName(), next));
+
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(fields.get("unsupported_col1").getType()));
+    }
 
     @Test
     public void basicMergeTest()

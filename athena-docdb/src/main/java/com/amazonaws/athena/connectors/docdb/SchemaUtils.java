@@ -239,6 +239,7 @@ public class SchemaUtils
         }
 
         String className = value.getClass() == null ? "null" : value.getClass().getName();
-        throw new RuntimeException("Unknown type[" + className + "] for field[" + key + "]");
+        logger.warn("Unknown type[" + className + "] for field[" + key + "], defaulting to varchar.");
+        return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
     }
 }
