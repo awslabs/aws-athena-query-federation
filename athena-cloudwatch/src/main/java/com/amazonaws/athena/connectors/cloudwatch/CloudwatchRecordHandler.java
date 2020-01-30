@@ -111,6 +111,8 @@ public class CloudwatchRecordHandler
                                     //We use the property instead of the table name because of the special all_streams table
                                     .withLogStreamName(split.getProperty(LOG_STREAM_FIELD))
                                     .withNextToken(actualContinuationToken)
+                                    // must be set to use nextToken correctly
+                                    .withStartFromHead(true)
                     )));
 
             if (continuationToken == null || !continuationToken.equals(logEventsResult.getNextForwardToken())) {
