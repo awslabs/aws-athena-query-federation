@@ -73,7 +73,8 @@ public class SchemaUtils
     public static Schema inferSchema(MongoClient client, TableName table, int numObjToSample)
     {
         MongoDatabase db = client.getDatabase(table.getSchemaName());
-
+        int docCount = 0;
+        int fieldCount = 0;
         try (MongoCursor<Document> docs = db.getCollection(table.getTableName()).find().batchSize(numObjToSample)
                 .maxScan(numObjToSample).limit(numObjToSample).iterator()) {
             if (!docs.hasNext()) {
@@ -82,8 +83,10 @@ public class SchemaUtils
             SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
             while (docs.hasNext()) {
+                docCount++;
                 Document doc = docs.next();
                 for (String key : doc.keySet()) {
+                    fieldCount++;
                     Field newField = getArrowField(key, doc.get(key));
                     Types.MinorType newType = Types.getMinorTypeForArrowType(newField.getType());
                     Field curField = schemaBuilder.getField(key);
@@ -105,7 +108,15 @@ public class SchemaUtils
                 }
             }
 
-            return schemaBuilder.build();
+            Schema schema = schemaBuilder.build();
+            if (schema.getFields().isEmpty()) {
+                throw new RuntimeException("No columns found after scanning " + fieldCount + " values across " +
+                        docCount + " documents. Please ensure the collection is not empty and contains at least 1 supported column type.");
+            }
+            return schema;
+        }
+        finally {
+            logger.info("inferSchema: Evaluated {} field values across {} documents.", fieldCount, docCount);
         }
     }
 
