@@ -118,7 +118,12 @@ public class HbaseSchemaUtils
                 }
             }
 
-            return schemaBuilder.build();
+            Schema schema = schemaBuilder.build();
+            if (schema.getFields().isEmpty()) {
+                throw new RuntimeException("No columns found after scanning " + fieldCount + " values across " +
+                        rowCount + " rows. Please ensure the table is not empty and contains at least 1 support column type.");
+            }
+            return schema;
         }
         catch (IOException ex) {
             throw new RuntimeException(ex);

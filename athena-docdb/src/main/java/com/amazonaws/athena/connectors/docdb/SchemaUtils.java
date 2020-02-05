@@ -108,7 +108,12 @@ public class SchemaUtils
                 }
             }
 
-            return schemaBuilder.build();
+            Schema schema = schemaBuilder.build();
+            if (schema.getFields().isEmpty()) {
+                throw new RuntimeException("No columns found after scanning " + fieldCount + " values across " +
+                        docCount + " documents. Please ensure the collection is not empty and contains at least 1 support column type.");
+            }
+            return schema;
         }
         finally {
             logger.info("inferSchema: Evaluated {} field values across {} documents.", fieldCount, docCount);
