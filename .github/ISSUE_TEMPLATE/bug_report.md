@@ -21,7 +21,7 @@ Steps to reproduce the behavior:
 A clear and concise description of what you expected to happen.
 
 **Screenshots / Exceptions / Errors**
-If applicable, add screenshots, exception stack traces, or error messages to help explain your problem.
+If applicable, add screenshots, exception stack traces, or error messages to help explain your problem.  Stack traces for exceptions thrown by your Connector can be found in CloudWatch Logs under the 'aws/lambda/<Lambda_function_name>' log group.
 
 **Connector Details (please complete the following information):**
  - Version: [e.g. 2020.04.01]
