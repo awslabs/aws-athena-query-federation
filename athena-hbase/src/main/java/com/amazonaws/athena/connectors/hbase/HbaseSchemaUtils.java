@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -72,10 +72,14 @@ public class HbaseSchemaUtils
     {
         Map<String, Map<String, ArrowType>> schemaInference = new HashMap<>();
         Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
+        int rowCount = 0;
+        int fieldCount = 0;
         try (Table table = client.getTable(org.apache.hadoop.hbase.TableName.valueOf(getQualifiedTableName(tableName)));
                 ResultScanner scanner = table.getScanner(scan)) {
             for (Result result : scanner) {
+                rowCount++;
                 for (KeyValue keyValue : result.list()) {
+                    fieldCount++;
                     String family = new String(keyValue.getFamily());
                     String column = new String(keyValue.getQualifier());
 
@@ -118,6 +122,9 @@ public class HbaseSchemaUtils
         }
         catch (IOException ex) {
             throw new RuntimeException(ex);
+        }
+        finally {
+            logger.info("inferSchema: Evaluated {} field values across {} rows.", fieldCount, rowCount);
         }
     }
 
