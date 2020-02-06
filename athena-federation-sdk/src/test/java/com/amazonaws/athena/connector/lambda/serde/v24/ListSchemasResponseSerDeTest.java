@@ -48,7 +48,7 @@ public class ListSchemasResponseSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private ListSchemasResponseSerDe serde;
 
     private BlockAllocator allocator;
@@ -62,7 +62,7 @@ public class ListSchemasResponseSerDeTest
     {
         allocator = new BlockAllocatorImpl();
 
-        serde = v24SerDeProvider.getListSchemasResponseSerDe();
+        serde = serDeProvider.getListSchemasResponseSerDe();
 
         expected = new ListSchemasResponse("test-catalog", ImmutableList.of("schema1", "schema2"));
 
@@ -118,7 +118,7 @@ public class ListSchemasResponseSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -139,7 +139,7 @@ public class ListSchemasResponseSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

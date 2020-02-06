@@ -49,8 +49,8 @@ public class GetTableRequestSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
-    private GetTableRequestSerDe serde = new GetTableRequestSerDe(new FederatedIdentitySerDe(), new TableNameSerDe());
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
+    private GetTableRequestSerDe serde;
 
     private BlockAllocator allocator;
 
@@ -62,6 +62,9 @@ public class GetTableRequestSerDeTest
             throws IOException
     {
         allocator = new BlockAllocatorImpl();
+
+        serde = serDeProvider.getGetTableRequestSerDe();
+
         FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
         expected = new GetTableRequest(federatedIdentity, "test-query-id", "test-catalog", new TableName("test-schema", "test-table"));
 
@@ -117,7 +120,7 @@ public class GetTableRequestSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationRequestSerDe federationRequestSerDe = v24SerDeProvider.getFederationRequestSerDe(allocator);
+        FederationRequestSerDe federationRequestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -138,7 +141,7 @@ public class GetTableRequestSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationRequestSerDe federationRequestSerDe = v24SerDeProvider.getFederationRequestSerDe(allocator);
+        FederationRequestSerDe federationRequestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

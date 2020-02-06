@@ -68,7 +68,7 @@ public class ReadRecordsRequestSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private ReadRecordsRequestSerDe serde;
 
     private BlockAllocator allocator;
@@ -82,23 +82,7 @@ public class ReadRecordsRequestSerDeTest
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");
 
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        BlockSerDe blockSerDe = new BlockSerDe(allocator, jsonFactory, schemaSerDe);
-        ArrowTypeSerDe arrowTypeSerDe = new ArrowTypeSerDe();
-        MarkerSerDe markerSerDe = new MarkerSerDe(blockSerDe);
-        RangeSerDe rangeSerDe = new RangeSerDe(markerSerDe);
-        EquatableValueSetSerDe equatableValueSetSerDe = new EquatableValueSetSerDe(blockSerDe);
-        SortedRangeSetSerDe sortedRangeSetSerDe = new SortedRangeSetSerDe(arrowTypeSerDe, rangeSerDe);
-        AllOrNoneValueSetSerDe allOrNoneValueSetSerDe = new AllOrNoneValueSetSerDe(arrowTypeSerDe);
-        ValueSetSerDe valueSetSerDe = new ValueSetSerDe(equatableValueSetSerDe, sortedRangeSetSerDe, allOrNoneValueSetSerDe);
-        FederatedIdentitySerDe federatedIdentitySerDe = new FederatedIdentitySerDe();
-        TableNameSerDe tableNameSerDe = new TableNameSerDe();
-        ConstraintsSerDe constraintsSerDe = new ConstraintsSerDe(valueSetSerDe);
-        S3SpillLocationSerDe s3SpillLocationSerDe = new S3SpillLocationSerDe();
-        SpillLocationSerDe spillLocationSerDe = new SpillLocationSerDe(s3SpillLocationSerDe);
-        EncryptionKeySerDe encryptionKeySerDe = new EncryptionKeySerDe();
-        SplitSerDe splitSerDe = new SplitSerDe(spillLocationSerDe, encryptionKeySerDe);
-        serde = new ReadRecordsRequestSerDe(federatedIdentitySerDe, tableNameSerDe, constraintsSerDe, schemaSerDe, splitSerDe);
+        serde = serDeProvider.getReadRecordsRequestSerDe(allocator);
 
         FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
 
@@ -210,7 +194,7 @@ public class ReadRecordsRequestSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationRequestSerDe federationRequestSerDe = v24SerDeProvider.getFederationRequestSerDe(allocator);
+        FederationRequestSerDe federationRequestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -231,7 +215,7 @@ public class ReadRecordsRequestSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationRequestSerDe federationRequestSerDe = v24SerDeProvider.getFederationRequestSerDe(allocator);
+        FederationRequestSerDe federationRequestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

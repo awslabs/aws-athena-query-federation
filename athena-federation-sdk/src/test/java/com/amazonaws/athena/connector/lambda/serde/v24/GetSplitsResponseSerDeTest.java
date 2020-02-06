@@ -52,7 +52,7 @@ public class GetSplitsResponseSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private GetSplitsResponseSerDe serde;
 
     private BlockAllocator allocator;
@@ -66,7 +66,7 @@ public class GetSplitsResponseSerDeTest
     {
         allocator = new BlockAllocatorImpl();
 
-        serde = v24SerDeProvider.getGetSplitsResponseSerDe();
+        serde = serDeProvider.getGetSplitsResponseSerDe();
 
         String yearCol = "year";
         String monthCol = "month";
@@ -157,7 +157,7 @@ public class GetSplitsResponseSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -178,7 +178,7 @@ public class GetSplitsResponseSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

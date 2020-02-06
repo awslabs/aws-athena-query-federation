@@ -21,9 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v24;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.utils.TestUtils;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -49,7 +47,7 @@ public class PingResponseSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private PingResponseSerDe serde;
 
     private BlockAllocator allocator;
@@ -63,7 +61,7 @@ public class PingResponseSerDeTest
     {
         allocator = new BlockAllocatorImpl();
 
-        serde = v24SerDeProvider.getPingResponseSerDe();
+        serde = serDeProvider.getPingResponseSerDe();
 
         expected = new PingResponse("test-catalog", "test-query-id", "test-source-type", 24);
 
@@ -119,7 +117,7 @@ public class PingResponseSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -140,7 +138,7 @@ public class PingResponseSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

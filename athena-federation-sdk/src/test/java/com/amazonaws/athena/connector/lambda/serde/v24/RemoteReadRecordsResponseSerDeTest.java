@@ -54,7 +54,7 @@ public class RemoteReadRecordsResponseSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private RemoteReadRecordsResponseSerDe serde;
 
     private BlockAllocator allocator;
@@ -68,11 +68,7 @@ public class RemoteReadRecordsResponseSerDeTest
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");
 
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        S3SpillLocationSerDe s3SpillLocationSerDe = new S3SpillLocationSerDe();
-        SpillLocationSerDe spillLocationSerDe = new SpillLocationSerDe(s3SpillLocationSerDe);
-        EncryptionKeySerDe encryptionKeySerDe = new EncryptionKeySerDe();
-        serde = new RemoteReadRecordsResponseSerDe(schemaSerDe, spillLocationSerDe, encryptionKeySerDe);
+        serde = serDeProvider.getRemoteReadRecordsResponseSerDe();
 
         String yearCol = "year";
         String monthCol = "month";
@@ -158,7 +154,7 @@ public class RemoteReadRecordsResponseSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -179,7 +175,7 @@ public class RemoteReadRecordsResponseSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

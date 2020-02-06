@@ -49,7 +49,7 @@ public class ListTablesResponseSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private ListTablesResponseSerDe serde;
 
     private BlockAllocator allocator;
@@ -63,7 +63,7 @@ public class ListTablesResponseSerDeTest
     {
         allocator = new BlockAllocatorImpl();
 
-        serde = v24SerDeProvider.getListTablesResponseSerDe();
+        serde = serDeProvider.getListTablesResponseSerDe();
 
         expected = new ListTablesResponse("test-catalog", ImmutableList.of(
                 new TableName("schema1", "table1"),
@@ -121,7 +121,7 @@ public class ListTablesResponseSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -142,7 +142,7 @@ public class ListTablesResponseSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

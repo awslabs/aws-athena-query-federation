@@ -54,7 +54,7 @@ public class UserDefinedFunctionRequestSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private UserDefinedFunctionRequestSerDe serde;
 
     private BlockAllocator allocator;
@@ -68,10 +68,7 @@ public class UserDefinedFunctionRequestSerDeTest
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");
 
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        BlockSerDe blockSerDe = new BlockSerDe(allocator, jsonFactory, schemaSerDe);
-        FederatedIdentitySerDe federatedIdentitySerDe = new FederatedIdentitySerDe();
-        serde = new UserDefinedFunctionRequestSerDe(federatedIdentitySerDe, blockSerDe, schemaSerDe);
+        serde = serDeProvider.getUserDefinedFunctionRequestSerDe(allocator);
 
         FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
 
@@ -150,7 +147,7 @@ public class UserDefinedFunctionRequestSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationRequestSerDe federationRequestSerDe = v24SerDeProvider.getFederationRequestSerDe(allocator);
+        FederationRequestSerDe federationRequestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -171,7 +168,7 @@ public class UserDefinedFunctionRequestSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationRequestSerDe federationRequestSerDe = v24SerDeProvider.getFederationRequestSerDe(allocator);
+        FederationRequestSerDe federationRequestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 

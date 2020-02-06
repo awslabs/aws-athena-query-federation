@@ -80,9 +80,19 @@ public class V24SerDeProvider
                 new UserDefinedFunctionResponseSerDe(blockSerDe));
     }
 
+    public PingRequestSerDe getPingRequestSerDe()
+    {
+        return PING_REQUEST_SER_DE;
+    }
+
     public PingResponseSerDe getPingResponseSerDe()
     {
         return PING_RESPONSE_SER_DE;
+    }
+
+    public ListSchemasRequestSerDe getListSchemasRequestSerDe()
+    {
+        return LIST_SCHEMAS_REQUEST_SER_DE;
     }
 
     public ListSchemasResponseSerDe getListSchemasResponseSerDe()
@@ -90,9 +100,19 @@ public class V24SerDeProvider
         return LIST_SCHEMAS_RESPONSE_SER_DE;
     }
 
+    public ListTablesRequestSerDe getListTablesRequestSerDe()
+    {
+        return LIST_TABLES_REQUEST_SER_DE;
+    }
+
     public ListTablesResponseSerDe getListTablesResponseSerDe()
     {
         return LIST_TABLES_RESPONSE_SER_DE;
+    }
+
+    public GetTableRequestSerDe getGetTableRequestSerDe()
+    {
+        return GET_TABLE_REQUEST_SER_DE;
     }
 
     public GetTableResponseSerDe getGetTableResponseSerDe()
@@ -100,15 +120,61 @@ public class V24SerDeProvider
         return GET_TABLE_RESPONSE_SER_DE;
     }
 
+    public GetTableLayoutRequestSerDe getGetTableLayoutRequestSerDe(BlockAllocator allocator)
+    {
+        return new GetTableLayoutRequestSerDe(FEDERATED_IDENTITY_SER_DE, TABLE_NAME_SER_DE, getConstraintsSerDe(getBlockSerDe(allocator)), SCHEMA_SER_DE);
+    }
+
     public GetTableLayoutResponseSerDe getGetTableLayoutResponseSerDe(BlockAllocator allocator)
     {
-        BlockSerDe blockSerDe = new BlockSerDe(allocator, JSON_FACTORY, SCHEMA_SER_DE);
-        return new GetTableLayoutResponseSerDe(TABLE_NAME_SER_DE, blockSerDe);
+        return new GetTableLayoutResponseSerDe(TABLE_NAME_SER_DE, getBlockSerDe(allocator));
+    }
+
+    public GetSplitsRequestSerDe getGetSplitsRequestSerDe(BlockAllocator allocator)
+    {
+        BlockSerDe blockSerDe = getBlockSerDe(allocator);
+        return new GetSplitsRequestSerDe(FEDERATED_IDENTITY_SER_DE, TABLE_NAME_SER_DE, blockSerDe, getConstraintsSerDe(blockSerDe));
     }
 
     public GetSplitsResponseSerDe getGetSplitsResponseSerDe()
     {
         return GET_SPLITS_RESPONSE_SER_DE;
+    }
+
+    public ReadRecordsRequestSerDe getReadRecordsRequestSerDe(BlockAllocator allocator)
+    {
+        return new ReadRecordsRequestSerDe(FEDERATED_IDENTITY_SER_DE, TABLE_NAME_SER_DE, getConstraintsSerDe(getBlockSerDe(allocator)), SCHEMA_SER_DE, SPLIT_SER_DE);
+    }
+
+    public ReadRecordsResponseSerDe getReadRecordsResponseSerDe(BlockAllocator allocator)
+    {
+        return new ReadRecordsResponseSerDe(getBlockSerDe(allocator));
+    }
+
+    public RemoteReadRecordsResponseSerDe getRemoteReadRecordsResponseSerDe()
+    {
+        return REMOTE_READ_RECORDS_RESPONSE_SER_DE;
+    }
+
+    public UserDefinedFunctionRequestSerDe getUserDefinedFunctionRequestSerDe(BlockAllocator allocator)
+    {
+        return new UserDefinedFunctionRequestSerDe(FEDERATED_IDENTITY_SER_DE, getBlockSerDe(allocator), SCHEMA_SER_DE);
+    }
+
+    public UserDefinedFunctionResponseSerDe getUserDefinedFunctionResponseSerDe(BlockAllocator allocator)
+    {
+        return new UserDefinedFunctionResponseSerDe(getBlockSerDe(allocator));
+    }
+
+    private BlockSerDe getBlockSerDe(BlockAllocator allocator)
+    {
+        return new BlockSerDe(allocator, JSON_FACTORY, SCHEMA_SER_DE);
+    }
+
+    private ConstraintsSerDe getConstraintsSerDe(BlockSerDe blockSerDe)
+    {
+        ValueSetSerDe valueSetSerDe = createValueSetSerDe(blockSerDe);
+        return new ConstraintsSerDe(valueSetSerDe);
     }
 
     private ValueSetSerDe createValueSetSerDe(BlockSerDe blockSerDe)

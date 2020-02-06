@@ -52,7 +52,7 @@ public class ReadRecordsResponseSerDeTest
     private TestUtils utils = new TestUtils();
     private JsonFactory jsonFactory = new JsonFactory();
 
-    private V24SerDeProvider v24SerDeProvider = new V24SerDeProvider();
+    private V24SerDeProvider serDeProvider = new V24SerDeProvider();
     private ReadRecordsResponseSerDe serde;
 
     private BlockAllocator allocator;
@@ -66,9 +66,7 @@ public class ReadRecordsResponseSerDeTest
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");
 
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        BlockSerDe blockSerDe = new BlockSerDe(allocator, jsonFactory, schemaSerDe);
-        serde = new ReadRecordsResponseSerDe(blockSerDe);
+        serde = serDeProvider.getReadRecordsResponseSerDe(allocator);
 
         String yearCol = "year";
         String monthCol = "month";
@@ -143,7 +141,7 @@ public class ReadRecordsResponseSerDeTest
             throws IOException
     {
         logger.info("delegateSerialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
         jgen.useDefaultPrettyPrinter();
@@ -164,7 +162,7 @@ public class ReadRecordsResponseSerDeTest
             throws IOException
     {
         logger.info("delegateDeserialize: enter");
-        FederationResponseSerDe federationResponseSerDe = v24SerDeProvider.getFederationResponseSerDe(allocator);
+        FederationResponseSerDe federationResponseSerDe = serDeProvider.getFederationResponseSerDe(allocator);
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
         JsonParser jparser = jsonFactory.createParser(input);
 
