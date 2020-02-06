@@ -92,7 +92,7 @@ public class V24SerDeProvider
 
     public ListTablesResponseSerDe getListTablesResponseSerDe()
     {
-        return getListTablesResponseSerDe();
+        return LIST_TABLES_RESPONSE_SER_DE;
     }
 
     public GetTableResponseSerDe getGetTableResponseSerDe()

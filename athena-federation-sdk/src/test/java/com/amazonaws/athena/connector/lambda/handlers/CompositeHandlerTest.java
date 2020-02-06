@@ -67,7 +67,9 @@ import java.util.HashMap;
 import java.util.UUID;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -95,39 +97,39 @@ public class CompositeHandlerTest
 
         allocator = new BlockAllocatorImpl();
         objectMapper = ObjectMapperFactory.create(allocator);
-        mockMetadataHandler = mock(MetadataHandler.class);
+        mockMetadataHandler = spy(MetadataHandler.class);
         mockRecordHandler = mock(RecordHandler.class);
 
         schemaForRead = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Int(32, true))
                 .build();
 
-        when(mockMetadataHandler.doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class)))
-                .thenReturn(new GetTableLayoutResponse("catalog",
-                        new TableName("schema", "table"),
-                        BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
+        doReturn(new GetTableLayoutResponse("catalog",
+                new TableName("schema", "table"),
+                BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)))
+                .when(mockMetadataHandler).doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class));
 
-        when(mockMetadataHandler.doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
-                .thenReturn(new ListTablesResponse("catalog",
-                        Collections.singletonList(new TableName("schema", "table"))));
+        doReturn(new ListTablesResponse("catalog",
+                Collections.singletonList(new TableName("schema", "table"))))
+                .when(mockMetadataHandler).doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class));
 
-        when(mockMetadataHandler.doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class)))
-                .thenReturn(new GetTableResponse("catalog",
-                        new TableName("schema", "table"),
-                        SchemaBuilder.newBuilder().addStringField("col1").build()));
+        doReturn(new GetTableResponse("catalog",
+                new TableName("schema", "table"),
+                SchemaBuilder.newBuilder().addStringField("col1").build()))
+                .when(mockMetadataHandler).doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class));
 
-        when(mockMetadataHandler.doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class)))
-                .thenReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")));
+        doReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")))
+                .when(mockMetadataHandler).doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class));
 
-        when(mockMetadataHandler.doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class)))
-                .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
+        doReturn(new GetSplitsResponse("catalog", Split.newBuilder(new S3SpillLocation("bucket", "key", true), null).build()))
+                .when(mockMetadataHandler).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
 
-        when(mockMetadataHandler.doPing(any(PingRequest.class)))
-                .thenReturn(new PingResponse("catalog", "queryId", "type", 23));
+        doReturn(new PingResponse("catalog", "queryId", "type", 23))
+                .when(mockMetadataHandler).doPing(any(PingRequest.class));
 
-        when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
-                .thenReturn(new ReadRecordsResponse("catalog",
-                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
+        doReturn(new ReadRecordsResponse("catalog",
+                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))))
+                .when(mockRecordHandler).doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class));
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
