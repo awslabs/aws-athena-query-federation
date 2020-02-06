@@ -88,7 +88,7 @@ public class ConstraintSerializationTest
                         SchemaBuilder.newBuilder().build(),
                         new HashSet<>())
         ) {
-            ObjectMapperUtil.assertSerialization(req, req.getClass());
+            ObjectMapperUtil.assertSerialization(req, allocator);
         }
 
         logger.info("serializationTest - exit");

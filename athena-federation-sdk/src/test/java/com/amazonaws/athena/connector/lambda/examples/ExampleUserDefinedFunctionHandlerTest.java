@@ -200,7 +200,7 @@ public class ExampleUserDefinedFunctionHandlerTest
                 outputSchema,
                 methodName,
                 UserDefinedFunctionType.SCALAR);
-        ObjectMapperUtil.assertSerialization(request, request.getClass());
+        ObjectMapperUtil.assertSerialization(request, allocator);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         mapper.writeValue(out, request);
@@ -210,7 +210,7 @@ public class ExampleUserDefinedFunctionHandlerTest
         exampleUserDefinedFunctionHandler.handleRequest(byteArrayInputStream, outputStream, null);
 
         UserDefinedFunctionResponse udfResponse = mapper.readValue(outputStream.toByteArray(), UserDefinedFunctionResponse.class);
-        ObjectMapperUtil.assertSerialization(udfResponse, udfResponse.getClass());
+        ObjectMapperUtil.assertSerialization(udfResponse, allocator);
 
         return udfResponse;
     }
