@@ -53,6 +53,7 @@ public class GetSplitsRequestSerDe
 
     public GetSplitsRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe, TableNameSerDe tableNameSerDe, BlockSerDe blockSerDe, ConstraintsSerDe constraintsSerDe)
     {
+        super(GetSplitsRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIdentitySerDe is null");
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "tableNameSerDe is null");
         this.blockSerDe = requireNonNull(blockSerDe, "blockSerDe is null");

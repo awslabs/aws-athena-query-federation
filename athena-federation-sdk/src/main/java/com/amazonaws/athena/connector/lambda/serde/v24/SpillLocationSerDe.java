@@ -21,12 +21,12 @@ package com.amazonaws.athena.connector.lambda.serde.v24;
 
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingSerDe;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 public class SpillLocationSerDe extends DelegatingSerDe<SpillLocation>
 {
     public SpillLocationSerDe(S3SpillLocationSerDe s3SpillLocationSerDe)
     {
-        super(ImmutableMap.of("S3SpillLocation", s3SpillLocationSerDe));
+        super(ImmutableSet.of(s3SpillLocationSerDe));
     }
 }

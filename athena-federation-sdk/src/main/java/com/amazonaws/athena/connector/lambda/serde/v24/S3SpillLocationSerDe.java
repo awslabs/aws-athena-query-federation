@@ -34,6 +34,11 @@ public class S3SpillLocationSerDe
     private static final String KEY_FIELD = "key";
     private static final String DIRECTORY_FIELD = "directory";
 
+    public S3SpillLocationSerDe()
+    {
+        super(S3SpillLocation.class);
+    }
+
     @Override
     public void doSerialize(JsonGenerator jgen, SpillLocation spillLocation)
             throws IOException

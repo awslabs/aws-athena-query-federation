@@ -43,6 +43,7 @@ public class GetSplitsResponseSerDe
 
     public GetSplitsResponseSerDe(SplitSerDe splitSerDe)
     {
+        super(GetSplitsResponse.class);
         this.splitSerDe = requireNonNull(splitSerDe, "splitSerDe is null");
     }
 

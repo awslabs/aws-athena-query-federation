@@ -44,6 +44,7 @@ public class SortedRangeSetSerDe extends TypedSerDe<ValueSet>
 
     public SortedRangeSetSerDe(ArrowTypeSerDe arrowTypeSerDe, RangeSerDe rangeSerDe)
     {
+        super(SortedRangeSet.class);
         this.arrowTypeSerDe = requireNonNull(arrowTypeSerDe, "arrowTypeSerDe is null");
         this.rangeSerDe = requireNonNull(rangeSerDe, "rangeSerde is null");
     }

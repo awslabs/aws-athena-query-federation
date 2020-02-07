@@ -42,6 +42,7 @@ public class ListTablesResponseSerDe
 
     public ListTablesResponseSerDe(TableNameSerDe tableNameSerDe)
     {
+        super(ListTablesResponse.class);
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "tableNameSerDe is null");
     }
 

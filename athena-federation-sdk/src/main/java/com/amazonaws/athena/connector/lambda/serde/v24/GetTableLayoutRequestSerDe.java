@@ -52,6 +52,7 @@ public class GetTableLayoutRequestSerDe
 
     public GetTableLayoutRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe, TableNameSerDe tableNameSerDe, ConstraintsSerDe constraintsSerDe, SchemaSerDe schemaSerDe)
     {
+        super(GetTableLayoutRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIdentitySerDe is null");
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "tableNameSerDe is null");
         this.constraintsSerDe = requireNonNull(constraintsSerDe, "constraintsSerDe is null");

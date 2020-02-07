@@ -21,11 +21,8 @@ package com.amazonaws.athena.connector.lambda.serde;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.amazonaws.athena.connector.lambda.serde.v24.FederationRequestSerDe;
-import com.amazonaws.athena.connector.lambda.serde.v24.FederationResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v24.V24SerDeProvider;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -46,6 +43,8 @@ public class ObjectMapperUtil
 
     private static final JsonFactory jsonFactory = new JsonFactory();
     private static final V24SerDeProvider serDeProvider = new V24SerDeProvider();
+
+    private static final boolean failOnObjectMapperChecks = false;
 
     private ObjectMapperUtil() {}
 
@@ -83,6 +82,9 @@ public class ObjectMapperUtil
                 assertEquals(object, serDe.deserialize(jparser));
             }
             catch (Exception e) {
+                if (failOnObjectMapperChecks) {
+                    throw e;
+                }
                 logger.warn("Object serialized with ObjectMapper not deserializable with SerDe", e);
             }
             // also check SerDe write, ObjectMapper read compatibility
@@ -90,6 +92,9 @@ public class ObjectMapperUtil
                 assertEquals(object, mapper.readValue(serDeOutput, object.getClass()));
             }
             catch (Exception e) {
+                if (failOnObjectMapperChecks) {
+                    throw e;
+                }
                 logger.warn("Object serialized with SerDe not deserializable with ObjectMapper", e);
             }
         }

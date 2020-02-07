@@ -22,7 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v24;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingSerDe;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDe;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 public class FederationRequestSerDe
         extends DelegatingSerDe<FederationRequest>
@@ -37,15 +37,15 @@ public class FederationRequestSerDe
             ReadRecordsRequestSerDe readRecordsRequestSerDe,
             UserDefinedFunctionRequestSerDe userDefinedFunctionRequestSerDe)
     {
-        super(ImmutableMap.<String, TypedSerDe<FederationRequest>>builder()
-                .put("PingRequest", pingRequestSerDe)
-                .put("ListSchemasRequest", listSchemasRequestSerDe)
-                .put("ListTablesRequest", listTablesRequestSerDe)
-                .put("GetTableRequest", getTableRequestSerDe)
-                .put("GetTableLayoutRequest", getTableLayoutRequestSerDe)
-                .put("GetSplitsRequest", getSplitsRequestSerDe)
-                .put("ReadRecordsRequest", readRecordsRequestSerDe)
-                .put("UserDefinedFunctionRequest", userDefinedFunctionRequestSerDe)
+        super(ImmutableSet.<TypedSerDe<FederationRequest>>builder()
+                .add(pingRequestSerDe)
+                .add(listSchemasRequestSerDe)
+                .add(listTablesRequestSerDe)
+                .add(getTableRequestSerDe)
+                .add(getTableLayoutRequestSerDe)
+                .add(getSplitsRequestSerDe)
+                .add(readRecordsRequestSerDe)
+                .add(userDefinedFunctionRequestSerDe)
                 .build());
     }
 }

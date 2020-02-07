@@ -43,6 +43,7 @@ public class GetTableLayoutResponseSerDe
 
     public GetTableLayoutResponseSerDe(TableNameSerDe tableNameSerDe, BlockSerDe blockSerDe)
     {
+        super(GetTableLayoutResponse.class);
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "requireNonNull is null");
         this.blockSerDe = requireNonNull(blockSerDe, "blockSerDe is null");
     }

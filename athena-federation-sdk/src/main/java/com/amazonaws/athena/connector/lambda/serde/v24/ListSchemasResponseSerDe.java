@@ -34,6 +34,11 @@ public class ListSchemasResponseSerDe
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMAS_FIELD = "schemas";
 
+    public ListSchemasResponseSerDe()
+    {
+        super(ListSchemasResponse.class);
+    }
+
     @Override
     public void doSerialize(JsonGenerator jgen, FederationResponse federationResponse)
             throws IOException

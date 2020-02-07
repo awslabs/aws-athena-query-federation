@@ -47,6 +47,7 @@ public class UserDefinedFunctionRequestSerDe extends TypedSerDe<FederationReques
 
     public UserDefinedFunctionRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe, BlockSerDe blockSerDe, SchemaSerDe schemaSerDe)
     {
+        super(UserDefinedFunctionRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIndentitySerDe is null");
         this.blockSerDe = requireNonNull(blockSerDe, "blockSerDe is null");
         this.schemaSerDe = requireNonNull(schemaSerDe, "schemaSerDe is null");

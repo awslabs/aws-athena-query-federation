@@ -44,6 +44,7 @@ public class GetTableRequestSerDe
 
     public GetTableRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe, TableNameSerDe tableNameSerDe)
     {
+        super(GetTableRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIdentitySerDe is null");
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "tableNameSerDe is null");
     }

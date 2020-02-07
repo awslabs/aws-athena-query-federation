@@ -45,6 +45,7 @@ public class GetTableResponseSerDe
 
     public GetTableResponseSerDe(TableNameSerDe tableNameSerDe, SchemaSerDe schemaSerDe)
     {
+        super(GetTableResponse.class);
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "tableNameSerDe is null");
         this.schemaSerDe = requireNonNull(schemaSerDe, "schemaSerDe is null");
     }

@@ -24,16 +24,24 @@ import com.fasterxml.jackson.core.JsonParser;
 
 import java.io.IOException;
 
+import static java.util.Objects.requireNonNull;
+
 public abstract class TypedSerDe<T> extends BaseSerDe<T>
 {
+    private final Class<?> type;
+
+    public TypedSerDe(Class<?> type)
+    {
+        this.type = requireNonNull(type, "type is null");
+    }
+
     @Override
     public void serialize(JsonGenerator jgen, T object)
             throws IOException
     {
         jgen.writeStartObject();
         // write the type before delegating to implementation
-        String type = object.getClass().getSimpleName();
-        writeType(jgen, type);
+        writeType(jgen, type.getSimpleName());
         doSerialize(jgen, object);
         jgen.writeEndObject();
     }
@@ -48,5 +56,9 @@ public abstract class TypedSerDe<T> extends BaseSerDe<T>
         T result = doDeserialize(jparser);
         validateObjectEnd(jparser);
         return result;
+    }
+
+    public Class<?> getType() {
+        return type;
     }
 }

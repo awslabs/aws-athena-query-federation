@@ -56,6 +56,7 @@ public class ReadRecordsRequestSerDe
     public ReadRecordsRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe, TableNameSerDe tableNameSerDe, ConstraintsSerDe constraintsSerDe, SchemaSerDe schemaSerDe,
             SplitSerDe splitSerDe)
     {
+        super(ReadRecordsRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIdentitySerDe is null");
         this.tableNameSerDe = requireNonNull(tableNameSerDe, "tableNameSerDe is null");
         this.constraintsSerDe = requireNonNull(constraintsSerDe, "constraintsSerDe is null");

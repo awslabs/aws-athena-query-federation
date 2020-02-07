@@ -40,6 +40,7 @@ public class PingRequestSerDe extends TypedSerDe<FederationRequest>
 
     public PingRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe)
     {
+        super(PingRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIdentitySerDe is null");
     }
 

@@ -41,6 +41,7 @@ public class EquatableValueSetSerDe
 
     public EquatableValueSetSerDe(BlockSerDe blockSerDe)
     {
+        super(EquatableValueSet.class);
         this.blockSerDe = requireNonNull(blockSerDe, "blockSerDe is null");
     }
 

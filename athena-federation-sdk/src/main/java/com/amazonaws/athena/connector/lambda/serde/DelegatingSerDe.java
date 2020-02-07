@@ -21,15 +21,16 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
 public class DelegatingSerDe<T> extends BaseSerDe<T>
 {
-    // TODO construct this map from a set of provided SerDes that self-describe the type (class) name
     private final Map<String, TypedSerDe<T>> delegateSerDeMap;
 
     public DelegatingSerDe(Map<String, TypedSerDe<T>> delegateSerDeMap)
@@ -37,6 +38,14 @@ public class DelegatingSerDe<T> extends BaseSerDe<T>
         this.delegateSerDeMap = requireNonNull(delegateSerDeMap, "delegateSerDeMap is null");
     }
 
+    public DelegatingSerDe(Set<TypedSerDe<T>> serDes)
+    {
+        ImmutableMap.Builder<String, TypedSerDe<T>> delegateSerDeMapBuilder = ImmutableMap.builder();
+        for (TypedSerDe<T> serDe : serDes) {
+            delegateSerDeMapBuilder.put(serDe.getType().getSimpleName(), serDe);
+        }
+        delegateSerDeMap = delegateSerDeMapBuilder.build();
+    }
     @Override
     public void serialize(JsonGenerator jgen, T object)
             throws IOException

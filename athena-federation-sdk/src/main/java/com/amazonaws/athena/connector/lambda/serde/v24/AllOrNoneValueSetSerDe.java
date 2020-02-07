@@ -41,6 +41,7 @@ public class AllOrNoneValueSetSerDe
 
     public AllOrNoneValueSetSerDe(ArrowTypeSerDe arrowTypeSerDe)
     {
+        super(AllOrNoneValueSet.class);
         this.arrowTypeSerDe = requireNonNull(arrowTypeSerDe, "arrowTypeSerDe is null");
     }
 

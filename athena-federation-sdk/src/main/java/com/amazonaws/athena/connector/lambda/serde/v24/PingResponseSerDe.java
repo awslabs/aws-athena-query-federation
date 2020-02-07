@@ -34,6 +34,11 @@ public class PingResponseSerDe extends TypedSerDe<FederationResponse>
     private static final String SOURCE_TYPE_FIELD = "sourceType";
     private static final String CAPABILITIES_FIELD = "capabilities";
 
+    public PingResponseSerDe()
+    {
+        super(PingResponse.class);
+    }
+
     @Override
     public void doSerialize(JsonGenerator jgen, FederationResponse federationResponse)
             throws IOException

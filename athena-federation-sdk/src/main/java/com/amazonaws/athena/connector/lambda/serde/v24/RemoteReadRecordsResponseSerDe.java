@@ -47,6 +47,7 @@ public class RemoteReadRecordsResponseSerDe extends TypedSerDe<FederationRespons
 
     public RemoteReadRecordsResponseSerDe(SchemaSerDe schemaSerDe, SpillLocationSerDe spillLocationSerDe, EncryptionKeySerDe encryptionKeySerDe)
     {
+        super(RemoteReadRecordsResponse.class);
         this.schemaSerDe = requireNonNull(schemaSerDe, "schemaSerDe is null");
         this.spillLocationSerDe = requireNonNull(spillLocationSerDe, "spillLocationSerDe is null");
         this.encryptionKeySerDe = requireNonNull(encryptionKeySerDe, "encryptionKeySerDe is null");

@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingSerDe;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDe;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 public class FederationResponseSerDe extends DelegatingSerDe<FederationResponse>
 {
@@ -37,16 +38,16 @@ public class FederationResponseSerDe extends DelegatingSerDe<FederationResponse>
             RemoteReadRecordsResponseSerDe remoteReadRecordsResponseSerDe,
             UserDefinedFunctionResponseSerDe userDefinedFunctionResponseSerDe)
     {
-        super(ImmutableMap.<String, TypedSerDe<FederationResponse>>builder()
-                .put("PingResponse", pingResponseSerDe)
-                .put("ListSchemasResponse", listSchemasResponseSerDe)
-                .put("ListTablesResponse", listTablesResponseSerDe)
-                .put("GetTableResponse", getTableResponseSerDe)
-                .put("GetTableLayoutResponse", getTableLayoutResponseSerDe)
-                .put("GetSplitsResponse", getSplitsResponseSerDe)
-                .put("ReadRecordsResponse", readRecordsResponseSerDe)
-                .put("RemoteReadRecordsResponse", remoteReadRecordsResponseSerDe)
-                .put("UserDefinedFunctionResponse", userDefinedFunctionResponseSerDe)
+        super(ImmutableSet.<TypedSerDe<FederationResponse>>builder()
+                .add(pingResponseSerDe)
+                .add(listSchemasResponseSerDe)
+                .add(listTablesResponseSerDe)
+                .add(getTableResponseSerDe)
+                .add(getTableLayoutResponseSerDe)
+                .add(getSplitsResponseSerDe)
+                .add(readRecordsResponseSerDe)
+                .add(remoteReadRecordsResponseSerDe)
+                .add(userDefinedFunctionResponseSerDe)
                 .build());
     }
 }

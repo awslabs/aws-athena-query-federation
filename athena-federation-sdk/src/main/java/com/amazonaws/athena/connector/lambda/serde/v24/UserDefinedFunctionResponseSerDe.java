@@ -39,6 +39,7 @@ public class UserDefinedFunctionResponseSerDe extends TypedSerDe<FederationRespo
 
     public UserDefinedFunctionResponseSerDe(BlockSerDe blockSerDe)
     {
+        super(UserDefinedFunctionResponse.class);
         this.blockSerDe = requireNonNull(blockSerDe, "blockSerDe is null");
     }
 

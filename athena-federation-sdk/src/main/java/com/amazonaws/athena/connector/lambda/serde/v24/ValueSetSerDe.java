@@ -21,7 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v24;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingSerDe;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 
 public class ValueSetSerDe
         extends DelegatingSerDe<ValueSet>
@@ -31,9 +31,9 @@ public class ValueSetSerDe
             SortedRangeSetSerDe sortedRangeSetSerDe,
             AllOrNoneValueSetSerDe allOrNoneValueSetSerDe)
     {
-        super(ImmutableMap.of(
-                "EquatableValueSet", equatableValueSet,
-                "SortedRangeSet", sortedRangeSetSerDe,
-                "AllOrNoneValueSet", allOrNoneValueSetSerDe));
+        super(ImmutableSet.of(
+                equatableValueSet,
+                sortedRangeSetSerDe,
+                allOrNoneValueSetSerDe));
     }
 }

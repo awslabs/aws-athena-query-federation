@@ -42,6 +42,7 @@ public class ListTablesRequestSerDe
 
     public ListTablesRequestSerDe(FederatedIdentitySerDe federatedIdentitySerDe)
     {
+        super(ListTablesRequest.class);
         this.federatedIdentitySerDe = requireNonNull(federatedIdentitySerDe, "federatedIdentitySerDe is null");
     }
 

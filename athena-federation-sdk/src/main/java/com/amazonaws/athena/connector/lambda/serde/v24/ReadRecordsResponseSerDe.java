@@ -39,6 +39,7 @@ public class ReadRecordsResponseSerDe extends TypedSerDe<FederationResponse>
 
     public ReadRecordsResponseSerDe(BlockSerDe blockSerDe)
     {
+        super(ReadRecordsResponse.class);
         this.blockSerDe = requireNonNull(blockSerDe, "blockSerDe is null");
     }
 
