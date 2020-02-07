@@ -20,15 +20,14 @@
 package com.amazonaws.athena.connector.lambda.serde.v24;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.utils.TestUtils;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.serde.SerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -46,23 +45,14 @@ import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class GetTableLayoutResponseSerDeTest
+public class GetTableLayoutResponseSerDeTest extends SerDeTest<FederationResponse>
 {
     private static final Logger logger = LoggerFactory.getLogger(GetTableLayoutResponseSerDeTest.class);
 
-    private TestUtils utils = new TestUtils();
-    private JsonFactory jsonFactory = new JsonFactory();
-
     private V24SerDeProvider serDeProvider = new V24SerDeProvider();
-    private GetTableLayoutResponseSerDe serde;
-
-    private BlockAllocator allocator;
-
-    private GetTableLayoutResponse expected;
-    private String expectedSerDeText;
 
     @Before
-    public void before()
+    public void beforeTest()
             throws IOException
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");

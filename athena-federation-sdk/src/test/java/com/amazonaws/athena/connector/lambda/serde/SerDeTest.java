@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde;
 
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -32,6 +33,8 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.v24.FederationRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v24.V24SerDeProvider;
+import com.amazonaws.athena.connector.lambda.utils.TestUtils;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -56,20 +59,20 @@ import java.util.Set;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-public class SerDeTest
+public abstract class SerDeTest<T>
 {
-    private static final Logger logger = LoggerFactory.getLogger(SerDeTest.class);
-
-    private BlockAllocatorImpl allocator;
-    private ObjectMapper mapper;
-    private JsonFactory jsonFactory;
+    protected TestUtils utils = new TestUtils();
+    protected JsonFactory jsonFactory = new JsonFactory();
+    protected BlockAllocator allocator;
+    protected TypedSerDe<T> serde;
+    protected String expectedSerDeText;
+    protected T expected;
 
     @Before
     public void before()
+            throws IOException
     {
-        allocator = new BlockAllocatorImpl();
-        mapper = ObjectMapperFactory.create(allocator);
-        jsonFactory = new JsonFactory(mapper);
+        allocator = new BlockAllocatorImpl("test-allocator-id");
     }
 
     @After
@@ -78,75 +81,15 @@ public class SerDeTest
         allocator.close();
     }
 
-    @Test
-    public void test()
-            throws Exception
-    {
-        logger.info("doListSchemas - enter");
-        ListSchemasRequest req = new ListSchemasRequest(IdentityUtil.fakeIdentity(), "queryId", "default");
+    public abstract void serialize()
+            throws Exception;
 
-//        assertSerialization(req, new FederationRequestSerDe(mapper, allocator));
-    }
+    public abstract void deserialize()
+            throws IOException;
 
-    @Test
-    public void test2()
-            throws Exception
-    {
-        Schema tableSchema = SchemaBuilder.newBuilder()
-                .addIntField("day")
-                .addIntField("month")
-                .addIntField("year")
-                .build();
+    public abstract void delegateSerialize()
+            throws IOException;
 
-        Set<String> partitionCols = new HashSet<>();
-        partitionCols.add("day");
-        partitionCols.add("month");
-        partitionCols.add("year");
-
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
-
-        BlockAllocatorImpl allocator = new BlockAllocatorImpl();
-        constraintsMap.put("day", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 20)), false));
-
-        constraintsMap.put("month", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 2)), false));
-
-        constraintsMap.put("year", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1900)), false));
-
-        GetTableLayoutRequest req = null;
-        GetTableLayoutResponse res = null;
-        try {
-
-            req = new GetTableLayoutRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
-                    new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap),
-                    tableSchema,
-                    partitionCols);
-//            assertSerialization(req, new FederationRequestSerDe(mapper, allocator));
-        }
-        finally {
-            req.close();
-        }
-    }
-
-    private void assertSerialization(MetadataRequest metadataRequest, BaseSerDe object)
-    {
-        Object actual = null;
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            JsonGenerator jgen = jsonFactory.createGenerator(out);
-            object.serialize(jgen, metadataRequest);
-            jgen.close();
-            logger.info("ouput: " + new String(out.toByteArray()));
-            JsonParser jparser = jsonFactory.createParser(new ByteArrayInputStream(out.toByteArray()));
-            actual = object.deserialize(jparser);
-            jparser.close();
-            assertEquals(metadataRequest, actual);
-        }
-        catch (IOException | AssertionError ex) {
-            throw new RuntimeException(ex);
-        }
-    }
+    public abstract void delegateDeserialize()
+            throws IOException;
 }

@@ -20,15 +20,14 @@
 package com.amazonaws.athena.connector.lambda.serde.v24;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.SerDeTest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
-import com.amazonaws.athena.connector.lambda.utils.TestUtils;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import org.apache.arrow.vector.IntVector;
@@ -47,23 +46,14 @@ import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class UserDefinedFunctionRequestSerDeTest
+public class UserDefinedFunctionRequestSerDeTest extends SerDeTest<FederationRequest>
 {
     private static final Logger logger = LoggerFactory.getLogger(UserDefinedFunctionRequestSerDeTest.class);
 
-    private TestUtils utils = new TestUtils();
-    private JsonFactory jsonFactory = new JsonFactory();
-
     private V24SerDeProvider serDeProvider = new V24SerDeProvider();
-    private UserDefinedFunctionRequestSerDe serde;
-
-    private BlockAllocator allocator;
-
-    private UserDefinedFunctionRequest expected;
-    private String expectedSerDeText;
 
     @Before
-    public void before()
+    public void beforeTest()
             throws IOException
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");

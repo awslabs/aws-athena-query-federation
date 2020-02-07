@@ -19,16 +19,15 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v24;
 
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
-import com.amazonaws.athena.connector.lambda.utils.TestUtils;
+import com.amazonaws.athena.connector.lambda.serde.SerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.google.common.collect.ImmutableList;
@@ -47,23 +46,14 @@ import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class RemoteReadRecordsResponseSerDeTest
+public class RemoteReadRecordsResponseSerDeTest extends SerDeTest<FederationResponse>
 {
     private static final Logger logger = LoggerFactory.getLogger(RemoteReadRecordsResponseSerDeTest.class);
 
-    private TestUtils utils = new TestUtils();
-    private JsonFactory jsonFactory = new JsonFactory();
-
     private V24SerDeProvider serDeProvider = new V24SerDeProvider();
-    private RemoteReadRecordsResponseSerDe serde;
-
-    private BlockAllocator allocator;
-
-    private RemoteReadRecordsResponse expected;
-    private String expectedSerDeText;
 
     @Before
-    public void before()
+    public void beforeTest()
             throws IOException
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");

@@ -20,8 +20,6 @@
 package com.amazonaws.athena.connector.lambda.serde.v24;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -32,17 +30,16 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.utils.TestUtils;
+import com.amazonaws.athena.connector.lambda.serde.SerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -57,27 +54,16 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-public class GetSplitsRequestSerDeTest
+public class GetSplitsRequestSerDeTest extends SerDeTest<FederationRequest>
 {
     private static final Logger logger = LoggerFactory.getLogger(GetSplitsRequestSerDeTest.class);
 
-    private TestUtils utils = new TestUtils();
-    private JsonFactory jsonFactory = new JsonFactory();
-
     private V24SerDeProvider serDeProvider = new V24SerDeProvider();
-    private GetSplitsRequestSerDe serde;
-
-    private BlockAllocator allocator;
-
-    private GetSplitsRequest expected;
-    private String expectedSerDeText;
 
     @Before
-    public void before()
+    public void beforeTest()
             throws IOException
     {
-        allocator = new BlockAllocatorImpl("test-allocator-id");
-
         serde = serDeProvider.getGetSplitsRequestSerDe(allocator);
 
         FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
@@ -124,12 +110,6 @@ public class GetSplitsRequestSerDeTest
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v24", "GetSplitsRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
-    }
-
-    @After
-    public void after()
-    {
-        allocator.close();
     }
 
     @Test
