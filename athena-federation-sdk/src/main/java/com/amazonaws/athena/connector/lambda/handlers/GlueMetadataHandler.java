@@ -330,13 +330,18 @@ public abstract class GlueMetadataHandler
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        table.getParameters().entrySet().forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
+        if (table.getParameters() != null) {
+            table.getParameters().entrySet().forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
+        }
 
         //A column name mapping can be provided to get around restrictive Glue naming rules
         Map<String, String> columnNameMapping = getColumnNameMapping(table);
 
-        Set<String> partitionCols = table.getPartitionKeys()
-                .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
+        Set<String> partitionCols = new HashSet<>();
+        if (table.getPartitionKeys() != null) {
+            partitionCols = table.getPartitionKeys()
+                    .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
+        }
 
         for (Column next : table.getStorageDescriptor().getColumns()) {
             String mappedColumnName = columnNameMapping.getOrDefault(next.getName(), next.getName());

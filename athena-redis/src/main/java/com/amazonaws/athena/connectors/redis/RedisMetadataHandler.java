@@ -235,6 +235,14 @@ public class RedisMetadataHandler
         String redisEndpoint = getValue(partitions, 0, REDIS_ENDPOINT_PROP);
         String redisValueType = getValue(partitions, 0, VALUE_TYPE_TABLE_PROP);
 
+        if (redisEndpoint == null) {
+            throw new RuntimeException("Table is missing " + REDIS_ENDPOINT_PROP + " table property");
+        }
+
+        if (redisValueType == null) {
+            throw new RuntimeException("Table is missing " + VALUE_TYPE_TABLE_PROP + " table property");
+        }
+
         logger.info("doGetSplits: Preparing splits for {}", BlockUtils.rowToString(partitions, 0));
 
         KeyType keyType = null;
@@ -247,7 +255,12 @@ public class RedisMetadataHandler
             keyType = KeyType.PREFIX;
         }
         else {
-            String[] partitionPrefixes = getValue(partitions, 0, ZSET_KEYS_TABLE_PROP).split(KEY_PREFIX_SEPERATOR);
+            String prop = getValue(partitions, 0, ZSET_KEYS_TABLE_PROP);
+            if (prop == null) {
+                throw new RuntimeException("Table is missing " + ZSET_KEYS_TABLE_PROP +
+                        " table property, it must have this or " + KEY_PREFIX_TABLE_PROP);
+            }
+            String[] partitionPrefixes = prop.split(KEY_PREFIX_SEPERATOR);
 
             ScanResult<String> keyCursor = null;
             //Add all the values in the ZSETs ad keys to scan
