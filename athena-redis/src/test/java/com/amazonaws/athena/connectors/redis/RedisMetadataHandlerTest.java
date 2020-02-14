@@ -193,7 +193,7 @@ public class RedisMetadataHandlerTest
 
         Block partitions = allocator.createBlock(schema);
         partitions.setValue(REDIS_ENDPOINT_PROP, 0, endpoint);
-        partitions.setValue(VALUE_TYPE_TABLE_PROP, 0, null);
+        partitions.setValue(VALUE_TYPE_TABLE_PROP, 0, "literal");
         partitions.setValue(KEY_PREFIX_TABLE_PROP, 0, null);
         partitions.setValue(ZSET_KEYS_TABLE_PROP, 0, prefixes);
         partitions.setRowCount(1);
@@ -243,7 +243,7 @@ public class RedisMetadataHandlerTest
 
         Block partitions = allocator.createBlock(schema);
         partitions.setValue(REDIS_ENDPOINT_PROP, 0, endpoint);
-        partitions.setValue(VALUE_TYPE_TABLE_PROP, 0, null);
+        partitions.setValue(VALUE_TYPE_TABLE_PROP, 0, "literal");
         partitions.setValue(KEY_PREFIX_TABLE_PROP, 0, "prefix1-*,prefix2-*, prefix3-*");
         partitions.setValue(ZSET_KEYS_TABLE_PROP, 0, null);
         partitions.setRowCount(1);
