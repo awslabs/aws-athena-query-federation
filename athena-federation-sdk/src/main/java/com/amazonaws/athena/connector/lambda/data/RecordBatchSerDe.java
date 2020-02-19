@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.serde.v2.ArrowRecordBatchSerDe;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
@@ -33,7 +34,10 @@ import java.nio.channels.Channels;
 
 /**
  * used to serialize and deserialize ArrowRecordBatch.
+ *
+ * @deprecated {@link ArrowRecordBatchSerDe} should be used instead
  */
+@Deprecated
 public class RecordBatchSerDe
 {
     private final BlockAllocator allocator;

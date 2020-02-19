@@ -39,7 +39,7 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -58,6 +58,7 @@ import java.io.OutputStream;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
+import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_VERSION;
 
 /**
  * More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
@@ -121,7 +122,7 @@ public abstract class RecordHandler
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = ObjectMapperFactory.create(allocator);
+            ObjectMapper objectMapper = ObjectMapperFactoryV2.create(allocator);
             try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
                 if (rawReq instanceof PingRequest) {
                     try (PingResponse response = doPing((PingRequest) rawReq)) {
@@ -238,9 +239,9 @@ public abstract class RecordHandler
                 .build();
     }
 
-    private final PingResponse doPing(PingRequest request)
+    private PingResponse doPing(PingRequest request)
     {
-        PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES);
+        PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES, SERDE_VERSION);
         try {
             onPing(request);
         }

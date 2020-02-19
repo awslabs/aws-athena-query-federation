@@ -28,15 +28,10 @@ import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
-import com.amazonaws.athena.connector.lambda.serde.v24.FederationRequestSerDe;
-import com.amazonaws.athena.connector.lambda.serde.v24.V24SerDeProvider;
+import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,8 +53,6 @@ public class CompositeHandler
         implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandler.class);
-    private final JsonFactory jsonFactory = new JsonFactory();
-    private final V24SerDeProvider serDeProvider = new V24SerDeProvider();
     //The MetadataHandler to delegate metadata operations to.
     private final MetadataHandler metadataHandler;
     //The RecordHandler to delegate data operations to.
@@ -102,12 +95,9 @@ public class CompositeHandler
             throws IOException
     {
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = ObjectMapperFactory.create(allocator);
-            FederationRequestSerDe requestSerDe = serDeProvider.getFederationRequestSerDe(allocator);
-            try (JsonParser jparser = jsonFactory.createParser(inputStream);
-                    JsonGenerator jgen = jsonFactory.createGenerator(outputStream);
-                    FederationRequest rawReq = requestSerDe.deserialize(jparser)) {
-                handleRequest(allocator, rawReq, outputStream, objectMapper, jgen);
+            ObjectMapper objectMapper = ObjectMapperFactoryV2.create(allocator);
+            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
+                handleRequest(allocator, rawReq, outputStream, objectMapper);
             }
         }
         catch (Exception ex) {
@@ -127,20 +117,19 @@ public class CompositeHandler
      * @note that PingRequests are routed to the MetadataHandler even though both MetadataHandler and RecordHandler
      * implemented PingRequest handling.
      */
-    public final void handleRequest(BlockAllocator allocator, FederationRequest rawReq, OutputStream outputStream, ObjectMapper objectMapper, JsonGenerator jgen)
+    public final void handleRequest(BlockAllocator allocator, FederationRequest rawReq, OutputStream outputStream, ObjectMapper objectMapper)
             throws Exception
     {
         if (rawReq instanceof PingRequest) {
             try (PingResponse response = metadataHandler.doPing((PingRequest) rawReq)) {
                 assertNotNull(response);
-//                objectMapper.writeValue(outputStream, response);
-                serDeProvider.getPingResponseSerDe().serialize(jgen, response);
+                objectMapper.writeValue(outputStream, response);
             }
             return;
         }
 
         if (rawReq instanceof MetadataRequest) {
-            metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream, jgen);
+            metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
         }
         else if (rawReq instanceof RecordRequest) {
             recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);

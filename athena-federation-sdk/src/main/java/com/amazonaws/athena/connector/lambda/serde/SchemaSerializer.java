@@ -31,7 +31,10 @@ import java.io.IOException;
 
 /**
  * Used to enhance Jackson's stock ObjectMapper with the ability to serialize Apache Arrow Schema objects.
+ *
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe} should be used instead
  */
+@Deprecated
 public class SchemaSerializer
         extends StdSerializer<Schema>
 {

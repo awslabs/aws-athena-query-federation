@@ -30,5 +30,5 @@ public class FederationCapabilities
 {
     private FederationCapabilities() {}
 
-    protected static final int CAPABILITIES = 24;
+    protected static final int CAPABILITIES = 23;
 }

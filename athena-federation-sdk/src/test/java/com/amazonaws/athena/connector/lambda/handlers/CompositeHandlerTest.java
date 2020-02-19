@@ -41,13 +41,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -61,15 +58,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -78,7 +72,6 @@ public class CompositeHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandlerTest.class);
 
-    private JsonFactory jsonFactory = new JsonFactory();
     private MetadataHandler mockMetadataHandler;
     private RecordHandler mockRecordHandler;
     private CompositeHandler compositeHandler;
@@ -97,39 +90,39 @@ public class CompositeHandlerTest
 
         allocator = new BlockAllocatorImpl();
         objectMapper = ObjectMapperFactory.create(allocator);
-        mockMetadataHandler = spy(MetadataHandler.class);
+        mockMetadataHandler = mock(MetadataHandler.class);
         mockRecordHandler = mock(RecordHandler.class);
 
         schemaForRead = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Int(32, true))
                 .build();
 
-        doReturn(new GetTableLayoutResponse("catalog",
-                new TableName("schema", "table"),
-                BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)))
-                .when(mockMetadataHandler).doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class));
+        when(mockMetadataHandler.doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class)))
+                .thenReturn(new GetTableLayoutResponse("catalog",
+                        new TableName("schema", "table"),
+                        BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
 
-        doReturn(new ListTablesResponse("catalog",
-                Collections.singletonList(new TableName("schema", "table"))))
-                .when(mockMetadataHandler).doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class));
+        when(mockMetadataHandler.doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
+                .thenReturn(new ListTablesResponse("catalog",
+                        Collections.singletonList(new TableName("schema", "table"))));
 
-        doReturn(new GetTableResponse("catalog",
-                new TableName("schema", "table"),
-                SchemaBuilder.newBuilder().addStringField("col1").build()))
-                .when(mockMetadataHandler).doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class));
+        when(mockMetadataHandler.doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class)))
+                .thenReturn(new GetTableResponse("catalog",
+                        new TableName("schema", "table"),
+                        SchemaBuilder.newBuilder().addStringField("col1").build()));
 
-        doReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")))
-                .when(mockMetadataHandler).doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class));
+        when(mockMetadataHandler.doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class)))
+                .thenReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")));
 
-        doReturn(new GetSplitsResponse("catalog", Split.newBuilder(new S3SpillLocation("bucket", "key", true), null).build()))
-                .when(mockMetadataHandler).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
+        when(mockMetadataHandler.doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class)))
+                .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
 
-        doReturn(new PingResponse("catalog", "queryId", "type", 23))
-                .when(mockMetadataHandler).doPing(any(PingRequest.class));
+        when(mockMetadataHandler.doPing(any(PingRequest.class)))
+                .thenReturn(new PingResponse("catalog", "queryId", "type", 23, 2));
 
-        doReturn(new ReadRecordsResponse("catalog",
-                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))))
-                .when(mockRecordHandler).doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class));
+        when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
+                .thenReturn(new ReadRecordsResponse("catalog",
+                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
@@ -161,11 +154,7 @@ public class CompositeHandlerTest
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try (JsonGenerator jgen = jsonFactory.createGenerator(outputStream)) {
-            compositeHandler.handleRequest(allocator, req, outputStream, objectMapper, jgen);
-        }
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockRecordHandler, times(1))
                 .doReadRecords(any(BlockAllocator.class), any(ReadRecordsRequest.class));
     }
@@ -176,7 +165,7 @@ public class CompositeHandlerTest
     {
         ListSchemasRequest req = mock(ListSchemasRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_SCHEMAS);
-        handleRequest(req);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doListSchemaNames(any(BlockAllocatorImpl.class), any(ListSchemasRequest.class));
     }
 
@@ -186,7 +175,7 @@ public class CompositeHandlerTest
     {
         ListTablesRequest req = mock(ListTablesRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
-        handleRequest(req);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class));
     }
 
@@ -196,7 +185,7 @@ public class CompositeHandlerTest
     {
         GetTableRequest req = mock(GetTableRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE);
-        handleRequest(req);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class));
     }
 
@@ -206,7 +195,7 @@ public class CompositeHandlerTest
     {
         GetTableLayoutRequest req = mock(GetTableLayoutRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE_LAYOUT);
-        handleRequest(req);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetTableLayout(any(BlockAllocatorImpl.class), any(GetTableLayoutRequest.class));
     }
 
@@ -216,7 +205,7 @@ public class CompositeHandlerTest
     {
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
-        handleRequest(req);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
     }
 
@@ -227,16 +216,7 @@ public class CompositeHandlerTest
         PingRequest req = mock(PingRequest.class);
         when(req.getCatalogName()).thenReturn("catalog");
         when(req.getQueryId()).thenReturn("queryId");
-        handleRequest(req);
+        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doPing(any(PingRequest.class));
-    }
-
-    private void handleRequest(FederationRequest req)
-            throws Exception
-    {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try (JsonGenerator jgen = jsonFactory.createGenerator(outputStream)) {
-            compositeHandler.handleRequest(allocator, req, outputStream, objectMapper, jgen);
-        }
     }
 }
