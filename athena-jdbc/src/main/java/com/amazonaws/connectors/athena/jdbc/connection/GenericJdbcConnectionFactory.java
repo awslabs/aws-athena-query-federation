@@ -95,9 +95,6 @@ public class GenericJdbcConnectionFactory
                 derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
             }
 
-            // create connection string
-            LOGGER.info("Connection string {}", derivedJdbcString);
-
             // register driver
             Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
 
