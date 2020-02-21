@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.util;
 
+import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -30,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -213,6 +215,38 @@ public final class DDBTypeUtils
                 return value.doubleValue();
             default:
                 return value;
+        }
+    }
+
+    public static Object coerceDateTimeToExpectedType(Object value, Types.MinorType fieldType,
+                                                      String customerConfiguredFormat, ZoneId defaultTimeZone)
+    {
+        try {
+            if (value instanceof String) {
+                switch (fieldType) {
+                    case DATEMILLI:
+                        return DateTimeFormatterUtil.stringToLocalDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
+                    case DATEDAY:
+                        return DateTimeFormatterUtil.stringToLocalDate((String) value, customerConfiguredFormat, defaultTimeZone);
+                    default:
+                        return value;
+                }
+            }
+            else if (value instanceof BigDecimal) {
+                switch (fieldType) {
+                    case DATEMILLI:
+                        return DateTimeFormatterUtil.bigDecimalToLocalDateTime((BigDecimal) value, defaultTimeZone);
+                    case DATEDAY:
+                        return DateTimeFormatterUtil.bigDecimalToLocalDate((BigDecimal) value, defaultTimeZone);
+                    default:
+                        return value;
+                }
+            }
+            return value;
+        }
+        catch (IllegalArgumentException ex) {
+            logger.error(ex.getMessage());
+            return value;
         }
     }
 }

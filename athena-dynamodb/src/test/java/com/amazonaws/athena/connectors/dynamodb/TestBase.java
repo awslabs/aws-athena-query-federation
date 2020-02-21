@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -63,10 +64,13 @@ public class TestBase
     protected static final String TEST_QUERY_ID = "queryId";
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";
+    protected static final String TEST_TABLE2 = "Test_table2";
+    protected static final String TEST_TABLE3 = "test_table3";
     protected static final String TEST_TABLE4 = "test_table4";
     protected static final TableName TEST_TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
-    protected static final TableName TEST_TABLE_2_NAME = new TableName(DEFAULT_SCHEMA, "Test_table2");
-    protected static final TableName TEST_TABLE_4_NAME = new TableName(DEFAULT_SCHEMA, "test_table4");
+    protected static final TableName TEST_TABLE_2_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE2);
+    protected static final TableName TEST_TABLE_3_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
+    protected static final TableName TEST_TABLE_4_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
 
     protected static AmazonDynamoDB ddbClient;
     protected static Schema schema;
@@ -155,12 +159,39 @@ public class TestBase
 
         // for case sensitivity testing
         createTableRequest = new CreateTableRequest()
-                .withTableName("Test_table2")
+                .withTableName(TEST_TABLE2)
                 .withKeySchema(keySchema)
                 .withAttributeDefinitions(attributeDefinitions)
                 .withProvisionedThroughput(provisionedThroughput);
         table = ddb.createTable(createTableRequest);
         table.waitForActive();
+
+        ArrayList<AttributeDefinition> attributeDefinitionsGlue = new ArrayList<>();
+        attributeDefinitionsGlue.add(new AttributeDefinition().withAttributeName("Col0").withAttributeType("S"));
+        attributeDefinitionsGlue.add(new AttributeDefinition().withAttributeName("Col1").withAttributeType("S"));
+
+        ArrayList<KeySchemaElement> keySchemaGlue = new ArrayList<>();
+        keySchemaGlue.add(new KeySchemaElement().withAttributeName("Col0").withKeyType(KeyType.HASH));
+        keySchemaGlue.add(new KeySchemaElement().withAttributeName("Col1").withKeyType(KeyType.RANGE));
+
+        CreateTableRequest createTableRequestGlue = new CreateTableRequest()
+                .withTableName(TEST_TABLE3)
+                .withKeySchema(keySchemaGlue)
+                .withAttributeDefinitions(attributeDefinitionsGlue)
+                .withProvisionedThroughput(provisionedThroughput);
+
+        Table tableGlue = ddb.createTable(createTableRequestGlue);
+        tableGlue.waitForActive();
+
+        tableWriteItems = new TableWriteItems(TEST_TABLE3);
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", toAttributeValue("hashVal"));
+        item.put("Col1", toAttributeValue("20200227S091227"));
+        item.put("Col2", toAttributeValue("2020-02-27T09:12:27Z"));
+        item.put("Col3", toAttributeValue("27/02/2020"));
+        item.put("Col4", toAttributeValue("2020-02-27"));
+        tableWriteItems.addItemToPut(toItem(item));
+        ddb.batchWriteItem(tableWriteItems);
 
         // Table 4
         attributeDefinitions = new ArrayList<>();
@@ -183,7 +214,7 @@ public class TestBase
         col1.put("field2", null);
 
         tableWriteItems = new TableWriteItems(TEST_TABLE4);
-        Map<String, AttributeValue> item = new HashMap<>();
+        item = new HashMap<>();
         item.put("Col0", toAttributeValue("hashVal"));
         item.put("Col1", toAttributeValue(col1));
         tableWriteItems.addItemToPut(toItem(item));

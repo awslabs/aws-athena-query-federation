@@ -37,4 +37,7 @@ public final class DynamoDBConstants
     public static final String NON_KEY_FILTER_METADATA = "nonKeyFilter";
     public static final String EXPRESSION_NAMES_METADATA = "expressionAttributeNames";
     public static final String EXPRESSION_VALUES_METADATA = "expressionAttributeValues";
+
+    public static final String DATETIME_FORMAT_MAPPING_PROPERTY = "datetimeFormatMapping";
+    public static final String DEFAULT_TIME_ZONE = "defaultTimeZone";
 }

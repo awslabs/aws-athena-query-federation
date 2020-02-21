@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Convenience builder that can be used to create new Apache Arrow Schema for common
@@ -276,6 +277,14 @@ public class SchemaBuilder
     public SchemaBuilder addMetadata(String key, String value)
     {
         metadata.put(key, value);
+        return this;
+    }
+
+    public SchemaBuilder addMetadata(String key, String value, Set<String> excludeKey)
+    {
+        if (!excludeKey.contains(key)) {
+            metadata.put(key, value);
+        }
         return this;
     }
 

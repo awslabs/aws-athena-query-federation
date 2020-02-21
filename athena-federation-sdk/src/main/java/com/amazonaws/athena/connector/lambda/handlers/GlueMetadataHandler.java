@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +110,8 @@ public abstract class GlueMetadataHandler
     public static final String SOURCE_TABLE_PROPERTY = "sourceTable";
     //Table property that we expect to contain the column name mapping
     public static final String COLUMN_NAME_MAPPING_PROPERTY = "columnMapping";
+    // Table property (optional) that we expect to contain custom
+    public static final String DATETIME_FORMAT_MAPPING_PROPERTY = "datetimeFormatMapping";
 
     private final AWSGlue awsGlue;
 
@@ -330,12 +333,18 @@ public abstract class GlueMetadataHandler
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        Set<String> excludeKey = new HashSet<>();
+        excludeKey.add(DATETIME_FORMAT_MAPPING_PROPERTY);
         if (table.getParameters() != null) {
-            table.getParameters().entrySet().forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
+            table.getParameters()
+                    .entrySet()
+                    .forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue(), excludeKey));
         }
 
         //A column name mapping can be provided to get around restrictive Glue naming rules
         Map<String, String> columnNameMapping = getColumnNameMapping(table);
+        Map<String, String> dateTimeFormatMapping = getDateTimeFormatMapping(table);
+        Map<String, String> datetimeFormatMappingWithColumnName = new HashMap<>();
 
         Set<String> partitionCols = new HashSet<>();
         if (table.getPartitionKeys() != null) {
@@ -349,7 +358,11 @@ public abstract class GlueMetadataHandler
             if (next.getComment() != null) {
                 schemaBuilder.addMetadata(mappedColumnName, next.getComment());
             }
+            if (dateTimeFormatMapping.containsKey(next.getName())) {
+                datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(next.getName()));
+            }
         }
+        populateDatetimeFormatMappingIfAvailable(schemaBuilder, datetimeFormatMappingWithColumnName);
 
         populateSourceTableNameIfAvailable(table, schemaBuilder);
 
@@ -448,5 +461,25 @@ public abstract class GlueMetadataHandler
             return MAP_SPLITTER.split(columnNameMappingParam);
         }
         return ImmutableMap.of();
+    }
+
+    protected static Map<String, String> getDateTimeFormatMapping(Table table)
+    {
+        String datetimeFormatMappingParam = table.getParameters().get(DATETIME_FORMAT_MAPPING_PROPERTY);
+        if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
+            return MAP_SPLITTER.split(datetimeFormatMappingParam);
+        }
+        return ImmutableMap.of();
+    }
+
+    private void populateDatetimeFormatMappingIfAvailable(SchemaBuilder schemaBuilder,
+                                                          Map<String, String> dateTimeFormatMapping)
+    {
+        if (dateTimeFormatMapping.size() > 0) {
+            String datetimeFormatMappingString = dateTimeFormatMapping.entrySet().stream()
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .collect(Collectors.joining(","));
+            schemaBuilder.addMetadata(DATETIME_FORMAT_MAPPING_PROPERTY, datetimeFormatMappingString);
+        }
     }
 }

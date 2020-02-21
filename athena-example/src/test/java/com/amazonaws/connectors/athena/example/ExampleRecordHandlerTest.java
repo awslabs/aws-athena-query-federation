@@ -21,51 +21,42 @@ package com.amazonaws.connectors.athena.example;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.ByteStreams;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -84,16 +75,20 @@ public class ExampleRecordHandlerTest
     private AmazonAthena athena;
     private S3BlockSpillReader spillReader;
 
+    @Rule
+    public TestName testName = new TestName();
+
     @After
     public void after()
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Before
     public void setUp()
     {
-        logger.info("setUpBefore - enter");
+        logger.info("{}: enter", testName.getMethodName());
 
         schemaForRead = SchemaBuilder.newBuilder().addIntField("year")
                 .addIntField("month")
@@ -130,8 +125,6 @@ public class ExampleRecordHandlerTest
 
         handler = new ExampleRecordHandler(amazonS3, awsSecretsManager, athena);
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
-
-        logger.info("setUpBefore - exit");
     }
 
     @Test
@@ -148,7 +141,6 @@ public class ExampleRecordHandlerTest
             return;
         }
 
-        logger.info("doReadRecordsNoSpill: enter");
         for (int i = 0; i < 2; i++) {
             Map<String, ValueSet> constraintsMap = new HashMap<>();
 
@@ -176,7 +168,6 @@ public class ExampleRecordHandlerTest
             assertTrue(response.getRecords().getRowCount() > 0);
             logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
         }
-        logger.info("doReadRecordsNoSpill: exit");
     }
 
     private byte[] getFakeObject()

@@ -51,13 +51,15 @@ import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
+
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -67,19 +69,18 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -88,7 +89,7 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class GlueMetadataHandlerTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(MockitoJUnitRunner.class);
+    private static final Logger logger = LoggerFactory.getLogger(GlueMetadataHandlerTest.class);
 
     private String accountId = IdentityUtil.fakeIdentity().getAccount();
     private String queryId = "queryId";
@@ -100,6 +101,9 @@ public class GlueMetadataHandlerTest
 
     private BlockAllocatorImpl allocator;
 
+    @Rule
+    public TestName testName = new TestName();
+
     @Mock
     private AWSGlue mockGlue;
 
@@ -107,6 +111,8 @@ public class GlueMetadataHandlerTest
     public void setUp()
             throws Exception
     {
+        logger.info("====================== Starting Test {} ======================", testName.getMethodName());
+
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
                 mock(AWSSecretsManager.class),
@@ -157,14 +163,13 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         allocator.close();
+        logger.info("====================== Finishing Test {} ======================", testName.getMethodName());
     }
 
     @Test
     public void doListSchemaNames()
             throws Exception
     {
-        logger.info("doListSchemaNames: enter");
-
         List<Database> databases = new ArrayList<>();
         databases.add(new Database().withName("db1"));
         databases.add(new Database().withName("db2"));
@@ -196,15 +201,12 @@ public class GlueMetadataHandlerTest
                 new ArrayList<>(res.getSchemas()));
 
         verify(mockGlue, times(2)).getDatabases(any(GetDatabasesRequest.class));
-        logger.info("doListSchemaNames: exit");
     }
 
     @Test
     public void doListTables()
             throws Exception
     {
-        logger.info("doListTables - enter");
-
         List<Table> tables = new ArrayList<>();
         tables.add(new Table().withName("table1"));
         tables.add(new Table().withName("table2"));
@@ -238,21 +240,18 @@ public class GlueMetadataHandlerTest
             assertTrue(tableNames.contains(next.getTableName()));
         }
         assertEquals(tableNames.size(), res.getTables().size());
-
-        logger.info("doListTables - exit");
     }
 
     @Test
     public void doGetTable()
             throws Exception
     {
-        logger.info("doGetTable - enter");
-
         String sourceTable = "My-Table";
 
         Map<String, String> expectedParams = new HashMap<>();
         expectedParams.put(SOURCE_TABLE_PROPERTY, sourceTable);
         expectedParams.put(COLUMN_NAME_MAPPING_PROPERTY, "col2=Col2,col3=Col3, col4=Col4");
+        expectedParams.put(DATETIME_FORMAT_MAPPING_PROPERTY, "col2=someformat2, col1=someformat1 ");
 
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col1").withType("int").withComment("comment"));
@@ -289,13 +288,13 @@ public class GlueMetadataHandlerTest
 
         assertTrue(res.getSchema().getFields().size() == 3);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
+        assertTrue(res.getSchema().getCustomMetadata().containsKey(DATETIME_FORMAT_MAPPING_PROPERTY));
+        assertEquals(res.getSchema().getCustomMetadata().get(DATETIME_FORMAT_MAPPING_PROPERTY), "Col2=someformat2,col1=someformat1");
         assertEquals(sourceTable, getSourceTableName(res.getSchema()));
 
         //Verify column name mapping works
         assertNotNull(res.getSchema().findField("col1"));
         assertNotNull(res.getSchema().findField("Col2"));
-
-        logger.info("doGetTable - exit");
     }
 
     @Test

@@ -43,17 +43,22 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -65,6 +70,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DATETIME_FORMAT_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_TIME_ZONE;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
@@ -96,6 +103,9 @@ public class DynamoDBRecordHandler
 
     private static final TypeReference<HashMap<String, String>> STRING_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, String>>() {};
     private static final TypeReference<HashMap<String, AttributeValue>> ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, AttributeValue>>() {};
+
+    private static final Splitter.MapSplitter MAP_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
+    private static final String UTC = "UTC";
 
     private final LoadingCache<String, ThrottlingInvoker> invokerCache = CacheBuilder.newBuilder().build(
         new CacheLoader<String, ThrottlingInvoker>() {
@@ -139,6 +149,7 @@ public class DynamoDBRecordHandler
 
         long numRows = 0;
         AtomicLong numResultRows = new AtomicLong(0);
+        Map<String, String> dateTimeFormatMapping = getDateTimeFormatMapping(recordsRequest.getSchema());
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
@@ -161,6 +172,14 @@ public class DynamoDBRecordHandler
                     Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
                     if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
                         value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
+                    }
+                    if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
+                            && (value instanceof String || value instanceof BigDecimal)) {
+                        ZoneId defaultTimeZone = ZoneId.of(recordsRequest.getSchema().getCustomMetadata().getOrDefault(
+                                DEFAULT_TIME_ZONE, UTC));
+                        String customerConfiguredFormat = dateTimeFormatMapping.getOrDefault(nextField.getName(), null);
+                        value = DDBTypeUtils.coerceDateTimeToExpectedType(value, fieldType,
+                                customerConfiguredFormat, defaultTimeZone);
                     }
                     try {
                         switch (fieldType) {
@@ -196,6 +215,17 @@ public class DynamoDBRecordHandler
         }
 
         logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
+    }
+
+    private Map<String, String> getDateTimeFormatMapping(Schema schema)
+    {
+        if (schema.getCustomMetadata() != null) {
+            String datetimeFormatMappingParam = schema.getCustomMetadata().getOrDefault(DATETIME_FORMAT_MAPPING_PROPERTY, null);
+            if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
+                return MAP_SPLITTER.split(datetimeFormatMappingParam);
+            }
+        }
+        return ImmutableMap.of();
     }
 
     /*
