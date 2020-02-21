@@ -114,6 +114,8 @@ public abstract class GlueMetadataHandler
     public static final String DATETIME_FORMAT_MAPPING_PROPERTY = "datetimeFormatMapping";
     // Table property (optional) that we will create from DATETIME_FORMAT_MAPPING_PROPERTY with normalized column names
     public static final String DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED = "datetimeFormatMappingNormalized";
+    // Table property (optional) that we expect to contain any types to be overridden for a column, ex) timestamp with tz
+    public static final String TYPE_OVERRIDE_MAPPING_PROPERTY = "typeOverrideMapping";
 
     private final AWSGlue awsGlue;
 
@@ -343,6 +345,7 @@ public abstract class GlueMetadataHandler
 
         //A column name mapping can be provided to get around restrictive Glue naming rules
         Map<String, String> columnNameMapping = getColumnNameMapping(table);
+        Map<String, String> typeOverrideMapping = getTypeOverrideMapping(table);
         Map<String, String> dateTimeFormatMapping = getDateTimeFormatMapping(table);
         Map<String, String> datetimeFormatMappingWithColumnName = new HashMap<>();
 
@@ -353,13 +356,18 @@ public abstract class GlueMetadataHandler
         }
 
         for (Column next : table.getStorageDescriptor().getColumns()) {
-            String mappedColumnName = columnNameMapping.getOrDefault(next.getName(), next.getName());
-            schemaBuilder.addField(convertField(mappedColumnName, next.getType()));
+            String rawColumnName = next.getName();
+            String mappedColumnName = columnNameMapping.getOrDefault(rawColumnName, rawColumnName);
+            // apply any type override provided in typeOverrideMapping from metadata
+            // this is currently only used for timestamp with timezone support
+            String finalType = typeOverrideMapping.getOrDefault(rawColumnName, next.getType());
+            logger.info("Column {} with registered type {} was overridden with type {}", rawColumnName, next.getType(), finalType);
+            schemaBuilder.addField(convertField(mappedColumnName, finalType));
             if (next.getComment() != null) {
                 schemaBuilder.addMetadata(mappedColumnName, next.getComment());
             }
-            if (dateTimeFormatMapping.containsKey(next.getName())) {
-                datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(next.getName()));
+            if (dateTimeFormatMapping.containsKey(rawColumnName)) {
+                datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(rawColumnName));
             }
         }
         populateDatetimeFormatMappingIfAvailable(schemaBuilder, datetimeFormatMappingWithColumnName);
@@ -459,6 +467,22 @@ public abstract class GlueMetadataHandler
         String columnNameMappingParam = table.getParameters().get(COLUMN_NAME_MAPPING_PROPERTY);
         if (!Strings.isNullOrEmpty(columnNameMappingParam)) {
             return MAP_SPLITTER.split(columnNameMappingParam);
+        }
+        return ImmutableMap.of();
+    }
+
+    /**
+     * If available, Retrieves the map of column names to overriding types
+     * This is currently used for timestamp with timezone support
+     *
+     * @param table The glue table
+     * @return a map of column name to overriding types if provided, otherwise an empty map
+     */
+    private Map<String, String> getTypeOverrideMapping(Table table)
+    {
+        String typeOverrideMappingParam = table.getParameters().get(TYPE_OVERRIDE_MAPPING_PROPERTY);
+        if (!Strings.isNullOrEmpty(typeOverrideMappingParam)) {
+            return MAP_SPLITTER.split(typeOverrideMappingParam);
         }
         return ImmutableMap.of();
     }

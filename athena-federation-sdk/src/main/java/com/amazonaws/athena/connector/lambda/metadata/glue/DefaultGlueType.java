@@ -42,6 +42,7 @@ public enum DefaultGlueType
     BIT("boolean", Types.MinorType.BIT.getType()),
     VARBINARY("binary", Types.MinorType.VARBINARY.getType()),
     TIMESTAMP("timestamp", Types.MinorType.DATEMILLI.getType()),
+    TIMESTAMPTZ("timestamptz", Types.MinorType.TIMESTAMPMILLI.getType()),
     DATE("date", Types.MinorType.DATEDAY.getType());
 
     private static final Map<String, DefaultGlueType> TYPE_MAP = new HashMap<>();

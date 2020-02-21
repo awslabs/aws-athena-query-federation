@@ -49,6 +49,7 @@ import org.junit.BeforeClass;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -190,6 +191,11 @@ public class TestBase
         item.put("Col2", toAttributeValue("2020-02-27T09:12:27Z"));
         item.put("Col3", toAttributeValue("27/02/2020"));
         item.put("Col4", toAttributeValue("2020-02-27"));
+        // below three columns are testing timestamp with timezone
+        // col5 with non-utc timezone, col6 with utc timezone, and c7 without timezone that will fall back to   default
+        item.put("Col5", toAttributeValue("2015-12-21T17:42:34-05:00"));
+        item.put("Col6", toAttributeValue("2015-12-21T17:42:34Z"));
+        item.put("Col7", toAttributeValue("2015-12-21T17:42:34"));
         tableWriteItems.addItemToPut(toItem(item));
         ddb.batchWriteItem(tableWriteItems);
 

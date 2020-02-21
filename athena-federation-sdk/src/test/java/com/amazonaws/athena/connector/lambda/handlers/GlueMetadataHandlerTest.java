@@ -78,6 +78,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.TYPE_OVERRIDE_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
 import static org.junit.Assert.*;
@@ -139,21 +140,6 @@ public class GlueMetadataHandlerTest
             public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request)
             {
                 throw new UnsupportedOperationException();
-            }
-
-            @Override
-            protected Field convertField(String name, String type)
-            {
-                if ("int".equals(type)) {
-                    return FieldBuilder.newBuilder(name, Types.MinorType.INT.getType()).build();
-                }
-                else if ("bigint".equals(type)) {
-                    return FieldBuilder.newBuilder(name, Types.MinorType.BIGINT.getType()).build();
-                }
-                else if ("string".equals(type)) {
-                    return FieldBuilder.newBuilder(name, Types.MinorType.VARCHAR.getType()).build();
-                }
-                throw new IllegalArgumentException("Unsupported type " + type);
             }
         };
         allocator = new BlockAllocatorImpl();
@@ -253,11 +239,17 @@ public class GlueMetadataHandlerTest
         expectedParams.put(SOURCE_TABLE_PROPERTY, sourceTable);
         expectedParams.put(COLUMN_NAME_MAPPING_PROPERTY, "col2=Col2,col3=Col3, col4=Col4");
         expectedParams.put(DATETIME_FORMAT_MAPPING_PROPERTY, "col2=someformat2, col1=someformat1 ");
+        expectedParams.put(TYPE_OVERRIDE_MAPPING_PROPERTY, "col6=timestamptz,col7=timestamptz");
 
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col1").withType("int").withComment("comment"));
         columns.add(new Column().withName("col2").withType("bigint").withComment("comment"));
         columns.add(new Column().withName("col3").withType("string").withComment("comment"));
+        columns.add(new Column().withName("col4").withType("timestamp").withComment("comment"));
+        columns.add(new Column().withName("col5").withType("date").withComment("comment"));
+        columns.add(new Column().withName("col6").withType("timestamp").withComment("comment"));
+        columns.add(new Column().withName("col7").withType("string").withComment("comment"));
+
 
         Table mockTable = mock(Table.class);
         StorageDescriptor mockSd = mock(StorageDescriptor.class);
@@ -287,15 +279,30 @@ public class GlueMetadataHandlerTest
 
         logger.info("doGetTable - {}", res);
 
-        assertTrue(res.getSchema().getFields().size() == 3);
+        assertTrue(res.getSchema().getFields().size() == 7);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().containsKey(DATETIME_FORMAT_MAPPING_PROPERTY));
         assertEquals(res.getSchema().getCustomMetadata().get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), "Col2=someformat2,col1=someformat1");
+        assertEquals(res.getSchema().getCustomMetadata().get(TYPE_OVERRIDE_MAPPING_PROPERTY), "col6=timestamptz,col7=timestamptz");
         assertEquals(sourceTable, getSourceTableName(res.getSchema()));
 
         //Verify column name mapping works
         assertNotNull(res.getSchema().findField("col1"));
         assertNotNull(res.getSchema().findField("Col2"));
+        assertNotNull(res.getSchema().findField("Col3"));
+        assertNotNull(res.getSchema().findField("Col4"));
+        assertNotNull(res.getSchema().findField("col5"));
+        assertNotNull(res.getSchema().findField("col6"));
+        assertNotNull(res.getSchema().findField("col7"));
+
+        //Verify types
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col1").getType()).equals(Types.MinorType.INT));
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col2").getType()).equals(Types.MinorType.BIGINT));
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col3").getType()).equals(Types.MinorType.VARCHAR));
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col4").getType()).equals(Types.MinorType.DATEMILLI));
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col5").getType()).equals(Types.MinorType.DATEDAY));
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col6").getType()).equals(Types.MinorType.TIMESTAMPMILLI));
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col7").getType()).equals(Types.MinorType.TIMESTAMPMILLI));
     }
 
     @Test

@@ -43,6 +43,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
@@ -81,6 +82,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
@@ -139,6 +141,7 @@ public class DynamoDBMetadataHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         allocator = new BlockAllocatorImpl();
         handler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
     }
@@ -478,5 +481,47 @@ public class DynamoDBMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = handler.doGetTableLayout(allocator, getTableLayoutRequest);
         logger.info("validateSourceTableNamePropagation: GetTableLayoutResponse[{}]", getTableLayoutResponse);
         assertThat(getTableLayoutResponse.getPartitions().getSchema().getCustomMetadata().get(TABLE_METADATA), equalTo(TEST_TABLE));
+    }
+
+
+    @Test
+    public void doGetTableLayoutScanWithTypeOverride()
+            throws Exception
+    {
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("col_3",
+                EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, true)
+                        .add(true).build());
+        constraintsMap.put("col_5",
+                EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, true)
+                        .add(true).build());
+
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addMetadata(DynamoDBConstants.TYPE_OVERRIDE_MAPPING_PROPERTY, "col_5=timestamptz");
+        GetTableLayoutRequest req = new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                new TableName(TEST_CATALOG_NAME, TEST_TABLE),
+                new Constraints(constraintsMap),
+                schemaBuilder.build(),
+                Collections.EMPTY_SET);
+
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
+
+        logger.info("doGetTableLayoutScanWithTypeOverride schema - {}", res.getPartitions().getSchema());
+        logger.info("doGetTableLayoutScanWithTypeOverride partitions - {}", res.getPartitions());
+
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
+        // no hash key constraints, so look for segment count column
+        assertThat(res.getPartitions().getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
+        assertThat(res.getPartitions().getRowCount(), equalTo(1));
+
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_3 = :v0 OR attribute_not_exists(#col_3) OR #col_3 = :v1)"));
+
+        ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_3", "col_3", "#col_5", "col_5");
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
+
+        ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(true), ":v1", ItemUtils.toAttributeValue(null));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
     }
 }

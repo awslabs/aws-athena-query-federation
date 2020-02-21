@@ -150,17 +150,39 @@ public final class DDBTypeUtils
 
     /**
      * Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.
+     * This is called from GetSplits request. Since DDBRecordMetadata object is used for any custom override for
+     * data manipulation/formatting, it does not apply to GetSplits request.
      *
+     * @param columnName column name where the input object comes from
      * @param object the input object
-     * @return the converted-to object if convertible, otherwise the original object
+     * @return
      */
-    public static Object convertArrowTypeIfNecessary(Object object)
+    public static Object convertArrowTypeIfNecessary(String columnName, Object object)
+    {
+        return convertArrowTypeIfNecessary(columnName, object, new DDBRecordMetadata(null));
+    }
+
+    /**
+     * Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.
+     *
+     * @param columnName column name where the input object comes from
+     * @param object the input object
+     * @param recordMetadata metadata object from glue table that contains customer specified information
+     *                       such as desired default timezone, or datetime formats
+     * @return
+     */
+    public static Object convertArrowTypeIfNecessary(String columnName, Object object, DDBRecordMetadata recordMetadata)
     {
         if (object instanceof Text) {
             return object.toString();
         }
         else if (object instanceof LocalDateTime) {
-            return ((LocalDateTime) object).toDateTime(DateTimeZone.UTC).getMillis();
+            String datetimeFormat = recordMetadata.getDateTimeFormat(columnName);
+            DateTimeZone dtz = DateTimeZone.forID(recordMetadata.getDefaultTimeZone().toString());
+            if (datetimeFormat != null) {
+                return ((LocalDateTime) object).toDateTime(dtz).toLocalDateTime().toString(datetimeFormat);
+            }
+            return ((LocalDateTime) object).toDateTime(dtz).getMillis();
         }
         return object;
     }
@@ -201,14 +223,18 @@ public final class DDBTypeUtils
         }
     }
 
+    /**
+     * Coerces the raw value from DynamoDB to normalized type
+     * @param value raw value from DynamoDB
+     * @param field Arrow field from table schema
+     * @param fieldType Corresponding MinorType for field
+     * @param recordMetadata DDBRecordMetadata object containing any metadata that is passed from schema metadata
+     * @return coerced value to normalized type
+     */
     public static Object coerceValueToExpectedType(Object value, Field field,
                                                    Types.MinorType fieldType, DDBRecordMetadata recordMetadata)
     {
-        if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
-            value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
-        }
-        else if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
-                && (value instanceof String || value instanceof BigDecimal)) {
+        if (isDateTimeFieldType(fieldType) && (value instanceof String || value instanceof BigDecimal)) {
             String dateTimeFormat = recordMetadata.getDateTimeFormat(field.getName());
             if (value instanceof String && StringUtils.isEmpty(dateTimeFormat)) {
                 logger.info("Date format not in cache for column {}. Trying to infer format...", field.getName());
@@ -218,10 +244,19 @@ public final class DDBTypeUtils
                     recordMetadata.setDateTimeFormat(field.getName(), dateTimeFormat);
                 }
             }
-            value = DDBTypeUtils.coerceDateTimeToExpectedType(value, fieldType,
-                    dateTimeFormat, recordMetadata.getDefaultTimeZone());
+            value = coerceDateTimeToExpectedType(value, fieldType, dateTimeFormat, recordMetadata.getDefaultTimeZone());
+        }
+        else if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
+            value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
         }
         return value;
+    }
+
+    private static boolean isDateTimeFieldType(Types.MinorType fieldType)
+    {
+        return fieldType.equals(Types.MinorType.DATEMILLI)
+                || fieldType.equals(Types.MinorType.DATEDAY)
+                || fieldType.equals(Types.MinorType.TIMESTAMPMILLI);
     }
 
     private static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
@@ -249,7 +284,9 @@ public final class DDBTypeUtils
             if (value instanceof String) {
                 switch (fieldType) {
                     case DATEMILLI:
-                        return DateTimeFormatterUtil.stringToLocalDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
+                        return DateTimeFormatterUtil.stringToDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
+                    case TIMESTAMPMILLI:
+                        return DateTimeFormatterUtil.stringToZonedDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
                     case DATEDAY:
                         return DateTimeFormatterUtil.stringToLocalDate((String) value, customerConfiguredFormat, defaultTimeZone);
                     default:

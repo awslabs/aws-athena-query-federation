@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.dynamodb.util;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.time.ZoneId;
@@ -28,8 +29,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_TIME_ZONE;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TYPE_OVERRIDE_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.UTC;
 
 /**
@@ -41,15 +44,67 @@ public class DDBRecordMetadata
 
     private Map<String, String> dateTimeFormatMapping;
     private ZoneId defaultTimeZone;
+    private Map<String, String> typeOverrideMapping;
+    private Map<String, String> columnNameMapping;
 
     public DDBRecordMetadata(Schema schema)
     {
         dateTimeFormatMapping = getDateTimeFormatMapping(schema);
         defaultTimeZone = getDefaultTimeZone(schema);
+        columnNameMapping = getColumnNameMapping(schema);
+        typeOverrideMapping = getTypeOverrideMapping(schema);
     }
 
     /**
-     * Getter function retrieve the date/datetime formatting for a specific column name
+     * Retrieves the map of glue column names to glue/normalized column names from the table schema
+     * @param schema Schema to extract out the info from
+     * @return mapping of glue column names to ddb column names
+     */
+    protected static Map<String, String> getColumnNameMapping(Schema schema)
+    {
+        if (schema != null && schema.getCustomMetadata() != null) {
+            String columnNameMappingParam = schema.getCustomMetadata().getOrDefault(
+                    COLUMN_NAME_MAPPING_PROPERTY, null);
+            if (!Strings.isNullOrEmpty(columnNameMappingParam)) {
+                return new HashMap<>(MAP_SPLITTER.split(columnNameMappingParam));
+            }
+        }
+        return ImmutableMap.of();
+    }
+
+    /**
+     * Retrieves the map of ddb column names to any types it should be overridden with from the table schema
+     * @param schema Schema to extract out the info from
+     * @return mapping of ddb column names to any types it should be overridden with
+     */
+    public Map<String, String> getTypeOverrideMapping(Schema schema)
+    {
+        if (schema != null && schema.getCustomMetadata() != null) {
+            String typeOverrideMappingParam = schema.getCustomMetadata().getOrDefault(
+                    TYPE_OVERRIDE_MAPPING_PROPERTY, null);
+            if (!Strings.isNullOrEmpty(typeOverrideMappingParam)) {
+                Map<String, String> typeOverrideMapping = new HashMap<>(MAP_SPLITTER.split(typeOverrideMappingParam));
+                Map<String, String> typeOverrideMappingNormalized = new HashMap<>();
+                typeOverrideMapping.entrySet()
+                        .stream()
+                        .forEach(e -> typeOverrideMappingNormalized.put(columnNameMapping.getOrDefault(e.getKey(), e.getKey()), e.getValue()));
+                return typeOverrideMappingNormalized;
+            }
+        }
+        return Collections.emptyMap();
+    }
+
+    /**
+     * Getter function that retrieves map of ddb column names to any types it should be overridden with from the table schema
+     * @return map of ddb column names to any types it should be overridden with from the table schema
+     */
+    public Map<String, String> getTypeOverrideMapping()
+    {
+        return typeOverrideMapping;
+    }
+
+    /**
+     * Getter function that retrieves the date/datetime formatting for a specific column name
      * @param columnName name of the column
      * @return the string that represents the date/datetime format
      */
@@ -84,7 +139,7 @@ public class DDBRecordMetadata
      */
     private Map<String, String> getDateTimeFormatMapping(Schema schema)
     {
-        if (schema.getCustomMetadata() != null) {
+        if (schema != null && schema.getCustomMetadata() != null) {
             String datetimeFormatMappingParam = schema.getCustomMetadata().getOrDefault(
                     DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED, null);
             if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
@@ -102,7 +157,7 @@ public class DDBRecordMetadata
      */
     private ZoneId getDefaultTimeZone(Schema schema)
     {
-        return schema.getCustomMetadata() != null
+        return schema != null && schema.getCustomMetadata() != null
                 ? ZoneId.of(schema.getCustomMetadata().getOrDefault(DEFAULT_TIME_ZONE, UTC))
                 : ZoneId.of(UTC);
     }
