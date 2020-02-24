@@ -249,7 +249,7 @@ public class SchemaUtils
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 
-        String className = value.getClass() == null ? "null" : value.getClass().getName();
+        String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
         logger.warn("Unknown type[" + className + "] for field[" + key + "], defaulting to varchar.");
         return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
     }
