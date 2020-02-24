@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -133,7 +133,7 @@ public final class DDBTypeUtils
             return new Field(key, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
         }
 
-        String className = value.getClass() == null ? "null" : value.getClass().getName();
+        String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
         throw new RuntimeException("Unknown type[" + className + "] for field[" + key + "]");
     }
 
@@ -156,6 +156,7 @@ public final class DDBTypeUtils
 
     /**
      * Converts from DynamoDB Attribute Type to Arrow type.
+     *
      * @param attributeName the DDB Attribute name
      * @param attributeType the DDB Attribute type
      * @return the converted-to Arrow Field

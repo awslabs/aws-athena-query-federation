@@ -284,6 +284,7 @@ public class HbaseSchemaUtils
             return ByteBuffer.allocate(1).put((byte) ((boolean) value ? 1 : 0)).array();
         }
 
-        throw new RuntimeException("Unsupported object type for " + value + " " + value.getClass().getName());
+        String className = (value == null || value.getClass() == null) ? "null" : value.getClass().getName();
+        throw new RuntimeException("Unsupported object type for " + value + " with class name " + className);
     }
 }
