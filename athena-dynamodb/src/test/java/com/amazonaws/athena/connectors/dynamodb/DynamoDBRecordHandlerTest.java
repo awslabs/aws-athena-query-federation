@@ -67,6 +67,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
@@ -282,6 +283,8 @@ public class DynamoDBRecordHandlerTest
     @Test
     public void testDateTimeSupportFromGlueTable() throws Exception
     {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col0").withType("string"));
         columns.add(new Column().withName("col1").withType("timestamp"));
@@ -330,7 +333,7 @@ public class DynamoDBRecordHandlerTest
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
         assertEquals(1, response.getRecords().getRowCount());
-        assertEquals(new LocalDateTime(2020, 2, 27, 14, 12, 27),
+        assertEquals(new LocalDateTime(2020, 2, 27, 9, 12, 27),
                 response.getRecords().getFieldReader("Col1").readLocalDateTime());
         assertEquals(new LocalDateTime(2020, 2, 27, 9, 12, 27),
                 response.getRecords().getFieldReader("Col2").readLocalDateTime());
