@@ -213,7 +213,6 @@ public final class DDBTypeUtils
             value = DDBTypeUtils.coerceDateTimeToExpectedType(value, fieldType,
                     customerConfiguredFormat, defaultTimeZone);
         }
-        logger.info("returning coerceValueToExpectedType {}", value);
         return value;
     }
 
