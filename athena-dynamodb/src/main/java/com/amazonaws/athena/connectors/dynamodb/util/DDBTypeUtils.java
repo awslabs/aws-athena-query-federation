@@ -200,7 +200,24 @@ public final class DDBTypeUtils
         }
     }
 
-    public static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
+    public static Object coerceValueToExpectedType(Object value, Field field,
+                                                   Types.MinorType fieldType, DDBRecordMetadata recordMetadata)
+    {
+        if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
+            value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
+        }
+        if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
+                && (value instanceof String || value instanceof BigDecimal)) {
+            ZoneId defaultTimeZone = recordMetadata.getDefaultTimeZone();
+            String customerConfiguredFormat = recordMetadata.getDateTimeFormat(field.getName());
+            value = DDBTypeUtils.coerceDateTimeToExpectedType(value, fieldType,
+                    customerConfiguredFormat, defaultTimeZone);
+        }
+        logger.info("returning coerceValueToExpectedType {}", value);
+        return value;
+    }
+
+    private static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
     {
         switch (fieldType) {
             case INT:
@@ -218,7 +235,7 @@ public final class DDBTypeUtils
         }
     }
 
-    public static Object coerceDateTimeToExpectedType(Object value, Types.MinorType fieldType,
+    private static Object coerceDateTimeToExpectedType(Object value, Types.MinorType fieldType,
                                                       String customerConfiguredFormat, ZoneId defaultTimeZone)
     {
         try {
@@ -245,7 +262,7 @@ public final class DDBTypeUtils
             return value;
         }
         catch (IllegalArgumentException ex) {
-            logger.error(ex.getMessage());
+            ex.printStackTrace();
             return value;
         }
     }

@@ -280,9 +280,17 @@ public class SchemaBuilder
         return this;
     }
 
-    public SchemaBuilder addMetadata(String key, String value, Set<String> excludeKey)
+    /**
+     * Adds the provided metadata to the Schema, unless the provided key is one of the values in excludedKeys
+     *
+     * @param key The key of the metadata to add.
+     * @param value The value of the metadata to add.
+     * @param excludeKeys set of strings that should be excluded from being added to the metadata map
+     * @return This SchemaBuilder itself.
+     */
+    public SchemaBuilder addMetadata(String key, String value, Set<String> excludeKeys)
     {
-        if (!excludeKey.contains(key)) {
+        if (!excludeKeys.contains(key)) {
             metadata.put(key, value);
         }
         return this;

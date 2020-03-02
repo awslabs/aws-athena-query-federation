@@ -38,6 +38,12 @@ public final class DynamoDBConstants
     public static final String EXPRESSION_NAMES_METADATA = "expressionAttributeNames";
     public static final String EXPRESSION_VALUES_METADATA = "expressionAttributeValues";
 
+    // Metadata key whose value is a string that represents the maping from normalized column names to
+    // any non-8601 format that customer wants to specify
     public static final String DATETIME_FORMAT_MAPPING_PROPERTY = "datetimeFormatMapping";
+    // Metadata key whose value is a string representation of default time zone the customer wants to apply to
+    // any date/datetime objects that does not include timezone information
     public static final String DEFAULT_TIME_ZONE = "defaultTimeZone";
+    // Fallback timezone if a default timezone cant be inferred from the value or customer specified override
+    public static final String UTC = "UTC";
 }

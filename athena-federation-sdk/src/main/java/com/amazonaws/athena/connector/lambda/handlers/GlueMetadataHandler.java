@@ -463,7 +463,15 @@ public abstract class GlueMetadataHandler
         return ImmutableMap.of();
     }
 
-    protected static Map<String, String> getDateTimeFormatMapping(Table table)
+    /**
+     * If available, Retrieves the map of normalized column names to customized format
+     * for any string representation of date/datetime
+     *
+     * @param table The glue table
+     * @returns a map of column name to date/datetime format that is used to parse the values in table
+     *          if provided, otherwise an empty map
+     */
+    private Map<String, String> getDateTimeFormatMapping(Table table)
     {
         String datetimeFormatMappingParam = table.getParameters().get(DATETIME_FORMAT_MAPPING_PROPERTY);
         if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
@@ -472,6 +480,12 @@ public abstract class GlueMetadataHandler
         return ImmutableMap.of();
     }
 
+    /**
+     * If available, adds stringified map of normalized columns to date/datetime format to Schema metadata
+     *
+     * @param schemaBuilder The schema being generated
+     * @param dateTimeFormatMapping map of normalized column names to date/datetime format, if provided
+     */
     private void populateDatetimeFormatMappingIfAvailable(SchemaBuilder schemaBuilder,
                                                           Map<String, String> dateTimeFormatMapping)
     {
