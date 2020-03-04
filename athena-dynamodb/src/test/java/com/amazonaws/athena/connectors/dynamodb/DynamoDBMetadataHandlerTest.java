@@ -221,6 +221,7 @@ public class DynamoDBMetadataHandlerTest
         List<TableName> expectedTables = tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(Collectors.toList());
         expectedTables.add(TEST_TABLE_NAME);
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table2"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table4"));
 
         assertThat(new HashSet<>(res.getTables()), equalTo(new HashSet<>(expectedTables)));
 

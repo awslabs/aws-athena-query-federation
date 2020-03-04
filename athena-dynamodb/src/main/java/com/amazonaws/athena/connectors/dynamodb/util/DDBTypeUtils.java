@@ -68,6 +68,11 @@ public final class DDBTypeUtils
      */
     public static Field inferArrowField(String key, Object value)
     {
+        if (value == null) {
+            logger.info("NULL encountered for {}", key);
+            return null;
+        }
+
         if (value instanceof String) {
             return new Field(key, FieldType.nullable(Types.MinorType.VARCHAR.getType()), null);
         }
@@ -111,8 +116,10 @@ public final class DDBTypeUtils
                     child = inferArrowField("", "");
                 }
             }
-            return new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
-                    Collections.singletonList(child));
+            return child == null
+                    ? null
+                    : new Field(key, FieldType.nullable(Types.MinorType.LIST.getType()),
+                                Collections.singletonList(child));
         }
         else if (value instanceof Map) {
             List<Field> children = new ArrayList<>();
@@ -121,7 +128,9 @@ public final class DDBTypeUtils
             for (String childKey : doc.keySet()) {
                 Object childVal = doc.get(childKey);
                 Field child = inferArrowField(childKey, childVal);
-                children.add(child);
+                if (child != null) {
+                    children.add(child);
+                }
             }
 
             // Athena requires Structs to have child types and not be empty
