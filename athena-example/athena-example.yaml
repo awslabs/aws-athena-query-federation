@@ -17,18 +17,19 @@ Metadata:
 # to your template when you create a stack
 Parameters:
   AthenaCatalogName:
-    Description: "The name you will give to this catalog in Athena will also be used as you Lambda function name."
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
   SpillBucket:
-    Description: "The bucket where this function can spill large responses."
+    Description: 'The name of the bucket where this function can spill data.'
     Type: String
   DataBucket:
       Description: "The bucket where this tutorial's data lives."
       Type: String
   SpillPrefix:
-    Description: "The bucket prefix where this function can spill large responses."
+    Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
-    Default: "athena-spill"
+    Default: athena-spill
   LambdaTimeout:
     Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
     Default: 900
