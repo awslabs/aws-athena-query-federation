@@ -49,7 +49,7 @@ public class DateTimeFormatterUtilTest {
 
     @Before
     public void setUp() {
-        logger.info("====================== Starting Test {} ======================", testName.getMethodName());
+        logger.info("{}: enter", testName.getMethodName());
         Locale.setDefault(new Locale("en", "UK"));
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
@@ -57,7 +57,7 @@ public class DateTimeFormatterUtilTest {
     @After
     public void tearDown()
     {
-        logger.info("====================== Finishing Test {} ======================", testName.getMethodName());
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
@@ -67,18 +67,13 @@ public class DateTimeFormatterUtilTest {
         LocalDate actual = DateTimeFormatterUtil.stringToLocalDate("27022020", "ddMMyyyy", DEFAULT_TIME_ZONE);
         assertEquals(expected, actual);
 
-        actual = DateTimeFormatterUtil.stringToLocalDate("2020-02-27", null, DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
+        assertNull(DateTimeFormatterUtil.stringToLocalDate("2020-02-27", null, DEFAULT_TIME_ZONE));
+
+        assertNull(DateTimeFormatterUtil.stringToLocalDate("27--02-2020", "ddMMyyyy", DEFAULT_TIME_ZONE));
     }
 
-    @Test(expected=IllegalArgumentException.class)
     public void stringToLocalDateTestCustomerConfiguredFormatFail() {
-        DateTimeFormatterUtil.stringToLocalDate("27--02-2020", "ddMMyyyy", DEFAULT_TIME_ZONE);
-    }
-
-    @Test(expected=IllegalArgumentException.class)
-    public void stringToLocalDateTestFail() {
-        DateTimeFormatterUtil.stringToLocalDate("27--02-2020", null, DEFAULT_TIME_ZONE);
+        assertNull(DateTimeFormatterUtil.stringToLocalDate("27--02-2020", "ddMMyyyy", DEFAULT_TIME_ZONE));
     }
 
     @Test
@@ -87,31 +82,10 @@ public class DateTimeFormatterUtilTest {
 
         LocalDateTime actual = DateTimeFormatterUtil.stringToLocalDateTime("00:02:27S2020-02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE);
         assertEquals(expected, actual);
-
-        actual = DateTimeFormatterUtil.stringToLocalDateTime("2020-02-27T00:02:27", null, DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
-
-        actual = DateTimeFormatterUtil.stringToLocalDateTime("2020-02-27T00:02:27Z", null, DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
-
-        actual = DateTimeFormatterUtil.stringToLocalDateTime("2020-02-27T00:02:27-05:00", null, DEFAULT_TIME_ZONE);
-        assertEquals(expected.plusHours(5), actual);
-
-        actual = DateTimeFormatterUtil.stringToLocalDateTime("20200227T000227", null, DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
-
-        actual = DateTimeFormatterUtil.stringToLocalDateTime("20200227T000227Z", null, DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
     }
 
-    @Test(expected=IllegalArgumentException.class)
     public void stringToLocalDateTimeTestCustomerConfiguredFormatFail() {
-        DateTimeFormatterUtil.stringToLocalDate("00:02:27S2020---02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE);
-    }
-
-    @Test(expected=IllegalArgumentException.class)
-    public void stringToLocalDateTimeTestFail() {
-        DateTimeFormatterUtil.stringToLocalDate("00:02:27S2020---02-27", null, DEFAULT_TIME_ZONE);
+        assertNull(DateTimeFormatterUtil.stringToLocalDate("00:02:27S2020---02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE));
     }
 
     @Test
@@ -121,7 +95,6 @@ public class DateTimeFormatterUtilTest {
 
         LocalDate actual = DateTimeFormatterUtil.bigDecimalToLocalDate(new BigDecimal(instant.toEpochMilli()), DEFAULT_TIME_ZONE);
         assertEquals(expected, actual);
-
     }
 
     @Test
@@ -131,5 +104,30 @@ public class DateTimeFormatterUtilTest {
 
         LocalDateTime actual = DateTimeFormatterUtil.bigDecimalToLocalDateTime(new BigDecimal(instant.toEpochMilli()), DEFAULT_TIME_ZONE);
         assertEquals(expected, actual);
+    }
+
+    @Test
+    public void inferDateTimeFormatTest() {
+
+        String inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020-02-27");
+        assertEquals("yyyy-MM-dd", inferredDateFormat);
+
+        inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020-02-27T00:02:27");
+        assertEquals("yyyy-MM-dd'T'HH:mm:ss", inferredDateFormat);
+
+        inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020-02-27T00:02:27Z");
+        assertEquals("yyyy-MM-dd'T'HH:mm:ssZZ", inferredDateFormat);
+
+        inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020-02-27T00:02:27-05:00");
+        assertEquals("yyyy-MM-dd'T'HH:mm:ssZZ", inferredDateFormat);
+
+        inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("20200227T000227");
+        assertEquals("yyyyMMdd'T'HHmmss", inferredDateFormat);
+
+        inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("20200227T000227Z");
+        assertEquals("yyyyMMdd'T'HHmmssZZ", inferredDateFormat);
+
+        inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020202020202020202020");
+        assertNull(inferredDateFormat);
     }
 }

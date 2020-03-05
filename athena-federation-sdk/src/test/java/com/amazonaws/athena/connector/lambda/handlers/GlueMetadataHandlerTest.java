@@ -111,7 +111,7 @@ public class GlueMetadataHandlerTest
     public void setUp()
             throws Exception
     {
-        logger.info("====================== Starting Test {} ======================", testName.getMethodName());
+        logger.info("{}: enter", testName.getMethodName());
 
         handler = new GlueMetadataHandler(mockGlue,
                 new LocalKeyFactory(),
@@ -163,7 +163,7 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         allocator.close();
-        logger.info("====================== Finishing Test {} ======================", testName.getMethodName());
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test

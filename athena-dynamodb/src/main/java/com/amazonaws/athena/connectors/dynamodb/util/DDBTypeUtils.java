@@ -25,6 +25,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
@@ -208,10 +209,17 @@ public final class DDBTypeUtils
         }
         if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
                 && (value instanceof String || value instanceof BigDecimal)) {
-            ZoneId defaultTimeZone = recordMetadata.getDefaultTimeZone();
-            String customerConfiguredFormat = recordMetadata.getDateTimeFormat(field.getName());
+            String dateTimeFormat = recordMetadata.getDateTimeFormat(field.getName());
+            if (value instanceof String && StringUtils.isEmpty(dateTimeFormat)) {
+                logger.info("Date format not in cache for column {}. Trying to infer format...", field.getName());
+                dateTimeFormat = DateTimeFormatterUtil.inferDateTimeFormat((String) value);
+                if (StringUtils.isNotEmpty(dateTimeFormat)) {
+                    logger.info("Adding datetime format {} for column {} to cache", dateTimeFormat, field.getName());
+                    recordMetadata.setDateTimeFormat(field.getName(), dateTimeFormat);
+                }
+            }
             value = DDBTypeUtils.coerceDateTimeToExpectedType(value, fieldType,
-                    customerConfiguredFormat, defaultTimeZone);
+                    dateTimeFormat, recordMetadata.getDefaultTimeZone());
         }
         return value;
     }
