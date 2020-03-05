@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingSerializer;
+import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.google.common.collect.ImmutableSet;

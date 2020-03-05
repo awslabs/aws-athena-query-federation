@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;

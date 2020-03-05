@@ -54,7 +54,7 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
@@ -196,7 +196,7 @@ public abstract class MetadataHandler
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = ObjectMapperFactoryV2.create(allocator);
+            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
             try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
                 if (rawReq instanceof PingRequest) {
                     try (PingResponse response = doPing((PingRequest) rawReq)) {

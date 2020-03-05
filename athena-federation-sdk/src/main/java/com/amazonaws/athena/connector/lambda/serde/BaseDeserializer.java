@@ -245,4 +245,37 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
         jparser.nextToken();
         return jparser.getValueAsString();
     }
+
+    /**
+     * Helper used to skip to the end of the current object.  Useful for forwards compatibility.
+     *
+     * @param jparser The parser to use for extraction.
+     * @throws IOException If there is an error parsing.
+     */
+    protected void ignoreRestOfObject(JsonParser jparser)
+            throws IOException
+    {
+        if (jparser.getCurrentToken().isStructEnd()) {
+            return;
+        }
+
+        int open = 1;
+        /* Since proper matching of start/end markers is handled
+         * by nextToken(), we'll just count nesting levels here
+         */
+        while (true) {
+            JsonToken t = jparser.nextToken();
+            if (t == null) {
+                throw new IllegalStateException("Expected " + JsonToken.END_OBJECT + " found " + jparser.getText());
+            }
+            if (t.isStructStart()) {
+                ++open;
+            }
+            else if (t.isStructEnd()) {
+                if (--open == 0) {
+                    return;
+                }
+            }
+        }
+    }
 }

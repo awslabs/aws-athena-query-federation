@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
@@ -51,7 +52,7 @@ public class UserDefinedFunctionRequestSerDeTest extends TypedSerDeTest<Federati
     public void beforeTest()
             throws IOException
     {
-        mapper = ObjectMapperFactoryV2.create(allocator);
+        mapper = VersionedObjectMapperFactory.create(allocator);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");

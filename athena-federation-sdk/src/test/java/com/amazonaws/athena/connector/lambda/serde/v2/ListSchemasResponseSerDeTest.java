@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -45,7 +46,7 @@ public class ListSchemasResponseSerDeTest extends TypedSerDeTest<FederationRespo
     public void beforeTest()
             throws IOException
     {
-        mapper = ObjectMapperFactoryV2.create(allocator);
+        mapper = VersionedObjectMapperFactory.create(allocator);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         expected = new ListSchemasResponse("test-catalog", ImmutableList.of("schema1", "schema2"));

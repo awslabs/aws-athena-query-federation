@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -49,7 +50,7 @@ public class GetTableResponseSerDeTest extends TypedSerDeTest<FederationResponse
     public void beforeTest()
             throws IOException
     {
-        mapper = ObjectMapperFactoryV2.create(allocator);
+        mapper = VersionedObjectMapperFactory.create(allocator);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         Schema schema = SchemaBuilder.newBuilder()

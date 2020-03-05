@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,7 +37,7 @@ public class ObjectMapperFactoryV2Test
             throws JsonProcessingException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper mapper = ObjectMapperFactoryV2.create(allocator);
+            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator);
             mapper.writeValueAsString(new ArrowType.Null());
         }
     }
@@ -46,7 +47,7 @@ public class ObjectMapperFactoryV2Test
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper mapper = ObjectMapperFactoryV2.create(allocator);
+            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator);
             mapper.readValue("{\"@type\" : \"FloatingPoint\", \"precision\" : \"DOUBLE\"}", ArrowType.FloatingPoint.class);
         }
     }

@@ -50,7 +50,7 @@ import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
-import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
@@ -113,7 +113,7 @@ public abstract class UserDefinedFunctionHandler
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = ObjectMapperFactoryV2.create(allocator);
+            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
             try (FederationRequest rawRequest = objectMapper.readValue(inputStream, FederationRequest.class)) {
                 if (rawRequest instanceof PingRequest) {
                     try (PingResponse response = doPing((PingRequest) rawRequest)) {

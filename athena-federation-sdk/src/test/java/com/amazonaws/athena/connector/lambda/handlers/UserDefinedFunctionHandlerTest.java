@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.UnitTestBlockUtils;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -190,7 +191,7 @@ public class UserDefinedFunctionHandlerTest
     {
         FederationRequest federationRequest = new ListSchemasRequest(null, "dummy_catalog", "dummy_qid");
 
-        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         objectMapper.writeValue(byteArrayOutputStream, federationRequest);

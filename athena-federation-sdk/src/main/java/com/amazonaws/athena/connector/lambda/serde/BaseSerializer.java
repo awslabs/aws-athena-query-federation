@@ -28,7 +28,6 @@ import java.util.Collection;
 
 public abstract class BaseSerializer<T> extends StdSerializer<T>
 {
-    static final String SERDE_VERSION_FIELD = "@serDeVersion";
     static final String TYPE_FIELD = "@type";
 
     protected BaseSerializer(Class<T> clazz)

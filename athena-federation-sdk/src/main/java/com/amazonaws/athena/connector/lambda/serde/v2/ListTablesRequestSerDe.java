@@ -20,10 +20,10 @@
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
-import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -42,53 +42,43 @@ final class ListTablesRequestSerDe
 
     private ListTablesRequestSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationRequest>
+    static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
 
         Serializer(FederatedIdentitySerDe.Serializer identitySerializer)
         {
-            super(FederationRequest.class, ListTablesRequest.class);
+            super(ListTablesRequest.class, identitySerializer);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
         }
 
         @Override
-        protected void doTypedSerialize(FederationRequest federationRequest, JsonGenerator jgen, SerializerProvider provider)
+        protected void doRequestSerialize(FederationRequest federationRequest, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             ListTablesRequest listTablesRequest = (ListTablesRequest) federationRequest;
 
-            jgen.writeFieldName(IDENTITY_FIELD);
-            identitySerializer.serialize(listTablesRequest.getIdentity(), jgen, provider);
-
-            jgen.writeStringField(QUERY_ID_FIELD, listTablesRequest.getQueryId());
-            jgen.writeStringField(CATALOG_NAME_FIELD, listTablesRequest.getCatalogName());
             jgen.writeStringField(SCHEMA_NAME_FIELD, listTablesRequest.getSchemaName());
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationRequest>
+    static final class Deserializer extends MetadataRequestDeserializer
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
 
         Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer)
         {
-            super(FederationRequest.class, ListTablesRequest.class);
+            super(ListTablesRequest.class, identityDeserializer);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");
         }
 
         @Override
-        protected FederationRequest doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        protected MetadataRequest doRequestDeserialize(JsonParser jparser, DeserializationContext ctxt, FederatedIdentity identity, String queryId, String catalogName)
                 throws IOException
         {
-            assertFieldName(jparser, IDENTITY_FIELD);
-            FederatedIdentity federatedIdentity = identityDeserializer.deserialize(jparser, ctxt);
-
-            String queryId = getNextStringField(jparser, QUERY_ID_FIELD);
-            String catalogName = getNextStringField(jparser, CATALOG_NAME_FIELD);
             String schemaName = getNextStringField(jparser, SCHEMA_NAME_FIELD);
 
-            return new ListTablesRequest(federatedIdentity, queryId, catalogName, schemaName);
+            return new ListTablesRequest(identity, queryId, catalogName, schemaName);
         }
     }
 }

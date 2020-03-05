@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.fasterxml.jackson.core.JsonEncoding;
@@ -49,7 +50,7 @@ public class UserDefinedFunctionResponseSerDeTest extends TypedSerDeTest<Federat
     public void beforeTest()
             throws IOException
     {
-        mapper = ObjectMapperFactoryV2.create(allocator);
+        mapper = VersionedObjectMapperFactory.create(allocator);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         String productField = "product";

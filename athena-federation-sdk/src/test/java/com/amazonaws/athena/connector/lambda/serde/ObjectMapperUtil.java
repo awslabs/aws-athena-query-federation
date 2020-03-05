@@ -23,7 +23,6 @@ package com.amazonaws.athena.connector.lambda.serde;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -59,7 +58,7 @@ public class ObjectMapperUtil
             // check SerDe write, SerDe read
             ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
             JsonGenerator jgen = jsonFactory.createGenerator(serDeOut);
-            ObjectMapper serDe = ObjectMapperFactoryV2.create(allocator);
+            ObjectMapper serDe = VersionedObjectMapperFactory.create(allocator);
             serDe.writeValue(jgen, object);
             jgen.close();
             byte[] serDeOutput = serDeOut.toByteArray();

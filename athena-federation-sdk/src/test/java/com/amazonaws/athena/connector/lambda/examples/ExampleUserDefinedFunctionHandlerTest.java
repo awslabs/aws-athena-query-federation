@@ -29,9 +29,8 @@ import com.amazonaws.athena.connector.lambda.data.projectors.ArrowValueProjector
 import com.amazonaws.athena.connector.lambda.data.projectors.ProjectorUtils;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperUtil;
-import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
@@ -73,7 +72,7 @@ public class ExampleUserDefinedFunctionHandlerTest
 
         this.exampleUserDefinedFunctionHandler = new ExampleUserDefinedFunctionHandler();
         this.allocator = new BlockAllocatorImpl();
-        this.mapper = ObjectMapperFactoryV2.create(allocator);
+        this.mapper = VersionedObjectMapperFactory.create(allocator);
     }
 
     @After

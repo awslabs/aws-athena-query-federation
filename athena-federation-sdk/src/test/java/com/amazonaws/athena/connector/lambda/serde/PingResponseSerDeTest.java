@@ -17,12 +17,10 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde;
 
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.Before;
@@ -37,21 +35,20 @@ import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
 
-public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
+public class PingResponseSerDeTest extends TypedSerDeTest<FederationResponse>
 {
-    private static final Logger logger = LoggerFactory.getLogger(PingRequestSerDeTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(PingResponseSerDeTest.class);
 
     @Before
     public void beforeTest()
             throws IOException
     {
-        mapper = ObjectMapperFactoryV2.create(allocator);
+        mapper = VersionedObjectMapperFactory.create(allocator);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
-        FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
-        expected = new PingRequest(federatedIdentity, "test-catalog", "test-query-id");
+        expected = new PingResponse("test-catalog", "test-query-id", "test-source-type", 23, 2);
 
-        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "PingRequest.json");
+        String expectedSerDeFile = utils.getResourceOrFail("serde", "PingResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
     }
 
@@ -79,12 +76,30 @@ public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 
-        PingRequest actual = (PingRequest) mapper.readValue(input, FederationRequest.class);
+        PingResponse actual = (PingResponse) mapper.readValue(input, FederationResponse.class);
 
         logger.info("deserialize: deserialized[{}]", actual);
 
         assertEquals(expected, actual);
 
         logger.info("deserialize: exit");
+    }
+
+    @Test
+    public void testForwardsCompatibility()
+            throws IOException
+    {
+        logger.info("testForwardsCompatibility: enter");
+        String expectedSerDeFile = utils.getResourceOrFail("serde", "PingResponseForwardsCompatible.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+        InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
+
+        PingResponse actual = (PingResponse) mapper.readValue(input, FederationResponse.class);
+
+        logger.info("testForwardsCompatibility: deserialized[{}]", actual);
+
+        assertEquals(expected, actual);
+
+        logger.info("testForwardsCompatibility: exit");
     }
 }

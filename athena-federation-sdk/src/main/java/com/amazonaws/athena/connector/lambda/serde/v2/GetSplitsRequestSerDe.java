@@ -23,10 +23,10 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
-import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -50,7 +50,7 @@ final class GetSplitsRequestSerDe
 
     private GetSplitsRequestSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationRequest>
+    static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
@@ -63,7 +63,7 @@ final class GetSplitsRequestSerDe
                 BlockSerDe.Serializer blockSerializer,
                 ConstraintsSerDe.Serializer constraintsSerializer)
         {
-            super(FederationRequest.class, GetSplitsRequest.class);
+            super(GetSplitsRequest.class, identitySerializer);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
             this.tableNameSerializer = requireNonNull(tableNameSerializer, "tableNameSerializer is null");
             this.blockSerializer = requireNonNull(blockSerializer, "blockSerializer is null");
@@ -71,16 +71,10 @@ final class GetSplitsRequestSerDe
         }
 
         @Override
-        protected void doTypedSerialize(FederationRequest federationRequest, JsonGenerator jgen, SerializerProvider provider)
+        protected void doRequestSerialize(FederationRequest federationRequest, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             GetSplitsRequest getSplitsRequest = (GetSplitsRequest) federationRequest;
-
-            jgen.writeFieldName(IDENTITY_FIELD);
-            identitySerializer.serialize(getSplitsRequest.getIdentity(), jgen, provider);
-
-            jgen.writeStringField(QUERY_ID_FIELD, getSplitsRequest.getQueryId());
-            jgen.writeStringField(CATALOG_NAME_FIELD, getSplitsRequest.getCatalogName());
 
             jgen.writeFieldName(TABLE_NAME_FIELD);
             tableNameSerializer.serialize(getSplitsRequest.getTableName(), jgen, provider);
@@ -97,7 +91,7 @@ final class GetSplitsRequestSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationRequest>
+    static final class Deserializer extends MetadataRequestDeserializer
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
@@ -110,7 +104,7 @@ final class GetSplitsRequestSerDe
                 BlockSerDe.Deserializer blockDeserializer,
                 ConstraintsSerDe.Deserializer constraintsDeserializer)
         {
-            super(FederationRequest.class, GetSplitsRequest.class);
+            super(GetSplitsRequest.class, identityDeserializer);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");
             this.tableNameDeserializer = requireNonNull(tableNameDeserializer, "tableNameDeserializer is null");
             this.blockDeserializer = requireNonNull(blockDeserializer, "blockDeserializer is null");
@@ -118,15 +112,9 @@ final class GetSplitsRequestSerDe
         }
 
         @Override
-        protected FederationRequest doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        protected MetadataRequest doRequestDeserialize(JsonParser jparser, DeserializationContext ctxt, FederatedIdentity identity, String queryId, String catalogName)
                 throws IOException
         {
-            assertFieldName(jparser, IDENTITY_FIELD);
-            FederatedIdentity identity = identityDeserializer.deserialize(jparser, ctxt);
-
-            String queryId = getNextStringField(jparser, QUERY_ID_FIELD);
-            String catalogName = getNextStringField(jparser, CATALOG_NAME_FIELD);
-
             assertFieldName(jparser, TABLE_NAME_FIELD);
             TableName tableName = tableNameDeserializer.deserialize(jparser, ctxt);
 

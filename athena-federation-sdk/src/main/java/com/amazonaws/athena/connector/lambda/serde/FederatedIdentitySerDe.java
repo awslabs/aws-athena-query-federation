@@ -17,29 +17,32 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
-import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-final class FederatedIdentitySerDe
+/**
+ * Since this SerDe is used in {@link PingRequestSerDe} it needs to be forwards compatible.
+ */
+public final class FederatedIdentitySerDe
 {
     private static final String ID_FIELD = "id";
     private static final String PRINCIPLE_FIELD = "principal";
     private static final String ACCOUNT_FIELD = "account";
+    // new fields should only be appended to the end for forwards compatibility
 
     private FederatedIdentitySerDe(){}
 
-    static final class Serializer extends BaseSerializer<FederatedIdentity>
+    public static final class Serializer extends BaseSerializer<FederatedIdentity>
     {
-        Serializer()
+        public Serializer()
         {
             super(FederatedIdentity.class);
         }
@@ -51,14 +54,33 @@ final class FederatedIdentitySerDe
             jgen.writeStringField(ID_FIELD, federatedIdentity.getId());
             jgen.writeStringField(PRINCIPLE_FIELD, federatedIdentity.getPrincipal());
             jgen.writeStringField(ACCOUNT_FIELD, federatedIdentity.getAccount());
+            // new fields should only be appended to the end for forwards compatibility
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<FederatedIdentity>
+    public static final class Deserializer extends BaseDeserializer<FederatedIdentity>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(FederatedIdentity.class);
+        }
+
+        @Override
+        public FederatedIdentity deserialize(JsonParser jparser, DeserializationContext ctxt)
+                throws IOException
+        {
+            if (jparser.nextToken() != JsonToken.VALUE_NULL) {
+                validateObjectStart(jparser.getCurrentToken());
+                FederatedIdentity federatedIdentity = doDeserialize(jparser, ctxt);
+
+                // consume unknown tokens to allow forwards compatibility
+                ignoreRestOfObject(jparser);
+
+                return federatedIdentity;
+            }
+            else {
+                return null;
+            }
         }
 
         @Override

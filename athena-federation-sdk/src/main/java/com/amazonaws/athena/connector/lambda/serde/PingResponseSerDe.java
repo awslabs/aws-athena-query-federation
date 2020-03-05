@@ -17,12 +17,10 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
-import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
-import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -30,19 +28,20 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-final class PingResponseSerDe
+public final class PingResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String QUERY_ID_FIELD = "queryId";
     private static final String SOURCE_TYPE_FIELD = "sourceType";
     private static final String CAPABILITIES_FIELD = "capabilities";
     private static final String SERDE_VERSION_FIELD = "serDeVersion";
+    // new fields should only be appended to the end for forwards compatibility
 
     private PingResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
-        Serializer()
+        public Serializer()
         {
             super(FederationResponse.class, PingResponse.class);
         }
@@ -58,14 +57,24 @@ final class PingResponseSerDe
             jgen.writeStringField(SOURCE_TYPE_FIELD, pingResponse.getSourceType());
             jgen.writeNumberField(CAPABILITIES_FIELD, pingResponse.getCapabilities());
             jgen.writeNumberField(SERDE_VERSION_FIELD, pingResponse.getSerDeVersion());
+            // new fields should only be appended to the end for forwards compatibility
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(FederationResponse.class, PingResponse.class);
+        }
+
+        @Override
+        public FederationResponse deserialize(JsonParser jparser, DeserializationContext ctxt)
+                throws IOException
+        {
+            validateObjectStart(jparser.getCurrentToken());
+            return doDeserialize(jparser, ctxt);
+            // do not validate object end to allow forwards compatibility
         }
 
         @Override

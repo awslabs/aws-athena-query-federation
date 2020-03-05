@@ -17,13 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
-import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -33,11 +31,12 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class PingRequestSerDe
+public final class PingRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String QUERY_ID_FIELD = "queryId";
+    // new fields should only be appended to the end for forwards compatibility
 
     private PingRequestSerDe(){}
 
@@ -45,7 +44,7 @@ final class PingRequestSerDe
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
 
-        Serializer(FederatedIdentitySerDe.Serializer identitySerializer)
+        public Serializer(FederatedIdentitySerDe.Serializer identitySerializer)
         {
             super(FederationRequest.class, PingRequest.class);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
@@ -62,6 +61,7 @@ final class PingRequestSerDe
 
             jgen.writeStringField(CATALOG_NAME_FIELD, pingRequest.getCatalogName());
             jgen.writeStringField(QUERY_ID_FIELD, pingRequest.getQueryId());
+            // new fields should only be appended to the end for forwards compatibility
         }
     }
 
@@ -69,10 +69,19 @@ final class PingRequestSerDe
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
 
-        Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer)
+        public Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer)
         {
             super(FederationRequest.class, PingRequest.class);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");
+        }
+
+        @Override
+        public FederationRequest deserialize(JsonParser jparser, DeserializationContext ctxt)
+                throws IOException
+        {
+            validateObjectStart(jparser.getCurrentToken());
+            return doDeserialize(jparser, ctxt);
+            // do not validate object end to allow forwards compatibility
         }
 
         @Override

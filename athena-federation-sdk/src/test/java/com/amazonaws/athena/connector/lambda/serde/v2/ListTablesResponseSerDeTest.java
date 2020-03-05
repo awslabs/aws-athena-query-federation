@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -46,7 +47,7 @@ public class ListTablesResponseSerDeTest extends TypedSerDeTest<FederationRespon
     public void beforeTest()
             throws IOException
     {
-        mapper = ObjectMapperFactoryV2.create(allocator);
+        mapper = VersionedObjectMapperFactory.create(allocator);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         expected = new ListTablesResponse("test-catalog", ImmutableList.of(
