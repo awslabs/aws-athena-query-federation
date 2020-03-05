@@ -110,8 +110,10 @@ public abstract class GlueMetadataHandler
     public static final String SOURCE_TABLE_PROPERTY = "sourceTable";
     //Table property that we expect to contain the column name mapping
     public static final String COLUMN_NAME_MAPPING_PROPERTY = "columnMapping";
-    // Table property (optional) that we expect to contain custom
+    // Table property (optional) that we expect to contain custom datetime formatting
     public static final String DATETIME_FORMAT_MAPPING_PROPERTY = "datetimeFormatMapping";
+    // Table property (optional) that we will create from DATETIME_FORMAT_MAPPING_PROPERTY with normalized column names
+    public static final String DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED = "datetimeFormatMappingNormalized";
 
     private final AWSGlue awsGlue;
 
@@ -333,12 +335,10 @@ public abstract class GlueMetadataHandler
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        Set<String> excludeKey = new HashSet<>();
-        excludeKey.add(DATETIME_FORMAT_MAPPING_PROPERTY);
         if (table.getParameters() != null) {
             table.getParameters()
                     .entrySet()
-                    .forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue(), excludeKey));
+                    .forEach(next -> schemaBuilder.addMetadata(next.getKey(), next.getValue()));
         }
 
         //A column name mapping can be provided to get around restrictive Glue naming rules
@@ -493,7 +493,7 @@ public abstract class GlueMetadataHandler
             String datetimeFormatMappingString = dateTimeFormatMapping.entrySet().stream()
                     .map(entry -> entry.getKey() + "=" + entry.getValue())
                     .collect(Collectors.joining(","));
-            schemaBuilder.addMetadata(DATETIME_FORMAT_MAPPING_PROPERTY, datetimeFormatMappingString);
+            schemaBuilder.addMetadata(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED, datetimeFormatMappingString);
         }
     }
 }

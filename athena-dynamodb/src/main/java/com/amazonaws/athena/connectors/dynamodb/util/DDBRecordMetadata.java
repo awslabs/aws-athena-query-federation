@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DATETIME_FORMAT_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_TIME_ZONE;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.UTC;
 
@@ -85,7 +85,8 @@ public class DDBRecordMetadata
     private Map<String, String> getDateTimeFormatMapping(Schema schema)
     {
         if (schema.getCustomMetadata() != null) {
-            String datetimeFormatMappingParam = schema.getCustomMetadata().getOrDefault(DATETIME_FORMAT_MAPPING_PROPERTY, null);
+            String datetimeFormatMappingParam = schema.getCustomMetadata().getOrDefault(
+                    DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED, null);
             if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
                 return new HashMap<>(MAP_SPLITTER.split(datetimeFormatMappingParam));
             }

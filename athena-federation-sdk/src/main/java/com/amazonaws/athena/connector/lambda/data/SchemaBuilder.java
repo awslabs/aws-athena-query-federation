@@ -32,7 +32,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Convenience builder that can be used to create new Apache Arrow Schema for common
@@ -277,22 +276,6 @@ public class SchemaBuilder
     public SchemaBuilder addMetadata(String key, String value)
     {
         metadata.put(key, value);
-        return this;
-    }
-
-    /**
-     * Adds the provided metadata to the Schema, unless the provided key is one of the values in excludedKeys
-     *
-     * @param key The key of the metadata to add.
-     * @param value The value of the metadata to add.
-     * @param excludeKeys set of strings that should be excluded from being added to the metadata map
-     * @return This SchemaBuilder itself.
-     */
-    public SchemaBuilder addMetadata(String key, String value, Set<String> excludeKeys)
-    {
-        if (!excludeKeys.contains(key)) {
-            metadata.put(key, value);
-        }
         return this;
     }
 

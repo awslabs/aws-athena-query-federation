@@ -85,6 +85,7 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DYNAMO_DB_FLAG;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
@@ -464,7 +465,7 @@ public class DynamoDBMetadataHandlerTest
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
         Map<String, String> customMetadata = getTableResponse.getSchema().getCustomMetadata();
         assertThat(customMetadata.get(SOURCE_TABLE_PROPERTY), equalTo(TEST_TABLE));
-        assertThat(customMetadata.get(DATETIME_FORMAT_MAPPING_PROPERTY), equalTo("Col1=datetime1,Col3=datetime3"));
+        assertThat(customMetadata.get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), equalTo("Col1=datetime1,Col3=datetime3"));
 
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,
