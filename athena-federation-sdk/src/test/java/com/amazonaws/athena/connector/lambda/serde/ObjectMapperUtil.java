@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -46,7 +47,7 @@ public class ObjectMapperUtil
 
     private ObjectMapperUtil() {}
 
-    public static <T> void assertSerialization(Object object, BlockAllocator allocator)
+    public static <T> void assertSerialization(Object object)
     {
         Class<?> clazz = object.getClass();
         if (object instanceof FederationRequest)
@@ -54,7 +55,7 @@ public class ObjectMapperUtil
         else if (object instanceof FederationResponse) {
             clazz = FederationResponse.class;
         }
-        try {
+        try (BlockAllocator allocator = new BlockAllocatorImpl()){
             // check SerDe write, SerDe read
             ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
             JsonGenerator jgen = jsonFactory.createGenerator(serDeOut);
