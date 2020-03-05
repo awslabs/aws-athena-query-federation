@@ -69,7 +69,6 @@ public final class DDBTypeUtils
     public static Field inferArrowField(String key, Object value)
     {
         if (value == null) {
-            logger.info("NULL encountered for {}", key);
             return null;
         }
 

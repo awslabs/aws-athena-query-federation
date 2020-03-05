@@ -144,7 +144,6 @@ public final class DDBTableUtils
                 for (Map.Entry<String, AttributeValue> column : item.entrySet()) {
                     if (!discoveredColumns.contains(column.getKey())) {
                         Field field = DDBTypeUtils.inferArrowField(column.getKey(), ItemUtils.toSimpleValue(column.getValue()));
-                        logger.info("retrieved key {} type {} childrenValue {}", field.getName(), field.getFieldType(), field.getChildren());
                         if (field != null) {
                             schemaBuilder.addField(field);
                             discoveredColumns.add(column.getKey());
