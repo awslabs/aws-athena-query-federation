@@ -14,14 +14,14 @@ Metadata:
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
-    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name.'
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
   SpillBucket:
-    Description: 'The bucket where this function can spill data.'
+    Description: 'The name of the bucket where this function can spill data.'
     Type: String
-    Default: athena-federation-spill
   SpillPrefix:
-    Description: 'The bucket prefix where this function can spill large responses.'
+    Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
     Default: athena-spill
   LambdaTimeout:
