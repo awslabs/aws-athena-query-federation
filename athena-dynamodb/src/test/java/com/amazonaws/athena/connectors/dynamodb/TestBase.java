@@ -70,7 +70,7 @@ public class TestBase
 
     protected static AmazonDynamoDB ddbClient;
     protected static Schema schema;
-
+    protected static Table tableDdbNoGlue;
     @BeforeClass
     public static void setupOnce() throws Exception
     {
@@ -175,8 +175,8 @@ public class TestBase
                 .withAttributeDefinitions(attributeDefinitions)
                 .withProvisionedThroughput(provisionedThroughput);
 
-        table = ddb.createTable(createTableRequest);
-        table.waitForActive();
+        tableDdbNoGlue = ddb.createTable(createTableRequest);
+        tableDdbNoGlue.waitForActive();
 
         Map<String, String> col1 = new HashMap<>();
         col1.put("field1", "someField1");

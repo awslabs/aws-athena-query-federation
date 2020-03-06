@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -38,12 +40,15 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
+import com.amazonaws.services.glue.model.EntityNotFoundException;
 import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
@@ -302,6 +307,12 @@ public class DynamoDBRecordHandlerTest
         logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
         Schema schema4 = getTableResponse.getSchema();
+        for (Field f : schema4.getFields()) {
+            if (f.getName().equals("Col2")) {
+                assertEquals(2, f.getChildren().size());
+                assertTrue(f.getType() instanceof ArrowType.Struct);
+            }
+        }
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE4)
@@ -324,6 +335,54 @@ public class DynamoDBRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
         logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        Block result = response.getRecords();
+        assertEquals(1, result.getRowCount());
+        assertEquals(schema4, result.getSchema());
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
+    }
 
+    @Test
+    public void testStructWithNullFromDdbTable() throws Exception
+    {
+        when(glueClient.getTable(any())).thenThrow(new EntityNotFoundException(""));
+
+        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
+        logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
+        logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
+
+        Schema schema4 = getTableResponse.getSchema();
+        for (Field f : schema4.getFields()) {
+            if (f.getName().equals("Col2")) {
+                assertEquals(1, f.getChildren().size());
+                assertTrue(f.getType() instanceof ArrowType.Struct);
+            }
+        }
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE4)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_4_NAME,
+                schema4,
+                split,
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        Block result = response.getRecords();
+        assertEquals(1, result.getRowCount());
+        assertEquals(schema4, result.getSchema());
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
     }
 }
