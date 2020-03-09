@@ -22,7 +22,6 @@ package com.amazonaws.athena.connector.lambda.serde;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -43,9 +42,6 @@ public class PingResponseSerDeTest extends TypedSerDeTest<FederationResponse>
     public void beforeTest()
             throws IOException
     {
-        mapper = VersionedObjectMapperFactory.create(allocator);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
         expected = new PingResponse("test-catalog", "test-query-id", "test-source-type", 23, 2);
 
         String expectedSerDeFile = utils.getResourceOrFail("serde", "PingResponse.json");

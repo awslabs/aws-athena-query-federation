@@ -35,11 +35,8 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -66,11 +63,6 @@ public class ReadRecordsRequestSerDeTest extends TypedSerDeTest<FederationReques
     public void beforeTest()
             throws IOException
     {
-        mapper = VersionedObjectMapperFactory.create(allocator);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
-
         String yearCol = "year";
         String monthCol = "month";
         String dayCol = "day";

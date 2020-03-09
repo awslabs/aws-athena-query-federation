@@ -25,10 +25,8 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,9 +48,6 @@ public class GetSplitsResponseSerDeTest extends TypedSerDeTest<FederationRespons
     public void beforeTest()
             throws IOException
     {
-        mapper = VersionedObjectMapperFactory.create(allocator);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
         String yearCol = "year";
         String monthCol = "month";
         String dayCol = "day";

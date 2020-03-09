@@ -21,9 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -44,10 +42,6 @@ public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
     public void beforeTest()
             throws IOException
     {
-        mapper = VersionedObjectMapperFactory.create(allocator);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
         expected = new PingRequest(federatedIdentity, "test-catalog", "test-query-id");
 
         String expectedSerDeFile = utils.getResourceOrFail("serde", "PingRequest.json");

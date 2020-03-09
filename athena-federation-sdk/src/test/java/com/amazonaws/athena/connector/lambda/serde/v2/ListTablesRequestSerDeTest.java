@@ -21,11 +21,8 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -46,10 +43,6 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
     public void beforeTest()
             throws IOException
     {
-        mapper = VersionedObjectMapperFactory.create(allocator);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
         expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog", "test-schema");
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequest.json");

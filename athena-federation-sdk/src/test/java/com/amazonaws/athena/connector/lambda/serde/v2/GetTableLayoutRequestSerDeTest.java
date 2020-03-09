@@ -29,11 +29,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
@@ -61,11 +58,6 @@ public class GetTableLayoutRequestSerDeTest extends TypedSerDeTest<FederationReq
     public void beforeTest()
             throws IOException
     {
-        mapper = VersionedObjectMapperFactory.create(allocator);
-        mapper.enable(SerializationFeature.INDENT_OUTPUT);
-
-        FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
-
         Schema schema = SchemaBuilder.newBuilder()
                 .addField("year", new ArrowType.Int(32, true))
                 .addField("month", new ArrowType.Int(32, true))

@@ -21,8 +21,10 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.utils.TestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.junit.After;
 import org.junit.Before;
 
@@ -33,6 +35,7 @@ public abstract class TypedSerDeTest<T>
     protected TestUtils utils = new TestUtils();
     protected BlockAllocator allocator;
     protected ObjectMapper mapper;
+    protected FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
     protected String expectedSerDeText;
     protected T expected;
 
@@ -40,6 +43,8 @@ public abstract class TypedSerDeTest<T>
     public void before()
     {
         allocator = new BlockAllocatorImpl("test-allocator-id");
+        mapper = VersionedObjectMapperFactory.create(allocator);
+        mapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
     @After
