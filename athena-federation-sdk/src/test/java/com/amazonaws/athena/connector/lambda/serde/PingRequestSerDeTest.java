@@ -89,6 +89,12 @@ public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
     }
 
     @Test
+    public void testBackwardsCompatibility()
+    {
+        ObjectMapperUtil.assertSerialization(expected, true);
+    }
+
+    @Test
     public void testForwardsCompatibility()
             throws IOException
     {

@@ -43,11 +43,14 @@ public class ObjectMapperUtil
 
     private static JsonFactory jsonFactory = new JsonFactory();
 
-    private static final boolean failOnObjectMapperChecks = false;
-
     private ObjectMapperUtil() {}
 
     public static <T> void assertSerialization(Object object)
+    {
+        assertSerialization(object, false);
+    }
+
+    public static <T> void assertSerialization(Object object, boolean failOnCompatibilityChecks)
     {
         Class<?> clazz = object.getClass();
         if (object instanceof FederationRequest)
@@ -77,7 +80,7 @@ public class ObjectMapperUtil
                 assertEquals(object, serDe.readValue(jparser, clazz));
             }
             catch (Exception e) {
-                if (failOnObjectMapperChecks) {
+                if (failOnCompatibilityChecks) {
                     throw e;
                 }
                 logger.warn("Object serialized with ObjectMapper not deserializable with SerDe", e);
@@ -87,7 +90,7 @@ public class ObjectMapperUtil
                 assertEquals(object, mapper.readValue(serDeOutput, object.getClass()));
             }
             catch (Exception e) {
-                if (failOnObjectMapperChecks) {
+                if (failOnCompatibilityChecks) {
                     throw e;
                 }
                 logger.warn("Object serialized with SerDe not deserializable with ObjectMapper", e);
