@@ -19,13 +19,18 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
@@ -33,18 +38,35 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Column;
+import com.amazonaws.services.glue.model.EntityNotFoundException;
+import com.amazonaws.services.glue.model.GetTableResult;
+import com.amazonaws.services.glue.model.StorageDescriptor;
+import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.HASH_KEY_NAME_METADATA;
@@ -53,12 +75,16 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_COUNT_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.SEGMENT_ID_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
+
 import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toAttributeValue;
 import static com.amazonaws.util.json.Jackson.toJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class DynamoDBRecordHandlerTest
         extends TestBase
 {
@@ -75,12 +101,23 @@ public class DynamoDBRecordHandlerTest
     private BlockAllocator allocator;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private DynamoDBRecordHandler handler;
+    private DynamoDBMetadataHandler metadataHandler;
+
+    @Mock
+    private AWSGlue glueClient;
+
+    @Mock
+    private AWSSecretsManager secretsManager;
+
+    @Mock
+    private AmazonAthena athena;
 
     @Before
     public void setup()
     {
         allocator = new BlockAllocatorImpl();
         handler = new DynamoDBRecordHandler(ddbClient, mock(AmazonS3.class), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "source_type");
+        metadataHandler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
     }
 
     @After
@@ -245,5 +282,107 @@ public class DynamoDBRecordHandlerTest
         assertEquals(0, response.getRecords().getRowCount());
 
         logger.info("testZeroRowQuery: exit");
+    }
+
+    @Test
+    public void testStructWithNullFromGlueTable() throws Exception
+    {
+        List<Column> columns = new ArrayList<>();
+        columns.add(new Column().withName("col0").withType("string"));
+        columns.add(new Column().withName("col1").withType("struct"));
+        Map<String, String> param = ImmutableMap.of(
+                SOURCE_TABLE_PROPERTY, TEST_TABLE4,
+                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1,col2=Col2");
+        Table table = new Table()
+                .withParameters(param)
+                .withPartitionKeys()
+                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
+        GetTableResult mockResult = new GetTableResult().withTable(table);
+        when(glueClient.getTable(any())).thenReturn(mockResult);
+
+        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
+        logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
+        logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
+
+        Schema schema4 = getTableResponse.getSchema();
+        for (Field f : schema4.getFields()) {
+            if (f.getName().equals("Col2")) {
+                assertEquals(2, f.getChildren().size());
+                assertTrue(f.getType() instanceof ArrowType.Struct);
+            }
+        }
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE4)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_4_NAME,
+                schema4,
+                split,
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        Block result = response.getRecords();
+        assertEquals(1, result.getRowCount());
+        assertEquals(schema4, result.getSchema());
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    @Test
+    public void testStructWithNullFromDdbTable() throws Exception
+    {
+        when(glueClient.getTable(any())).thenThrow(new EntityNotFoundException(""));
+
+        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
+        logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
+        logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
+
+        Schema schema4 = getTableResponse.getSchema();
+        for (Field f : schema4.getFields()) {
+            if (f.getName().equals("Col2")) {
+                assertEquals(1, f.getChildren().size());
+                assertTrue(f.getType() instanceof ArrowType.Struct);
+            }
+        }
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE4)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_4_NAME,
+                schema4,
+                split,
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        Block result = response.getRecords();
+        assertEquals(1, result.getRowCount());
+        assertEquals(schema4, result.getSchema());
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
     }
 }

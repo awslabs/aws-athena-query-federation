@@ -63,12 +63,14 @@ public class TestBase
     protected static final String TEST_QUERY_ID = "queryId";
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";
+    protected static final String TEST_TABLE4 = "test_table4";
     protected static final TableName TEST_TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
     protected static final TableName TEST_TABLE_2_NAME = new TableName(DEFAULT_SCHEMA, "Test_table2");
+    protected static final TableName TEST_TABLE_4_NAME = new TableName(DEFAULT_SCHEMA, "test_table4");
 
     protected static AmazonDynamoDB ddbClient;
     protected static Schema schema;
-
+    protected static Table tableDdbNoGlue;
     @BeforeClass
     public static void setupOnce() throws Exception
     {
@@ -159,6 +161,33 @@ public class TestBase
                 .withProvisionedThroughput(provisionedThroughput);
         table = ddb.createTable(createTableRequest);
         table.waitForActive();
+
+        // Table 4
+        attributeDefinitions = new ArrayList<>();
+        attributeDefinitions.add(new AttributeDefinition().withAttributeName("Col0").withAttributeType("S"));
+
+        keySchema = new ArrayList<>();
+        keySchema.add(new KeySchemaElement().withAttributeName("Col0").withKeyType(KeyType.HASH));
+
+        createTableRequest = new CreateTableRequest()
+                .withTableName(TEST_TABLE4)
+                .withKeySchema(keySchema)
+                .withAttributeDefinitions(attributeDefinitions)
+                .withProvisionedThroughput(provisionedThroughput);
+
+        tableDdbNoGlue = ddb.createTable(createTableRequest);
+        tableDdbNoGlue.waitForActive();
+
+        Map<String, String> col1 = new HashMap<>();
+        col1.put("field1", "someField1");
+        col1.put("field2", null);
+
+        tableWriteItems = new TableWriteItems(TEST_TABLE4);
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", toAttributeValue("hashVal"));
+        item.put("Col1", toAttributeValue(col1));
+        tableWriteItems.addItemToPut(toItem(item));
+        ddb.batchWriteItem(tableWriteItems);
 
         return client;
     }
