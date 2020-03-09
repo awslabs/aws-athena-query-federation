@@ -23,15 +23,31 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.handlers.SerDeVersion;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * Vends {@link ObjectMapper} instances that correspond to SerDe versions.
+ */
 public class VersionedObjectMapperFactory
 {
     private VersionedObjectMapperFactory(){}
 
+    /**
+     * Creates an {@link ObjectMapper} using the current SDK SerDe version.
+     *
+     * @param allocator
+     * @return
+     */
     public static ObjectMapper create(BlockAllocator allocator)
     {
         return create(allocator, SerDeVersion.SERDE_VERSION);
     }
 
+    /**
+     * Creates an {@link ObjectMapper} using the provided SerDe version.
+     *
+     * @param allocator
+     * @param version
+     * @return
+     */
     public static ObjectMapper create(BlockAllocator allocator, int version)
     {
         switch (version) {
