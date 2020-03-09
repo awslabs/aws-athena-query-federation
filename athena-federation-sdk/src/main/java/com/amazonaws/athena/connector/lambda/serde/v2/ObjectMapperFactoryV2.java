@@ -27,7 +27,7 @@ import com.amazonaws.athena.connector.lambda.serde.PingRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.DeserializationConfig;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -119,11 +119,11 @@ public class ObjectMapperFactoryV2
 
         @Override
         @SuppressWarnings("unchecked")
-        protected JsonDeserializer<Object> _findCustomBeanDeserializer(JavaType type, DeserializationConfig config, BeanDescription beanDesc)
+        public JsonDeserializer<Object> createBeanDeserializer(DeserializationContext ctxt, JavaType type, BeanDescription beanDesc)
                 throws JsonMappingException
         {
             for (Deserializers d  : _factoryConfig.deserializers()) {
-                JsonDeserializer<?> deser = d.findBeanDeserializer(type, config, beanDesc);
+                JsonDeserializer<?> deser = d.findBeanDeserializer(type, ctxt.getConfig(), beanDesc);
                 if (deser != null) {
                     return (JsonDeserializer<Object>) deser;
                 }
