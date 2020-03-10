@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,13 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.hbase;
+package com.amazonaws.athena.connectors.hbase.connection;
 
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +39,9 @@ public class HbaseConnectionFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(HbaseConnectionFactory.class);
 
-    private final Map<String, Connection> clientCache = new HashMap<>();
+    private final int maxRetries = 3;
+
+    private final Map<String, HBaseConnection> clientCache = new HashMap<>();
 
     private final Map<String, String> defaultClientConfig = new HashMap<>();
 
@@ -67,7 +67,7 @@ public class HbaseConnectionFactory
     /**
      * Provides access to the current HBase client config options used during connection construction.
      *
-     * @return Map<String ,   String> where the Key is the config name and the value is the config value.
+     * @return Map<String, String> where the Key is the config name and the value is the config value.
      * @note This can be helpful when logging diagnostic info.
      */
     public synchronized Map<String, String> getClientConfigs()
@@ -81,12 +81,15 @@ public class HbaseConnectionFactory
      * @param conStr HBase connection details, format is expected to be host:zookeeper_port:master_port
      * @return An HBase connection if the connection succeeded, else the function will throw.
      */
-    public synchronized Connection getOrCreateConn(String conStr)
+    public synchronized HBaseConnection getOrCreateConn(String conStr)
     {
         logger.info("getOrCreateConn: enter");
-        Connection conn = clientCache.get(conStr);
+        HBaseConnection conn = clientCache.get(conStr);
 
         if (conn == null || !connectionTest(conn)) {
+            if (conn != null) {
+                conn.close();
+            }
             String[] endpointParts = conStr.split(":");
             if (endpointParts.length == 3) {
                 conn = createConnection(endpointParts[0], endpointParts[1], endpointParts[2]);
@@ -101,39 +104,33 @@ public class HbaseConnectionFactory
         return conn;
     }
 
-    private Connection createConnection(String host, String masterPort, String zookeeperPort)
+    private HBaseConnection createConnection(String host, String masterPort, String zookeeperPort)
     {
-        try {
-            logger.info("createConnection: enter");
-            Configuration config = HBaseConfiguration.create();
-            config.set("hbase.zookeeper.quorum", host);
-            config.set("hbase.zookeeper.property.clientPort", zookeeperPort);
-            config.set("hbase.master", host + ":" + masterPort);
-            for (Map.Entry<String, String> nextConfig : defaultClientConfig.entrySet()) {
-                logger.info("createConnection: applying client config {}:{}", nextConfig.getKey(), nextConfig.getValue());
-                config.set(nextConfig.getKey(), nextConfig.getValue());
-            }
-            Connection conn = ConnectionFactory.createConnection(config);
-            logger.info("createConnection: hbase.zookeeper.quorum:" + config.get("hbase.zookeeper.quorum"));
-            logger.info("createConnection: hbase.zookeeper.property.clientPort:" + config.get("hbase.zookeeper.property.clientPort"));
-            logger.info("createConnection: hbase.master:" + config.get("hbase.master"));
-            return conn;
+        logger.info("createConnection: enter");
+        Configuration config = HBaseConfiguration.create();
+        config.set("hbase.zookeeper.quorum", host);
+        config.set("hbase.zookeeper.property.clientPort", zookeeperPort);
+        config.set("hbase.master", host + ":" + masterPort);
+        for (Map.Entry<String, String> nextConfig : defaultClientConfig.entrySet()) {
+            logger.info("createConnection: applying client config {}:{}", nextConfig.getKey(), nextConfig.getValue());
+            config.set(nextConfig.getKey(), nextConfig.getValue());
         }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+
+        return new HBaseConnection(config, maxRetries);
     }
 
     /**
      * Runs a 'quick' test on the connection and then returns it if it passes.
      */
-    private boolean connectionTest(Connection conn)
+    private boolean connectionTest(HBaseConnection conn)
     {
         try {
             logger.info("connectionTest: Testing connection started.");
-            conn.getAdmin().listTableNames();
-            logger.info("connectionTest: Testing connection completed - success.");
-            return true;
+            if (conn.isHealthy()) {
+                conn.listNamespaceDescriptors();
+                logger.info("connectionTest: Testing connection completed - success.");
+                return true;
+            }
         }
         catch (RuntimeException | IOException ex) {
             logger.warn("getOrCreateConn: Exception while testing existing connection.", ex);
@@ -149,7 +146,7 @@ public class HbaseConnectionFactory
      * @param conn The connection to inject into the client cache, most often a Mock used in testing.
      */
     @VisibleForTesting
-    protected synchronized void addConnection(String conStr, Connection conn)
+    protected synchronized void addConnection(String conStr, HBaseConnection conn)
     {
         clientCache.put(conStr, conn);
     }

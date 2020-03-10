@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,13 +17,13 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.hbase;
+package com.amazonaws.athena.connectors.hbase.connection;
 
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.junit.After;
+import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -35,6 +35,8 @@ import static org.mockito.Mockito.when;
 
 public class HbaseConnectionFactoryTest
 {
+    private static final Logger logger = LoggerFactory.getLogger(HbaseConnectionFactoryTest.class);
+
     private HbaseConnectionFactory connectionFactory;
 
     @Before
@@ -48,15 +50,17 @@ public class HbaseConnectionFactoryTest
     public void clientCacheHitTest()
             throws IOException
     {
-        Connection mockConn = mock(Connection.class);
-        Admin mockAdmin = mock(Admin.class);
-        when(mockConn.getAdmin()).thenReturn(mockAdmin);
+        logger.info("clientCacheHitTest: enter");
+        HBaseConnection mockConn = mock(HBaseConnection.class);
+        when(mockConn.listNamespaceDescriptors()).thenReturn(new NamespaceDescriptor[] {});
+        when(mockConn.isHealthy()).thenReturn(true);
 
         connectionFactory.addConnection("conStr", mockConn);
-        Connection conn = connectionFactory.getOrCreateConn("conStr");
+        HBaseConnection conn = connectionFactory.getOrCreateConn("conStr");
 
         assertEquals(mockConn, conn);
-        verify(mockConn, times(1)).getAdmin();
-        verify(mockAdmin, times(1)).listTableNames();
+        verify(mockConn, times(1)).listNamespaceDescriptors();
+        verify(mockConn, times(1)).isHealthy();
+        logger.info("clientCacheHitTest: exit");
     }
 }
