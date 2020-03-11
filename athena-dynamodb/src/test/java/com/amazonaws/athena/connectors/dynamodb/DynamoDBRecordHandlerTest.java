@@ -339,6 +339,7 @@ public class DynamoDBRecordHandlerTest
                 response.getRecords().getFieldReader("Col2").readLocalDateTime());
         assertEquals(LocalDate.of(2020, 02, 27),
                 LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col3").readInteger()));
+
         assertEquals(LocalDate.of(2020, 02, 27),
                 LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col4").readInteger()));
     }

@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -35,7 +34,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -52,7 +50,9 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -88,10 +88,10 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RedisRecordHandlerTest
+    extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedisRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
     private String endpoint = "${endpoint}";
     private String decodedEndpoint = "endpoint:123";
     private RedisRecordHandler handler;
@@ -100,6 +100,9 @@ public class RedisRecordHandlerTest
     private AmazonS3 amazonS3;
     private S3BlockSpillReader spillReader;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
+
+    @Rule
+    public TestName testName = new TestName();
 
     @Mock
     private Jedis mockClient;
@@ -116,7 +119,8 @@ public class RedisRecordHandlerTest
     @Before
     public void setUp()
     {
-        logger.info("setUpBefore - enter");
+        logger.info("{}: enter", testName.getMethodName());
+
         when(mockFactory.getOrCreateConn(eq(decodedEndpoint))).thenReturn(mockClient);
 
         allocator = new BlockAllocatorImpl();
@@ -162,14 +166,13 @@ public class RedisRecordHandlerTest
     public void after()
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doReadRecordsLiteral()
             throws Exception
     {
-        logger.info("doReadRecordsLiteral: enter");
-
         //4 keys per prefix
         when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
             String cursor = (String) invocationOnMock.getArguments()[0];
@@ -190,10 +193,6 @@ public class RedisRecordHandlerTest
         AtomicLong value = new AtomicLong(0);
         when(mockClient.get(anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
-
-        String catalog = "catalog1";
-        String schema = "schema1";
-        String table = "table1";
 
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())
@@ -218,10 +217,10 @@ public class RedisRecordHandlerTest
         constraintsMap.put("intcol", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                catalog,
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
                 "queryId-" + System.currentTimeMillis(),
-                new TableName(schema, table),
+                TABLE_NAME,
                 schemaForRead,
                 split,
                 new Constraints(constraintsMap),
@@ -246,16 +245,12 @@ public class RedisRecordHandlerTest
         FieldReader intCol = response.getRecords().getFieldReader("intcol");
         intCol.setPosition(0);
         assertNotNull(intCol.readInteger());
-
-        logger.info("doReadRecordsLiteral: exit");
     }
 
     @Test
     public void doReadRecordsHash()
             throws Exception
     {
-        logger.info("doReadRecordsHash: enter");
-
         //4 keys per prefix
         when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
             String cursor = (String) invocationOnMock.getArguments()[0];
@@ -290,10 +285,6 @@ public class RedisRecordHandlerTest
         when(mockClient.get(anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
-        String catalog = "catalog1";
-        String schema = "schema1";
-        String table = "table1";
-
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())
                 .withSplitId(UUID.randomUUID().toString())
@@ -318,10 +309,10 @@ public class RedisRecordHandlerTest
         constraintsMap.put("intcol", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                catalog,
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
                 "queryId-" + System.currentTimeMillis(),
-                new TableName(schema, table),
+                TABLE_NAME,
                 schemaForRead,
                 split,
                 new Constraints(constraintsMap),
@@ -351,16 +342,12 @@ public class RedisRecordHandlerTest
         FieldReader stringCol = response.getRecords().getFieldReader("stringcol");
         stringCol.setPosition(0);
         assertNotNull(stringCol.readText());
-
-        logger.info("doReadRecordsHash: exit");
     }
 
     @Test
     public void doReadRecordsZset()
             throws Exception
     {
-        logger.info("doReadRecordsZset: enter");
-
         //4 keys per prefix
         when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
             String cursor = (String) invocationOnMock.getArguments()[0];
@@ -399,10 +386,6 @@ public class RedisRecordHandlerTest
         when(mockClient.get(anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
-        String catalog = "catalog1";
-        String schema = "schema1";
-        String table = "table1";
-
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
                 .withBucket(UUID.randomUUID().toString())
                 .withSplitId(UUID.randomUUID().toString())
@@ -426,10 +409,10 @@ public class RedisRecordHandlerTest
         constraintsMap.put("intcol", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 1)), false));
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                catalog,
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
                 "queryId-" + System.currentTimeMillis(),
-                new TableName(schema, table),
+                TABLE_NAME,
                 schemaForRead,
                 split,
                 new Constraints(constraintsMap),
@@ -454,8 +437,6 @@ public class RedisRecordHandlerTest
         FieldReader intCol = response.getRecords().getFieldReader("intcol");
         intCol.setPosition(0);
         assertNotNull(intCol.readInteger());
-
-        logger.info("doReadRecordsZset: exit");
     }
 
     private class ByteHolder
