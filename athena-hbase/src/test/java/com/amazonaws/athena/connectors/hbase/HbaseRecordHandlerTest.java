@@ -39,6 +39,9 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
+import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
+import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectResult;
@@ -102,7 +105,7 @@ public class HbaseRecordHandlerTest
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
 
     @Mock
-    private Connection mockClient;
+    private HBaseConnection mockClient;
 
     @Mock
     private Table mockTable;
@@ -123,7 +126,6 @@ public class HbaseRecordHandlerTest
         logger.info("setUpBefore - enter");
 
         when(mockConnFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
-        when(mockClient.getTable(any())).thenReturn(mockTable);
 
         allocator = new BlockAllocatorImpl();
 
@@ -174,8 +176,12 @@ public class HbaseRecordHandlerTest
 
         List<Result> results = TestUtils.makeResults(100);
         ResultScanner mockScanner = mock(ResultScanner.class);
-        when(mockTable.getScanner(any(Scan.class))).thenReturn(mockScanner);
         when(mockScanner.iterator()).thenReturn(results.iterator());
+
+        when(mockClient.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
+            return processor.scan(mockScanner);
+        });
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("family1:col3", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),
@@ -230,8 +236,12 @@ public class HbaseRecordHandlerTest
 
         List<Result> results = TestUtils.makeResults(10_000);
         ResultScanner mockScanner = mock(ResultScanner.class);
-        when(mockTable.getScanner(any(Scan.class))).thenReturn(mockScanner);
         when(mockScanner.iterator()).thenReturn(results.iterator());
+
+        when(mockClient.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
+            return processor.scan(mockScanner);
+        });
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("family1:col3", SortedRangeSet.copyOf(Types.MinorType.BIGINT.getType(),

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
+import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.hbase.KeyValue;
@@ -46,6 +48,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,22 +64,13 @@ public class HbaseSchemaUtilsTest
         TableName tableName = new TableName("schema", "table");
         List<Result> results = TestUtils.makeResults();
 
-        Connection mockConnection = mock(Connection.class);
-        Table mockTable = mock(Table.class);
+        HBaseConnection mockConnection = mock(HBaseConnection.class);
         ResultScanner mockScanner = mock(ResultScanner.class);
-
-        when(mockConnection.getTable(any(org.apache.hadoop.hbase.TableName.class))).thenAnswer((InvocationOnMock invocation) -> {
-            org.apache.hadoop.hbase.TableName table = invocation.getArgumentAt(0, org.apache.hadoop.hbase.TableName.class);
-            assertEquals(tableName.getSchemaName() + ":" + tableName.getTableName(), table.getNameAsString());
-            return mockTable;
-        });
-
-        when(mockTable.getScanner(any(Scan.class))).thenAnswer((InvocationOnMock invocation) -> {
-            Scan scan = invocation.getArgumentAt(0, Scan.class);
-            assertEquals(numToScan, scan.getMaxResultSize());
-            return mockScanner;
-        });
         when(mockScanner.iterator()).thenReturn(results.iterator());
+        when(mockConnection.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
+            return processor.scan(mockScanner);
+        });
 
         Schema schema = HbaseSchemaUtils.inferSchema(mockConnection, tableName, numToScan);
 
@@ -93,8 +87,7 @@ public class HbaseSchemaUtilsTest
         }
         assertEquals(expectedFields.size(), actualFields.size());
 
-        verify(mockConnection, times(1)).getTable(any());
-        verify(mockTable, times(1)).getScanner(any(Scan.class));
+        verify(mockConnection, times(1)).scanTable(anyObject(), any(Scan.class), any(ResultProcessor.class));
         verify(mockScanner, times(1)).iterator();
     }
 

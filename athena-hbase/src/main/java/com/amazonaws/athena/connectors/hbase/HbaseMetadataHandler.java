@@ -37,6 +37,8 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
+import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
@@ -48,8 +50,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +128,7 @@ public class HbaseMetadataHandler
         this.connectionFactory = connectionFactory;
     }
 
-    private Connection getOrCreateConn(MetadataRequest request)
+    private HBaseConnection getOrCreateConn(MetadataRequest request)
     {
         String endpoint = resolveSecrets(getConnStr(request));
         return connectionFactory.getOrCreateConn(endpoint);
@@ -158,10 +158,8 @@ public class HbaseMetadataHandler
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest request)
             throws IOException
     {
-        Connection conn = getOrCreateConn(request);
-        Admin admin = conn.getAdmin();
         List<String> schemas = new ArrayList<>();
-        NamespaceDescriptor[] namespaces = admin.listNamespaceDescriptors();
+        NamespaceDescriptor[] namespaces = getOrCreateConn(request).listNamespaceDescriptors();
         for (int i = 0; i < namespaces.length; i++) {
             NamespaceDescriptor namespace = namespaces[i];
             schemas.add(namespace.getName());
@@ -179,11 +177,8 @@ public class HbaseMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
             throws IOException
     {
-        Connection conn = getOrCreateConn(request);
-        Admin admin = conn.getAdmin();
         List<com.amazonaws.athena.connector.lambda.domain.TableName> tableNames = new ArrayList<>();
-
-        TableName[] tables = admin.listTableNamesByNamespace(request.getSchemaName());
+        TableName[] tables = getOrCreateConn(request).listTableNamesByNamespace(request.getSchemaName());
         for (int i = 0; i < tables.length; i++) {
             TableName tableName = tables[i];
             tableNames.add(new com.amazonaws.athena.connector.lambda.domain.TableName(request.getSchemaName(),
@@ -219,8 +214,7 @@ public class HbaseMetadataHandler
         }
 
         if (origSchema == null) {
-            Connection conn = getOrCreateConn(request);
-            origSchema = HbaseSchemaUtils.inferSchema(conn, request.getTableName(), NUM_ROWS_TO_SCAN);
+            origSchema = HbaseSchemaUtils.inferSchema(getOrCreateConn(request), request.getTableName(), NUM_ROWS_TO_SCAN);
         }
 
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
@@ -262,11 +256,9 @@ public class HbaseMetadataHandler
             throws IOException
     {
         Set<Split> splits = new HashSet<>();
-        Connection conn = getOrCreateConn(request);
-        Admin admin = conn.getAdmin();
 
         //We can read each region in parallel
-        for (HRegionInfo info : admin.getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
+        for (HRegionInfo info : getOrCreateConn(request).getTableRegions(HbaseSchemaUtils.getQualifiedTable(request.getTableName()))) {
             Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
                     .add(HBASE_CONN_STR, getConnStr(request))
                     .add(START_KEY_FIELD, new String(info.getStartKey()))

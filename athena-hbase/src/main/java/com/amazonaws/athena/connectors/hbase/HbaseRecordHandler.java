@@ -27,6 +27,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
+import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -38,11 +40,9 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
@@ -95,7 +95,7 @@ public class HbaseRecordHandler
         this.connectionFactory = connectionFactory;
     }
 
-    private Connection getOrCreateConn(String conStr)
+    private HBaseConnection getOrCreateConn(String conStr)
     {
         String endpoint = resolveSecrets(conStr);
         return connectionFactory.getOrCreateConn(endpoint);
@@ -126,28 +126,31 @@ public class HbaseRecordHandler
             addToProjection(scan, next);
         }
 
-        Connection conn = getOrCreateConn(conStr);
-        Table table = conn.getTable(HbaseSchemaUtils.getQualifiedTable(request.getTableName()));
+        getOrCreateConn(conStr).scanTable(HbaseSchemaUtils.getQualifiedTable(request.getTableName()),
+                scan,
+                (ResultScanner scanner) -> scanFilterProject(scanner, request, blockSpiller, queryStatusChecker));
+    }
 
-        try (ResultScanner scanner = table.getScanner(scan)) {
-            for (Result row : scanner) {
-                if (!queryStatusChecker.isQueryRunning()) {
-                    return;
-                }
-                blockSpiller.writeRows((Block block, int rowNum) -> {
-                    boolean match = true;
-                    for (Field field : projection.getFields()) {
-                        if (match) {
-                            match &= writeField(block, field, isNative, row, rowNum);
-                        }
-                    }
-                    return match ? 1 : 0;
-                });
+    private boolean scanFilterProject(ResultScanner scanner, ReadRecordsRequest request, BlockSpiller blockSpiller, QueryStatusChecker queryStatusChecker)
+    {
+        Schema projection = request.getSchema();
+        boolean isNative = projection.getCustomMetadata().get(HBASE_NATIVE_STORAGE_FLAG) != null;
+
+        for (Result row : scanner) {
+            if (!queryStatusChecker.isQueryRunning()) {
+                return true;
             }
+            blockSpiller.writeRows((Block block, int rowNum) -> {
+                boolean match = true;
+                for (Field field : projection.getFields()) {
+                    if (match) {
+                        match &= writeField(block, field, isNative, row, rowNum);
+                    }
+                }
+                return match ? 1 : 0;
+            });
         }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+        return true;
     }
 
     /**
