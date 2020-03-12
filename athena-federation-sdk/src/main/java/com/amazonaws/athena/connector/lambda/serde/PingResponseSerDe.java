@@ -28,6 +28,10 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
+/**
+ * This SerDe must remain backwards and forwards compatible in order as this call
+ * is first and the SerDe version has not been set yet.
+ */
 public final class PingResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
@@ -85,7 +89,14 @@ public final class PingResponseSerDe
             String queryId = getNextStringField(jparser, QUERY_ID_FIELD);
             String sourceType = getNextStringField(jparser, SOURCE_TYPE_FIELD);
             int capabilities = getNextIntField(jparser, CAPABILITIES_FIELD);
-            int serDeVersion = getNextIntField(jparser, SERDE_VERSION_FIELD);
+            int serDeVersion;
+            try {
+                serDeVersion = getNextIntField(jparser, SERDE_VERSION_FIELD);
+            }
+            catch (IllegalStateException e) {
+                // this is for backwards compatibility as older SDK versions don't return this field
+                serDeVersion = 0;
+            }
 
             return new PingResponse(catalogName, queryId, sourceType, capabilities, serDeVersion);
         }

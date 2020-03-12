@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -149,6 +150,8 @@ public class ObjectMapperFactoryV2
             SimpleDeserializers deserializers = new SimpleDeserializers(desers);
             DeserializerFactoryConfig dConfig = new DeserializerFactoryConfig().withAdditionalDeserializers(deserializers);
             _deserializationContext = new DefaultDeserializationContext.Impl(new StrictDeserializerFactory(dConfig));
+            // required by LambdaInvokerFactory
+            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         }
     }
 

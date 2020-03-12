@@ -46,6 +46,7 @@ public abstract class TypedSerializer<T> extends BaseSerializer<T>
     public void serializeWithType(T value, JsonGenerator jgen, SerializerProvider serializers, TypeSerializer typeSer)
             throws IOException
     {
+        // TODO leverage TypeSerializer if it simplifies things
         serialize(value, jgen, serializers);
     }
 

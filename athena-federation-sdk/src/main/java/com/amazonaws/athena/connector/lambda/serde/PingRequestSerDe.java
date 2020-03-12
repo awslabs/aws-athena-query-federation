@@ -31,12 +31,16 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * This SerDe must remain backwards and forwards compatible in order as this call
+ * is first and the SerDe version has not been set yet.
+ */
 public final class PingRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String QUERY_ID_FIELD = "queryId";
-    // new fields should only be appended to the end for forwards compatibility
+    // new fields should only be appended to the end for backwards compatibility
 
     private PingRequestSerDe(){}
 
@@ -61,7 +65,7 @@ public final class PingRequestSerDe
 
             jgen.writeStringField(CATALOG_NAME_FIELD, pingRequest.getCatalogName());
             jgen.writeStringField(QUERY_ID_FIELD, pingRequest.getQueryId());
-            // new fields should only be appended to the end for forwards compatibility
+            // new fields should only be appended to the end for backwards compatibility
         }
     }
 

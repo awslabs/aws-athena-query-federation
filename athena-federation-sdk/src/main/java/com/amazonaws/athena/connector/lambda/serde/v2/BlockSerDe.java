@@ -103,7 +103,7 @@ final class BlockSerDe
         {
             super(Block.class);
             this.schemaDeserializer = requireNonNull(schemaDeserializer, "schemaDeserializer is null");
-            this.allocator = requireNonNull(allocator, "allocator is null");
+            this.allocator = allocator;
             this.allocatorRegistry = null;
         }
 
@@ -139,8 +139,12 @@ final class BlockSerDe
             if (allocator != null) {
                 return allocator;
             }
-
-            return allocatorRegistry.getOrCreateAllocator(allocatorId);
+            else if (allocatorRegistry != null) {
+                return allocatorRegistry.getOrCreateAllocator(allocatorId);
+            }
+            else {
+                throw new IllegalStateException("allocator and allocatorRegistry are both null");
+            }
         }
 
         private ArrowRecordBatch deserializeBatch(String allocatorId, byte[] batchBytes)

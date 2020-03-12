@@ -183,9 +183,12 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
             throws IOException
     {
         jparser.nextToken();
+        if (jparser.getCurrentToken() != JsonToken.FIELD_NAME) {
+            throw new IllegalStateException("Expected field name token but got " + jparser.getCurrentToken());
+        }
         String fieldNameToken = jparser.getCurrentName();
         if (expectedFieldName != null && !expectedFieldName.equals(fieldNameToken)) {
-            throw new RuntimeException("Unexpected field[" + fieldNameToken + "] while expecting[" + expectedFieldName + "]");
+            throw new IllegalStateException("Unexpected field[" + fieldNameToken + "] while expecting[" + expectedFieldName + "]");
         }
     }
 
