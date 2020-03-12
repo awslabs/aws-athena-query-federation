@@ -40,11 +40,13 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
+import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
+import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
@@ -61,6 +63,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,13 +73,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import static com.amazonaws.athena.connectors.hbase.TestUtils.makeResult;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -93,13 +94,7 @@ public class HbaseMetadataHandlerTest
     private BlockAllocator allocator;
 
     @Mock
-    private Connection mockClient;
-
-    @Mock
-    private Admin mockAdmin;
-
-    @Mock
-    private Table mockTable;
+    private HBaseConnection mockClient;
 
     @Mock
     private HbaseConnectionFactory mockConnFactory;
@@ -126,8 +121,6 @@ public class HbaseMetadataHandlerTest
                 "spillPrefix");
 
         when(mockConnFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
-        when(mockClient.getAdmin()).thenReturn(mockAdmin);
-        when(mockClient.getTable(any())).thenReturn(mockTable);
 
         allocator = new BlockAllocatorImpl();
     }
@@ -149,7 +142,7 @@ public class HbaseMetadataHandlerTest
                 NamespaceDescriptor.create("schema2").build(),
                 NamespaceDescriptor.create("schema3").build()};
 
-        when(mockAdmin.listNamespaceDescriptors()).thenReturn(schemaNames);
+        when(mockClient.listNamespaceDescriptors()).thenReturn(schemaNames);
 
         ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
@@ -183,7 +176,7 @@ public class HbaseMetadataHandlerTest
         tableNames.add("table2");
         tableNames.add("table3");
 
-        when(mockAdmin.listTableNamesByNamespace(eq(schema))).thenReturn(tables);
+        when(mockClient.listTableNamesByNamespace(eq(schema))).thenReturn(tables);
         ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", schema);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
@@ -211,8 +204,12 @@ public class HbaseMetadataHandlerTest
         List<Result> results = TestUtils.makeResults();
 
         ResultScanner mockScanner = mock(ResultScanner.class);
-        when(mockTable.getScanner(any(Scan.class))).thenReturn(mockScanner);
         when(mockScanner.iterator()).thenReturn(results.iterator());
+
+        when(mockClient.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
+            return processor.scan(mockScanner);
+        });
 
         GetTableRequest req = new GetTableRequest(identity, "queryId", catalog, new TableName(schema, table));
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -265,7 +262,7 @@ public class HbaseMetadataHandlerTest
         regionServers.add(TestUtils.makeRegion(3, "schema1", "table1"));
         regionServers.add(TestUtils.makeRegion(4, "schema1", "table1"));
 
-        when(mockAdmin.getTableRegions(any())).thenReturn(regionServers);
+        when(mockClient.getTableRegions(any())).thenReturn(regionServers);
         List<String> partitionCols = new ArrayList<>();
 
         Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);

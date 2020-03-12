@@ -21,22 +21,20 @@ package com.amazonaws.athena.connectors.hbase;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.PageFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,74 +61,80 @@ public class HbaseSchemaUtils
      * @param tableName The HBase TableName for which to produce an Apache Arrow Schema.
      * @param numToScan The number of records to scan as part of producing the Schema.
      * @return An Apache Arrow Schema representing the schema of the HBase table.
+     */
+    public static Schema inferSchema(HBaseConnection client, TableName tableName, int numToScan)
+    {
+        Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
+        org.apache.hadoop.hbase.TableName hbaseTableName = org.apache.hadoop.hbase.TableName.valueOf(getQualifiedTableName(tableName));
+        return client.scanTable(hbaseTableName, scan, (ResultScanner scanner) -> scanAndInferSchema(scanner));
+    }
+
+    /**
+     * This helper method is used in conjunction with the scan facility provided
+     *
+     * @param scanner The HBase ResultScanner to read results from while inferring schema.
+     * @return An Apache Arrow Schema representing the schema of the HBase table.
      * @note The resulting schema is a union of the schema of every row that is scanned. Any time two rows
      * have a field with the same name but different inferred type the code will default the type of
      * that field in the resulting schema to a VARCHAR. This approach is not perfect and can struggle
      * to produce a usable schema if the table has a significant mix of entities.
      */
-    public static Schema inferSchema(Connection client, TableName tableName, int numToScan)
+    private static Schema scanAndInferSchema(ResultScanner scanner)
     {
         Map<String, Map<String, ArrowType>> schemaInference = new HashMap<>();
-        Scan scan = new Scan().setMaxResultSize(numToScan).setFilter(new PageFilter(numToScan));
         int rowCount = 0;
         int fieldCount = 0;
-        try (Table table = client.getTable(org.apache.hadoop.hbase.TableName.valueOf(getQualifiedTableName(tableName)));
-                ResultScanner scanner = table.getScanner(scan)) {
-            for (Result result : scanner) {
-                rowCount++;
-                for (KeyValue keyValue : result.list()) {
-                    fieldCount++;
-                    String family = new String(keyValue.getFamily());
-                    String column = new String(keyValue.getQualifier());
 
-                    Map<String, ArrowType> schemaForFamily = schemaInference.get(family);
-                    if (schemaForFamily == null) {
-                        schemaForFamily = new HashMap<>();
-                        schemaInference.put(family, schemaForFamily);
-                    }
+        for (Result result : scanner) {
+            rowCount++;
+            for (KeyValue keyValue : result.list()) {
+                fieldCount++;
+                String family = new String(keyValue.getFamily());
+                String column = new String(keyValue.getQualifier());
 
-                    //Get the previously inferred type for this column if we've seen it on a past row
-                    ArrowType prevInferredType = schemaForFamily.get(column);
-
-                    //Infer the type of the column from the value on the current row.
-                    Types.MinorType inferredType = inferType(keyValue.getValue());
-
-                    //Check if the previous and currently inferred types match
-                    if (prevInferredType != null && Types.getMinorTypeForArrowType(prevInferredType) != inferredType) {
-                        logger.info("inferSchema: Type changed detected for field, using VARCHAR - family: {} col: {} previousType: {} newType: {}",
-                                family, column, prevInferredType, inferredType);
-                        schemaForFamily.put(column, Types.MinorType.VARCHAR.getType());
-                    }
-                    else {
-                        schemaForFamily.put(column, inferredType.getType());
-                    }
-
-                    logger.info("inferSchema: family: {} col: {} inferredType: {}", family, column, inferredType);
+                Map<String, ArrowType> schemaForFamily = schemaInference.get(family);
+                if (schemaForFamily == null) {
+                    schemaForFamily = new HashMap<>();
+                    schemaInference.put(family, schemaForFamily);
                 }
-            }
 
-            //Used the union of all row's to produce our resultant Apache Arrow Schema.
-            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            for (Map.Entry<String, Map<String, ArrowType>> nextFamily : schemaInference.entrySet()) {
-                String family = nextFamily.getKey();
-                for (Map.Entry<String, ArrowType> nextCol : nextFamily.getValue().entrySet()) {
-                    schemaBuilder.addField(family + NAMESPACE_QUALIFIER + nextCol.getKey(), nextCol.getValue());
+                //Get the previously inferred type for this column if we've seen it on a past row
+                ArrowType prevInferredType = schemaForFamily.get(column);
+
+                //Infer the type of the column from the value on the current row.
+                Types.MinorType inferredType = inferType(keyValue.getValue());
+
+                //Check if the previous and currently inferred types match
+                if (prevInferredType != null && Types.getMinorTypeForArrowType(prevInferredType) != inferredType) {
+                    logger.info("inferSchema: Type changed detected for field, using VARCHAR - family: {} col: {} previousType: {} newType: {}",
+                            family, column, prevInferredType, inferredType);
+                    schemaForFamily.put(column, Types.MinorType.VARCHAR.getType());
                 }
-            }
+                else {
+                    schemaForFamily.put(column, inferredType.getType());
+                }
 
-            Schema schema = schemaBuilder.build();
-            if (schema.getFields().isEmpty()) {
-                throw new RuntimeException("No columns found after scanning " + fieldCount + " values across " +
-                        rowCount + " rows. Please ensure the table is not empty and contains at least 1 supported column type.");
+                logger.info("inferSchema: family: {} col: {} inferredType: {}", family, column, inferredType);
             }
-            return schema;
         }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
+
+        logger.info("inferSchema: Evaluated {} field values across {} rows.", fieldCount, rowCount);
+
+        //Used the union of all row's to produce our resultant Apache Arrow Schema.
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        for (Map.Entry<String, Map<String, ArrowType>> nextFamily : schemaInference.entrySet()) {
+            String family = nextFamily.getKey();
+            for (Map.Entry<String, ArrowType> nextCol : nextFamily.getValue().entrySet()) {
+                schemaBuilder.addField(family + NAMESPACE_QUALIFIER + nextCol.getKey(), nextCol.getValue());
+            }
         }
-        finally {
-            logger.info("inferSchema: Evaluated {} field values across {} rows.", fieldCount, rowCount);
+
+        Schema schema = schemaBuilder.build();
+        if (schema.getFields().isEmpty()) {
+            throw new RuntimeException("No columns found after scanning " + fieldCount + " values across " +
+                    rowCount + " rows. Please ensure the table is not empty and contains at least 1 supported column type.");
         }
+        return schema;
     }
 
     /**
