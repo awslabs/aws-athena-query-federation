@@ -32,6 +32,8 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -71,8 +73,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.activation.UnsupportedDataTypeException;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -140,15 +144,16 @@ public class BlockTest
     {
         BlockAllocatorImpl expectedAllocator = new BlockAllocatorImpl();
 
-        int expectedRows = 20;
+        int expectedRows = 200;
 
         Schema origSchema = generateTestSchema();
         Block expectedBlock = generateTestBlock(expectedAllocator, origSchema, expectedRows);
 
-          RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
+        RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
         ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
         ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
         expectSerDe.serialize(expectedBatch, blockOut);
+        assertSerializationOverhead(blockOut);
         expectedBatch.close();
         expectedBlock.close();
 
@@ -308,7 +313,8 @@ public class BlockTest
         actualBlock.close();
     }
 
-    public static Schema generateTestSchema() {
+    public static Schema generateTestSchema()
+    {
         /**
          * Generate and write the schema
          */
@@ -367,8 +373,9 @@ public class BlockTest
         return schemaBuilder.build();
     }
 
-
-    public static Block generateTestBlock(BlockAllocatorImpl expectedAllocator, Schema origSchema, int expectedRows) throws UnsupportedDataTypeException {
+    public static Block generateTestBlock(BlockAllocatorImpl expectedAllocator, Schema origSchema, int expectedRows)
+            throws UnsupportedDataTypeException
+    {
         /**
          * Generate and write the block
          */
@@ -547,8 +554,8 @@ public class BlockTest
                             values.add(i + 1L);
                             values.add(i + 2L);
                             BlockUtils.setComplexValue((ListVector) vector, i,
-                              FieldResolver.DEFAULT,
-                              values);
+                                    FieldResolver.DEFAULT,
+                                    values);
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.VARCHAR) {
@@ -558,73 +565,73 @@ public class BlockTest
                             values.add(String.valueOf(1000 + i + 1));
                             values.add(String.valueOf(1000 + i + 2));
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              values);
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    values);
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.SMALLINT) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList((short) (i + 1)));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList((short) (i + 1)));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.INT) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList(i));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList(i));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.TINYINT) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList((byte) i));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList((byte) i));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.FLOAT4) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList((i * 1.0F)));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList((i * 1.0F)));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.FLOAT8) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList((i * 1.0D)));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList((i * 1.0D)));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.DECIMAL) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList((i * 1.0D)));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList((i * 1.0D)));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.VARBINARY) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList(String.valueOf(i).getBytes(Charsets.UTF_8)));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList(String.valueOf(i).getBytes(Charsets.UTF_8)));
                         }
                     }
                     else if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.BIT) {
                         for (int i = 0; i < expectedRows; i++) {
                             BlockUtils.setComplexValue((ListVector) vector,
-                              i,
-                              FieldResolver.DEFAULT,
-                              Collections.singletonList(i % 2 == 1));
+                                    i,
+                                    FieldResolver.DEFAULT,
+                                    Collections.singletonList(i % 2 == 1));
                         }
                     }
                     break;
@@ -659,7 +666,7 @@ public class BlockTest
          */
         Block expectedBlock = expectedAllocator.createBlock(origSchema);
 
-        int expectedRows = 20;
+        int expectedRows = 200;
         for (Field next : origSchema.getFields()) {
             ValueVector vector = expectedBlock.getFieldVector(next.getName());
             switch (vector.getMinorType()) {
@@ -692,6 +699,7 @@ public class BlockTest
         ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
         ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
         expectSerDe.serialize(expectedBatch, blockOut);
+        assertSerializationOverhead(blockOut);
         expectedBatch.close();
         expectedBlock.close();
 
@@ -772,7 +780,7 @@ public class BlockTest
          */
         Block expectedBlock = expectedAllocator.createBlock(origSchema);
 
-        int expectedRows = 20;
+        int expectedRows = 200;
         for (Field next : origSchema.getFields()) {
             ValueVector vector = expectedBlock.getFieldVector(next.getName());
             switch (vector.getMinorType()) {
@@ -804,6 +812,7 @@ public class BlockTest
         ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
         ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
         expectSerDe.serialize(expectedBatch, blockOut);
+        assertSerializationOverhead(blockOut);
         expectedBatch.close();
         expectedBlock.close();
 
@@ -854,5 +863,31 @@ public class BlockTest
         }
 
         actualBlock.close();
+    }
+
+    /**
+     * Temporary 'HACK' - this assertion will fail if the overhead associated with serializing blocks exceeds
+     * the hard coded expectation. This is only meaningful for inline blocks which will exceed Lambda's response size.
+     * If this assertion fails we need to revisit the default settings in our serialization layer. The serialization
+     * layer is currently being refactored and eventually this assertion will not be needed.
+     *
+     * @param serializedBlock The bytes of the block to serialize.
+     * @see https://github.com/awslabs/aws-athena-query-federation/issues/121
+     */
+    private void assertSerializationOverhead(ByteArrayOutputStream serializedBlock)
+    {
+        try {
+            ByteArrayOutputStream jout = new ByteArrayOutputStream();
+            JsonFactory factory = new JsonFactory();
+            JsonGenerator jsonGenerator = factory.createJsonGenerator(jout);
+            jsonGenerator.writeBinaryField("field", serializedBlock.toByteArray());
+            jsonGenerator.close();
+            double overhead = 1 - (((double) serializedBlock.size()) / ((double) jout.size()));
+            logger.info("assertSerializationOverhead: {} vs {} = {}", serializedBlock.size(), jout.size(), overhead);
+            assertTrue(0.35D > overhead);
+        }
+        catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 }
