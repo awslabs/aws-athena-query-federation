@@ -93,7 +93,7 @@ public class HbaseMetadataHandler
     private static final String DEFAULT_HBASE = "default_hbase";
     //The Glue table property that indicates that a table matching the name of an HBase table
     //is indeed enabled for use by this connector.
-    public static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
+    private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack HBase metadata flag.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
     //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental

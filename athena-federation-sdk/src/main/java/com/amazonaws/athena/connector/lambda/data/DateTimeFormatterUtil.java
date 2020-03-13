@@ -33,7 +33,7 @@ import java.time.ZoneId;
 import java.util.Date;
 
 /**
- *
+ * Provides utility methods relating to formatting strings to date/datetime type
  */
 public class DateTimeFormatterUtil
 {
@@ -155,7 +155,7 @@ public class DateTimeFormatterUtil
                 continue;
             }
         }
-        logger.error("Failed to infer format for {}", value);
+        logger.warn("Failed to infer format for {}", value);
         return null;
     }
 
@@ -171,15 +171,14 @@ public class DateTimeFormatterUtil
             return DateUtils.parseDate(value, dateFormat);
         }
         catch (ParseException | IllegalArgumentException ex) {
-            logger.error("Encountered value {} that is not consistent with inferred date/datetime format {}" +
-                            " - will skip in result",
-                    value, dateFormat);
+            logger.warn("Encountered value {} that is not consistent with inferred date/datetime format {}" +
+                            " - will skip in result", value, dateFormat);
         }
         return null;
     }
 
     /**
-     * trnasforms big decimal value (epoch milli) to date
+     * transforms big decimal value (epoch milli) to date
      * @param value big decimal value containing epoch value
      * @return date object derived from value
      */

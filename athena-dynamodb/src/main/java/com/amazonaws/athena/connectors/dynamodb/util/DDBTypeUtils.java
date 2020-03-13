@@ -207,7 +207,7 @@ public final class DDBTypeUtils
         if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
             value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
         }
-        if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
+        else if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
                 && (value instanceof String || value instanceof BigDecimal)) {
             String dateTimeFormat = recordMetadata.getDateTimeFormat(field.getName());
             if (value instanceof String && StringUtils.isEmpty(dateTimeFormat)) {

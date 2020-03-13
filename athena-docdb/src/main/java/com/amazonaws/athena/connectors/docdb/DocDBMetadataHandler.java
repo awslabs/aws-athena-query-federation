@@ -81,7 +81,7 @@ public class DocDBMetadataHandler
     private static final String DEFAULT_DOCDB = "default_docdb";
     //The Glue table property that indicates that a table matching the name of an DocDB table
     //is indeed enabled for use by this connector.
-    public static final String DOCDB_METADATA_FLAG = "docdb-metadata-flag";
+    private static final String DOCDB_METADATA_FLAG = "docdb-metadata-flag";
     //Used to filter out Glue tables which lack a docdb metadata flag.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(DOCDB_METADATA_FLAG);
     //The number of documents to scan when attempting to infer schema from an DocDB collection.

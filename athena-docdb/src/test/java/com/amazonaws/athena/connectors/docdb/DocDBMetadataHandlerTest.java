@@ -41,12 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.common.collect.ImmutableMap;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -70,12 +65,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
-import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -243,42 +234,6 @@ public class DocDBMetadataHandlerTest
 
         Field unsupported = res.getSchema().findField("unsupported");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(unsupported.getType()));
-    }
-
-    @Test
-    public void doGetTableFromGlue()
-            throws Exception
-    {
-        List<Column> columns = new ArrayList<>();
-        columns.add(new Column().withName("col1").withType("int"));
-        columns.add(new Column().withName("col2").withType("date"));
-        columns.add(new Column().withName("col3").withType("timestamp"));
-
-        Map<String, String> param = ImmutableMap.of(
-                SOURCE_TABLE_PROPERTY, TEST_TABLE,
-                DocDBMetadataHandler.DOCDB_METADATA_FLAG, "true",
-                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3");
-        Table table = new Table()
-                .withParameters(param)
-                .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
-        GetTableResult mockResult = new GetTableResult().withTable(table);
-        when(awsGlue.getTable(any())).thenReturn(mockResult);
-
-        GetTableRequest getTableRequest = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
-        GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
-        logger.info("doGetTableFromGlue: GetTableResponse[{}]", getTableResponse);
-
-        assertEquals(3, getTableResponse.getSchema().getFields().size());
-
-        Field col1 = getTableResponse.getSchema().findField("Col1");
-        assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(col1.getType()));
-
-        Field col2 = getTableResponse.getSchema().findField("Col2");
-        assertEquals(Types.MinorType.DATEDAY, Types.getMinorTypeForArrowType(col2.getType()));
-
-        Field col3 = getTableResponse.getSchema().findField("Col3");
-        assertEquals(Types.MinorType.DATEMILLI, Types.getMinorTypeForArrowType(col3.getType()));
     }
 
     @Test
