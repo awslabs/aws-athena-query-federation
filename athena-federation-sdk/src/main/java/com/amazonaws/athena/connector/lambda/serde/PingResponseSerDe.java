@@ -95,7 +95,7 @@ public final class PingResponseSerDe
             }
             catch (IllegalStateException e) {
                 // this is for backwards compatibility as older SDK versions don't return this field
-                serDeVersion = 0;
+                serDeVersion = 1;
             }
 
             return new PingResponse(catalogName, queryId, sourceType, capabilities, serDeVersion);

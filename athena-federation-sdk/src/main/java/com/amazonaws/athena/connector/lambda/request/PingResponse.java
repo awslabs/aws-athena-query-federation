@@ -58,7 +58,8 @@ public class PingResponse
         this.queryId = queryId;
         this.sourceType = sourceType;
         this.capabilities = capabilities;
-        this.serDeVersion = serDeVersion;
+        // vanilla ObjectMapper defaults to zero on deserialization when not explicitly set for ints, but we want to default to 1
+        this.serDeVersion = serDeVersion != 0 ? serDeVersion : 1;
     }
 
     /**
