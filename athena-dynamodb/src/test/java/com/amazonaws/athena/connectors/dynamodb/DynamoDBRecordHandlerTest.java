@@ -50,21 +50,28 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.joda.time.LocalDateTime;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
@@ -88,7 +95,6 @@ import static org.mockito.Mockito.when;
 public class DynamoDBRecordHandlerTest
         extends TestBase
 {
-
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBRecordHandlerTest.class);
 
     private static final SpillLocation SPILL_LOCATION = S3SpillLocation.newBuilder()
@@ -112,9 +118,14 @@ public class DynamoDBRecordHandlerTest
     @Mock
     private AmazonAthena athena;
 
+    @Rule
+    public TestName testName = new TestName();
+
     @Before
     public void setup()
     {
+        logger.info("{}: enter", testName.getMethodName());
+
         allocator = new BlockAllocatorImpl();
         handler = new DynamoDBRecordHandler(ddbClient, mock(AmazonS3.class), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "source_type");
         metadataHandler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
@@ -124,14 +135,13 @@ public class DynamoDBRecordHandlerTest
     public void tearDown()
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void testReadScanSplit()
             throws Exception
     {
-        logger.info("testReadScanSplit: enter");
-
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE)
                 .add(SEGMENT_ID_PROPERTY, "0")
@@ -158,16 +168,12 @@ public class DynamoDBRecordHandlerTest
 
         assertEquals(1000, response.getRecords().getRowCount());
         logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
-
-        logger.info("testReadScanSplit: exit");
     }
 
     @Test
     public void testReadScanSplitFiltered()
             throws Exception
     {
-        logger.info("testReadScanSplitFiltered: enter");
-
         Map<String, String> expressionNames = ImmutableMap.of("#col_6", "col_6");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(0), ":v1", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
@@ -199,16 +205,12 @@ public class DynamoDBRecordHandlerTest
 
         assertEquals(992, response.getRecords().getRowCount());
         logger.info("testReadScanSplitFiltered: {}", BlockUtils.rowToString(response.getRecords(), 0));
-
-        logger.info("testReadScanSplitFiltered: exit");
     }
 
     @Test
     public void testReadQuerySplit()
             throws Exception
     {
-        logger.info("testReadQuerySplit: enter");
-
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
@@ -240,16 +242,12 @@ public class DynamoDBRecordHandlerTest
 
         assertEquals(2, response.getRecords().getRowCount());
         logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
-
-        logger.info("testReadQuerySplit: exit");
     }
 
     @Test
     public void testZeroRowQuery()
             throws Exception
     {
-        logger.info("testZeroRowQuery: enter");
-
         Map<String, String> expressionNames = ImmutableMap.of("#col_1", "col_1");
         Map<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", toAttributeValue(1));
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
@@ -280,8 +278,69 @@ public class DynamoDBRecordHandlerTest
         logger.info("testZeroRowQuery: rows[{}]", response.getRecordCount());
 
         assertEquals(0, response.getRecords().getRowCount());
+    }
 
-        logger.info("testZeroRowQuery: exit");
+    @Test
+    public void testDateTimeSupportFromGlueTable() throws Exception
+    {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+
+        List<Column> columns = new ArrayList<>();
+        columns.add(new Column().withName("col0").withType("string"));
+        columns.add(new Column().withName("col1").withType("timestamp"));
+        columns.add(new Column().withName("col2").withType("timestamp"));
+        columns.add(new Column().withName("col3").withType("date"));
+        columns.add(new Column().withName("col4").withType("date"));
+
+        Map<String, String> param = ImmutableMap.of(
+                SOURCE_TABLE_PROPERTY, TEST_TABLE3,
+                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3, col4=Col4",
+                DATETIME_FORMAT_MAPPING_PROPERTY, "col1=yyyyMMdd'S'HHmmss,col3=dd/MM/yyyy ");
+        Table table = new Table()
+                .withParameters(param)
+                .withPartitionKeys()
+                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
+        GetTableResult mockResult = new GetTableResult().withTable(table);
+        when(glueClient.getTable(any())).thenReturn(mockResult);
+
+        TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
+        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
+        logger.info("testDateTimeSupportFromGlueTable: GetTableResponse[{}]", getTableResponse);
+        logger.info("testDateTimeSupportFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
+
+        Schema schema3 = getTableResponse.getSchema();
+
+        Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
+                .add(TABLE_METADATA, TEST_TABLE3)
+                .add(SEGMENT_ID_PROPERTY, "0")
+                .add(SEGMENT_COUNT_METADATA, "1")
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(
+                TEST_IDENTITY,
+                TEST_CATALOG_NAME,
+                TEST_QUERY_ID,
+                TEST_TABLE_3_NAME,
+                schema3,
+                split,
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L, // too big to spill
+                100_000_000_000L);
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        assertEquals(1, response.getRecords().getRowCount());
+        assertEquals(new LocalDateTime(2020, 2, 27, 9, 12, 27),
+                response.getRecords().getFieldReader("Col1").readLocalDateTime());
+        assertEquals(new LocalDateTime(2020, 2, 27, 9, 12, 27),
+                response.getRecords().getFieldReader("Col2").readLocalDateTime());
+        assertEquals(LocalDate.of(2020, 02, 27),
+                LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col3").readInteger()));
+        assertEquals(LocalDate.of(2020, 02, 27),
+                LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col4").readInteger()));
     }
 
     @Test

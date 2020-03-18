@@ -36,7 +36,8 @@ and is useful for filtering out irrelevant databases in accounts that have lots 
 3. **sourceTable** - Optional table property/parameter that defines the source table name in DynamoDB.  Use this if Glue table naming rules prevent you from creating a Glue table with the same name as
 your DynamoDB table (e.g. capital letters are not permitted in Glue table names but are permitted in DynamoDB table names).
 4. **columnMapping** - Optional table property/parameter that define column name mappings.  Use this if Glue column naming rules prevent you from creating a Glue table with the same column names as
-your DynamoDB table (e.g. capital letters are not permitted in Glue column names but are permitted in DynamoDB column names).  This is expected be be in the format `col1=Col1,col2=Col2`.
+your DynamoDB table (e.g. capital letters are not permitted in Glue column names but are permitted in DynamoDB column names).  This is expected to be in the format `col1=Col1,col2=Col2`.
+5. **datetimeFormatMapping** - Optional table property/parameter that defines the date/datetime format to be used to parse the raw DynamoDB string in a particular column that is of Glue type `date` or `timestamp`. If not provided, the format will inferred using [various ISO-8601 format](https://commons.apache.org/proper/commons-lang/apidocs/org/apache/commons/lang3/time/DateFormatUtils.html). If the date/datetime format cannot be inferred or if the raw string fails to parse, then the value will be omitted from the result. The mapping is expected to be in the format `col1=someformat1,col2=someformat2`. Some examples of the date/datetime formats are `yyyyMMdd'T'HHmmss`, `ddMMyyyy'T'HH:mm:ss`.
 
 
 ### Required Permissions

@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -32,7 +31,6 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -43,7 +41,9 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -58,7 +58,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
@@ -75,14 +74,17 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class RedisMetadataHandlerTest
+    extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedisMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
     private String endpoint = "${endpoint}";
     private String decodedEndpoint = "endpoint:123";
     private RedisMetadataHandler handler;
     private BlockAllocator allocator;
+
+    @Rule
+    public TestName testName = new TestName();
 
     @Mock
     private Jedis mockClient;
@@ -103,6 +105,8 @@ public class RedisMetadataHandlerTest
     public void setUp()
             throws Exception
     {
+        logger.info("{}: enter", testName.getMethodName());
+
         when(mockFactory.getOrCreateConn(eq(decodedEndpoint))).thenReturn(mockClient);
 
         handler = new RedisMetadataHandler(mockGlue, new LocalKeyFactory(), mockSecretsManager, mockAthena, mockFactory, "bucket", "prefix");
@@ -123,18 +127,17 @@ public class RedisMetadataHandlerTest
             throws Exception
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doGetTableLayout()
             throws Exception
     {
-        logger.info("doGetTableLayout - enter");
-
         Schema schema = SchemaBuilder.newBuilder().build();
 
-        GetTableLayoutRequest req = new GetTableLayoutRequest(identity, "queryId", "default",
-                new TableName("schema1", "table1"),
+        GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG,
+                TABLE_NAME,
                 new Constraints(new HashMap<>()),
                 schema,
                 new HashSet<>());
@@ -156,8 +159,6 @@ public class RedisMetadataHandlerTest
     @Test
     public void doGetSplitsZset()
     {
-        logger.info("doGetSplitsPrefix: enter");
-
         //3 prefixes for this table
         String prefixes = "prefix1-*,prefix2-*, prefix3-*";
 
@@ -199,10 +200,10 @@ public class RedisMetadataHandlerTest
         partitions.setRowCount(1);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                new TableName("schema", "table_name"),
+        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
+                QUERY_ID,
+                DEFAULT_CATALOG,
+                TABLE_NAME,
                 partitions,
                 partitionCols,
                 new Constraints(new HashMap<>()),
@@ -225,14 +226,11 @@ public class RedisMetadataHandlerTest
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
         verify(mockClient, times(6)).scan(anyString(), any(ScanParams.class));
-        logger.info("doGetSplitsPrefix: exit");
     }
 
     @Test
     public void doGetSplitsPrefix()
     {
-        logger.info("doGetSplitsPrefix: enter");
-
         Schema schema = SchemaBuilder.newBuilder()
                 .addField("partitionId", Types.MinorType.INT.getType())
                 .addStringField(REDIS_ENDPOINT_PROP)
@@ -249,10 +247,10 @@ public class RedisMetadataHandlerTest
         partitions.setRowCount(1);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                new TableName("schema", "table_name"),
+        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
+                QUERY_ID,
+                DEFAULT_CATALOG,
+                TABLE_NAME,
                 partitions,
                 new ArrayList<>(),
                 new Constraints(new HashMap<>()),
@@ -273,7 +271,5 @@ public class RedisMetadataHandlerTest
 
         assertTrue("Continuation criteria violated", response.getSplits().size() == 3);
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
-
-        logger.info("doGetSplitsPrefix: exit");
     }
 }

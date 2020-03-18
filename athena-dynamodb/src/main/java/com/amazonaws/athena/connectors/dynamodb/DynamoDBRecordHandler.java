@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -53,7 +54,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -136,7 +136,7 @@ public class DynamoDBRecordHandler
         String tableName = split.getProperty(TABLE_METADATA);
         invokerCache.get(tableName).setBlockSpiller(spiller);
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName);
-
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
         long numRows = 0;
         AtomicLong numResultRows = new AtomicLong(0);
         while (itemIterator.hasNext()) {
@@ -159,9 +159,9 @@ public class DynamoDBRecordHandler
                 for (Field nextField : recordsRequest.getSchema().getFields()) {
                     Object value = ItemUtils.toSimpleValue(item.get(nextField.getName()));
                     Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
-                    if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
-                        value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
-                    }
+
+                    value = DDBTypeUtils.coerceValueToExpectedType(value, nextField, fieldType, recordMetadata);
+
                     try {
                         switch (fieldType) {
                             case LIST:

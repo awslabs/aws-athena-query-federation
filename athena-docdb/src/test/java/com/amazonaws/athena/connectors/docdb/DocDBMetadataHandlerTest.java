@@ -38,7 +38,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -53,7 +52,9 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.bson.Document;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
@@ -74,13 +75,15 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DocDBMetadataHandlerTest
+    extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(DocDBMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
-    private String catalog = "default";
     private DocDBMetadataHandler handler;
     private BlockAllocator allocator;
+
+    @Rule
+    public TestName testName = new TestName();
 
     @Mock
     private DocDBConnectionFactory connectionFactory;
@@ -101,6 +104,8 @@ public class DocDBMetadataHandlerTest
     public void setUp()
             throws Exception
     {
+        logger.info("{}: enter", testName.getMethodName());
+
         when(connectionFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
 
         handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix");
@@ -112,13 +117,12 @@ public class DocDBMetadataHandlerTest
             throws Exception
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doListSchemaNames()
     {
-        logger.info("doListSchemaNames: enter");
-
         List<String> schemaNames = new ArrayList<>();
         schemaNames.add("schema1");
         schemaNames.add("schema2");
@@ -126,42 +130,34 @@ public class DocDBMetadataHandlerTest
 
         when(mockClient.listDatabaseNames()).thenReturn(StubbingCursor.iterate(schemaNames));
 
-        ListSchemasRequest req = new ListSchemasRequest(identity, "queryId", "default");
+        ListSchemasRequest req = new ListSchemasRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG);
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
 
         logger.info("doListSchemas - {}", res.getSchemas());
         assertEquals(schemaNames, new ArrayList<>(res.getSchemas()));
-
-        logger.info("doListSchemaNames: exit");
     }
 
     @Test
     public void doListTables()
     {
-        logger.info("doListTables - enter");
-
-        String schema = "schema1";
-
         List<String> tableNames = new ArrayList<>();
         tableNames.add("table1");
         tableNames.add("table2");
         tableNames.add("table3");
 
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
-        when(mockClient.getDatabase(eq(schema))).thenReturn(mockDatabase);
+        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
         when(mockDatabase.listCollectionNames()).thenReturn(StubbingCursor.iterate(tableNames));
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", schema);
+        ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, DEFAULT_SCHEMA);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 
         for (TableName next : res.getTables()) {
-            assertEquals(schema, next.getSchemaName());
+            assertEquals(DEFAULT_SCHEMA, next.getSchemaName());
             assertTrue(tableNames.contains(next.getTableName()));
         }
         assertEquals(tableNames.size(), res.getTables().size());
-
-        logger.info("doListTables - exit");
     }
 
     /**
@@ -171,11 +167,6 @@ public class DocDBMetadataHandlerTest
     public void doGetTable()
             throws Exception
     {
-        logger.info("doGetTable - enter");
-
-        String schema = "schema1";
-        String table = "table1";
-
         List<Document> documents = new ArrayList<>();
 
         Document doc1 = new Document();
@@ -203,15 +194,15 @@ public class DocDBMetadataHandlerTest
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         MongoCollection mockCollection = mock(MongoCollection.class);
         FindIterable mockIterable = mock(FindIterable.class);
-        when(mockClient.getDatabase(eq(schema))).thenReturn(mockDatabase);
-        when(mockDatabase.getCollection(eq(table))).thenReturn(mockCollection);
+        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 
-        GetTableRequest req = new GetTableRequest(identity, "queryId", catalog, new TableName(schema, table));
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
         GetTableResponse res = handler.doGetTable(allocator, req);
         logger.info("doGetTable - {}", res);
 
@@ -243,21 +234,17 @@ public class DocDBMetadataHandlerTest
 
         Field unsupported = res.getSchema().findField("unsupported");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(unsupported.getType()));
-
-        logger.info("doGetTable - exit");
     }
 
     @Test
     public void doGetTableLayout()
             throws Exception
     {
-        logger.info("doGetTableLayout - enter");
-
         Schema schema = SchemaBuilder.newBuilder().build();
-        GetTableLayoutRequest req = new GetTableLayoutRequest(identity,
-                "queryId",
-                "default",
-                new TableName("schema1", "table1"),
+        GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY,
+                QUERY_ID,
+                DEFAULT_CATALOG,
+                TABLE_NAME,
                 new Constraints(new HashMap<>()),
                 schema,
                 Collections.EMPTY_SET);
@@ -271,24 +258,20 @@ public class DocDBMetadataHandlerTest
         }
 
         assertTrue(partitions.getRowCount() > 0);
-
-        logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
     }
 
     @Test
     public void doGetSplits()
     {
-        logger.info("doGetSplits: enter");
-
         List<String> partitionCols = new ArrayList<>();
 
-        Block partitions = BlockUtils.newBlock(allocator, "partitionId", Types.MinorType.INT.getType(), 0);
+        Block partitions = BlockUtils.newBlock(allocator, PARTITION_ID, Types.MinorType.INT.getType(), 0);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
-                "queryId",
-                "catalog_name",
-                new TableName("schema", "table_name"),
+        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY,
+                QUERY_ID,
+                DEFAULT_CATALOG,
+                TABLE_NAME,
                 partitions,
                 partitionCols,
                 new Constraints(new HashMap<>()),
@@ -309,7 +292,5 @@ public class DocDBMetadataHandlerTest
 
         assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
-
-        logger.info("doGetSplits: exit");
     }
 }
