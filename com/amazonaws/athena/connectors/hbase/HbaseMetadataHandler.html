@@ -198,7 +198,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <!--   -->
 </a>
 <h3>Fields inherited from class&nbsp;com.amazonaws.athena.connector.lambda.handlers.<a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></h3>
-<code><a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a>, <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#SOURCE_TABLE_PROPERTY">SOURCE_TABLE_PROPERTY</a></code></li>
+<code><a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a>, <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#DATETIME_FORMAT_MAPPING_PROPERTY">DATETIME_FORMAT_MAPPING_PROPERTY</a>, <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED">DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED</a>, <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#SOURCE_TABLE_PROPERTY">SOURCE_TABLE_PROPERTY</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a name="fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.MetadataHandler">
@@ -227,11 +227,11 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#HbaseMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.hbase.HbaseConnectionFactory-java.lang.String-java.lang.String-">HbaseMetadataHandler</a></span>(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#HbaseMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory-java.lang.String-java.lang.String-">HbaseMetadataHandler</a></span>(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
                     <a href="../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
                     com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
                     com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
-                    <a href="../../../../../com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a>&nbsp;connectionFactory,
+                    <a href="../../../../../com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a>&nbsp;connectionFactory,
                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillPrefix)</code>&nbsp;</td>
 </tr>
@@ -428,7 +428,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <pre>public&nbsp;HbaseMetadataHandler()</pre>
 </li>
 </ul>
-<a name="HbaseMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.hbase.HbaseConnectionFactory-java.lang.String-java.lang.String-">
+<a name="HbaseMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -438,7 +438,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
                                <a href="../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
                                com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
                                com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
-                               <a href="../../../../../com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a>&nbsp;connectionFactory,
+                               <a href="../../../../../com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a>&nbsp;connectionFactory,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillBucket,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillPrefix)</pre>
 </li>
