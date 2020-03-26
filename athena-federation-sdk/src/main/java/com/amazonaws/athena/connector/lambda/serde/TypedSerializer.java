@@ -21,7 +21,6 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 
 import java.io.IOException;
 
@@ -40,14 +39,6 @@ public abstract class TypedSerializer<T> extends BaseSerializer<T>
     public Class<? extends T> getSubType()
     {
         return subType;
-    }
-
-    @Override
-    public void serializeWithType(T value, JsonGenerator jgen, SerializerProvider serializers, TypeSerializer typeSer)
-            throws IOException
-    {
-        // TODO leverage TypeSerializer if it simplifies things
-        serialize(value, jgen, serializers);
     }
 
     @Override

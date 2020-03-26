@@ -21,7 +21,6 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
@@ -54,13 +53,6 @@ public class DelegatingSerializer<T> extends BaseSerializer<T>
         else {
             throw new IllegalStateException("No SerDe configured for " + type);
         }
-    }
-
-    @Override
-    public void serializeWithType(T value, JsonGenerator gen, SerializerProvider serializers, TypeSerializer typeSer)
-            throws IOException
-    {
-        serialize(value, gen, serializers);
     }
 
     public Map<String, TypedSerializer<T>> getDelegateSerDeMap()

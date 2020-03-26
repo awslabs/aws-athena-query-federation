@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
@@ -47,6 +48,14 @@ public abstract class BaseSerializer<T> extends StdSerializer<T>
         else {
             jgen.writeNull();
         }
+    }
+
+    @Override
+    public void serializeWithType(T value, JsonGenerator gen, SerializerProvider serializers, TypeSerializer typeSer)
+            throws IOException
+    {
+        // TODO leverage TypeSerializer if it simplifies things
+        serialize(value, gen, serializers);
     }
 
     protected abstract void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)

@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 
 import java.io.IOException;
 
@@ -39,6 +40,13 @@ public abstract class TypedDeserializer<T> extends BaseDeserializer<T>
     public Class<? extends T> getSubType()
     {
         return subType;
+    }
+
+    @Override
+    public Object deserializeWithType(JsonParser jp, DeserializationContext ctxt, TypeDeserializer typeDeserializer)
+            throws IOException
+    {
+        return doDeserialize(jp, ctxt);
     }
 
     @Override

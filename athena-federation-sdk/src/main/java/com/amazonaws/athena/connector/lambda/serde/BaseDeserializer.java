@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,6 +53,14 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
         else {
             return null;
         }
+    }
+
+    @Override
+    public Object deserializeWithType(JsonParser jp, DeserializationContext ctxt, TypeDeserializer typeDeserializer)
+            throws IOException
+    {
+        // TODO leverage TypeDeserializer if it simplifies things
+        return deserialize(jp, ctxt);
     }
 
     protected abstract T doDeserialize(JsonParser jparser, DeserializationContext ctxt)

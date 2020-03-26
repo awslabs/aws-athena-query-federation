@@ -43,6 +43,13 @@ public class DelegatingDeserializer<T> extends BaseDeserializer<T>
     }
 
     @Override
+    public Object deserializeWithType(JsonParser jp, DeserializationContext ctxt, TypeDeserializer typeDeserializer)
+            throws IOException
+    {
+        return doDeserialize(jp, ctxt);
+    }
+
+    @Override
     public T doDeserialize(JsonParser jparser, DeserializationContext ctxt)
             throws IOException
     {
@@ -54,13 +61,6 @@ public class DelegatingDeserializer<T> extends BaseDeserializer<T>
         else {
             throw new IllegalStateException("No SerDe configured for " + type);
         }
-    }
-
-    @Override
-    public Object deserializeWithType(JsonParser jp, DeserializationContext ctxt, TypeDeserializer typeDeserializer)
-            throws IOException
-    {
-        return doDeserialize(jp, ctxt);
     }
 
     public Map<String, TypedDeserializer<T>> getDelegateSerDeMap()
