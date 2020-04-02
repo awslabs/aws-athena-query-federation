@@ -48,6 +48,7 @@
         <module>athena-dynamodb</module>
         <module>athena-hbase</module>
         <module>athena-cloudwatch-metrics</module>
+        <module>athena-elasticsearch</module>
         <module>athena-example</module>
         <module>athena-federation-sdk</module>
         <module>athena-tpcds</module>
