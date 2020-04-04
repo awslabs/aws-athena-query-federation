@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2020.5.1
+    SemanticVersion: 2020.5.5
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -42,7 +42,13 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
-
+  AutoDiscoverEndpoint:
+    Description: "Use Amazon Elasticsearch Service: true/false. WARNING: If 'true' service must be set up with Amazon. If 'false', DomainMapping is required."
+    Default: "true"
+    Type: String
+  DomainMapping:
+    Description: "List of one or more domain-names and their respective Elasticsearch cluster endpoints in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=search-movies-ne...qu.us-east-1.es.amazonaws.com)."
+    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -53,10 +59,12 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           data_bucket: !Ref DataBucket
+          auto_discover_endpoint: !Ref AutoDiscoverEndpoint
+          domain_mapping: !Ref DomainMapping
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-1.0.jar"
-      Description: "A guided example for writing and deploying your own federated Amazon Athena connector for a custom source."
+      Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory

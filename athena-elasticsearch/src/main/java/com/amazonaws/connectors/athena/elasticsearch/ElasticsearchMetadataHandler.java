@@ -47,10 +47,13 @@ import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import com.google.common.base.Splitter;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.HashSet;
+
+
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -69,15 +72,25 @@ public class ElasticsearchMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandler.class);
 
-    /**
-     * used to aid in debugging. Athena will use this name in conjunction with your catalog id
-     * to correlate relevant query errors.
-     */
+    // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
+    // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
+    // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
+    // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
+    private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
+    // Env. variable that holds the mappings of the domain-names to their respective endpoints.
+    private static final String DOMAIN_MAPPING = "domain_mapping";
+    // A comma separated list of domain-names and their respective endpoints. This is fed into the DOMAIN_SPLITTER
+    // to generate a Map where the key = domain-name, and the value = endpoint.i
+    private static String DOMAIN_MAP = "";
+    // Splitter for inline map properties for the DOMAIN_MAP.
+    private static final Splitter.MapSplitter DOMAIN_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
 
     public ElasticsearchMetadataHandler()
     {
         super(SOURCE_TYPE);
+
+        setDomainMapping(System.getenv(AUTO_DISCOVER_ENDPOINT));
     }
 
     @VisibleForTesting
@@ -88,6 +101,34 @@ public class ElasticsearchMetadataHandler
             String spillPrefix)
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+
+        setDomainMapping(System.getenv(AUTO_DISCOVER_ENDPOINT));
+    }
+
+    /**
+     * setDomainMapping()
+     *
+     * Populates the DOMAIN_MAP with domain-mapping from either the domain_mapping environment variable
+     * (auto_discover_endpoint == 'false'), or from the AWS ES SDK (auto_discover_endpoint == 'true').
+     * This method is called from the constructor(s) and from doListSchemaNames(). The call from the latter is used to
+     * refresh the DOMAIN_MAP with the underlying assumption that domain(s) could have been added or deleted.
+     */
+    protected void setDomainMapping(String autoDiscoverEndpoint)
+    {
+        if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("false")) {
+            String domainMapping = System.getenv(DOMAIN_MAPPING);
+            if (domainMapping != null)
+                DOMAIN_MAP = domainMapping;
+        }
+        else if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
+            /**
+             * TODO: Add code to obtain the domain mapping from the AWS ES SDK.
+             */
+        }
+        else {
+            logger.warn("AutoDiscoverEndpoint must be true/false.");
+            DOMAIN_MAP = "domain=endpoint";
+        }
     }
 
     /**
@@ -103,11 +144,15 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doListSchemaNames: enter - " + request);
 
-        Set<String> schemas = new HashSet<>();
+        String autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT);
 
-        schemas.add("schema1");
+        if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
+            // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initializes
+            // the connector, the DOMAIN_MAP needs to be refreshed each time for Amazon ES.
+            setDomainMapping(autoDiscoverEndpoint);
+        }
 
-        return new ListSchemasResponse(request.getCatalogName(), schemas);
+        return new ListSchemasResponse(request.getCatalogName(), DOMAIN_SPLITTER.split(DOMAIN_MAP).keySet());
     }
 
     /**
