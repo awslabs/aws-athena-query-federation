@@ -39,21 +39,39 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+
+// Apache APIs
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
-import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// Elasticsearch APIs
+//import org.elasticsearch.client.RestClient;
+//import org.elasticsearch.client.Request;
+//import org.elasticsearch.client.Response;
+
+// AWS SDK 1.x ES APIs
+import com.amazonaws.services.elasticsearch.AWSElasticsearch;
+import com.amazonaws.services.elasticsearch.AWSElasticsearchClientBuilder;
+import com.amazonaws.services.elasticsearch.model.DomainInfo;
+import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
+import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
+import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsResult;
+import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
+import com.amazonaws.services.elasticsearch.model.ElasticsearchDomainStatus;
+
+// Guava
 import com.google.common.base.Splitter;
+
+// Common
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
-
-
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -85,6 +103,8 @@ public class ElasticsearchMetadataHandler
     private static String DOMAIN_MAP = "";
     // Splitter for inline map properties for the DOMAIN_MAP.
     private static final Splitter.MapSplitter DOMAIN_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
+    // AWS ES Client for retrieving domain mapping info from the Amazon Elasticsearch Service.
+    private static final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
 
     public ElasticsearchMetadataHandler()
     {
@@ -116,19 +136,42 @@ public class ElasticsearchMetadataHandler
     protected void setDomainMapping(String autoDiscoverEndpoint)
     {
         if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("false")) {
+            // Get domain mapping from environment variables.
             String domainMapping = System.getenv(DOMAIN_MAPPING);
             if (domainMapping != null)
                 DOMAIN_MAP = domainMapping;
         }
         else if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
-            /**
-             * TODO: Add code to obtain the domain mapping from the AWS ES SDK.
-             */
+            // Get domain mapping via the AWS ES SDK (1.x).
+            try {
+                ListDomainNamesResult listDomainNamesResult = awsEsClient.listDomainNames(new ListDomainNamesRequest());
+                List<String> domainNames = new ArrayList<>();
+                for (DomainInfo domainInfo : listDomainNamesResult.getDomainNames()) {
+                    domainNames.add(domainInfo.getDomainName());
+                }
+
+                DescribeElasticsearchDomainsRequest describeDomainsRequest = new DescribeElasticsearchDomainsRequest();
+                describeDomainsRequest.setDomainNames(domainNames);
+                DescribeElasticsearchDomainsResult describeElasticsearchDomainsResult =
+                        awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
+
+                for (ElasticsearchDomainStatus domainStatus: describeElasticsearchDomainsResult.getDomainStatusList()) {
+                    DOMAIN_MAP += "," + domainStatus.getDomainName() + "=" + domainStatus.getEndpoint();
+                }
+
+                if (!DOMAIN_MAP.isEmpty())
+                    DOMAIN_MAP = DOMAIN_MAP.substring(1);
+            }
+            catch (Exception error) {
+                logger.error("Error getting list of domain names.", error);
+            }
         }
         else {
             logger.warn("AutoDiscoverEndpoint must be true/false.");
             DOMAIN_MAP = "domain=endpoint";
         }
+
+        logger.info("setDomainMapping(): " + DOMAIN_MAP);
     }
 
     /**

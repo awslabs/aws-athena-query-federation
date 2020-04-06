@@ -79,7 +79,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-elasticsearch</artifactId>
-            <version>1.11.752</version>
+            <version>1.11.759</version>
         </dependency>
     </dependencies>
 
@@ -90,6 +90,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <environmentVariables>
+                        <!--suppress UnresolvedMavenProperty -->
                         <publishing>${publishing}</publishing>
                     </environmentVariables>
                 </configuration>
