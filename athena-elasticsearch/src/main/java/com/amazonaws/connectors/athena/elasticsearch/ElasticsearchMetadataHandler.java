@@ -95,21 +95,27 @@ public class ElasticsearchMetadataHandler
 
     // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
+
     //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
     //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
+
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
     private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
+
     // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
-    // this environment variable is fed into the DOMAIN_SPLITTER to generate a Map where the key = domain-name,
+    // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
     // and the value = endpoint.
     private static final String DOMAIN_MAPPING = "domain_mapping";
+
     // A Map of the domain-names and their respective endpoints.
-    private static final Map<String, String> DOMAIN_MAP = new HashMap<>();
-    // Splitter for inline map properties for the DOMAIN_MAP.
-    private static final Splitter.MapSplitter DOMAIN_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
+    private static final Map<String, String> domainMap = new HashMap<>();
+
+    // Splitter for inline map properties extracted from the DOMAIN_MAPPING.
+    private static final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
+
     // AWS ES Client for retrieving domain mapping info from the Amazon Elasticsearch Service.
     private static final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
 
@@ -141,18 +147,27 @@ public class ElasticsearchMetadataHandler
     /**
      * setDomainMapping()
      *
-     * Populates the DOMAIN_MAP with domain-mapping from either the domain_mapping environment variable
+     * Populates the domainMap with domainName and domainEndpoint.
+     */
+    public final void setDomainMapping(String domainName, String domainEndpoint) {
+        domainMap.put(domainName, domainEndpoint);
+    }
+
+    /**
+     * setDomainMapping()
+     *
+     * Populates the domainMap with domain-mapping from either the domain_mapping environment variable
      * (auto_discover_endpoint == 'false'), or from the AWS ES SDK (auto_discover_endpoint == 'true').
      * This method is called from the constructor(s) and from doListSchemaNames(). The call from the latter is used to
-     * refresh the DOMAIN_MAP with the underlying assumption that domain(s) could have been added or deleted.
+     * refresh the domainMap with the underlying assumption that domain(s) could have been added or deleted.
      */
-    protected void setDomainMapping(String autoDiscoverEndpoint)
+    private void setDomainMapping(String autoDiscoverEndpoint)
     {
         if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("false")) {
             // Get domain mapping from environment variables.
             String domainMapping = System.getenv(DOMAIN_MAPPING);
             if (domainMapping != null)
-                DOMAIN_MAP.putAll(DOMAIN_SPLITTER.split(domainMapping));
+                domainMap.putAll(domainSplitter.split(domainMapping));
         }
         else if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
             // Get domain mapping via the AWS ES SDK (1.x).
@@ -169,7 +184,7 @@ public class ElasticsearchMetadataHandler
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
 
                 for (ElasticsearchDomainStatus domainStatus: describeDomainsResult.getDomainStatusList()) {
-                    DOMAIN_MAP.put(domainStatus.getDomainName(), domainStatus.getEndpoint());
+                    domainMap.put(domainStatus.getDomainName(), domainStatus.getEndpoint());
                 }
             }
             catch (Exception error) {
@@ -178,10 +193,9 @@ public class ElasticsearchMetadataHandler
         }
         else {
             logger.warn("AutoDiscoverEndpoint must be true/false.");
-            DOMAIN_MAP.put("domain", "endpoint");
         }
 
-        logger.info("setDomainMapping(): " + DOMAIN_MAP);
+        logger.info("setDomainMapping(): " + domainMap);
     }
 
     /**
@@ -201,12 +215,12 @@ public class ElasticsearchMetadataHandler
 
         if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
             // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initializes
-            // the connector, the DOMAIN_MAP needs to be refreshed each time for Amazon ES.
-            DOMAIN_MAP.clear();
+            // the connector, the domainMap needs to be refreshed each time for Amazon ES.
+            domainMap.clear();
             setDomainMapping(autoDiscoverEndpoint);
         }
 
-        return new ListSchemasResponse(request.getCatalogName(), DOMAIN_MAP.keySet());
+        return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
     }
 
     /**

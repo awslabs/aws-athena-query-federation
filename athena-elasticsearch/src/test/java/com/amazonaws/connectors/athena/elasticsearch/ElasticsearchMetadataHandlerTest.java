@@ -110,10 +110,24 @@ public class ElasticsearchMetadataHandlerTest
         }
 
         logger.info("doListSchemas - enter");
+
+        // Generate hard-coded response.
+        List<String> domainList = new ArrayList<>();
+        domainList.add("domain");
+        ListSchemasResponse hardcodedRes = new ListSchemasResponse("default", domainList);
+
+        // Get real response from doListSchemaNames().
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "default");
-        ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemas - {}", res.getSchemas());
-        assertFalse(res.getSchemas().isEmpty());
+        handler.setDomainMapping("domain", "endpoint");
+        ListSchemasResponse realResponse = handler.doListSchemaNames(allocator, req);
+
+        logger.info("doListSchemas - {}", realResponse.getSchemas());
+
+        // Test 1 - Real response should NOT be empty.
+        assertFalse(realResponse.getSchemas().isEmpty());
+        // Test 2 - Real and Hardcoded responses must be equal.
+        assertEquals(realResponse, hardcodedRes);
+
         logger.info("doListSchemas - exit");
     }
 
