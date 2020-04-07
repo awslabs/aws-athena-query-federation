@@ -56,12 +56,7 @@ import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
@@ -111,14 +106,15 @@ public class ElasticsearchMetadataHandlerTest
 
         logger.info("doListSchemas - enter");
 
-        // Generate hard-coded response.
-        List<String> domainList = new ArrayList<>();
-        domainList.add("domain");
-        ListSchemasResponse hardcodedRes = new ListSchemasResponse("default", domainList);
+        // Generate hard-coded response with 3 domains.
+        ListSchemasResponse hardcodedRes =
+                new ListSchemasResponse("default", ImmutableList.of("domain1", "domain2", "domain3"));
 
         // Get real response from doListSchemaNames().
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "default");
-        handler.setDomainMapping("domain", "endpoint");
+        handler.setDomainMapping("domain1", "endpoint1");
+        handler.setDomainMapping("domain2", "endpoint2");
+        handler.setDomainMapping("domain3", "endpoint3");
         ListSchemasResponse realResponse = handler.doListSchemaNames(allocator, req);
 
         logger.info("doListSchemas - {}", realResponse.getSchemas());
