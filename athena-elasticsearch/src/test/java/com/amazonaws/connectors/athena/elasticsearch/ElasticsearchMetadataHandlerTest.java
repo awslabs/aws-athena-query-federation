@@ -44,6 +44,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
@@ -51,6 +52,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,11 +70,12 @@ public class ElasticsearchMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandlerTest.class);
 
-    private ElasticsearchMetadataHandler handler = new ElasticsearchMetadataHandler(new LocalKeyFactory(),
-            mock(AWSSecretsManager.class),
-            mock(AmazonAthena.class),
-            "spill-bucket",
-            "spill-prefix");
+    @Mock
+    private AWSGlue awsGlue;
+
+    private ElasticsearchMetadataHandler handler =
+            new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), mock(AWSSecretsManager.class),
+                    mock(AmazonAthena.class), "spill-bucket", "spill-prefix");
 
     private boolean enableTests = System.getenv("publishing") != null &&
             System.getenv("publishing").equalsIgnoreCase("true");

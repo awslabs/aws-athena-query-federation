@@ -26,7 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -38,6 +38,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 
 // Apache APIs
@@ -88,12 +89,15 @@ import java.util.HashMap;
  * For more elasticsearchs, please see the other connectors in this repository (e.g. athena-cloudwatch, athena-docdb, etc...)
  */
 public class ElasticsearchMetadataHandler
-        extends MetadataHandler
+        extends GlueMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandler.class);
 
     // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
+    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
+    //metadata and instead rely solely on the connector's schema inference capabilities.
+    private static final String GLUE_ENV = "disable_glue";
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
@@ -103,27 +107,33 @@ public class ElasticsearchMetadataHandler
     // and the value = endpoint.
     private static final String DOMAIN_MAPPING = "domain_mapping";
     // A Map of the domain-names and their respective endpoints.
-    private static Map<String, String> DOMAIN_MAP = new HashMap<>();
+    private static final Map<String, String> DOMAIN_MAP = new HashMap<>();
     // Splitter for inline map properties for the DOMAIN_MAP.
     private static final Splitter.MapSplitter DOMAIN_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
     // AWS ES Client for retrieving domain mapping info from the Amazon Elasticsearch Service.
     private static final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
 
+    private final AWSGlue awsGlue;
+
     public ElasticsearchMetadataHandler()
     {
-        super(SOURCE_TYPE);
+        //Disable Glue if the env var is present and not explicitly set to "false"
+        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        this.awsGlue = getAwsGlue();
 
         setDomainMapping(System.getenv(AUTO_DISCOVER_ENDPOINT));
     }
 
     @VisibleForTesting
-    protected ElasticsearchMetadataHandler(EncryptionKeyFactory keyFactory,
-            AWSSecretsManager awsSecretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected ElasticsearchMetadataHandler(AWSGlue awsGlue,
+                                           EncryptionKeyFactory keyFactory,
+                                           AWSSecretsManager awsSecretsManager,
+                                           AmazonAthena athena,
+                                           String spillBucket,
+                                           String spillPrefix)
     {
-        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        this.awsGlue = getAwsGlue();
 
         setDomainMapping(System.getenv(AUTO_DISCOVER_ENDPOINT));
     }

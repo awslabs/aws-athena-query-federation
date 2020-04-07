@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2020.5.5
+    SemanticVersion: 2020.5.8
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -24,8 +24,8 @@ Parameters:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
   DataBucket:
-      Description: "The bucket where this tutorial's data lives."
-      Type: String
+    Description: "The bucket where this tutorial's data lives."
+    Type: String
   SpillPrefix:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
@@ -42,12 +42,17 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
+  SecretNameOrPrefix:
+    Description: "The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. elasticsearch-*)."
+    Default: ""
+    Type: String
   AutoDiscoverEndpoint:
     Description: "Use Amazon Elasticsearch Service: true/false. WARNING: If 'true' service must be set up with Amazon. If 'false', DomainMapping is required."
     Default: "true"
     Type: String
   DomainMapping:
     Description: "List of one or more domain-names and their respective Elasticsearch cluster endpoints in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=search-movies-ne...qu.us-east-1.es.amazonaws.com)."
+    Default: ""
     Type: String
 Resources:
   ConnectorConfig:
@@ -71,6 +76,22 @@ Resources:
       Policies:
         - Statement:
             - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - es:List*
+                - es:Describe*
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase
                 - athena:GetQueryExecution
               Effect: Allow
               Resource: '*'
