@@ -45,15 +45,19 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.http.HttpHost;
+
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // Elasticsearch APIs
-//import org.elasticsearch.client.RestClient;
-//import org.elasticsearch.client.Request;
-//import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.GetAliasesResponse;
+import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 
 // AWS SDK 1.x ES APIs
 import com.amazonaws.services.elasticsearch.AWSElasticsearch;
@@ -145,6 +149,24 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
+     * getClient()
+     *
+     * Returns a client based on the autoDiscoverEndpoint environment variable.
+     */
+    private RestHighLevelClient getClient(String autoDiscoverEndpoint, String endpoint)
+    {
+        if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
+            // For Amazon Elasticsearch service use client with injected AWS Credentials.
+            return new AwsRestHighLevelClient(endpoint).build();
+        }
+
+        /**
+         * TODO: Inject credentials from Amazon Secrets into client.
+         */
+        return new RestHighLevelClient(RestClient.builder(new HttpHost(endpoint)));
+    }
+
+    /**
      * setDomainMapping()
      *
      * Populates the domainMap with domainName and domainEndpoint.
@@ -188,7 +210,7 @@ public class ElasticsearchMetadataHandler
                 }
             }
             catch (Exception error) {
-                logger.error("Error getting list of domain names.", error);
+                logger.error("Error getting list of domain names:", error);
             }
         }
         else {
@@ -199,7 +221,7 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * Used to get the list of schemas (aka databases) that this source contains.
+     * Used to get the list of domains (aka databases) for the Elasticsearch service.
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog they are querying.
@@ -224,23 +246,45 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * Used to get the list of tables that this source contains.
-     *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details on who made the request and which Athena catalog and database they are querying.
-     * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
-     * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
-     */
+      * Used to get the list of indices contained in the specified domain.
+      *
+      * @param allocator Tool for creating and managing Apache Arrow Blocks.
+      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
+      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
+      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
+      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
         logger.info("doListTables: enter - " + request);
 
-        List<TableName> tables = new ArrayList<>();
+        List<TableName> indices = new ArrayList<>();
 
-        tables.add(new TableName(request.getSchemaName(), "table1"));
+        if (domainMap.containsKey(request.getSchemaName())) {
+            String endpoint = domainMap.get(request.getSchemaName());
 
-        return new ListTablesResponse(request.getCatalogName(), tables);
+            try (RestHighLevelClient client = getClient(System.getenv(AUTO_DISCOVER_ENDPOINT), endpoint)) {
+                GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
+                RequestOptions.Builder options = RequestOptions.DEFAULT.toBuilder();
+                GetAliasesResponse getAliasesResponse = client.indices().getAlias(getAliasesRequest, options.build());
+
+                for (String index : getAliasesResponse.getAliases().keySet()) {
+                    // Add all Indices except for kibana.
+                    if (index.contains("kibana")) {
+                        continue;
+                    }
+
+                    indices.add(new TableName(request.getSchemaName(), index));
+                }
+            } catch (Exception error) {
+                logger.error("Error getting indices:", error);
+            }
+        }
+        else {
+            logger.warn("Domain does not exist in map: " + request.getSchemaName());
+        }
+
+        return new ListTablesResponse(request.getCatalogName(), indices);
     }
 
     /**
