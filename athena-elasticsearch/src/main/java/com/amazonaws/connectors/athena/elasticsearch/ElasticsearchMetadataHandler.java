@@ -58,6 +58,8 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
+import org.elasticsearch.client.indices.GetMappingsRequest;
+import org.elasticsearch.client.indices.GetMappingsResponse;
 
 // AWS SDK 1.x ES APIs
 import com.amazonaws.services.elasticsearch.AWSElasticsearch;
@@ -73,6 +75,7 @@ import com.amazonaws.services.elasticsearch.model.ElasticsearchDomainStatus;
 import com.google.common.base.Splitter;
 
 // Common
+import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
@@ -108,6 +111,7 @@ public class ElasticsearchMetadataHandler
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
     private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
+    private boolean autoDiscoverEndpoint;
 
     // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
     // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
@@ -130,8 +134,10 @@ public class ElasticsearchMetadataHandler
         //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
+        this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
+                System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
 
-        setDomainMapping(System.getenv(AUTO_DISCOVER_ENDPOINT));
+        setDomainMapping();
     }
 
     @VisibleForTesting
@@ -144,8 +150,10 @@ public class ElasticsearchMetadataHandler
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = getAwsGlue();
+        this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
+                System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
 
-        setDomainMapping(System.getenv(AUTO_DISCOVER_ENDPOINT));
+        setDomainMapping();
     }
 
     /**
@@ -153,9 +161,9 @@ public class ElasticsearchMetadataHandler
      *
      * Returns a client based on the autoDiscoverEndpoint environment variable.
      */
-    private RestHighLevelClient getClient(String autoDiscoverEndpoint, String endpoint)
+    private RestHighLevelClient getClient(String endpoint)
     {
-        if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
+        if (autoDiscoverEndpoint) {
             // For Amazon Elasticsearch service use client with injected AWS Credentials.
             return new AwsRestHighLevelClient(endpoint).build();
         }
@@ -183,15 +191,9 @@ public class ElasticsearchMetadataHandler
      * This method is called from the constructor(s) and from doListSchemaNames(). The call from the latter is used to
      * refresh the domainMap with the underlying assumption that domain(s) could have been added or deleted.
      */
-    private void setDomainMapping(String autoDiscoverEndpoint)
+    private void setDomainMapping()
     {
-        if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("false")) {
-            // Get domain mapping from environment variables.
-            String domainMapping = System.getenv(DOMAIN_MAPPING);
-            if (domainMapping != null)
-                domainMap.putAll(domainSplitter.split(domainMapping));
-        }
-        else if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
+        if (autoDiscoverEndpoint) {
             // Get domain mapping via the AWS ES SDK (1.x).
             try {
                 ListDomainNamesResult listDomainNamesResult = awsEsClient.listDomainNames(new ListDomainNamesRequest());
@@ -214,7 +216,10 @@ public class ElasticsearchMetadataHandler
             }
         }
         else {
-            logger.warn("AutoDiscoverEndpoint must be true/false.");
+             // Get domain mapping from environment variables.
+            String domainMapping = System.getenv(DOMAIN_MAPPING);
+            if (domainMapping != null)
+                domainMap.putAll(domainSplitter.split(domainMapping));
         }
 
         logger.info("setDomainMapping(): " + domainMap);
@@ -233,13 +238,11 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doListSchemaNames: enter - " + request);
 
-        String autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT);
-
-        if (autoDiscoverEndpoint != null && autoDiscoverEndpoint.equalsIgnoreCase("true")) {
+        if (autoDiscoverEndpoint) {
             // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initializes
             // the connector, the domainMap needs to be refreshed each time for Amazon ES.
             domainMap.clear();
-            setDomainMapping(autoDiscoverEndpoint);
+            setDomainMapping();
         }
 
         return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
@@ -263,10 +266,10 @@ public class ElasticsearchMetadataHandler
         if (domainMap.containsKey(request.getSchemaName())) {
             String endpoint = domainMap.get(request.getSchemaName());
 
-            try (RestHighLevelClient client = getClient(System.getenv(AUTO_DISCOVER_ENDPOINT), endpoint)) {
+            try (RestHighLevelClient client = getClient(endpoint)) {
                 GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
-                RequestOptions.Builder options = RequestOptions.DEFAULT.toBuilder();
-                GetAliasesResponse getAliasesResponse = client.indices().getAlias(getAliasesRequest, options.build());
+                GetAliasesResponse getAliasesResponse =
+                        client.indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
 
                 for (String index : getAliasesResponse.getAliases().keySet()) {
                     // Add all Indices except for kibana.
@@ -303,11 +306,34 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doGetTable: enter - " + request);
 
-        Set<String> partitionColNames = new HashSet<>();
+        // Set<String> partitionColNames = new HashSet<>();
 
-        partitionColNames.add("year");
-        partitionColNames.add("month");
-        partitionColNames.add("day");
+        // partitionColNames.add("year");
+        // partitionColNames.add("month");
+        // partitionColNames.add("day");
+
+        String domain = request.getTableName().getSchemaName();
+
+        if (domainMap.containsKey(domain)) {
+            String endpoint = domainMap.get(domain);
+            String index = request.getTableName().getTableName();
+
+            try (RestHighLevelClient client = getClient(endpoint)) {
+                GetMappingsRequest mappingsRequest = new GetMappingsRequest();
+                mappingsRequest.indices(index);
+                GetMappingsResponse mappingsResponse =
+                        client.indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
+
+                /**
+                 * TODO: Add parsing logic.
+                 */
+                // Map<String, Object> mapping = mappingsResponse.mappings().get(index).getSourceAsMap();
+                // Map<String, String> meta = (Map<String, String>) mapping.get("_meta");
+                // Map<String, Object> properties = (Map<String, Object>) mapping.get("properties");
+            } catch (Exception error) {
+                logger.error("Error mapping index:", error);
+            }
+        }
 
         SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
 
@@ -332,10 +358,8 @@ public class ElasticsearchMetadataHandler
          //we will use this later when we implement doGetTableLayout(...)
          .addMetadata("partitionCols", "year,month,day");
 
-        return new GetTableResponse(request.getCatalogName(),
-                request.getTableName(),
-                tableSchemaBuilder.build(),
-                partitionColNames);
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
+                tableSchemaBuilder.build(), Collections.emptySet());
     }
 
     /**
