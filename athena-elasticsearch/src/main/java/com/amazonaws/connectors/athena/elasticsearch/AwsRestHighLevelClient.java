@@ -35,7 +35,6 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 // AWS Credentials APIs
 import com.amazonaws.auth.AWS4Signer;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 
 // Guava
 import com.google.common.base.Splitter;
@@ -61,7 +60,7 @@ public class AwsRestHighLevelClient
         private final String endpoint;
         private final Splitter domainSplitter = Splitter.on(".");
         private final AWS4Signer signer;
-        private RestClientBuilder clientBuilder;
+        private final RestClientBuilder clientBuilder;
 
         public Builder(String domainEndpoint)
         {
@@ -69,40 +68,40 @@ public class AwsRestHighLevelClient
              * domainEndpoint:
              * search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
              *
-             * domainTokens:
+             * domainSplits:
              * 0 = "search-movies-ne3fcqzfipy6jcrew2wca6kyqu"
              * 1 = "us-east-1"
              * 2 = "es"
              * 3 = "amazonaws"
              * 4 = "com"
              */
-            List<String> domainTokens = domainSplitter.splitToList(domainEndpoint);
+            List<String> domainSplits = domainSplitter.splitToList(domainEndpoint);
             this.endpoint = "https://" + domainEndpoint;
             this.signer = new AWS4Signer();
-            this.signer.setRegionName(domainTokens.get(1));
-            this.signer.setServiceName(domainTokens.get(2));
+            this.signer.setRegionName(domainSplits.get(1));
+            this.signer.setServiceName("es");
+            clientBuilder = RestClient.builder(HttpHost.create(this.endpoint));
         }
 
-        public Builder setCallback(AWSCredentialsProvider credentialsProvider)
+        public Builder setCredentials(AWSCredentialsProvider credentialsProvider)
         {
             HttpRequestInterceptor interceptor =
                     new AWSRequestSigningApacheInterceptor(signer.getServiceName(), signer, credentialsProvider);
 
-            clientBuilder = RestClient.builder(HttpHost.create(endpoint)).
-                    setHttpClientConfigCallback(callback -> callback.addInterceptorLast(interceptor));
+            clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.
+                    addInterceptorLast(interceptor));
 
             return this;
         }
 
-        public Builder setCallBack(AWSSecretsManager awsSecretsManager)
+        public Builder setCredentials(String username, String password)
         {
             final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
             credentialsProvider.setCredentials(AuthScope.ANY,
-                    new UsernamePasswordCredentials("username", "password"));
+                    new UsernamePasswordCredentials(username, password));
 
-            clientBuilder = RestClient.builder(HttpHost.create(endpoint)).
-                    setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
-                            .setDefaultCredentialsProvider(credentialsProvider));
+            clientBuilder.setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.
+                    setDefaultCredentialsProvider(credentialsProvider));
 
             return this;
         }

@@ -40,7 +40,9 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClient;
+import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
+import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 
 // Apache APIs
@@ -74,6 +76,9 @@ import com.amazonaws.services.elasticsearch.model.ElasticsearchDomainStatus;
 // Guava
 import com.google.common.base.Splitter;
 
+// XML
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 // Common
 import java.util.Collections;
 import java.util.List;
@@ -82,6 +87,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Base64;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -128,7 +134,7 @@ public class ElasticsearchMetadataHandler
     private static final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
 
     private final AWSGlue awsGlue;
-    private final AWSSecretsManager awsSecretsManager;
+    private String username, password;
 
     public ElasticsearchMetadataHandler()
     {
@@ -137,9 +143,11 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = getAwsGlue();
         this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
                 System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        this.awsSecretsManager = AWSSecretsManagerClient.builder().build();
+        this.username = "";
+        this.password = "";
 
         setDomainMapping();
+        setUsernamePassword();
     }
 
     @VisibleForTesting
@@ -154,25 +162,11 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = getAwsGlue();
         this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
                 System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        this.awsSecretsManager = awsSecretsManager;
+        this.username = "";
+        this.password = "";
 
         setDomainMapping();
-    }
-
-    /**
-     * getClient()
-     *
-     * Returns a client based on the autoDiscoverEndpoint environment variable.
-     */
-    private RestHighLevelClient getClient(String endpoint)
-    {
-        if (autoDiscoverEndpoint) {
-            // For Amazon Elasticsearch service use client with injected AWS Credentials.
-            return new AwsRestHighLevelClient.Builder(endpoint).
-                    setCallback(new DefaultAWSCredentialsProviderChain()).build();
-        }
-
-        return new AwsRestHighLevelClient.Builder(endpoint).setCallBack(awsSecretsManager).build();
+        setUsernamePassword();
     }
 
     /**
@@ -180,7 +174,10 @@ public class ElasticsearchMetadataHandler
      *
      * Populates the domainMap with domainName and domainEndpoint.
      */
-    public final void setDomainMapping(String domainName, String domainEndpoint) {
+    public final void setDomainMapping(String domainName, String domainEndpoint)
+    {
+        logger.info("setDomainMapping: enter");
+
         domainMap.put(domainName, domainEndpoint);
     }
 
@@ -194,6 +191,8 @@ public class ElasticsearchMetadataHandler
      */
     private void setDomainMapping()
     {
+        logger.info("setDomainMapping: enter");
+
         if (autoDiscoverEndpoint) {
             // Get domain mapping via the AWS ES SDK (1.x).
             try {
@@ -224,6 +223,69 @@ public class ElasticsearchMetadataHandler
         }
 
         logger.info("setDomainMapping(): " + domainMap);
+    }
+
+    /**
+     * setUsernamePassword
+     *
+     * Sets the username and password from Secrets Manager when autoDiscoverEndpoint=false.
+     */
+    private void setUsernamePassword()
+    {
+        logger.info("setUsernamePassword: enter");
+
+        if (autoDiscoverEndpoint)
+            return;
+
+        AWSSecretsManager awsSecretsManager =
+                AWSSecretsManagerClientBuilder.standard().
+                        withCredentials(new DefaultAWSCredentialsProviderChain()).build();
+
+        try {
+            final String secretName = "elasticsearch-creds";
+            GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest().withSecretId(secretName);
+            GetSecretValueResult getSecretValueResult;
+            getSecretValueResult = awsSecretsManager.getSecretValue(getSecretValueRequest);
+            String secretString;
+
+            if (getSecretValueResult.getSecretString() != null) {
+                secretString = getSecretValueResult.getSecretString();
+            } else {
+                secretString = new String(Base64.getDecoder().decode(getSecretValueResult.getSecretBinary()).array());
+            }
+
+            Map<String, String> secrets = new ObjectMapper().readValue(secretString, HashMap.class);
+
+            username = secrets.get("username");
+            password = secrets.get("password");
+        }
+        catch (Exception error) {
+            logger.error("Error accessing Secrets Manager:", error);
+        }
+    }
+
+    /**
+     * getClient()
+     *
+     * Returns a client based on the autoDiscoverEndpoint environment variable.
+     */
+    private RestHighLevelClient getClient(String endpoint)
+    {
+        logger.info("getClient: enter - " + endpoint);
+
+        if (autoDiscoverEndpoint) {
+            // For Amazon Elasticsearch service use client with injected AWS Credentials.
+            return new AwsRestHighLevelClient.Builder(endpoint).
+                    setCredentials(new DefaultAWSCredentialsProviderChain()).build();
+        }
+        else if (!username.isEmpty() && !password.isEmpty()) {
+            // Create a client injected with username/password credentials.
+            return new AwsRestHighLevelClient.Builder(endpoint).
+                    setCredentials(username, password).build();
+        }
+
+        // Default client.
+        return new AwsRestHighLevelClient.Builder(endpoint).build();
     }
 
     /**
