@@ -40,12 +40,13 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.services.secretsmanager.AWSSecretsManagerClient;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 
 // Apache APIs
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.http.HttpHost;
 
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
@@ -54,7 +55,6 @@ import org.slf4j.LoggerFactory;
 
 // Elasticsearch APIs
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
@@ -128,6 +128,7 @@ public class ElasticsearchMetadataHandler
     private static final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
 
     private final AWSGlue awsGlue;
+    private final AWSSecretsManager awsSecretsManager;
 
     public ElasticsearchMetadataHandler()
     {
@@ -136,6 +137,7 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = getAwsGlue();
         this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
                 System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
+        this.awsSecretsManager = AWSSecretsManagerClient.builder().build();
 
         setDomainMapping();
     }
@@ -152,6 +154,7 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = getAwsGlue();
         this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
                 System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
+        this.awsSecretsManager = awsSecretsManager;
 
         setDomainMapping();
     }
@@ -165,13 +168,11 @@ public class ElasticsearchMetadataHandler
     {
         if (autoDiscoverEndpoint) {
             // For Amazon Elasticsearch service use client with injected AWS Credentials.
-            return new AwsRestHighLevelClient(endpoint).build();
+            return new AwsRestHighLevelClient.Builder(endpoint).
+                    setCallback(new DefaultAWSCredentialsProviderChain()).build();
         }
 
-        /**
-         * TODO: Inject credentials from Amazon Secrets into client.
-         */
-        return new RestHighLevelClient(RestClient.builder(new HttpHost(endpoint)));
+        return new AwsRestHighLevelClient.Builder(endpoint).setCallBack(awsSecretsManager).build();
     }
 
     /**
