@@ -49,6 +49,7 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
@@ -87,6 +88,7 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Base64;
 
 /**
@@ -354,6 +356,50 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
+     * parseMapping
+     *
+     * Parses the response to GET index/_mapping recursively to derive the index's schema.
+     *
+     * @param prefix is the parent field names in the mapping structure. The final field-name will be
+     *               a concatenation of the prefix and the current field-name (e.g. 'address.zip').
+     * @param mapping is the current map of the element in question (e.g. address).
+     * @param builder builds the schema at the iteration through the mapping.
+     */
+    private void parseMapping(String prefix, LinkedHashMap<String, Object> mapping, SchemaBuilder builder) {
+        for (String key : mapping.keySet()) {
+            String fieldName = prefix.isEmpty() ? key : prefix + "." + key;
+            LinkedHashMap<String, Object> currMapping = (LinkedHashMap<String, Object>) mapping.get(key);
+
+            if (currMapping.containsKey("properties")) {
+                parseMapping(fieldName, (LinkedHashMap<String, Object>) currMapping.get("properties"), builder);
+            }
+            else if (currMapping.containsKey("type")) {
+                builder.addStringField(fieldName);
+            }
+        }
+    }
+
+    /**
+     * parseMapping
+     *
+     * Main parsing method for the GET <index>/_mapping request.
+     *
+     * @param mapping is the structure that contains the mapping for all elements for the index.
+     * @return returns a Schema derived from the mapping.
+     */
+    private Schema parseMapping(LinkedHashMap<String, Object> mapping) {
+        LinkedHashMap<String, String> schema = new LinkedHashMap<>();
+        SchemaBuilder builder = SchemaBuilder.newBuilder();
+        String fieldName = "";
+
+        if (mapping.containsKey("properties")) {
+            parseMapping(fieldName, (LinkedHashMap<String, Object>) mapping.get("properties"), builder);
+        }
+
+        return builder.build();
+    }
+
+    /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
@@ -370,12 +416,12 @@ public class ElasticsearchMetadataHandler
         logger.info("doGetTable: enter - " + request);
 
         // Set<String> partitionColNames = new HashSet<>();
-
         // partitionColNames.add("year");
         // partitionColNames.add("month");
         // partitionColNames.add("day");
 
         String domain = request.getTableName().getSchemaName();
+        Schema schema = null;
 
         if (domainMap.containsKey(domain)) {
             String endpoint = domainMap.get(domain);
@@ -390,15 +436,26 @@ public class ElasticsearchMetadataHandler
                 /**
                  * TODO: Add parsing logic.
                  */
-                // Map<String, Object> mapping = mappingsResponse.mappings().get(index).getSourceAsMap();
-                // Map<String, String> meta = (Map<String, String>) mapping.get("_meta");
+                LinkedHashMap<String, Object> mapping =
+                        (LinkedHashMap<String, Object>) mappingsResponse.mappings().get(index).sourceAsMap();
+                // Map<String, Object> meta = (Map<String, Object>) mapping.get("_meta");
                 // Map<String, Object> properties = (Map<String, Object>) mapping.get("properties");
+
+                schema = parseMapping(mapping);
+
+                logger.info(schema.toString());
             } catch (Exception error) {
                 logger.error("Error mapping index:", error);
+                schema = SchemaBuilder.newBuilder().build();
             }
         }
 
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
+                schema, Collections.emptySet());
+
+        /**
         SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
+
 
         tableSchemaBuilder.addIntField("year")
          .addIntField("month")
@@ -420,9 +477,7 @@ public class ElasticsearchMetadataHandler
          //This metadata field is for our own use, Athena will ignore and pass along fields it doesn't expect.
          //we will use this later when we implement doGetTableLayout(...)
          .addMetadata("partitionCols", "year,month,day");
-
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(),
-                tableSchemaBuilder.build(), Collections.emptySet());
+        */
     }
 
     /**
