@@ -161,7 +161,7 @@ public class ElasticsearchMetadataHandler
                                            String spillPrefix)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
-        this.awsGlue = getAwsGlue();
+        this.awsGlue = awsGlue;
         this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
                 System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
         this.username = "";
@@ -267,9 +267,15 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * getClient()
+     * getClient
      *
      * Returns a client based on the autoDiscoverEndpoint environment variable.
+     *
+     * @param endpoint is the Elasticsearch cluster's domain endpoint.
+     * @return an Elasticsearch Rest client. If autoDiscoverEndpoint = true, the client is injected
+     *          with AWS Credentials. If autoDiscoverEndpoint = false and username/password are not
+     *          empty, it is injected with username/password credentials. Otherwise a default client
+     *          with no credentials is returned.
      */
     private RestHighLevelClient getClient(String endpoint)
     {
@@ -356,50 +362,6 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * parseMapping
-     *
-     * Parses the response to GET index/_mapping recursively to derive the index's schema.
-     *
-     * @param prefix is the parent field names in the mapping structure. The final field-name will be
-     *               a concatenation of the prefix and the current field-name (e.g. 'address.zip').
-     * @param mapping is the current map of the element in question (e.g. address).
-     * @param builder builds the schema at the iteration through the mapping.
-     */
-    private void parseMapping(String prefix, LinkedHashMap<String, Object> mapping, SchemaBuilder builder) {
-        for (String key : mapping.keySet()) {
-            String fieldName = prefix.isEmpty() ? key : prefix + "." + key;
-            LinkedHashMap<String, Object> currMapping = (LinkedHashMap<String, Object>) mapping.get(key);
-
-            if (currMapping.containsKey("properties")) {
-                parseMapping(fieldName, (LinkedHashMap<String, Object>) currMapping.get("properties"), builder);
-            }
-            else if (currMapping.containsKey("type")) {
-                builder.addStringField(fieldName);
-            }
-        }
-    }
-
-    /**
-     * parseMapping
-     *
-     * Main parsing method for the GET <index>/_mapping request.
-     *
-     * @param mapping is the structure that contains the mapping for all elements for the index.
-     * @return returns a Schema derived from the mapping.
-     */
-    private Schema parseMapping(LinkedHashMap<String, Object> mapping) {
-        LinkedHashMap<String, String> schema = new LinkedHashMap<>();
-        SchemaBuilder builder = SchemaBuilder.newBuilder();
-        String fieldName = "";
-
-        if (mapping.containsKey("properties")) {
-            parseMapping(fieldName, (LinkedHashMap<String, Object>) mapping.get("properties"), builder);
-        }
-
-        return builder.build();
-    }
-
-    /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
@@ -415,15 +377,23 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doGetTable: enter - " + request);
 
-        // Set<String> partitionColNames = new HashSet<>();
-        // partitionColNames.add("year");
-        // partitionColNames.add("month");
-        // partitionColNames.add("day");
-
         String domain = request.getTableName().getSchemaName();
         Schema schema = null;
 
-        if (domainMap.containsKey(domain)) {
+        try {
+            if (awsGlue != null) {
+                schema = super.doGetTable(allocator, request).getSchema();
+                logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
+            }
+        }
+        catch (Exception error) {
+            logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
+                    request.getTableName().getSchemaName(),
+                    request.getTableName().getTableName(),
+                    error);
+        }
+
+        if (schema == null && domainMap.containsKey(domain)) {
             String endpoint = domainMap.get(domain);
             String index = request.getTableName().getTableName();
 
@@ -433,25 +403,19 @@ public class ElasticsearchMetadataHandler
                 GetMappingsResponse mappingsResponse =
                         client.indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
 
-                /**
-                 * TODO: Add parsing logic.
-                 */
                 LinkedHashMap<String, Object> mapping =
                         (LinkedHashMap<String, Object>) mappingsResponse.mappings().get(index).sourceAsMap();
                 // Map<String, Object> meta = (Map<String, Object>) mapping.get("_meta");
                 // Map<String, Object> properties = (Map<String, Object>) mapping.get("properties");
 
-                schema = parseMapping(mapping);
-
-                logger.info(schema.toString());
+                schema = ElasticsearchHelper.parseMapping(mapping);
             } catch (Exception error) {
                 logger.error("Error mapping index:", error);
-                schema = SchemaBuilder.newBuilder().build();
             }
         }
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
-                schema, Collections.emptySet());
+                (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
 
         /**
         SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
