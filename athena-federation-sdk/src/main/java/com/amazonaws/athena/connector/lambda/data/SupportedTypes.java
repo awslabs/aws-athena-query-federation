@@ -36,6 +36,7 @@ public enum SupportedTypes
     BIT(Types.MinorType.BIT),
     DATEMILLI(Types.MinorType.DATEMILLI),
     DATEDAY(Types.MinorType.DATEDAY),
+    TIMESTAMPMILLITZ(Types.MinorType.TIMESTAMPMILLITZ),
     FLOAT8(Types.MinorType.FLOAT8),
     FLOAT4(Types.MinorType.FLOAT4),
     INT(Types.MinorType.INT),

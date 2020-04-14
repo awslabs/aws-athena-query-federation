@@ -33,6 +33,7 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.UInt1Vector;
 import org.apache.arrow.vector.UInt2Vector;
@@ -52,12 +53,15 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.codec.Charsets;
+import org.joda.time.DateTimeZone;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -196,20 +200,54 @@ public class BlockUtils
      *
      * @param vector The FieldVector into which we should write the provided value.
      * @param pos The row number that the value should be written to.
-     * @param value The value to write.
+     * @param rawValue The value to write.
      * @note This method incurs more Object overhead (heap churn) than using Arrow's native interface. Users of this Utility
      * should weigh their performance needs vs. the readability / ease of use.
      */
-    public static void setValue(FieldVector vector, int pos, Object value)
+    public static void setValue(FieldVector vector, int pos, Object rawValue)
     {
         try {
-            if (value == null) {
+            if (rawValue == null) {
                 setNullValue(vector, pos);
                 return;
+            }
+            /**
+             * We will convert any types that are not supported by setValue to types that are supported
+             * ex) (not supported) org.joda.time.LocalDateTime which is returned on read from vectors
+             * will be converted to (supported) java.time.ZonedDateTime
+             * @param o1 object with unsupported type
+             * @return another object with supported/converted type
+             */
+
+            Object value = rawValue;
+            if (rawValue instanceof org.joda.time.LocalDateTime) {
+                DateTimeZone dtz = ((org.joda.time.LocalDateTime) rawValue).getChronology().getZone();
+                long dateTimeWithTimeZone = ((org.joda.time.LocalDateTime) rawValue).toDateTime(dtz).getMillis();
+                value = DateTimeFormatterUtil.constructZonedDateTime(dateTimeWithTimeZone);
             }
 
             //TODO: add all types
             switch (vector.getMinorType()) {
+                case TIMESTAMPMILLITZ:
+                    if (value instanceof ZonedDateTime) {
+                        long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
+                    }
+                    else if (value instanceof LocalDateTime) {
+                        long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(
+                                ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
+                    }
+                    else if (value instanceof Date) {
+                        long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
+                                .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+                        long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
+                    }
+                    else {
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, (long) value);
+                    }
+                    break;
                 case DATEMILLI:
                     if (value instanceof Date) {
                         ((DateMilliVector) vector).setSafe(pos, ((Date) value).getTime());
@@ -328,7 +366,7 @@ public class BlockUtils
         }
         catch (RuntimeException ex) {
             String fieldName = (vector != null) ? vector.getField().getName() : "null_vector";
-            throw new RuntimeException("Unable to set value for field " + fieldName + " using value " + value, ex);
+            throw new RuntimeException("Unable to set value for field " + fieldName + " using value " + rawValue, ex);
         }
     }
 
@@ -379,6 +417,8 @@ public class BlockUtils
         switch (reader.getMinorType()) {
             case DATEDAY:
                 return String.valueOf(reader.readInteger());
+            case TIMESTAMPMILLITZ:
+                return String.valueOf(DateTimeFormatterUtil.constructZonedDateTime(reader.readLong()));
             case DATEMILLI:
                 return String.valueOf(reader.readLocalDateTime());
             case FLOAT8:
@@ -609,6 +649,8 @@ public class BlockUtils
     public static Class getJavaType(Types.MinorType minorType)
     {
         switch (minorType) {
+            case TIMESTAMPMILLITZ:
+                return ZonedDateTime.class;
             case DATEMILLI:
                 return LocalDateTime.class;
             case TINYINT:
@@ -666,6 +708,24 @@ public class BlockUtils
         try {
             //TODO: add all types
             switch (Types.getMinorTypeForArrowType(type)) {
+                case TIMESTAMPMILLITZ:
+                    long dateTimeWithZone;
+                    if (value instanceof ZonedDateTime) {
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
+                    }
+                    else if (value instanceof LocalDateTime) {
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(
+                                ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+                    }
+                    else if (value instanceof Date) {
+                        long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
+                                .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
+                    }
+                    else {
+                        dateTimeWithZone = (long) value;
+                    }
+                    writer.writeTimeStampMilliTZ(dateTimeWithZone);
                 case DATEMILLI:
                     if (value instanceof Date) {
                         writer.writeDateMilli(((Date) value).getTime());
@@ -820,6 +880,24 @@ public class BlockUtils
         ArrowType type = field.getType();
         try {
             switch (Types.getMinorTypeForArrowType(type)) {
+                case TIMESTAMPMILLITZ:
+                    long dateTimeWithZone;
+                    if (value instanceof ZonedDateTime) {
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
+                    }
+                    else if (value instanceof LocalDateTime) {
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(
+                                ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+                    }
+                    else if (value instanceof Date) {
+                        long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
+                                .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
+                    }
+                    else {
+                        dateTimeWithZone = (long) value;
+                    }
+                    writer.timeStampMilliTZ(field.getName()).writeTimeStampMilliTZ(dateTimeWithZone);
                 case DATEMILLI:
                     if (value instanceof Date) {
                         writer.dateMilli(field.getName()).writeDateMilli(((Date) value).getTime());
@@ -958,6 +1036,9 @@ public class BlockUtils
     private static void setNullValue(FieldVector vector, int pos)
     {
         switch (vector.getMinorType()) {
+            case TIMESTAMPMILLITZ:
+                ((TimeStampMilliTZVector) vector).setNull(pos);
+                break;
             case DATEMILLI:
                 ((DateMilliVector) vector).setNull(pos);
                 break;
@@ -1023,6 +1104,9 @@ public class BlockUtils
     {
         for (FieldVector vector : block.getFieldVectors()) {
             switch (vector.getMinorType()) {
+                case TIMESTAMPMILLITZ:
+                    ((TimeStampMilliTZVector) vector).setNull(row);
+                    break;
                 case DATEDAY:
                     ((DateDayVector) vector).setNull(row);
                     break;

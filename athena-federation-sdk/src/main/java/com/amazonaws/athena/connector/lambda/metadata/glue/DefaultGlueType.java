@@ -23,8 +23,11 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
+import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Defines the default mapping of AWS Glue Data Catalog types to Apache Arrow types. You can override these by
@@ -42,14 +45,20 @@ public enum DefaultGlueType
     BIT("boolean", Types.MinorType.BIT.getType()),
     VARBINARY("binary", Types.MinorType.VARBINARY.getType()),
     TIMESTAMP("timestamp", Types.MinorType.DATEMILLI.getType()),
+    // ZoneId.systemDefault().getId() is just a place holder, each row will have a TZ value
+    // otherwise fall back to the table configured default TZ
+    TIMESTAMPMILLITZ("timestamptz", new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, ZoneId.systemDefault().getId())),
     DATE("date", Types.MinorType.DATEDAY.getType());
 
     private static final Map<String, DefaultGlueType> TYPE_MAP = new HashMap<>();
+    private static final Set<String> NON_COMPARABALE_SET = new HashSet<>();
 
     static {
         for (DefaultGlueType next : DefaultGlueType.values()) {
             TYPE_MAP.put(next.id, next);
         }
+
+        NON_COMPARABALE_SET.add(DefaultGlueType.TIMESTAMPMILLITZ.name());
     }
 
     private String id;
@@ -84,5 +93,10 @@ public enum DefaultGlueType
     public ArrowType getArrowType()
     {
         return arrowType;
+    }
+
+    public static Set<String> getNonComparableSet()
+    {
+        return NON_COMPARABALE_SET;
     }
 }
