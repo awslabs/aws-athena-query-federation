@@ -32,25 +32,16 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.invoke.LambdaFunction;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
-import com.amazonaws.services.lambda.invoke.LambdaInvokerFactory;
-import com.amazonaws.services.lambda.invoke.LambdaInvokerFactoryConfig;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import static com.amazonaws.athena.connector.validation.ConnectorValidator.BLOCK_ALLOCATOR;
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
 /**
  * This class offers multiple convenience methods to retrieve metadata from a deployed Lambda.
@@ -83,7 +74,7 @@ public class LambdaMetadataProvider
     try (ListSchemasRequest request =
                  new ListSchemasRequest(identity, queryId, catalog)) {
       log.info("Submitting request: {}", request);
-      ListSchemasResponse response = (ListSchemasResponse) getService(metadataFunction).getMetadata(request);
+      ListSchemasResponse response = (ListSchemasResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -112,7 +103,7 @@ public class LambdaMetadataProvider
     try (ListTablesRequest request =
                  new ListTablesRequest(identity, queryId, catalog, schema)) {
       log.info("Submitting request: {}", request);
-      ListTablesResponse response = (ListTablesResponse) getService(metadataFunction).getMetadata(request);
+      ListTablesResponse response = (ListTablesResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -141,7 +132,7 @@ public class LambdaMetadataProvider
     try (GetTableRequest request =
                  new GetTableRequest(identity, queryId, catalog, tableName)) {
       log.info("Submitting request: {}", request);
-      GetTableResponse response = (GetTableResponse) getService(metadataFunction).getMetadata(request);
+      GetTableResponse response = (GetTableResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -176,7 +167,7 @@ public class LambdaMetadataProvider
     try (GetTableLayoutRequest request =
                  new GetTableLayoutRequest(identity, queryId, catalog, tableName, constraints, schema, partitionCols)) {
       log.info("Submitting request: {}", request);
-      GetTableLayoutResponse response = (GetTableLayoutResponse) getService(metadataFunction).getMetadata(request);
+      GetTableLayoutResponse response = (GetTableLayoutResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
     }
@@ -213,45 +204,12 @@ public class LambdaMetadataProvider
     try (GetSplitsRequest request =
                  new GetSplitsRequest(identity, queryId, catalog, tableName, partitions, partitionCols, constraints, contToken)) {
       log.info("Submitting request: {}", request);
-      GetSplitsResponse response = (GetSplitsResponse) getService(metadataFunction).getMetadata(request);
+      GetSplitsResponse response = (GetSplitsResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
     }
     catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public interface MetadataService
-  {
-    @LambdaFunction
-    MetadataResponse getMetadata(final MetadataRequest request);
-  }
-
-  public static final class Mapper
-          implements LambdaFunctionNameResolver
-  {
-    private final String metadataLambda;
-
-    private Mapper(String metadataLambda)
-    {
-      this.metadataLambda = metadataLambda;
-    }
-
-    @Override
-    public String getFunctionName(Method method, LambdaFunction lambdaFunction,
-                                  LambdaInvokerFactoryConfig lambdaInvokerFactoryConfig)
-    {
-      return metadataLambda;
-    }
-  }
-
-  private static MetadataService getService(String lambdaFunction)
-  {
-    return LambdaInvokerFactory.builder()
-                   .lambdaClient(AWSLambdaClientBuilder.defaultClient())
-                   .objectMapper(ObjectMapperFactory.create(BLOCK_ALLOCATOR))
-                   .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
-                   .build(MetadataService.class);
   }
 }
