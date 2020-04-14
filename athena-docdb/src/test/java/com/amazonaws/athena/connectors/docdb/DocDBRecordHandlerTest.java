@@ -32,6 +32,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
@@ -39,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
@@ -88,7 +91,7 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DocDBRecordHandlerTest
-    extends TestBase
+        extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(DocDBRecordHandlerTest.class);
 
@@ -99,6 +102,7 @@ public class DocDBRecordHandlerTest
     private S3BlockSpillReader spillReader;
     private Schema schemaForRead;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
+    private DocDBMetadataHandler mdHandler;
 
     @Rule
     public TestName testName = new TestName();
@@ -114,6 +118,21 @@ public class DocDBRecordHandlerTest
 
     @Mock
     private AmazonAthena mockAthena;
+
+    @Mock
+    private AWSGlue awsGlue;
+
+    @Mock
+    private AWSSecretsManager secretsManager;
+
+    @Mock
+    MongoDatabase mockDatabase;
+
+    @Mock
+    MongoCollection mockCollection;
+
+    @Mock
+    FindIterable mockIterable;
 
     @Before
     public void setUp()
@@ -151,6 +170,12 @@ public class DocDBRecordHandlerTest
         allocator = new BlockAllocatorImpl();
 
         amazonS3 = mock(AmazonS3.class);
+        mockDatabase = mock(MongoDatabase.class);
+        mockCollection = mock(MongoCollection.class);
+        mockIterable = mock(FindIterable.class);
+
+        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
 
         when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
                 .thenAnswer(new Answer<Object>()
@@ -186,6 +211,7 @@ public class DocDBRecordHandlerTest
 
         handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory);
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
+        mdHandler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix");
     }
 
     @After
@@ -215,11 +241,6 @@ public class DocDBRecordHandlerTest
         doc3.put("col3", 21.0D);
         doc3.put("unsupported",new UnsupportedType());
 
-        MongoDatabase mockDatabase = mock(MongoDatabase.class);
-        MongoCollection mockCollection = mock(MongoCollection.class);
-        FindIterable mockIterable = mock(FindIterable.class);
-        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
-        when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
@@ -274,11 +295,6 @@ public class DocDBRecordHandlerTest
             documents.add(DocumentGenerator.makeRandomRow(schemaForRead.getFields(), docNum));
         }
 
-        MongoDatabase mockDatabase = mock(MongoDatabase.class);
-        MongoCollection mockCollection = mock(MongoCollection.class);
-        FindIterable mockIterable = mock(FindIterable.class);
-        when(mockClient.getDatabase(eq(DEFAULT_SCHEMA))).thenReturn(mockDatabase);
-        when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
             return mockIterable;
@@ -333,6 +349,96 @@ public class DocDBRecordHandlerTest
                 }
             }
         }
+    }
+
+    @Test
+    public void nestedStructTest()
+            throws Exception
+    {
+        List<Document> documents = new ArrayList<>();
+        Document result = new Document();
+        documents.add(result);
+
+        Document listStruct1 = new Document();
+        listStruct1.put("SomeSubStruct", "someSubStruct1");
+        List<Document> subList = new ArrayList<>();
+        Document listSubStruct1 = new Document();
+        listSubStruct1.put("SomeSubSubStruct", "someSubSubStruct");
+        subList.add(listSubStruct1);
+        listStruct1.put("SomeSubList", subList);
+        Document listStruct2 = new Document();
+        listStruct2.put("SomeSubStruct1", "someSubStruct2");
+        List<Document> list = new ArrayList<>();
+        list.add(listStruct1);
+        list.add(listStruct1);
+        Document structWithList = new Document();
+        structWithList.put("SomeList", list);
+
+        Document simpleSubStruct = new Document();
+        simpleSubStruct.put("SomeSimpleSubStruct", "someSimpleSubStruct");
+        structWithList.put("SimpleSubStruct", simpleSubStruct);
+
+        result.put("ComplexStruct", structWithList);
+
+        Document simpleStruct = new Document();
+        simpleStruct.put("SomeSimpleStruct", "someSimpleStruct");
+        result.put("SimpleStruct", simpleStruct);
+
+        when(mockCollection.find()).thenReturn(mockIterable);
+        when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+        GetTableRequest req = new GetTableRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, TABLE_NAME);
+        GetTableResponse res = mdHandler.doGetTable(allocator, req);
+        logger.info("doGetTable - {}", res);
+
+        when(mockCollection.find(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: query[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.projection(any(Document.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+            logger.info("doReadRecordsNoSpill: projection[{}]", invocationOnMock.getArguments()[0]);
+            return mockIterable;
+        });
+        when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
+        when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
+
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                TABLE_NAME,
+                res.getSchema(),
+                Split.newBuilder(splitLoc, keyFactory.create()).add(DOCDB_CONN_STR, CONNECTION_STRING).build(),
+                new Constraints(constraintsMap),
+                100_000_000_000L, //100GB don't expect this to spill
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertTrue(response.getRecordCount() == 1);
+        String expectedString = "[ComplexStruct : {[SomeList : {{[SomeSubStruct : someSubStruct1]," +
+                "[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]},{[SomeSubStruct : someSubStruct1]," +
+                "[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}}]," +
+                "[SimpleSubStruct : {[SomeSimpleSubStruct : someSimpleSubStruct]}]}], " +
+                "[SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
+        assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
     }
 
     private class ByteHolder
