@@ -22,11 +22,21 @@ package com.amazonaws.connectors.athena.elasticsearch;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 
 class ElasticsearchHelper {
+
+    // Used in parseMapping() to store the _meta structure (the mapping containing the fields that should be
+    // considered a list).
+    private static LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
+
+    // Used in parseMapping() to build the schema recursively.
+    private static SchemaBuilder builder;
 
     /**
      * toArrowType
@@ -76,19 +86,27 @@ class ElasticsearchHelper {
      * @param prefix is the parent field names in the mapping structure. The final field-name will be
      *               a concatenation of the prefix and the current field-name (e.g. 'address.zip').
      * @param mapping is the current map of the element in question (e.g. address).
-     * @param builder builds the schema at the iteration through the mapping.
      */
-    private static void parseMapping(String prefix, LinkedHashMap<String, Object> mapping, SchemaBuilder builder)
+    private static void parseMapping(String prefix, LinkedHashMap<String, Object> mapping)
     {
         for (String key : mapping.keySet()) {
             String fieldName = prefix.isEmpty() ? key : prefix + "." + key;
             LinkedHashMap<String, Object> currMapping = (LinkedHashMap<String, Object>) mapping.get(key);
 
             if (currMapping.containsKey("properties")) {
-                parseMapping(fieldName, (LinkedHashMap<String, Object>) currMapping.get("properties"), builder);
+                parseMapping(fieldName, (LinkedHashMap<String, Object>) currMapping.get("properties"));
             }
             else if (currMapping.containsKey("type")) {
-                builder.addField(fieldName, toArrowType((String) currMapping.get("type")));
+                Field field = new Field(fieldName,
+                        FieldType.nullable(toArrowType((String) currMapping.get("type"))), null);
+
+                if (meta.containsKey(fieldName)) {
+                    builder.addField(new Field(fieldName, FieldType.nullable(Types.MinorType.LIST.getType()),
+                            Collections.singletonList(field)));
+                }
+                else {
+                    builder.addField(field);
+                }
             }
         }
     }
@@ -99,16 +117,18 @@ class ElasticsearchHelper {
      * Main parsing method for the GET <index>/_mapping request.
      *
      * @param mapping is the structure that contains the mapping for all elements for the index.
+     * @param _meta is the structure in the mapping containing the fields that should be considered a list.
      * @return a Schema derived from the mapping.
      */
-    public static Schema parseMapping(LinkedHashMap<String, Object> mapping)
+    public static Schema parseMapping(LinkedHashMap<String, Object> mapping, LinkedHashMap<String, Object> _meta)
     {
-        LinkedHashMap<String, String> schema = new LinkedHashMap<>();
-        SchemaBuilder builder = SchemaBuilder.newBuilder();
+        builder = SchemaBuilder.newBuilder();
         String fieldName = "";
+        meta.clear();
+        meta.putAll(_meta);
 
         if (mapping.containsKey("properties")) {
-            parseMapping(fieldName, (LinkedHashMap<String, Object>) mapping.get("properties"), builder);
+            parseMapping(fieldName, (LinkedHashMap<String, Object>) mapping.get("properties"));
         }
 
         return builder.build();

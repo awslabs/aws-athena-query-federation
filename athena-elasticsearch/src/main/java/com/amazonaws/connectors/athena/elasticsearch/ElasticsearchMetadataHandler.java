@@ -47,7 +47,6 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 
 // Apache APIs
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 
@@ -172,22 +171,83 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * setDomainMapping()
+     * getDomainList
+     *
+     * Gets a list of domain names.
+     *
+     * @return a list of domain-names stored in the domainMap.
+     */
+    private final Set<String> getDomainList()
+    {
+        return domainMap.keySet();
+    }
+
+    /**
+     * getDomainEndpoint
+     *
+     * Gets the domain's endpoint.
+     *
+     * @param domainName is the name associated with the endpoint.
+     * @return a String containing the endpoint associated with the domainName, or an empty String if the domain-
+     * name doesn't exist in the map.
+     */
+    private final String getDomainEndpoint(String domainName)
+    {
+        String endpoint = "";
+
+        if (domainMap.containsKey(domainName)) {
+            endpoint = domainMap.get(domainName);
+        }
+
+        return endpoint;
+    }
+
+    /**
+     * setDomainMapping(String, String)
      *
      * Populates the domainMap with domainName and domainEndpoint.
+     * NOTE: Only gets called from @Test
      */
+    @VisibleForTesting
     public final void setDomainMapping(String domainName, String domainEndpoint)
     {
-        logger.info("setDomainMapping: enter");
-
+        // NOTE: Only gets called from @Test.
         domainMap.put(domainName, domainEndpoint);
+    }
+
+    /**
+     * setDomainMapping(List<ElasticsearchDomainStatus>)
+     *
+     * Sets the domainMap with domain-names and corresponding endpoints retrieved from the AWS ES SDK.
+     *
+     * @param domainStatusList is a list of status objects returned by a listDomainNames request to the AWS ES SDK.
+     */
+    private final void setDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
+    {
+        domainMap.clear();
+        for (ElasticsearchDomainStatus domainStatus : domainStatusList) {
+            domainMap.put(domainStatus.getDomainName(), domainStatus.getEndpoint());
+        }
+    }
+
+    /**
+     * setDomainMapping(Map<String, String>)
+     *
+     * Sets the domainMap with domain-names and corresponding endpoints stored in a Map object.
+     *
+     * @param mapping is a map of domain-names and their corresponding endpoints.
+     */
+    private final void setDomainMapping(Map<String, String> mapping)
+    {
+        domainMap.clear();
+        domainMap.putAll(mapping);
     }
 
     /**
      * setDomainMapping()
      *
      * Populates the domainMap with domain-mapping from either the domain_mapping environment variable
-     * (auto_discover_endpoint == 'false'), or from the AWS ES SDK (auto_discover_endpoint == 'true').
+     * (auto_discover_endpoint is false), or from the AWS ES SDK (auto_discover_endpoint is true).
      * This method is called from the constructor(s) and from doListSchemaNames(). The call from the latter is used to
      * refresh the domainMap with the underlying assumption that domain(s) could have been added or deleted.
      */
@@ -197,6 +257,7 @@ public class ElasticsearchMetadataHandler
 
         if (autoDiscoverEndpoint) {
             // Get domain mapping via the AWS ES SDK (1.x).
+            // NOTE: Gets called at construction and each call to doListSchemaNames() when autoDiscoverEndpoint is true.
             try {
                 ListDomainNamesResult listDomainNamesResult = awsEsClient.listDomainNames(new ListDomainNamesRequest());
                 List<String> domainNames = new ArrayList<>();
@@ -209,22 +270,19 @@ public class ElasticsearchMetadataHandler
                 DescribeElasticsearchDomainsResult describeDomainsResult =
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
 
-                for (ElasticsearchDomainStatus domainStatus: describeDomainsResult.getDomainStatusList()) {
-                    domainMap.put(domainStatus.getDomainName(), domainStatus.getEndpoint());
-                }
+                setDomainMapping(describeDomainsResult.getDomainStatusList());
             }
             catch (Exception error) {
                 logger.error("Error getting list of domain names:", error);
             }
         }
         else {
-             // Get domain mapping from environment variables.
+            // Get domain mapping from environment variables.
             String domainMapping = System.getenv(DOMAIN_MAPPING);
-            if (domainMapping != null)
-                domainMap.putAll(domainSplitter.split(domainMapping));
+            if (domainMapping != null) {
+                setDomainMapping(domainSplitter.split(domainMapping));
+            }
         }
-
-        logger.info("setDomainMapping(): " + domainMap);
     }
 
     /**
@@ -310,13 +368,12 @@ public class ElasticsearchMetadataHandler
         logger.info("doListSchemaNames: enter - " + request);
 
         if (autoDiscoverEndpoint) {
-            // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initializes
+            // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initialize
             // the connector, the domainMap needs to be refreshed each time for Amazon ES.
-            domainMap.clear();
             setDomainMapping();
         }
 
-        return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
+        return new ListSchemasResponse(request.getCatalogName(), getDomainList());
     }
 
     /**
@@ -333,10 +390,9 @@ public class ElasticsearchMetadataHandler
         logger.info("doListTables: enter - " + request);
 
         List<TableName> indices = new ArrayList<>();
+        String endpoint = getDomainEndpoint(request.getSchemaName());
 
-        if (domainMap.containsKey(request.getSchemaName())) {
-            String endpoint = domainMap.get(request.getSchemaName());
-
+        if (!endpoint.isEmpty()) {
             try (RestHighLevelClient client = getClient(endpoint)) {
                 GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
                 GetAliasesResponse getAliasesResponse =
@@ -377,9 +433,9 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doGetTable: enter - " + request);
 
-        String domain = request.getTableName().getSchemaName();
         Schema schema = null;
 
+        // Look at GLUE catalog first.
         try {
             if (awsGlue != null) {
                 schema = super.doGetTable(allocator, request).getSchema();
@@ -393,55 +449,36 @@ public class ElasticsearchMetadataHandler
                     error);
         }
 
-        if (schema == null && domainMap.containsKey(domain)) {
-            String endpoint = domainMap.get(domain);
-            String index = request.getTableName().getTableName();
+        // Supplement GLUE catalog if not present.
+        if (schema == null) {
+            String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
 
-            try (RestHighLevelClient client = getClient(endpoint)) {
-                GetMappingsRequest mappingsRequest = new GetMappingsRequest();
-                mappingsRequest.indices(index);
-                GetMappingsResponse mappingsResponse =
-                        client.indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
+            if (!endpoint.isEmpty()) {
+                String index = request.getTableName().getTableName();
 
-                LinkedHashMap<String, Object> mapping =
-                        (LinkedHashMap<String, Object>) mappingsResponse.mappings().get(index).sourceAsMap();
-                // Map<String, Object> meta = (Map<String, Object>) mapping.get("_meta");
-                // Map<String, Object> properties = (Map<String, Object>) mapping.get("properties");
+                try (RestHighLevelClient client = getClient(endpoint)) {
+                    GetMappingsRequest mappingsRequest = new GetMappingsRequest();
+                    mappingsRequest.indices(index);
+                    GetMappingsResponse mappingsResponse =
+                            client.indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
 
-                schema = ElasticsearchHelper.parseMapping(mapping);
-            } catch (Exception error) {
-                logger.error("Error mapping index:", error);
+                    LinkedHashMap<String, Object> mapping =
+                            (LinkedHashMap<String, Object>) mappingsResponse.mappings().get(index).sourceAsMap();
+
+                    LinkedHashMap<String, Object> _meta = new LinkedHashMap<>();
+                    if (mapping.containsKey("_meta")) {
+                        _meta.putAll((LinkedHashMap<String, Object>) mapping.get("_meta"));
+                    }
+
+                    schema = ElasticsearchHelper.parseMapping(mapping, _meta);
+                } catch (Exception error) {
+                    logger.error("Error mapping index:", error);
+                }
             }
         }
 
         return new GetTableResponse(request.getCatalogName(), request.getTableName(),
                 (schema == null) ? SchemaBuilder.newBuilder().build() : schema, Collections.emptySet());
-
-        /**
-        SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
-
-
-        tableSchemaBuilder.addIntField("year")
-         .addIntField("month")
-         .addIntField("day")
-         .addStringField("account_id")
-         .addStringField("encrypted_payload")
-         .addStructField("transaction")
-         .addChildField("transaction", "id", Types.MinorType.INT.getType())
-         .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
-         //Metadata who's name matches a column name
-         //is interpreted as the description of that
-         //column when you run "show tables" queries.
-         .addMetadata("year", "The year that the payment took place in.")
-         .addMetadata("month", "The month that the payment took place in.")
-         .addMetadata("day", "The day that the payment took place in.")
-         .addMetadata("account_id", "The account_id used for this payment.")
-         .addMetadata("encrypted_payload", "A special encrypted payload.")
-         .addMetadata("transaction", "The payment transaction details.")
-         //This metadata field is for our own use, Athena will ignore and pass along fields it doesn't expect.
-         //we will use this later when we implement doGetTableLayout(...)
-         .addMetadata("partitionCols", "year,month,day");
-        */
     }
 
     /**
