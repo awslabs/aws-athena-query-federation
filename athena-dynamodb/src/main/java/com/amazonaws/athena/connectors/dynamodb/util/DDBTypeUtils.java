@@ -19,17 +19,20 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.util;
 
+import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
+import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -198,7 +201,30 @@ public final class DDBTypeUtils
         }
     }
 
-    public static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
+    public static Object coerceValueToExpectedType(Object value, Field field,
+                                                   Types.MinorType fieldType, DDBRecordMetadata recordMetadata)
+    {
+        if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
+            value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
+        }
+        else if ((fieldType.equals(Types.MinorType.DATEMILLI) || fieldType.equals(Types.MinorType.DATEDAY))
+                && (value instanceof String || value instanceof BigDecimal)) {
+            String dateTimeFormat = recordMetadata.getDateTimeFormat(field.getName());
+            if (value instanceof String && StringUtils.isEmpty(dateTimeFormat)) {
+                logger.info("Date format not in cache for column {}. Trying to infer format...", field.getName());
+                dateTimeFormat = DateTimeFormatterUtil.inferDateTimeFormat((String) value);
+                if (StringUtils.isNotEmpty(dateTimeFormat)) {
+                    logger.info("Adding datetime format {} for column {} to cache", dateTimeFormat, field.getName());
+                    recordMetadata.setDateTimeFormat(field.getName(), dateTimeFormat);
+                }
+            }
+            value = DDBTypeUtils.coerceDateTimeToExpectedType(value, fieldType,
+                    dateTimeFormat, recordMetadata.getDefaultTimeZone());
+        }
+        return value;
+    }
+
+    private static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
     {
         switch (fieldType) {
             case INT:
@@ -213,6 +239,38 @@ public final class DDBTypeUtils
                 return value.doubleValue();
             default:
                 return value;
+        }
+    }
+
+    private static Object coerceDateTimeToExpectedType(Object value, Types.MinorType fieldType,
+                                                      String customerConfiguredFormat, ZoneId defaultTimeZone)
+    {
+        try {
+            if (value instanceof String) {
+                switch (fieldType) {
+                    case DATEMILLI:
+                        return DateTimeFormatterUtil.stringToLocalDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
+                    case DATEDAY:
+                        return DateTimeFormatterUtil.stringToLocalDate((String) value, customerConfiguredFormat, defaultTimeZone);
+                    default:
+                        return value;
+                }
+            }
+            else if (value instanceof BigDecimal) {
+                switch (fieldType) {
+                    case DATEMILLI:
+                        return DateTimeFormatterUtil.bigDecimalToLocalDateTime((BigDecimal) value, defaultTimeZone);
+                    case DATEDAY:
+                        return DateTimeFormatterUtil.bigDecimalToLocalDate((BigDecimal) value, defaultTimeZone);
+                    default:
+                        return value;
+                }
+            }
+            return value;
+        }
+        catch (IllegalArgumentException ex) {
+            ex.printStackTrace();
+            return value;
         }
     }
 }

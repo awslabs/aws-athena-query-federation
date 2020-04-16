@@ -30,7 +30,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -48,6 +47,7 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.GetDatabasesResult;
 import com.amazonaws.services.glue.model.GetTableResult;
@@ -66,7 +66,9 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.MutableDateTime;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
@@ -81,6 +83,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DYNAMO_DB_FLAG;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
@@ -113,6 +118,9 @@ public class DynamoDBMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandlerTest.class);
 
+    @Rule
+    public TestName testName = new TestName();
+
     @Mock
     private AWSGlue glueClient;
 
@@ -129,6 +137,8 @@ public class DynamoDBMetadataHandlerTest
     @Before
     public void setup()
     {
+        logger.info("{}: enter", testName.getMethodName());
+
         allocator = new BlockAllocatorImpl();
         handler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
     }
@@ -137,14 +147,13 @@ public class DynamoDBMetadataHandlerTest
     public void tearDown()
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doListSchemaNamesGlueError()
             throws Exception
     {
-        logger.info("doListSchemaNamesDynamo: enter");
-
         when(glueClient.getDatabases(any())).thenThrow(new AmazonServiceException(""));
 
         ListSchemasRequest req = new ListSchemasRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
@@ -153,16 +162,12 @@ public class DynamoDBMetadataHandlerTest
         logger.info("doListSchemas - {}", res.getSchemas());
 
         assertThat(new ArrayList<>(res.getSchemas()), equalTo(Collections.singletonList(DEFAULT_SCHEMA)));
-
-        logger.info("doListSchemaNamesDynamo: exit");
     }
 
     @Test
     public void doListSchemaNamesGlue()
             throws Exception
     {
-        logger.info("doListSchemaNamesGlue: enter");
-
         GetDatabasesResult result = new GetDatabasesResult().withDatabaseList(
                 new Database().withName(DEFAULT_SCHEMA),
                 new Database().withName("ddb").withLocationUri(DYNAMO_DB_FLAG),
@@ -178,16 +183,12 @@ public class DynamoDBMetadataHandlerTest
         assertThat(res.getSchemas().size(), equalTo(2));
         assertThat(res.getSchemas().contains("default"), is(true));
         assertThat(res.getSchemas().contains("ddb"), is(true));
-
-        logger.info("doListSchemaNamesGlue: exit");
     }
 
     @Test
     public void doListTablesGlueAndDynamo()
             throws Exception
     {
-        logger.info("doListTablesGlueAndDynamo: enter");
-
         List<String> tableNames = new ArrayList<>();
         tableNames.add("table1");
         tableNames.add("table2");
@@ -221,19 +222,16 @@ public class DynamoDBMetadataHandlerTest
         List<TableName> expectedTables = tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(Collectors.toList());
         expectedTables.add(TEST_TABLE_NAME);
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table2"));
+        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table3"));
         expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table4"));
 
         assertThat(new HashSet<>(res.getTables()), equalTo(new HashSet<>(expectedTables)));
-
-        logger.info("doListTablesGlueAndDynamo: exit");
     }
 
     @Test
     public void doGetTable()
             throws Exception
     {
-        logger.info("doGetTable: enter");
-
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
         GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_NAME);
@@ -244,16 +242,12 @@ public class DynamoDBMetadataHandlerTest
         assertThat(res.getTableName().getSchemaName(), equalTo(DEFAULT_SCHEMA));
         assertThat(res.getTableName().getTableName(), equalTo(TEST_TABLE));
         assertThat(res.getSchema().getFields().size(), equalTo(10));
-
-        logger.info("doGetTable: exit");
     }
 
     @Test
     public void doGetEmptyTable()
             throws Exception
     {
-        logger.info("doGetEmptyTable: enter");
-
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
         GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
@@ -263,16 +257,12 @@ public class DynamoDBMetadataHandlerTest
 
         assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
         assertThat(res.getSchema().getFields().size(), equalTo(2));
-
-        logger.info("doGetEmptyTable: exit");
     }
 
     @Test
     public void testCaseInsensitiveResolve()
             throws Exception
     {
-        logger.info("doGetTable: enter");
-
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
         GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
@@ -281,16 +271,12 @@ public class DynamoDBMetadataHandlerTest
         logger.info("doGetTable - {}", res.getSchema());
 
         assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
-
-        logger.info("doGetTable: exit");
     }
 
     @Test
     public void doGetTableLayoutScan()
             throws Exception
     {
-        logger.info("doGetTableLayoutScan: enter");
-
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("col_3",
                 EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, true)
@@ -321,15 +307,12 @@ public class DynamoDBMetadataHandlerTest
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(true), ":v1", ItemUtils.toAttributeValue(null));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
-
-        logger.info("doGetTableLayoutScan: exit");
     }
 
     @Test
     public void doGetTableLayoutQueryIndex()
             throws Exception
     {
-        logger.info("doGetTableLayoutQueryIndex: enter");
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         SortedRangeSet.Builder dateValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEDAY.getType(), false);
         SortedRangeSet.Builder timeValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
@@ -370,16 +353,12 @@ public class DynamoDBMetadataHandlerTest
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(startTime), ":v1", ItemUtils.toAttributeValue(endTime));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
-
-        logger.info("doGetTableLayoutQueryIndex: exit");
     }
 
     @Test
     public void doGetSplitsScan()
             throws Exception
     {
-        logger.info("doGetSplitsScan: enter");
-
         GetTableLayoutResponse layoutResponse = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
@@ -418,8 +397,6 @@ public class DynamoDBMetadataHandlerTest
     public void doGetSplitsQuery()
             throws Exception
     {
-        logger.info("doGetSplitsQuery: enter");
-
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         EquatableValueSet.Builder valueSet = EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false);
         for (int i = 0; i < 2000; i++) {
@@ -460,20 +437,25 @@ public class DynamoDBMetadataHandlerTest
 
         assertThat(response.getContinuationToken(), equalTo(null));
         assertThat(response.getSplits().size(), equalTo(MAX_SPLITS_PER_REQUEST));
-
-        logger.info("doGetSplitsQuery: exit");
     }
 
     @Test
     public void validateSourceTableNamePropagation()
             throws Exception
     {
-        logger.info("validateSourceTableNamePropagation: enter");
+        List<Column> columns = new ArrayList<>();
+        columns.add(new Column().withName("col1").withType("int"));
+        columns.add(new Column().withName("col2").withType("bigint"));
+        columns.add(new Column().withName("col3").withType("string"));
 
+        Map<String, String> param = ImmutableMap.of(
+                SOURCE_TABLE_PROPERTY, TEST_TABLE,
+                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3",
+                DATETIME_FORMAT_MAPPING_PROPERTY, "col1=datetime1,col3=datetime3 ");
         Table table = new Table()
-                .withParameters(ImmutableMap.of(SOURCE_TABLE_PROPERTY, TEST_TABLE))
+                .withParameters(param)
                 .withPartitionKeys()
-                .withStorageDescriptor(new StorageDescriptor().withColumns());
+                .withStorageDescriptor(new StorageDescriptor().withColumns(columns));
         GetTableResult mockResult = new GetTableResult().withTable(table);
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
@@ -481,7 +463,9 @@ public class DynamoDBMetadataHandlerTest
         GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
         GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
-        assertThat(getTableResponse.getSchema().getCustomMetadata().get(SOURCE_TABLE_PROPERTY), equalTo(TEST_TABLE));
+        Map<String, String> customMetadata = getTableResponse.getSchema().getCustomMetadata();
+        assertThat(customMetadata.get(SOURCE_TABLE_PROPERTY), equalTo(TEST_TABLE));
+        assertThat(customMetadata.get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), equalTo("Col1=datetime1,Col3=datetime3"));
 
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(TEST_IDENTITY,
                 TEST_QUERY_ID,
@@ -494,7 +478,5 @@ public class DynamoDBMetadataHandlerTest
         GetTableLayoutResponse getTableLayoutResponse = handler.doGetTableLayout(allocator, getTableLayoutRequest);
         logger.info("validateSourceTableNamePropagation: GetTableLayoutResponse[{}]", getTableLayoutResponse);
         assertThat(getTableLayoutResponse.getPartitions().getSchema().getCustomMetadata().get(TABLE_METADATA), equalTo(TEST_TABLE));
-
-        logger.info("validateSourceTableNamePropagation: exit");
     }
 }

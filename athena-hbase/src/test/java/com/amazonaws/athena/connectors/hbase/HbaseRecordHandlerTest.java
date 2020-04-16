@@ -32,17 +32,22 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.hbase.connection.HBaseConnection;
 import com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory;
 import com.amazonaws.athena.connectors.hbase.connection.ResultProcessor;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Column;
+import com.amazonaws.services.glue.model.GetTableResult;
+import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
@@ -59,7 +64,9 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -85,17 +92,15 @@ import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class HbaseRecordHandlerTest
+    extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(HbaseRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
-    private String catalog = "default";
     private HbaseRecordHandler handler;
     private BlockAllocator allocator;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
@@ -103,6 +108,9 @@ public class HbaseRecordHandlerTest
     private S3BlockSpillReader spillReader;
     private Schema schemaForRead;
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
+
+    @Rule
+    public TestName testName = new TestName();
 
     @Mock
     private HBaseConnection mockClient;
@@ -123,7 +131,7 @@ public class HbaseRecordHandlerTest
     public void setUp()
             throws IOException
     {
-        logger.info("setUpBefore - enter");
+        logger.info("{}: enter", testName.getMethodName());
 
         when(mockConnFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
 
@@ -155,25 +163,19 @@ public class HbaseRecordHandlerTest
 
         handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory);
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
-
-        logger.info("setUpBefore - exit");
     }
 
     @After
     public void after()
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doReadRecordsNoSpill()
             throws Exception
     {
-        logger.info("doReadRecordsNoSpill: enter");
-
-        String schema = "schema1";
-        String table = "table1";
-
         List<Result> results = TestUtils.makeResults(100);
         ResultScanner mockScanner = mock(ResultScanner.class);
         when(mockScanner.iterator()).thenReturn(results.iterator());
@@ -201,10 +203,10 @@ public class HbaseRecordHandlerTest
                 .add(REGION_ID_FIELD, "fake_region_id")
                 .add(REGION_NAME_FIELD, "fake_region_name");
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                catalog,
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
                 "queryId-" + System.currentTimeMillis(),
-                new TableName(schema, table),
+                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
                 new Constraints(constraintsMap),
@@ -221,19 +223,12 @@ public class HbaseRecordHandlerTest
 
         assertTrue(response.getRecords().getRowCount() == 1);
         logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
-
-        logger.info("doReadRecordsNoSpill: exit");
     }
 
     @Test
     public void doReadRecordsSpill()
             throws Exception
     {
-        logger.info("doReadRecordsSpill: enter");
-
-        String schema = "schema1";
-        String table = "table1";
-
         List<Result> results = TestUtils.makeResults(10_000);
         ResultScanner mockScanner = mock(ResultScanner.class);
         when(mockScanner.iterator()).thenReturn(results.iterator());
@@ -261,10 +256,10 @@ public class HbaseRecordHandlerTest
                 .add(REGION_ID_FIELD, "fake_region_id")
                 .add(REGION_NAME_FIELD, "fake_region_name");
 
-        ReadRecordsRequest request = new ReadRecordsRequest(identity,
-                catalog,
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
                 "queryId-" + System.currentTimeMillis(),
-                new TableName(schema, table),
+                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
                 new Constraints(constraintsMap),
@@ -293,8 +288,6 @@ public class HbaseRecordHandlerTest
                 }
             }
         }
-
-        logger.info("doReadRecordsSpill: exit");
     }
 
     private class ByteHolder

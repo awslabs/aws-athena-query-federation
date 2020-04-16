@@ -83,7 +83,7 @@ import static org.mockito.Mockito.when;
 
 public class ExampleRecordHandlerTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(ExampleMetadataHandlerTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ExampleRecordHandlerTest.class);
 
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
     private RecordService recordService;
