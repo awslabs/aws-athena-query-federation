@@ -40,12 +40,8 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 
-// Apache APIs
+// Apache Arrow
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -55,7 +51,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Elasticsearch APIs
+// Elasticsearch
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.GetAliasesResponse;
@@ -63,32 +59,13 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
 
-// AWS SDK 1.x ES APIs
-import com.amazonaws.services.elasticsearch.AWSElasticsearch;
-import com.amazonaws.services.elasticsearch.AWSElasticsearchClientBuilder;
-import com.amazonaws.services.elasticsearch.model.DomainInfo;
-import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
-import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
-import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsResult;
-import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
-import com.amazonaws.services.elasticsearch.model.ElasticsearchDomainStatus;
-
-// Guava
-import com.google.common.base.Splitter;
-
-// XML
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 // Common
 import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.Base64;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -114,41 +91,15 @@ public class ElasticsearchMetadataHandler
     //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
 
-    // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
-    // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
-    // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
-    private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
-    private boolean autoDiscoverEndpoint;
-
-    // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
-    // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
-    // and the value = endpoint.
-    private static final String DOMAIN_MAPPING = "domain_mapping";
-
-    // A Map of the domain-names and their respective endpoints.
-    private static final Map<String, String> domainMap = new HashMap<>();
-
-    // Splitter for inline map properties extracted from the DOMAIN_MAPPING.
-    private static final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
-
-    // AWS ES Client for retrieving domain mapping info from the Amazon Elasticsearch Service.
-    private static final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
-
     private final AWSGlue awsGlue;
-    private String username, password;
 
     public ElasticsearchMetadataHandler()
     {
         //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
-        this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
-                System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        this.username = "";
-        this.password = "";
 
-        setDomainMapping();
-        setUsernamePassword();
+        ElasticsearchHelper.setDomainMapping();
     }
 
     @VisibleForTesting
@@ -161,198 +112,10 @@ public class ElasticsearchMetadataHandler
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
-        this.autoDiscoverEndpoint = System.getenv(AUTO_DISCOVER_ENDPOINT) != null &&
-                System.getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        this.username = "";
-        this.password = "";
 
-        setDomainMapping();
-        setUsernamePassword();
+        ElasticsearchHelper.setDomainMapping();
     }
 
-    /**
-     * getDomainList
-     *
-     * Gets a list of domain names.
-     *
-     * @return a list of domain-names stored in the domainMap.
-     */
-    private final Set<String> getDomainList()
-    {
-        return domainMap.keySet();
-    }
-
-    /**
-     * getDomainEndpoint
-     *
-     * Gets the domain's endpoint.
-     *
-     * @param domainName is the name associated with the endpoint.
-     * @return a String containing the endpoint associated with the domainName, or an empty String if the domain-
-     * name doesn't exist in the map.
-     */
-    private final String getDomainEndpoint(String domainName)
-    {
-        String endpoint = "";
-
-        if (domainMap.containsKey(domainName)) {
-            endpoint = domainMap.get(domainName);
-        }
-
-        return endpoint;
-    }
-
-    /**
-     * setDomainMapping(String, String)
-     *
-     * Populates the domainMap with domainName and domainEndpoint.
-     * NOTE: Only gets called from @Test
-     */
-    @VisibleForTesting
-    public final void setDomainMapping(String domainName, String domainEndpoint)
-    {
-        // NOTE: Only gets called from @Test.
-        domainMap.put(domainName, domainEndpoint);
-    }
-
-    /**
-     * setDomainMapping(List<ElasticsearchDomainStatus>)
-     *
-     * Sets the domainMap with domain-names and corresponding endpoints retrieved from the AWS ES SDK.
-     *
-     * @param domainStatusList is a list of status objects returned by a listDomainNames request to the AWS ES SDK.
-     */
-    private final void setDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
-    {
-        domainMap.clear();
-        for (ElasticsearchDomainStatus domainStatus : domainStatusList) {
-            domainMap.put(domainStatus.getDomainName(), domainStatus.getEndpoint());
-        }
-    }
-
-    /**
-     * setDomainMapping(Map<String, String>)
-     *
-     * Sets the domainMap with domain-names and corresponding endpoints stored in a Map object.
-     *
-     * @param mapping is a map of domain-names and their corresponding endpoints.
-     */
-    private final void setDomainMapping(Map<String, String> mapping)
-    {
-        domainMap.clear();
-        domainMap.putAll(mapping);
-    }
-
-    /**
-     * setDomainMapping()
-     *
-     * Populates the domainMap with domain-mapping from either the domain_mapping environment variable
-     * (auto_discover_endpoint is false), or from the AWS ES SDK (auto_discover_endpoint is true).
-     * This method is called from the constructor(s) and from doListSchemaNames(). The call from the latter is used to
-     * refresh the domainMap with the underlying assumption that domain(s) could have been added or deleted.
-     */
-    private void setDomainMapping()
-    {
-        logger.info("setDomainMapping: enter");
-
-        if (autoDiscoverEndpoint) {
-            // Get domain mapping via the AWS ES SDK (1.x).
-            // NOTE: Gets called at construction and each call to doListSchemaNames() when autoDiscoverEndpoint is true.
-            try {
-                ListDomainNamesResult listDomainNamesResult = awsEsClient.listDomainNames(new ListDomainNamesRequest());
-                List<String> domainNames = new ArrayList<>();
-                for (DomainInfo domainInfo : listDomainNamesResult.getDomainNames()) {
-                    domainNames.add(domainInfo.getDomainName());
-                }
-
-                DescribeElasticsearchDomainsRequest describeDomainsRequest = new DescribeElasticsearchDomainsRequest();
-                describeDomainsRequest.setDomainNames(domainNames);
-                DescribeElasticsearchDomainsResult describeDomainsResult =
-                        awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
-
-                setDomainMapping(describeDomainsResult.getDomainStatusList());
-            }
-            catch (Exception error) {
-                logger.error("Error getting list of domain names:", error);
-            }
-        }
-        else {
-            // Get domain mapping from environment variables.
-            String domainMapping = System.getenv(DOMAIN_MAPPING);
-            if (domainMapping != null) {
-                setDomainMapping(domainSplitter.split(domainMapping));
-            }
-        }
-    }
-
-    /**
-     * setUsernamePassword
-     *
-     * Sets the username and password from Secrets Manager when autoDiscoverEndpoint=false.
-     */
-    private void setUsernamePassword()
-    {
-        logger.info("setUsernamePassword: enter");
-
-        if (autoDiscoverEndpoint)
-            return;
-
-        AWSSecretsManager awsSecretsManager =
-                AWSSecretsManagerClientBuilder.standard().
-                        withCredentials(new DefaultAWSCredentialsProviderChain()).build();
-
-        try {
-            final String secretName = "elasticsearch-creds";
-            GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest().withSecretId(secretName);
-            GetSecretValueResult getSecretValueResult;
-            getSecretValueResult = awsSecretsManager.getSecretValue(getSecretValueRequest);
-            String secretString;
-
-            if (getSecretValueResult.getSecretString() != null) {
-                secretString = getSecretValueResult.getSecretString();
-            } else {
-                secretString = new String(Base64.getDecoder().decode(getSecretValueResult.getSecretBinary()).array());
-            }
-
-            Map<String, String> secrets = new ObjectMapper().readValue(secretString, HashMap.class);
-
-            username = secrets.get("username");
-            password = secrets.get("password");
-        }
-        catch (Exception error) {
-            logger.error("Error accessing Secrets Manager:", error);
-        }
-    }
-
-    /**
-     * getClient
-     *
-     * Returns a client based on the autoDiscoverEndpoint environment variable.
-     *
-     * @param endpoint is the Elasticsearch cluster's domain endpoint.
-     * @return an Elasticsearch Rest client. If autoDiscoverEndpoint = true, the client is injected
-     *          with AWS Credentials. If autoDiscoverEndpoint = false and username/password are not
-     *          empty, it is injected with username/password credentials. Otherwise a default client
-     *          with no credentials is returned.
-     */
-    private RestHighLevelClient getClient(String endpoint)
-    {
-        logger.info("getClient: enter - " + endpoint);
-
-        if (autoDiscoverEndpoint) {
-            // For Amazon Elasticsearch service use client with injected AWS Credentials.
-            return new AwsRestHighLevelClient.Builder(endpoint).
-                    setCredentials(new DefaultAWSCredentialsProviderChain()).build();
-        }
-        else if (!username.isEmpty() && !password.isEmpty()) {
-            // Create a client injected with username/password credentials.
-            return new AwsRestHighLevelClient.Builder(endpoint).
-                    setCredentials(username, password).build();
-        }
-
-        // Default client.
-        return new AwsRestHighLevelClient.Builder(endpoint).build();
-    }
 
     /**
      * Used to get the list of domains (aka databases) for the Elasticsearch service.
@@ -367,13 +130,13 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doListSchemaNames: enter - " + request);
 
-        if (autoDiscoverEndpoint) {
+        if (ElasticsearchHelper.isAutoDiscoverEndpoint()) {
             // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initialize
             // the connector, the domainMap needs to be refreshed each time for Amazon ES.
-            setDomainMapping();
+            ElasticsearchHelper.setDomainMapping();
         }
 
-        return new ListSchemasResponse(request.getCatalogName(), getDomainList());
+        return new ListSchemasResponse(request.getCatalogName(), ElasticsearchHelper.getDomainList());
     }
 
     /**
@@ -390,10 +153,10 @@ public class ElasticsearchMetadataHandler
         logger.info("doListTables: enter - " + request);
 
         List<TableName> indices = new ArrayList<>();
-        String endpoint = getDomainEndpoint(request.getSchemaName());
+        String endpoint = ElasticsearchHelper.getDomainEndpoint(request.getSchemaName());
 
         if (!endpoint.isEmpty()) {
-            try (RestHighLevelClient client = getClient(endpoint)) {
+            try (RestHighLevelClient client = ElasticsearchHelper.getClient(endpoint)) {
                 GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
                 GetAliasesResponse getAliasesResponse =
                         client.indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
@@ -451,12 +214,12 @@ public class ElasticsearchMetadataHandler
 
         // Supplement GLUE catalog if not present.
         if (schema == null) {
-            String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
+            String endpoint = ElasticsearchHelper.getDomainEndpoint(request.getTableName().getSchemaName());
 
             if (!endpoint.isEmpty()) {
                 String index = request.getTableName().getTableName();
 
-                try (RestHighLevelClient client = getClient(endpoint)) {
+                try (RestHighLevelClient client = ElasticsearchHelper.getClient(endpoint)) {
                     GetMappingsRequest mappingsRequest = new GetMappingsRequest();
                     mappingsRequest.indices(index);
                     GetMappingsResponse mappingsResponse =
