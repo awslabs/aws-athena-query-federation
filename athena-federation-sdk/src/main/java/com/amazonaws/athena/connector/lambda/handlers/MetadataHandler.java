@@ -355,6 +355,7 @@ public abstract class MetadataHandler
         ) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
             partitions.constrain(constraintEvaluator);
+            partitions.constrain(constraintEvaluator);
             SimpleBlockWriter blockWriter = new SimpleBlockWriter(partitions);
             getPartitions(blockWriter, request, queryStatusChecker);
             return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);

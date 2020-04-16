@@ -204,10 +204,10 @@ public class BlockUtils
      * @note This method incurs more Object overhead (heap churn) than using Arrow's native interface. Users of this Utility
      * should weigh their performance needs vs. the readability / ease of use.
      */
-    public static void setValue(FieldVector vector, int pos, Object rawValue)
+    public static void setValue(FieldVector vector, int pos, Object value)
     {
         try {
-            if (rawValue == null) {
+            if (value == null) {
                 setNullValue(vector, pos);
                 return;
             }
@@ -215,20 +215,16 @@ public class BlockUtils
              * We will convert any types that are not supported by setValue to types that are supported
              * ex) (not supported) org.joda.time.LocalDateTime which is returned on read from vectors
              * will be converted to (supported) java.time.ZonedDateTime
-             * @param o1 object with unsupported type
-             * @return another object with supported/converted type
              */
-
-            Object value = rawValue;
-            if (rawValue instanceof org.joda.time.LocalDateTime) {
-                DateTimeZone dtz = ((org.joda.time.LocalDateTime) rawValue).getChronology().getZone();
-                long dateTimeWithTimeZone = ((org.joda.time.LocalDateTime) rawValue).toDateTime(dtz).getMillis();
-                value = DateTimeFormatterUtil.constructZonedDateTime(dateTimeWithTimeZone);
-            }
 
             //TODO: add all types
             switch (vector.getMinorType()) {
                 case TIMESTAMPMILLITZ:
+                    if (value instanceof org.joda.time.LocalDateTime) {
+                        DateTimeZone dtz = ((org.joda.time.LocalDateTime) value).getChronology().getZone();
+                        long dateTimeWithZone = ((org.joda.time.LocalDateTime) value).toDateTime(dtz).getMillis();
+                        ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
+                    }
                     if (value instanceof ZonedDateTime) {
                         long dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
                         ((TimeStampMilliTZVector) vector).setSafe(pos, dateTimeWithZone);
@@ -366,7 +362,7 @@ public class BlockUtils
         }
         catch (RuntimeException ex) {
             String fieldName = (vector != null) ? vector.getField().getName() : "null_vector";
-            throw new RuntimeException("Unable to set value for field " + fieldName + " using value " + rawValue, ex);
+            throw new RuntimeException("Unable to set value for field " + fieldName + " using value " + value, ex);
         }
     }
 
