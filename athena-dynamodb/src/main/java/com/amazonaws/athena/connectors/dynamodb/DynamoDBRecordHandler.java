@@ -50,6 +50,7 @@ import com.google.common.cache.LoadingCache;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
@@ -135,7 +137,7 @@ public class DynamoDBRecordHandler
         // use the property instead of the request table name because of case sensitivity
         String tableName = split.getProperty(TABLE_METADATA);
         invokerCache.get(tableName).setBlockSpiller(spiller);
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName);
+        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema());
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
         long numRows = 0;
         AtomicLong numResultRows = new AtomicLong(0);
@@ -201,7 +203,7 @@ public class DynamoDBRecordHandler
     /*
     Converts a split into a Query or Scan request
      */
-    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName)
+    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -218,6 +220,12 @@ public class DynamoDBRecordHandler
                 throw new RuntimeException(e);
             }
         }
+
+        // Only read columns that are needed in the query
+        String projectionExpression = schema.getFields()
+                .stream()
+                .map(field -> field.getName())
+                .collect(Collectors.joining(","));
 
         boolean isQuery = split.getProperty(SEGMENT_ID_PROPERTY) == null;
 
@@ -239,7 +247,8 @@ public class DynamoDBRecordHandler
                     .withKeyConditionExpression(keyConditionExpression)
                     .withFilterExpression(nonKeyFilter)
                     .withExpressionAttributeNames(expressionAttributeNames)
-                    .withExpressionAttributeValues(expressionAttributeValues);
+                    .withExpressionAttributeValues(expressionAttributeValues)
+                    .withProjectionExpression(projectionExpression);
         }
         else {
             int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
@@ -251,16 +260,17 @@ public class DynamoDBRecordHandler
                     .withTotalSegments(segmentCount)
                     .withFilterExpression(nonKeyFilter)
                     .withExpressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
-                    .withExpressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues);
+                    .withExpressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
+                    .withProjectionExpression(projectionExpression);
         }
     }
 
     /*
     Creates an iterator that can iterate through a Query or Scan, sending paginated requests as necessary
      */
-    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName)
+    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema)
     {
-        AmazonWebServiceRequest request = buildReadRequest(split, tableName);
+        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema);
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();
