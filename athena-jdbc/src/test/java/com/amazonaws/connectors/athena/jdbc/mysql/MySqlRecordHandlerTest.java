@@ -127,24 +127,24 @@ public class MySqlRecordHandlerTest
                 .put("testCol8", valueSet8)
                 .build());
 
-        String expectedSql = "SELECT `testCol7`, `testCol6`, `testCol8`, `testCol3`, `testCol2`, `testCol5`, `testCol4`, `testCol1` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol7` = ?) AND (`testCol6` = ?) AND (`testCol8` = ?) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND (`testCol5` = ?) AND (`testCol4` = ?) AND (`testCol1` IN (?,?))";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
         PreparedStatement preparedStatement = this.mySqlRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(10, 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(11, 2);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(6, "1");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(7, "10");
-        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(4, 2L);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(5, 20L);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setFloat(9, 1.1F);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setInt(2, 2);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(3, "1");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(4, "10");
+        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(5, 2L);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setLong(6, 20L);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setFloat(7, 1.1F);
         Mockito.verify(preparedStatement, Mockito.times(1)).setShort(8, (short) 1);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setByte(2, (byte) 0);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(1, 1.2d);
-        Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(3, true);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setByte(9, (byte) 0);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setDouble(10, 1.2d);
+        Mockito.verify(preparedStatement, Mockito.times(1)).setBoolean(11, true);
     }
 
     private ValueSet getSingleValueSet(Object value) {
