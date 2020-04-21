@@ -28,7 +28,6 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,8 @@ import java.util.Map;
  */
 public class SchemaBuilder
 {
-    private final Map<String, Field> fields = new HashMap<>();
+    //Using LinkedHashMap to maintain the order of elements in fields and present consistent schema view.
+    private final Map<String, Field> fields = new LinkedHashMap<>();
     private final ImmutableMap.Builder<String, String> metadata = ImmutableMap.builder();
     //Using LinkedHashMap because Apache Arrow makes field order important so honoring that contract here
     private final Map<String, FieldBuilder> nestedFieldBuilderMap = new LinkedHashMap<>();
