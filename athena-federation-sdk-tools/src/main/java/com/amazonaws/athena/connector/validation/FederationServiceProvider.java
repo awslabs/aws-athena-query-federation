@@ -43,7 +43,7 @@ public class FederationServiceProvider
 {
     private static final Logger log = LoggerFactory.getLogger(FederationServiceProvider.class);
 
-    private static final String UNKNOWN_SUFFIX = "_unknown";
+    private static final String VALIDATION_SUFFIX = "_validation";
 
     private static final Map<String, FederationService> serviceCache = new ConcurrentHashMap<>();
 
@@ -103,6 +103,6 @@ public class FederationServiceProvider
 
     public static String generateQueryId()
     {
-        return UUID.randomUUID().toString() + UNKNOWN_SUFFIX;
+        return UUID.randomUUID().toString() + VALIDATION_SUFFIX;
     }
 }
