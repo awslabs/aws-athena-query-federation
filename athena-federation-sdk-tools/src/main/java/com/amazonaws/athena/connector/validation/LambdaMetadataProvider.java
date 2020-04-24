@@ -39,8 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.generateQueryId;
 import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
 /**
@@ -49,7 +49,6 @@ import static com.amazonaws.athena.connector.validation.FederationServiceProvide
 public class LambdaMetadataProvider
 {
   private static final Logger log = LoggerFactory.getLogger(LambdaMetadataProvider.class);
-  private static final String UNKNOWN_SUFFIX = "_unknown";
 
   private LambdaMetadataProvider()
   {
@@ -68,7 +67,7 @@ public class LambdaMetadataProvider
                                          String metadataFunction,
                                          FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + UNKNOWN_SUFFIX;
+    String queryId = generateQueryId();
     log.info("Submitting ListSchemasRequest with ID " + queryId);
 
     try (ListSchemasRequest request =
@@ -97,7 +96,7 @@ public class LambdaMetadataProvider
                                          String metadataFunction,
                                          FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + UNKNOWN_SUFFIX;
+    String queryId = generateQueryId();
     log.info("Submitting ListTablesRequest with ID " + queryId);
 
     try (ListTablesRequest request =
@@ -126,7 +125,7 @@ public class LambdaMetadataProvider
                                        String metadataFunction,
                                        FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + UNKNOWN_SUFFIX;
+    String queryId = generateQueryId();
     log.info("Submitting GetTableRequest with ID " + queryId);
 
     try (GetTableRequest request =
@@ -161,7 +160,7 @@ public class LambdaMetadataProvider
                                      String metadataFunction,
                                      FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + UNKNOWN_SUFFIX;
+    String queryId = generateQueryId();
     log.info("Submitting GetTableLayoutRequest with ID " + queryId);
 
     try (GetTableLayoutRequest request =
@@ -198,7 +197,7 @@ public class LambdaMetadataProvider
                                             String metadataFunction,
                                             FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + UNKNOWN_SUFFIX;
+    String queryId = generateQueryId();
     log.info("Submitting GetSplitsRequest with ID " + queryId);
 
     try (GetSplitsRequest request =

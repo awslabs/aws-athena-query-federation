@@ -29,8 +29,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
-
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.generateQueryId;
 import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
 /**
@@ -68,7 +67,7 @@ public class LambdaRecordProvider
                                                 String recordFunction,
                                                 FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + "_unknown";
+    String queryId = generateQueryId();
     log.info("Submitting ReadRecordsRequest with ID " + queryId);
 
     try (ReadRecordsRequest request =
