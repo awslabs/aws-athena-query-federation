@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.request;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -31,10 +32,11 @@ import static java.util.Objects.requireNonNull;
 public class PingResponse
         extends FederationResponse
 {
-    private final int capabilities;
     private final String catalogName;
     private final String queryId;
     private final String sourceType;
+    private final int capabilities;
+    private final int serDeVersion;
 
     /**
      *
@@ -47,7 +49,8 @@ public class PingResponse
     public PingResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("queryId") String queryId,
             @JsonProperty("sourceType") String sourceType,
-            @JsonProperty("capabilities") int capabilities)
+            @JsonProperty("capabilities") int capabilities,
+            @JsonProperty("serDeVersion") int serDeVersion)
     {
         requireNonNull(catalogName, "catalogName is null");
         requireNonNull(queryId, "queryId is null");
@@ -55,6 +58,8 @@ public class PingResponse
         this.queryId = queryId;
         this.sourceType = sourceType;
         this.capabilities = capabilities;
+        // vanilla ObjectMapper defaults to zero on deserialization when not explicitly set for ints, but we want to default to 1
+        this.serDeVersion = serDeVersion != 0 ? serDeVersion : 1;
     }
 
     /**
@@ -100,6 +105,17 @@ public class PingResponse
         return capabilities;
     }
 
+    /**
+     * Returns the version of serialization used by the pinged endpoint.
+     *
+     * @return The version of serialization used by the pinged endpoint.
+     */
+    @JsonProperty("serDeVersion")
+    public int getSerDeVersion()
+    {
+        return serDeVersion;
+    }
+
     @Override
     public void close()
             throws Exception
@@ -115,6 +131,32 @@ public class PingResponse
                 ", queryId='" + queryId + '\'' +
                 ", sourceType='" + sourceType + '\'' +
                 ", capabilities='" + capabilities + '\'' +
+                ", serDeVersion='" + serDeVersion + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        PingResponse that = (PingResponse) o;
+
+        return Objects.equal(this.getCatalogName(), that.getCatalogName())
+                && Objects.equal(this.queryId, that.queryId)
+                && Objects.equal(this.sourceType, that.sourceType)
+                && Objects.equal(this.capabilities, that.capabilities)
+                && Objects.equal(this.serDeVersion, that.serDeVersion);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hashCode(catalogName, queryId, sourceType, capabilities, serDeVersion);
     }
 }

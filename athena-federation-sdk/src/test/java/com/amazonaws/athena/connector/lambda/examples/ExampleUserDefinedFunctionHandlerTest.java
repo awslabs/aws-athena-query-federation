@@ -27,9 +27,10 @@ import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.projectors.ArrowValueProjector;
 import com.amazonaws.athena.connector.lambda.data.projectors.ProjectorUtils;
+import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperUtil;
+import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
@@ -71,7 +72,7 @@ public class ExampleUserDefinedFunctionHandlerTest
 
         this.exampleUserDefinedFunctionHandler = new ExampleUserDefinedFunctionHandler();
         this.allocator = new BlockAllocatorImpl();
-        this.mapper = ObjectMapperFactory.create(allocator);
+        this.mapper = VersionedObjectMapperFactory.create(allocator);
     }
 
     @After
@@ -200,7 +201,7 @@ public class ExampleUserDefinedFunctionHandlerTest
                 outputSchema,
                 methodName,
                 UserDefinedFunctionType.SCALAR);
-        ObjectMapperUtil.assertSerialization(request, request.getClass());
+        ObjectMapperUtil.assertSerialization(request);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         mapper.writeValue(out, request);
@@ -209,8 +210,8 @@ public class ExampleUserDefinedFunctionHandlerTest
 
         exampleUserDefinedFunctionHandler.handleRequest(byteArrayInputStream, outputStream, null);
 
-        UserDefinedFunctionResponse udfResponse = mapper.readValue(outputStream.toByteArray(), UserDefinedFunctionResponse.class);
-        ObjectMapperUtil.assertSerialization(udfResponse, udfResponse.getClass());
+        UserDefinedFunctionResponse udfResponse = (UserDefinedFunctionResponse) mapper.readValue(outputStream.toByteArray(), FederationResponse.class);
+        ObjectMapperUtil.assertSerialization(udfResponse);
 
         return udfResponse;
     }

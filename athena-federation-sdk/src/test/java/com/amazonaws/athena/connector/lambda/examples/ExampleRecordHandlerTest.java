@@ -207,10 +207,10 @@ public class ExampleRecordHandlerTest
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );
-            ObjectMapperUtil.assertSerialization(request, request.getClass());
+            ObjectMapperUtil.assertSerialization(request);
 
             RecordResponse rawResponse = recordService.readRecords(request);
-            ObjectMapperUtil.assertSerialization(rawResponse, rawResponse.getClass());
+            ObjectMapperUtil.assertSerialization(rawResponse);
 
             assertTrue(rawResponse instanceof ReadRecordsResponse);
 
@@ -248,10 +248,10 @@ public class ExampleRecordHandlerTest
                     1_600_000L, //~1.5MB so we should see some spill
                     1000L
             );
-            ObjectMapperUtil.assertSerialization(request, request.getClass());
+            ObjectMapperUtil.assertSerialization(request);
 
             RecordResponse rawResponse = recordService.readRecords(request);
-            ObjectMapperUtil.assertSerialization(rawResponse, rawResponse.getClass());
+            ObjectMapperUtil.assertSerialization(rawResponse);
 
             assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 

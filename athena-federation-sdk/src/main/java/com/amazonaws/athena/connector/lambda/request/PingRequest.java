@@ -23,6 +23,7 @@ package com.amazonaws.athena.connector.lambda.request;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -90,5 +91,26 @@ public class PingRequest
                 "catalogName='" + catalogName + '\'' +
                 ", queryId='" + queryId + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        PingRequest that = (PingRequest) o;
+
+        return Objects.equal(this.getCatalogName(), that.getCatalogName());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hashCode(getCatalogName());
     }
 }

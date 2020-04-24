@@ -1,0 +1,38 @@
+{
+  "@type" : "GetSplitsResponse",
+  "catalogName" : "test-catalog",
+  "splits" : [ {
+    "spillLocation" : {
+      "@type" : "S3SpillLocation",
+      "bucket" : "athena-virtuoso-test",
+      "key" : "lambda-spill/test-query-id/test-split-id-1",
+      "directory" : true
+    },
+    "encryptionKey" : {
+      "key" : "dGVzdC1rZXktMQ==",
+      "nonce" : "dGVzdC1ub25jZS0x"
+    },
+    "properties" : {
+      "month" : "11",
+      "year" : "2017",
+      "day" : "1"
+    }
+  }, {
+    "spillLocation" : {
+      "@type" : "S3SpillLocation",
+      "bucket" : "athena-virtuoso-test",
+      "key" : "lambda-spill/test-query-id/test-split-id-2",
+      "directory" : true
+    },
+    "encryptionKey" : {
+      "key" : "dGVzdC1rZXktMg==",
+      "nonce" : "dGVzdC1ub25jZS0y"
+    },
+    "properties" : {
+      "month" : "11",
+      "year" : "2017",
+      "day" : "2"
+    }
+  } ],
+  "continuationToken" : "test-continuation-token"
+}

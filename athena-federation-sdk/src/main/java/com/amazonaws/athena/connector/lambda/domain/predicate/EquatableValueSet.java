@@ -64,7 +64,7 @@ public class EquatableValueSet
      * @param nullAllowed True if null values should be considered part of this ValueSet, False otherwise.
      */
     @JsonCreator
-    protected EquatableValueSet(
+    public EquatableValueSet(
             @JsonProperty("valueBlock") Block valueBlock,
             @JsonProperty("whiteList") boolean whiteList,
             @JsonProperty("nullAllowed") boolean nullAllowed)

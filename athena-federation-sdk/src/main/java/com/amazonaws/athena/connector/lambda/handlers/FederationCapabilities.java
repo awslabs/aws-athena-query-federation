@@ -25,10 +25,14 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * Athena. You can think of this like a version number that is specific to the feature set
  * and protocol used by the SDK. Purely client side changes in the SDK would not be expected
  * to change the capabilities.
+ *
+ * Version history:
+ * 23 - initial preview release
+ * 24 - explicit, versioned serialization introduced
  */
 public class FederationCapabilities
 {
     private FederationCapabilities() {}
 
-    protected static final int CAPABILITIES = 23;
+    protected static final int CAPABILITIES = 24;
 }

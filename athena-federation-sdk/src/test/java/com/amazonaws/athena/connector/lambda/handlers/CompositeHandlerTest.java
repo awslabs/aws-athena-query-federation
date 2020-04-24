@@ -118,7 +118,7 @@ public class CompositeHandlerTest
                 .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
 
         when(mockMetadataHandler.doPing(any(PingRequest.class)))
-                .thenReturn(new PingResponse("catalog", "queryId", "type", 23));
+                .thenReturn(new PingResponse("catalog", "queryId", "type", 23, 2));
 
         when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
                 .thenReturn(new ReadRecordsResponse("catalog",

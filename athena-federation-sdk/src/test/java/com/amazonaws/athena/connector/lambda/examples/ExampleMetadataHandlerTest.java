@@ -100,9 +100,9 @@ public class ExampleMetadataHandlerTest
     {
         logger.info("doListSchemas - enter");
         ListSchemasRequest req = new ListSchemasRequest(IdentityUtil.fakeIdentity(), "queryId", "default");
-        ObjectMapperUtil.assertSerialization(req, req.getClass());
+        ObjectMapperUtil.assertSerialization(req);
         ListSchemasResponse res = metadataHandler.doListSchemaNames(allocator, req);
-        ObjectMapperUtil.assertSerialization(res, res.getClass());
+        ObjectMapperUtil.assertSerialization(res);
         logger.info("doListSchemas - {}", res.getSchemas());
         assertFalse(res.getSchemas().isEmpty());
         logger.info("doListSchemas - exit");
@@ -113,9 +113,9 @@ public class ExampleMetadataHandlerTest
     {
         logger.info("doListTables - enter");
         ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(), "queryId", "default", null);
-        ObjectMapperUtil.assertSerialization(req, req.getClass());
+        ObjectMapperUtil.assertSerialization(req);
         ListTablesResponse res = metadataHandler.doListTables(allocator, req);
-        ObjectMapperUtil.assertSerialization(res, res.getClass());
+        ObjectMapperUtil.assertSerialization(res);
         logger.info("doListTables - {}", res.getTables());
         assertFalse(res.getTables().isEmpty());
         logger.info("doListTables - exit");
@@ -127,9 +127,9 @@ public class ExampleMetadataHandlerTest
         logger.info("doGetTable - enter");
         GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
                 new TableName("custom_source", "fake_table"));
-        ObjectMapperUtil.assertSerialization(req, req.getClass());
+        ObjectMapperUtil.assertSerialization(req);
         GetTableResponse res = metadataHandler.doGetTable(allocator, req);
-        ObjectMapperUtil.assertSerialization(res, res.getClass());
+        ObjectMapperUtil.assertSerialization(res);
         assertTrue(res.getSchema().getFields().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
         logger.info("doGetTable - {}", res);
@@ -193,10 +193,10 @@ public class ExampleMetadataHandlerTest
                     new Constraints(constraintsMap),
                     tableSchema,
                     partitionCols);
-            ObjectMapperUtil.assertSerialization(req, req.getClass());
+            ObjectMapperUtil.assertSerialization(req);
 
             res = metadataHandler.doGetTableLayout(allocator, req);
-            ObjectMapperUtil.assertSerialization(res, res.getClass());
+            ObjectMapperUtil.assertSerialization(res);
 
             logger.info("doGetTableLayout - {}", res);
             Block partitions = res.getPartitions();
@@ -274,14 +274,14 @@ public class ExampleMetadataHandlerTest
         int numContinuations = 0;
         do {
             GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-            ObjectMapperUtil.assertSerialization(req, req.getClass());
+            ObjectMapperUtil.assertSerialization(req);
 
             logger.info("doGetSplits: req[{}]", req);
             metadataHandler.setEncryption(numContinuations % 2 == 0);
             logger.info("doGetSplits: Toggle encryption " + (numContinuations % 2 == 0));
 
             MetadataResponse rawResponse = metadataHandler.doGetSplits(allocator, req);
-            ObjectMapperUtil.assertSerialization(rawResponse, rawResponse.getClass());
+            ObjectMapperUtil.assertSerialization(rawResponse);
             assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
             GetSplitsResponse response = (GetSplitsResponse) rawResponse;

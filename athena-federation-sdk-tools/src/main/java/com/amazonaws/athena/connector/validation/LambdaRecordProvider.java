@@ -24,23 +24,13 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordRequest;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
-import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
-import com.amazonaws.services.lambda.invoke.LambdaFunction;
-import com.amazonaws.services.lambda.invoke.LambdaFunctionNameResolver;
-import com.amazonaws.services.lambda.invoke.LambdaInvokerFactory;
-import com.amazonaws.services.lambda.invoke.LambdaInvokerFactoryConfig;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
-import java.util.UUID;
-
-import static com.amazonaws.athena.connector.validation.ConnectorValidator.BLOCK_ALLOCATOR;
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.generateQueryId;
+import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
 /**
  * This class offers a convenience method to retrieve records from a deployed Lambda.
@@ -77,7 +67,7 @@ public class LambdaRecordProvider
                                                 String recordFunction,
                                                 FederatedIdentity identity)
   {
-    String queryId = UUID.randomUUID().toString() + "_unknown";
+    String queryId = generateQueryId();
     log.info("Submitting ReadRecordsRequest with ID " + queryId);
 
     try (ReadRecordsRequest request =
@@ -91,45 +81,12 @@ public class LambdaRecordProvider
                                         MAX_BLOCK_SIZE,
                                         MAX_INLINE_BLOCK_SIZE)) {
       log.info("Submitting request: {}", request);
-      ReadRecordsResponse response = (ReadRecordsResponse) getService(recordFunction).readRecords(request);
+      ReadRecordsResponse response = (ReadRecordsResponse) getService(recordFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);
       return response;
     }
     catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public interface RecordService
-  {
-    @LambdaFunction
-    RecordResponse readRecords(final RecordRequest request);
-  }
-
-  public static final class Mapper
-          implements LambdaFunctionNameResolver
-  {
-    private final String metadataLambda;
-
-    private Mapper(String metadataLambda)
-    {
-      this.metadataLambda = metadataLambda;
-    }
-
-    @Override
-    public String getFunctionName(Method method, LambdaFunction lambdaFunction,
-                                  LambdaInvokerFactoryConfig lambdaInvokerFactoryConfig)
-    {
-      return metadataLambda;
-    }
-  }
-
-  private static RecordService getService(String lambdaFunction)
-  {
-    return LambdaInvokerFactory.builder()
-                   .lambdaClient(AWSLambdaClientBuilder.defaultClient())
-                   .objectMapper(ObjectMapperFactory.create(BLOCK_ALLOCATOR))
-                   .lambdaFunctionNameResolver(new Mapper(lambdaFunction))
-                   .build(RecordService.class);
   }
 }

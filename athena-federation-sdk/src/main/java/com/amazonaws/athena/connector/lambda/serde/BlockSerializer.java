@@ -41,7 +41,10 @@ import java.io.IOException;
  * same allocator id when deserializing. This can be helpful when attempting to limit the number of copy
  * operations that are required to move a Block around. It also allows you to put tighter control around
  * which parts of your query execution get which memory pool / limit.
+ *
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe} should be used instead
  */
+@Deprecated
 public class BlockSerializer
         extends StdSerializer<Block>
 {

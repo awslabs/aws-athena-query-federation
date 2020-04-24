@@ -46,10 +46,8 @@ public abstract class MetadataRequest
     public MetadataRequest(FederatedIdentity identity, MetadataRequestType requestType, String queryId, String catalogName)
     {
         super(identity);
-        requireNonNull(requestType, "requestType is null");
-        requireNonNull(catalogName, "catalogName is null");
-        this.requestType = requestType;
-        this.catalogName = catalogName;
+        this.requestType = requireNonNull(requestType, "requestType is null");
+        this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.queryId = queryId;
     }
 

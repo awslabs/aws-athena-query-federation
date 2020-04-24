@@ -33,7 +33,10 @@ import java.io.IOException;
 
 /**
  * Used to enhance Jackson's stock ObjectMapper with the ability to deserialize Apache Arrow Schema objects.
+ *
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe} should be used instead
  */
+@Deprecated
 public class SchemaDeserializer
         extends StdDeserializer<Schema>
 {
