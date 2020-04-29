@@ -224,7 +224,11 @@ public class DynamoDBRecordHandler
         // Only read columns that are needed in the query
         String projectionExpression = schema.getFields()
                 .stream()
-                .map(field -> field.getName())
+                .map(field -> {
+                    String aliasedName = DDBPredicateUtils.aliasColumn(field.getName());
+                    expressionAttributeNames.put(aliasedName, field.getName());
+                    return aliasedName;
+                })
                 .collect(Collectors.joining(","));
 
         boolean isQuery = split.getProperty(SEGMENT_ID_PROPERTY) == null;
