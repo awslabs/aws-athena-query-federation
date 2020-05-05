@@ -29,13 +29,15 @@ import org.junit.After;
 import org.junit.Before;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 public abstract class TypedSerDeTest<T>
 {
     protected TestUtils utils = new TestUtils();
     protected BlockAllocator allocator;
     protected ObjectMapper mapper;
-    protected FederatedIdentity federatedIdentity = new FederatedIdentity("test-id", "test-principal", "0123456789");
+    protected FederatedIdentity federatedIdentity = new FederatedIdentity("testArn", "0123456789", Collections.emptyMap(), Collections.emptyList());
     protected String expectedSerDeText;
     protected T expected;
 

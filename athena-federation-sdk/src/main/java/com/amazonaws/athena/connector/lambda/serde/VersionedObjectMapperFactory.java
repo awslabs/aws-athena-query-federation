@@ -55,6 +55,8 @@ public class VersionedObjectMapperFactory
             case 1:
                 return ObjectMapperFactory.create(allocator);
             case 2:
+            case 3:
+                // This version of the factory is compatible with both V2 and V3.
                 return ObjectMapperFactoryV2.create(allocator);
             default:
                 throw new IllegalArgumentException("No serde version " + version);
