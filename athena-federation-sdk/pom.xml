@@ -7,7 +7,7 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2020.20.1</version>
+    <version>${aws-athena-federation-sdk.version}</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
 

@@ -27,6 +27,8 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Since this SerDe is used in {@link PingRequestSerDe} it needs to be forwards compatible.
@@ -34,8 +36,13 @@ import java.io.IOException;
 public final class FederatedIdentitySerDe
 {
     private static final String ID_FIELD = "id";
-    private static final String PRINCIPLE_FIELD = "principal";
+    private static final String COMPATIBILITY_ID = "UNKNOWN";
+    private static final String PRINCIPAL_FIELD = "principal";
+    private static final String COMPATIBILITY_PRINCIPAL = "UNKNOWN";
     private static final String ACCOUNT_FIELD = "account";
+    private static final String ARN_FIELD = "arn";
+    private static final String TAGS_FIELD = "tags";
+    private static final String GROUPS_FIELD = "groups";
     // new fields should only be appended to the end for forwards compatibility
 
     private FederatedIdentitySerDe(){}
@@ -51,10 +58,13 @@ public final class FederatedIdentitySerDe
         protected void doSerialize(FederatedIdentity federatedIdentity, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            jgen.writeStringField(ID_FIELD, federatedIdentity.getId());
-            jgen.writeStringField(PRINCIPLE_FIELD, federatedIdentity.getPrincipal());
+            jgen.writeStringField(ID_FIELD, COMPATIBILITY_ID);
+            jgen.writeStringField(PRINCIPAL_FIELD, COMPATIBILITY_PRINCIPAL);
             jgen.writeStringField(ACCOUNT_FIELD, federatedIdentity.getAccount());
-            // new fields should only be appended to the end for forwards compatibility
+            jgen.writeStringField(ARN_FIELD, federatedIdentity.getArn());
+            writeStringMap(jgen, TAGS_FIELD, federatedIdentity.getPrincipalTags());
+            writeStringArray(jgen, GROUPS_FIELD, federatedIdentity.getIamGroups());
+            // new fields should only be appended to the end for backwards and forwards compatibility
         }
     }
 
@@ -75,22 +85,26 @@ public final class FederatedIdentitySerDe
 
                 // consume unknown tokens to allow forwards compatibility
                 ignoreRestOfObject(jparser);
-
                 return federatedIdentity;
             }
-            else {
-                return null;
-            }
+
+            return null;
         }
 
         @Override
         protected FederatedIdentity doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
-            String id = getNextStringField(jparser, ID_FIELD);
-            String principal = getNextStringField(jparser, PRINCIPLE_FIELD);
+            // First, read fields that we no longer care about.
+            getNextStringField(jparser, ID_FIELD);
+            getNextStringField(jparser, PRINCIPAL_FIELD);
+
             String account = getNextStringField(jparser, ACCOUNT_FIELD);
-            return new FederatedIdentity(id, principal, account);
+            String arn = getNextStringField(jparser, ARN_FIELD);
+            Map<String, String> principalTags = getNextStringMap(jparser, TAGS_FIELD);
+            List<String> groups = getNextStringArray(jparser, GROUPS_FIELD);
+
+            return new FederatedIdentity(arn, account, principalTags, groups);
         }
     }
 }
