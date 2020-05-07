@@ -353,13 +353,17 @@ public abstract class GlueMetadataHandler
         }
 
         for (Column next : table.getStorageDescriptor().getColumns()) {
-            String mappedColumnName = columnNameMapping.getOrDefault(next.getName(), next.getName());
+            String rawColumnName = next.getName();
+            String mappedColumnName = columnNameMapping.getOrDefault(rawColumnName, rawColumnName);
+            // apply any type override provided in typeOverrideMapping from metadata
+            // this is currently only used for timestamp with timezone support
+            logger.info("Column {} with registered type {}", rawColumnName, next.getType());
             schemaBuilder.addField(convertField(mappedColumnName, next.getType()));
             if (next.getComment() != null) {
                 schemaBuilder.addMetadata(mappedColumnName, next.getComment());
             }
-            if (dateTimeFormatMapping.containsKey(next.getName())) {
-                datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(next.getName()));
+            if (dateTimeFormatMapping.containsKey(rawColumnName)) {
+                datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(rawColumnName));
             }
         }
         populateDatetimeFormatMappingIfAvailable(schemaBuilder, datetimeFormatMappingWithColumnName);

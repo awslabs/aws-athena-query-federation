@@ -467,10 +467,29 @@ public class SortedRangeSet
 
     private void checkTypeCompatibility(Marker marker)
     {
-        if (!getType().equals(marker.getType())) {
+        if (!getType().equals(marker.getType())
+                && !checkTypeCompatibilityForTimeStamp(marker)) {
             throw new IllegalStateException(String.format("Marker of %s does not match SortedRangeSet of %s",
                     marker.getType(), getType()));
         }
+    }
+
+    /**
+     * Since we are mapping MinorType.TIMESTAMPMILLITZ to ArrowType.Timestamp(MILLI, ZoneId.systemDefault().getId())
+     * with UTC being a place holder,
+     * We cannot check the type compatibility of such types, as UTC (place holder) can be/will be overwritten by
+     * the TZ value coming from the raw data.
+     *
+     * Comparison can still be done for such types with different TZ as we convert to data to ZonedDateType to compare.
+     *
+     * @param marker
+     * @return if both types are ArrowType.Timestamp, returns the equality of unit
+     *         else false
+     */
+    private boolean checkTypeCompatibilityForTimeStamp(Marker marker)
+    {
+        return getType() instanceof ArrowType.Timestamp &&
+                ((ArrowType.Timestamp) getType()).getUnit().equals(((ArrowType.Timestamp) marker.getType()).getUnit());
     }
 
     @Override

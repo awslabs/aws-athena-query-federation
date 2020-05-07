@@ -46,4 +46,6 @@ public final class DynamoDBConstants
     public static final String DEFAULT_TIME_ZONE = "defaultTimeZone";
     // Fallback timezone if a default timezone cant be inferred from the value or customer specified override
     public static final String UTC = "UTC";
+    // Metadata key whose value is a string that represents the maping from glue column name to ddb column name
+    public static final String COLUMN_NAME_MAPPING_PROPERTY = "columnMapping";
 }

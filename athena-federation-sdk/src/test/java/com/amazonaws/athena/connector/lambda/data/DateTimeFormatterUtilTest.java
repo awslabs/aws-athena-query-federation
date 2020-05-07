@@ -33,7 +33,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.util.Locale;
+import java.time.ZonedDateTime;
 import java.util.TimeZone;
 
 import static org.junit.Assert.*;
@@ -46,11 +46,9 @@ public class DateTimeFormatterUtilTest {
     @Rule
     public TestName testName = new TestName();
 
-
     @Before
     public void setUp() {
         logger.info("{}: enter", testName.getMethodName());
-        Locale.setDefault(new Locale("en", "UK"));
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
@@ -72,43 +70,49 @@ public class DateTimeFormatterUtilTest {
         assertNull(DateTimeFormatterUtil.stringToLocalDate("27--02-2020", "ddMMyyyy", DEFAULT_TIME_ZONE));
     }
 
+    @Test
     public void stringToLocalDateTestCustomerConfiguredFormatFail() {
         assertNull(DateTimeFormatterUtil.stringToLocalDate("27--02-2020", "ddMMyyyy", DEFAULT_TIME_ZONE));
     }
 
     @Test
-    public void stringToLocalDateTimeTest() {
-        LocalDateTime expected = LocalDateTime.of(2020, 2, 27, 0, 2, 27);
-
-        LocalDateTime actual = DateTimeFormatterUtil.stringToLocalDateTime("00:02:27S2020-02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
+    public void stringToZonedDateTimeTest() {
+        LocalDateTime localDateTimeExpected = LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0);
+        ZonedDateTime expected = ZonedDateTime.of(localDateTimeExpected, ZoneId.of("-05:00"));
+        assertEquals(expected, DateTimeFormatterUtil.stringToZonedDateTime("2015-12-21T17:42:34-05:00", null, null));
+        assertEquals(localDateTimeExpected, DateTimeFormatterUtil.stringToZonedDateTime("2015-12-21T17:42:34", "yyyy-MM-dd'T'HH:mm:ss", ZoneId.of("UTC")));
     }
 
-    public void stringToLocalDateTimeTestCustomerConfiguredFormatFail() {
-        assertNull(DateTimeFormatterUtil.stringToLocalDate("00:02:27S2020---02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE));
+    @Test
+    public void stringTolDateTimeTest() {
+        LocalDateTime expected = LocalDateTime.of(2020, 2, 27, 0, 2, 27);
+        assertEquals(expected, DateTimeFormatterUtil.stringToDateTime("00:02:27S2020-02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE));
+        assertNull(DateTimeFormatterUtil.stringToDateTime("00:02:27S2020-02-27", null, DEFAULT_TIME_ZONE));
+    }
+
+    @Test
+    public void stringToDateTimeTestCustomerConfiguredFormatFail() {
+        assertNull(DateTimeFormatterUtil.stringToDateTime("00:02:27S2020---02-27", "HH:mm:ss'S'yyyy-MM-dd", DEFAULT_TIME_ZONE));
     }
 
     @Test
     public void bigDecimalToLocalDateTest() {
         LocalDate expected = LocalDate.of(2020, 02, 27);
         Instant instant = expected.atTime(LocalTime.MIDNIGHT).atZone(DEFAULT_TIME_ZONE).toInstant();
-
-        LocalDate actual = DateTimeFormatterUtil.bigDecimalToLocalDate(new BigDecimal(instant.toEpochMilli()), DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
+        assertEquals(expected, DateTimeFormatterUtil.bigDecimalToLocalDate(new BigDecimal(instant.toEpochMilli()), DEFAULT_TIME_ZONE));
+        assertNull(DateTimeFormatterUtil.bigDecimalToLocalDate(null, null));
     }
 
     @Test
     public void bigDecimalToLocalDateTimeTest() {
         LocalDateTime expected = LocalDateTime.of(2020, 2, 27, 0, 2, 27);
         Instant instant = expected.atZone(DEFAULT_TIME_ZONE).toInstant();
-
-        LocalDateTime actual = DateTimeFormatterUtil.bigDecimalToLocalDateTime(new BigDecimal(instant.toEpochMilli()), DEFAULT_TIME_ZONE);
-        assertEquals(expected, actual);
+        assertEquals(expected, DateTimeFormatterUtil.bigDecimalToLocalDateTime(new BigDecimal(instant.toEpochMilli()), DEFAULT_TIME_ZONE));
+        assertNull(DateTimeFormatterUtil.bigDecimalToLocalDateTime(null, null));
     }
 
     @Test
     public void inferDateTimeFormatTest() {
-
         String inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020-02-27");
         assertEquals("yyyy-MM-dd", inferredDateFormat);
 
@@ -129,5 +133,16 @@ public class DateTimeFormatterUtilTest {
 
         inferredDateFormat = DateTimeFormatterUtil.inferDateTimeFormat("2020202020202020202020");
         assertNull(inferredDateFormat);
+    }
+
+    @Test
+    public void packDateTimeWithZoneTest() {
+        LocalDateTime localDateTimeExpected = LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0);
+        ZoneId zoneIdExpected = ZoneId.of("-05:00");
+        long expectedLong = 5942221840384541L;
+        ZonedDateTime expectedZdt = ZonedDateTime.of(localDateTimeExpected, zoneIdExpected);
+        assertEquals(expectedLong, DateTimeFormatterUtil.packDateTimeWithZone(expectedZdt));
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedLong));
+
     }
 }

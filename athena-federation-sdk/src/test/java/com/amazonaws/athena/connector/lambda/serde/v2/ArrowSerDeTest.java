@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v2;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Test;
 
@@ -32,6 +33,13 @@ import static org.junit.Assert.assertTrue;
 
 public class ArrowSerDeTest
 {
+    // we need to have a specific fall back for MinorType.TIMESTAMPMILLITZ since it doesn't have default mapping to ArrowType
+    // AND the simple names are different (i.e. TIMESTAMPMILLITZ != Timestamp).
+    // MinorType.DECIMAL which is a similar case of no default mapping to ArrowType does not need this as
+    // MinorType name and ArrowType name are the same so simple fall back of enum name works.
+    private static final ImmutableMap<SupportedTypes, String> FALL_BACK_ARROW_TYPE_CLASS = ImmutableMap.of(
+            SupportedTypes.TIMESTAMPMILLITZ, ArrowType.Timestamp.class.getSimpleName());
+
     @Test
     public void testSupportedTypesHaveSerializers()
     {
@@ -46,7 +54,7 @@ public class ArrowSerDeTest
             }
             catch (UnsupportedOperationException e) {
                 // fall back to enum name
-                arrowTypeClass = supportedType.name();
+                arrowTypeClass = FALL_BACK_ARROW_TYPE_CLASS.getOrDefault(supportedType, supportedType.name());
             }
             assertTrue("No serializer for supported type " + supportedType + " with ArrowType " + arrowTypeClass, delegateSerDeMap.containsKey(arrowTypeClass));
         }
@@ -66,7 +74,7 @@ public class ArrowSerDeTest
             }
             catch (UnsupportedOperationException e) {
                 // fall back to enum name
-                arrowTypeClass = supportedType.name();
+                arrowTypeClass = FALL_BACK_ARROW_TYPE_CLASS.getOrDefault(supportedType, supportedType.name());
             }
             assertTrue("No deserializer for supported type " + supportedType + " with ArrowType " + arrowTypeClass, delegateSerDeMap.containsKey(arrowTypeClass));
         }

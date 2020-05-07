@@ -45,6 +45,7 @@ import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBTableResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
+import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTableUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer;
@@ -271,14 +272,16 @@ public class DynamoDBMetadataHandler
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
         List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
 
-        Set<String> alreadyFilteredColumns = new HashSet<>();
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(request.getSchema());
+
+        Set<String> columnsToIgnore = new HashSet<>();
         List<AttributeValue> valueAccumulator = new ArrayList<>();
         IncrementingValueNameProducer valueNameProducer = new IncrementingValueNameProducer();
         if (!hashKeyValues.isEmpty()) {
             // can "partition" on hash key
             partitionSchemaBuilder.addField(hashKeyName, hashKeyValueSet.getType());
             partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
-            alreadyFilteredColumns.add(hashKeyName);
+            columnsToIgnore.add(hashKeyName);
             partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
             if (!table.equals(index)) {
                 partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
@@ -289,10 +292,10 @@ public class DynamoDBMetadataHandler
             if (rangeKey.isPresent()) {
                 String rangeKeyName = rangeKey.get();
                 if (summary.containsKey(rangeKeyName)) {
-                    String rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer);
+                    String rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata);
                     partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName);
                     partitionSchemaBuilder.addMetadata(RANGE_KEY_FILTER_METADATA, rangeKeyFilter);
-                    alreadyFilteredColumns.add(rangeKeyName);
+                    columnsToIgnore.add(rangeKeyName);
                 }
             }
         }
@@ -302,7 +305,12 @@ public class DynamoDBMetadataHandler
             partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, SCAN_PARTITION_TYPE);
         }
 
-        precomputeAdditionalMetadata(alreadyFilteredColumns, summary, valueAccumulator, valueNameProducer, partitionSchemaBuilder);
+        // We will exclude the columns with custom types from filter clause when querying/scanning DDB
+        // As those types are not natively supported by DDB or Glue
+        // So we have to filter the results after the query/scan result is returned
+        columnsToIgnore.addAll(recordMetadata.getNonComparableColumns());
+
+        precomputeAdditionalMetadata(columnsToIgnore, summary, valueAccumulator, valueNameProducer, partitionSchemaBuilder, recordMetadata);
     }
 
     /**
@@ -351,10 +359,10 @@ public class DynamoDBMetadataHandler
     Injects additional metadata into the partition schema like a non-key filter expression for additional DDB-side filtering
      */
     private void precomputeAdditionalMetadata(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
-            IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder)
+            IncrementingValueNameProducer valueNameProducer, SchemaBuilder partitionsSchemaBuilder, DDBRecordMetadata recordMetadata)
     {
         // precompute non-key filter
-        String filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer);
+        String filterExpression = DDBPredicateUtils.generateFilterExpression(columnsToIgnore, predicates, accumulator, valueNameProducer, recordMetadata);
         if (filterExpression != null) {
             partitionsSchemaBuilder.addMetadata(NON_KEY_FILTER_METADATA, filterExpression);
         }
@@ -404,8 +412,7 @@ public class DynamoDBMetadataHandler
 
                 //Every split must have a unique location if we wish to spill to avoid failures
                 SpillLocation spillLocation = makeSpillLocation(request);
-
-                Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyValueReader.readObject());
+                Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
                 String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
                 splitMetadata.put(hashKeyName, hashKeyValueJSON);
 

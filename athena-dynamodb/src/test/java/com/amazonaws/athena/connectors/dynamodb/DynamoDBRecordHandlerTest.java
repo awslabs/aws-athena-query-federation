@@ -19,11 +19,11 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -64,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -291,10 +292,13 @@ public class DynamoDBRecordHandlerTest
         columns.add(new Column().withName("col2").withType("timestamp"));
         columns.add(new Column().withName("col3").withType("date"));
         columns.add(new Column().withName("col4").withType("date"));
+        columns.add(new Column().withName("col5").withType("timestamptz"));
+        columns.add(new Column().withName("col6").withType("timestamptz"));
+        columns.add(new Column().withName("col7").withType("timestamptz"));
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE3,
-                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3, col4=Col4",
+                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1 , col2=Col2 ,col3=Col3, col4=Col4,col5=Col5,col6=Col6,col7=Col7",
                 DATETIME_FORMAT_MAPPING_PROPERTY, "col1=yyyyMMdd'S'HHmmss,col3=dd/MM/yyyy ");
         Table table = new Table()
                 .withParameters(param)
@@ -332,15 +336,16 @@ public class DynamoDBRecordHandlerTest
         assertTrue(rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
+        LocalDate expectedDate = LocalDate.of(2020, 02, 27);
+        LocalDateTime expectedDateTime = new LocalDateTime(2020, 2, 27, 9, 12, 27);
         assertEquals(1, response.getRecords().getRowCount());
-        assertEquals(new LocalDateTime(2020, 2, 27, 9, 12, 27),
-                response.getRecords().getFieldReader("Col1").readLocalDateTime());
-        assertEquals(new LocalDateTime(2020, 2, 27, 9, 12, 27),
-                response.getRecords().getFieldReader("Col2").readLocalDateTime());
-        assertEquals(LocalDate.of(2020, 02, 27),
-                LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col3").readInteger()));
-        assertEquals(LocalDate.of(2020, 02, 27),
-                LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col4").readInteger()));
+        assertEquals(expectedDateTime, response.getRecords().getFieldReader("Col1").readLocalDateTime());
+        assertEquals(expectedDateTime, response.getRecords().getFieldReader("Col2").readLocalDateTime());
+        assertEquals(expectedDate, LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col3").readInteger()));
+        assertEquals(expectedDate, LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col4").readInteger()));
+        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34-05:00"), response.getRecords().getFieldReader("Col5").readLong().longValue());
+        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34Z"), response.getRecords().getFieldReader("Col6").readLong().longValue());
+        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34Z"), response.getRecords().getFieldReader("Col7").readLong().longValue());
     }
 
     @Test
@@ -443,5 +448,11 @@ public class DynamoDBRecordHandlerTest
         assertEquals(1, result.getRowCount());
         assertEquals(schema4, result.getSchema());
         assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
+    }
+
+    private long getPackedDateTimeWithZone(String s)
+    {
+        ZonedDateTime zdt = ZonedDateTime.parse(s);
+        return DateTimeFormatterUtil.packDateTimeWithZone(zdt);
     }
 }

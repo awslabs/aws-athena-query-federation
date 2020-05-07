@@ -19,15 +19,22 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.util;
 
+import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
+import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_TIME_ZONE;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.UTC;
@@ -41,15 +48,102 @@ public class DDBRecordMetadata
 
     private Map<String, String> dateTimeFormatMapping;
     private ZoneId defaultTimeZone;
+    private Map<String, String> columnNameMapping;
+    private boolean containsCoercibleType;
+    private Set<String> nonComparableColumns;
 
     public DDBRecordMetadata(Schema schema)
     {
         dateTimeFormatMapping = getDateTimeFormatMapping(schema);
         defaultTimeZone = getDefaultTimeZone(schema);
+        columnNameMapping = getColumnNameMapping(schema);
+        containsCoercibleType = isContainsCoercibleType(schema);
+        nonComparableColumns = getNonComparableColumns(schema);
     }
 
     /**
-     * Getter function retrieve the date/datetime formatting for a specific column name
+     * retrieves the names of columns that have types that are not natively supported by glue/dynamodb
+     * and therefore needs to be excluded from the constraining clause in scan/query.
+     *
+     * @return set of strings containing names of columns with non-native types (such as timestamptz)
+     */
+    public Set<String> getNonComparableColumns()
+    {
+        return nonComparableColumns;
+    }
+
+    private Set<String> getNonComparableColumns(Schema schema)
+    {
+        Set<String> nonComparableColumns = new HashSet<>();
+        if (schema != null && schema.getFields() != null) {
+            for (Field field : schema.getFields()) {
+                Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+                if (DefaultGlueType.getNonComparableSet().contains(fieldType.name())) {
+                    nonComparableColumns.add(field.getName());
+                }
+            }
+        }
+        return nonComparableColumns;
+    }
+
+    /**
+     * determines whether the schema contains any type that can be coercible
+     * @param schema Schema to extract out the info from
+     * @return boolean indicating existence of coercible type in schema
+     */
+    private boolean isContainsCoercibleType(Schema schema)
+    {
+        if (schema != null && schema.getFields() != null) {
+            for (Field field : schema.getFields()) {
+                Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+                if (isDateTimeFieldType(fieldType) || !fieldType.equals(Types.MinorType.DECIMAL)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * returns whether the schema contains any type that can be coercible
+     * @return boolean indicating existence of coercible type in schema
+     */
+    public boolean isContainsCoercibleType()
+    {
+        return containsCoercibleType;
+    }
+
+    /**
+     * checks if the type is a datetime field type
+     * @param fieldType minorType to be checked
+     * @return boolean true if its one of the three supported datetime types, otherwise false
+     */
+    public static boolean isDateTimeFieldType(Types.MinorType fieldType)
+    {
+        return fieldType.equals(Types.MinorType.DATEMILLI)
+                || fieldType.equals(Types.MinorType.DATEDAY)
+                || fieldType.equals(Types.MinorType.TIMESTAMPMILLITZ);
+    }
+
+    /**
+     * Retrieves the map of glue column names to glue/normalized column names from the table schema
+     * @param schema Schema to extract out the info from
+     * @return mapping of glue column names to ddb column names
+     */
+    private static Map<String, String> getColumnNameMapping(Schema schema)
+    {
+        if (schema != null && schema.getCustomMetadata() != null) {
+            String columnNameMappingParam = schema.getCustomMetadata().getOrDefault(
+                    COLUMN_NAME_MAPPING_PROPERTY, null);
+            if (!Strings.isNullOrEmpty(columnNameMappingParam)) {
+                return new HashMap<>(MAP_SPLITTER.split(columnNameMappingParam));
+            }
+        }
+        return ImmutableMap.of();
+    }
+
+    /**
+     * Getter function that retrieves the date/datetime formatting for a specific column name
      * @param columnName name of the column
      * @return the string that represents the date/datetime format
      */
@@ -84,7 +178,7 @@ public class DDBRecordMetadata
      */
     private Map<String, String> getDateTimeFormatMapping(Schema schema)
     {
-        if (schema.getCustomMetadata() != null) {
+        if (schema != null && schema.getCustomMetadata() != null) {
             String datetimeFormatMappingParam = schema.getCustomMetadata().getOrDefault(
                     DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED, null);
             if (!Strings.isNullOrEmpty(datetimeFormatMappingParam)) {
@@ -102,7 +196,7 @@ public class DDBRecordMetadata
      */
     private ZoneId getDefaultTimeZone(Schema schema)
     {
-        return schema.getCustomMetadata() != null
+        return schema != null && schema.getCustomMetadata() != null
                 ? ZoneId.of(schema.getCustomMetadata().getOrDefault(DEFAULT_TIME_ZONE, UTC))
                 : ZoneId.of(UTC);
     }
