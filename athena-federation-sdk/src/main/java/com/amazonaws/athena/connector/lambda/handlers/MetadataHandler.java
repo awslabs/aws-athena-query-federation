@@ -60,9 +60,12 @@ import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -72,7 +75,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -426,6 +431,7 @@ public abstract class MetadataHandler
      */
     public PingResponse doPing(PingRequest request)
     {
+        checkBucketAuthZ(AmazonS3ClientBuilder.standard().build(), spillBucket);
         PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES, SERDE_VERSION);
         try {
             onPing(request);
@@ -444,6 +450,21 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
+    }
+
+    /**
+     * Helper function used to check if the account that calls the lambda function owns the spill bucket
+     *
+     * @param s3 The S3 object for the account.
+     * @param bucket The name of the spill bucket.
+     */
+    @VisibleForTesting
+    void checkBucketAuthZ(final AmazonS3 s3, final String bucket)
+    {
+        Set<String> buckets = s3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
+        if (!buckets.contains(bucket)) {
+            throw new RuntimeException("You do NOT own the spill bucket with the name: " + bucket);
+        }
     }
 
     /**

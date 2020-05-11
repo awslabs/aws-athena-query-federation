@@ -45,6 +45,8 @@ import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.Bucket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -58,11 +60,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -218,5 +226,72 @@ public class CompositeHandlerTest
         when(req.getQueryId()).thenReturn("queryId");
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doPing(any(PingRequest.class));
+    }
+
+    @Test
+    public void checkBucketAuthZ()
+    {
+        logger.info("checkBucketAuthZ - enter");
+        MetadataHandler handler = mock(MetadataHandler.class, CALLS_REAL_METHODS);
+
+        List<String> bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
+        List<Bucket> buckets = createBuckets(bucketNames);
+
+        AmazonS3 s3mock = mock(AmazonS3.class);
+        when(s3mock.listBuckets()).thenReturn(buckets);
+
+        try {
+            Random random = new Random();
+            handler.checkBucketAuthZ(s3mock, bucketNames.get(random.nextInt(bucketNames.size())));
+        }
+        catch (RuntimeException e) {
+            fail("checkBucketAuthZ() checking failed");
+        }
+
+        logger.info("checkBucketAuthZ - exit");
+    }
+
+    @Test
+    public void checkBucketAuthZFail() {
+        logger.info("checkBucketAuthZFail - enter");
+        MetadataHandler handler = mock(MetadataHandler.class, CALLS_REAL_METHODS);
+
+        AmazonS3 s3mockEmpty = mock(AmazonS3.class);
+        when(s3mockEmpty.listBuckets()).thenReturn(new ArrayList<Bucket>());
+
+        try {
+            handler.checkBucketAuthZ(s3mockEmpty, "bucket4");
+            fail();
+        }
+        catch (RuntimeException ex) {
+            logger.info("RuntimeException: " + ex.getMessage());
+        }
+
+        List<String> bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
+        List<Bucket> buckets = createBuckets(bucketNames);
+
+        AmazonS3 s3mock = mock(AmazonS3.class);
+        when(s3mock.listBuckets()).thenReturn(buckets);
+
+        try {
+            handler.checkBucketAuthZ(s3mock, "bucket4");
+            fail();
+        }
+        catch (RuntimeException ex) {
+            logger.info("RuntimeException: " +  ex.getMessage());
+        }
+
+        logger.info("checkBucketAuthZFail - exit");
+    }
+
+    private List<Bucket> createBuckets(List<String> names) {
+        List<Bucket> buckets = new ArrayList();
+        for (String name : names) {
+            Bucket bucket = mock(Bucket.class);
+            when(bucket.getName()).thenReturn(name);
+            buckets.add(bucket);
+        }
+
+        return buckets;
     }
 }
