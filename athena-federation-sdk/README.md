@@ -6,7 +6,7 @@ This essentially allows you to customize Athena's core execution engine with you
 
 You can find a collection of ready made modules that allow Athena to connect to various data sources by going to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/). Serverless Application Repository will allow you to search for and 1-Click deploy Athena connectors.
  
- Alternatively, you can explore [the Amazon Athena Query Federation github repositoru](https://github.com/awslabs/aws-athena-query-federation) for many of those same ready made connectors, modify them as you see fit, or write your own connector using the included example project. 
+ Alternatively, you can explore [the Amazon Athena Query Federation github repository](https://github.com/awslabs/aws-athena-query-federation) for many of those same ready made connectors, modify them as you see fit, or write your own connector using the included example project. 
 
 For those seeking to write their own connectors, we recommend you being by going through the [tutorial in athena-example](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-example)
 
