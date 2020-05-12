@@ -48,11 +48,11 @@ public interface FieldResolver
         public Object getFieldValue(Field field, Object value)
         {
             Types.MinorType minorType = Types.getMinorTypeForArrowType(field.getType());
-            if (minorType == Types.MinorType.LIST) {
-                return ((List) value).iterator();
-            }
-            else if (value instanceof Map) {
+            if (value instanceof Map) {
                 return ((Map<String, Object>) value).get(field.getName());
+            }
+            else if (minorType == Types.MinorType.LIST) {
+                return ((List) value).iterator();
             }
             throw new RuntimeException("Expected LIST type but found " + minorType);
         }

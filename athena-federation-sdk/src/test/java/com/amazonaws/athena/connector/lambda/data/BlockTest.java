@@ -53,6 +53,7 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.reader.BaseReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.reader.Float8Reader;
 import org.apache.arrow.vector.complex.reader.IntReader;
@@ -863,6 +864,117 @@ public class BlockTest
         }
 
         actualBlock.close();
+    }
+
+    @Test
+    public void structOfListsTest()
+            throws Exception
+    {
+        BlockAllocatorImpl expectedAllocator = new BlockAllocatorImpl();
+
+        /**
+         * Generate and write the schema
+         */
+        SchemaBuilder schemaBuilder = new SchemaBuilder();
+        schemaBuilder.addField(
+                FieldBuilder.newBuilder("innerStruct", Types.MinorType.STRUCT.getType())
+                        .addStringField("varchar")
+                        .addListField("list", Types.MinorType.VARCHAR.getType())
+                        .build());
+        Schema origSchema = schemaBuilder.build();
+
+        /**
+         * Generate and write the block
+         */
+        Block expectedBlock = expectedAllocator.createBlock(origSchema);
+
+        int expectedRows = 200;
+        for (Field next : origSchema.getFields()) {
+            ValueVector vector = expectedBlock.getFieldVector(next.getName());
+            for (int i = 0; i < expectedRows; i++) {
+                switch (vector.getMinorType()) {
+                    case STRUCT:
+                        Map<String, Object> value = new HashMap<>();
+                        value.put("varchar", "chars");
+                        if (i % 2 == 0) {
+                            List<String> listVal = new ArrayList<>();
+                            listVal.add("value_0_" + i);
+                            listVal.add("value_1_" + i);
+                            value.put("list", listVal);
+                        }
+                        else {
+                            value.put("list", null);
+                        }
+                        BlockUtils.setComplexValue((StructVector) vector, i, FieldResolver.DEFAULT, value);
+                        break;
+                    default:
+                        throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                }
+            }
+        }
+        expectedBlock.setRowCount(expectedRows);
+
+        RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
+        ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
+        ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
+        expectSerDe.serialize(expectedBatch, blockOut);
+
+        assertSerializationOverhead(blockOut);
+        expectedBatch.close();
+        expectedBlock.close();
+
+        ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
+        SchemaSerDe schemaSerDe = new SchemaSerDe();
+        schemaSerDe.serialize(origSchema, schemaOut);
+        Schema actualSchema = schemaSerDe.deserialize(new ByteArrayInputStream(schemaOut.toByteArray()));
+
+        BlockAllocatorImpl actualAllocator = new BlockAllocatorImpl();
+        RecordBatchSerDe actualSerDe = new RecordBatchSerDe(actualAllocator);
+        ArrowRecordBatch batch = actualSerDe.deserialize(blockOut.toByteArray());
+
+        /**
+         * Generate and write the block
+         */
+        Block actualBlock = actualAllocator.createBlock(actualSchema);
+        actualBlock.loadRecordBatch(batch);
+        batch.close();
+
+        for (
+                int i = 0; i < actualBlock.getRowCount(); i++) {
+            logger.info("ListOfList: util {}", BlockUtils.rowToString(actualBlock, i));
+        }
+
+        assertEquals("Row count missmatch", expectedRows, actualBlock.getRowCount());
+        int actualListValues = 0;
+        int emptyListValues = 0;
+        for (Field next : actualBlock.getFields()) {
+            FieldReader vector = actualBlock.getFieldReader(next.getName());
+            for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                switch (vector.getMinorType()) {
+                    case STRUCT:
+                        vector.setPosition(i);
+                        assertEquals("chars", vector.reader("varchar").readText().toString());
+                        FieldReader listReader = vector.reader("list");
+                        int found = 0;
+                        while (listReader.next()) {
+                            assertEquals("value_" + found + "_" + i, listReader.reader().readText().toString());
+                            found++;
+                            actualListValues++;
+                        }
+                        if (found == 0) {
+                            emptyListValues++;
+                        }
+                        break;
+                    default:
+                        throw new UnsupportedDataTypeException(next.getType().getTypeID() + " is not supported");
+                }
+            }
+        }
+
+        actualBlock.close();
+        assertEquals(200, actualListValues);
+        assertEquals(100, emptyListValues);
+        logger.info("structOfListsTest: actualListValues[{}] emptyListValues[{}]", actualListValues, emptyListValues);
     }
 
     /**

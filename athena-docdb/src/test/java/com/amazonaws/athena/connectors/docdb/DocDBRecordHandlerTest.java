@@ -373,10 +373,13 @@ public class DocDBRecordHandlerTest
         list.add(listStruct1);
         Document structWithList = new Document();
         structWithList.put("SomeList", list);
+        Document structWithNullList = new Document();
+        structWithNullList.put("SomeNullList", null);
 
         Document simpleSubStruct = new Document();
         simpleSubStruct.put("SomeSimpleSubStruct", "someSimpleSubStruct");
         structWithList.put("SimpleSubStruct", simpleSubStruct);
+        structWithList.put("SimpleSubStructNullList", structWithNullList);
 
         result.put("ComplexStruct", structWithList);
 
@@ -434,10 +437,10 @@ public class DocDBRecordHandlerTest
         logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
         assertTrue(response.getRecordCount() == 1);
         String expectedString = "[ComplexStruct : {[SomeList : {{[SomeSubStruct : someSubStruct1]," +
-                "[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]},{[SomeSubStruct : someSubStruct1]," +
-                "[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}}]," +
-                "[SimpleSubStruct : {[SomeSimpleSubStruct : someSimpleSubStruct]}]}], " +
-                "[SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
+                "[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}," +
+                "{[SomeSubStruct : someSubStruct1],[SomeSubList : {{[SomeSubSubStruct : someSubSubStruct]}}]}}]," +
+                "[SimpleSubStruct : {[SomeSimpleSubStruct : someSimpleSubStruct]}]," +
+                "[SimpleSubStructNullList : {[SomeNullList : null]}]}], [SimpleStruct : {[SomeSimpleStruct : someSimpleStruct]}]";
         assertEquals(expectedString, BlockUtils.rowToString(response.getRecords(), 0));
     }
 
