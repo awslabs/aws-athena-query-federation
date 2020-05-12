@@ -939,8 +939,7 @@ public class BlockTest
         actualBlock.loadRecordBatch(batch);
         batch.close();
 
-        for (
-                int i = 0; i < actualBlock.getRowCount(); i++) {
+        for (int i = 0; i < actualBlock.getRowCount(); i++) {
             logger.info("ListOfList: util {}", BlockUtils.rowToString(actualBlock, i));
         }
 
