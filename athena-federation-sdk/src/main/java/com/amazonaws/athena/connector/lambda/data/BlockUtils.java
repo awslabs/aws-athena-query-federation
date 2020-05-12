@@ -94,7 +94,7 @@ import java.util.Map;
  */
 public class BlockUtils
 {
-    public static final ZoneId UTC_ZONE_ID =  ZoneId.of("UTC");
+    public static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     /**
      * Creates a new Block with a single column and populated with the provided values.
@@ -174,7 +174,7 @@ public class BlockUtils
                         writer,
                         vector.getField(),
                         pos,
-                        ((List) value).iterator(),
+                        ((List) value),
                         resolver);
                 ((ListVector) vector).setNotNull(pos);
             }
@@ -541,9 +541,13 @@ public class BlockUtils
             FieldWriter writer,
             Field field,
             int pos,
-            Iterator value,
+            Iterable value,
             FieldResolver resolver)
     {
+        if (value == null) {
+            return;
+        }
+
         //Apache Arrow List types have a single 'special' child field which gives us the concrete type of the values
         //stored in the list.
         Field child = null;
@@ -555,7 +559,7 @@ public class BlockUtils
         //of lists.
         writer.startList();
 
-        Iterator itr = value;
+        Iterator itr = value.iterator();
         while (itr.hasNext()) {
             //For each item in the iterator, attempt to write it to the list.
             Object val = itr.next();
@@ -563,7 +567,7 @@ public class BlockUtils
                 switch (Types.getMinorTypeForArrowType(child.getType())) {
                     case LIST:
                         try {
-                            writeList(allocator, (FieldWriter) writer.list(), child, pos, ((List) val).iterator(), resolver);
+                            writeList(allocator, (FieldWriter) writer.list(), child, pos, ((List) val), resolver);
                         }
                         catch (Exception ex) {
                             throw ex;
@@ -617,7 +621,7 @@ public class BlockUtils
                             (FieldWriter) writer.list(nextChild.getName()),
                             nextChild,
                             pos,
-                            ((List) childValue).iterator(),
+                            ((List) childValue),
                             resolver);
                     break;
                 case STRUCT:
@@ -701,6 +705,10 @@ public class BlockUtils
      */
     protected static void writeListValue(FieldWriter writer, ArrowType type, BufferAllocator allocator, Object value)
     {
+        if (value == null) {
+            return;
+        }
+
         try {
             //TODO: add all types
             switch (Types.getMinorTypeForArrowType(type)) {
