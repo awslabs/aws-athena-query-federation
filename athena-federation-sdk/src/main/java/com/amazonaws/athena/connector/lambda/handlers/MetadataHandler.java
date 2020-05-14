@@ -65,7 +65,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -120,6 +120,10 @@ public abstract class MetadataHandler
     private final String spillBucket;
     private final String spillPrefix;
     private final String sourceType;
+    private static BucketState bucketState;
+
+    private enum BucketState
+    {UNCHECKED, VALID, INVALID}
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
@@ -142,6 +146,7 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
+        this.bucketState = BucketState.UNCHECKED;
     }
 
     /**
@@ -160,6 +165,7 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
+        this.bucketState = BucketState.UNCHECKED;
     }
 
     /**
@@ -262,6 +268,7 @@ public abstract class MetadataHandler
                 }
                 return;
             case GET_SPLITS:
+                checkBucketAuthZ();
                 try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
@@ -431,7 +438,6 @@ public abstract class MetadataHandler
      */
     public PingResponse doPing(PingRequest request)
     {
-        checkBucketAuthZ(AmazonS3ClientBuilder.standard().build(), spillBucket);
         PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES, SERDE_VERSION);
         try {
             onPing(request);
@@ -453,18 +459,34 @@ public abstract class MetadataHandler
     }
 
     /**
+     * Helper function to get the AmazonS3 instance of the lambda
+     */
+    public AmazonS3 getS3()
+    {
+        return AmazonS3ClientBuilder.standard().build();
+    }
+
+    /**
      * Helper function used to check if the account that calls the lambda function owns the spill bucket
-     *
-     * @param s3 The S3 object for the account.
-     * @param bucket The name of the spill bucket.
      */
     @VisibleForTesting
-    void checkBucketAuthZ(final AmazonS3 s3, final String bucket)
+    void checkBucketAuthZ()
     {
-        Set<String> buckets = s3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
-        if (!buckets.contains(bucket)) {
-            throw new RuntimeException("You do NOT own the spill bucket with the name: " + bucket);
+        if (bucketState == BucketState.VALID) {
+            return;
         }
+        else if (bucketState == BucketState.INVALID) {
+            throw new RuntimeException("You do NOT own the spill bucket with the name: " + spillBucket);
+        }
+
+        AmazonS3 s3 = getS3();
+        Set<String> buckets = s3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
+        if (!buckets.contains(spillBucket)) {
+            bucketState = BucketState.INVALID;
+            throw new RuntimeException("You do NOT own the spill bucket with the name: " + spillBucket);
+        }
+
+        bucketState = BucketState.VALID;
     }
 
     /**
