@@ -14,6 +14,7 @@
 <ul>
 <li><a href="com/amazonaws/athena/connector/lambda/security/AesGcmBlockCrypto.html" title="class in com.amazonaws.athena.connector.lambda.security">AesGcmBlockCrypto</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">AllOrNoneValueSet</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowRecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ArrowRecordBatchSerDe</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html" title="class in com.amazonaws.athena.connector.lambda.data">ArrowTypeComparator</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjector.html" title="interface in com.amazonaws.athena.connector.lambda.data.projectors"><span class="interfaceName">ArrowValueProjector</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ArrowValueProjectorImpl</a></li>
@@ -22,6 +23,8 @@
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/AwsCmdbCompositeHandler.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">AwsCmdbCompositeHandler</a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/AwsCmdbMetadataHandler.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">AwsCmdbMetadataHandler</a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/AwsCmdbRecordHandler.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">AwsCmdbRecordHandler</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/BigIntExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">BigIntExtractor</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/BigIntFieldWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">BigIntFieldWriter</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/BitExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">BitExtractor</span></a></li>
@@ -68,6 +71,8 @@
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/DecimalExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">DecimalExtractor</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/DecimalFieldWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">DecimalFieldWriter</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a></li>
 <li><a href="com/amazonaws/athena/connectors/docdb/DocDBCompositeHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBCompositeHandler</a></li>
 <li><a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBConnectionFactory</a></li>
 <li><a href="com/amazonaws/athena/connectors/docdb/DocDBFieldResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBFieldResolver</a></li>
@@ -98,9 +103,15 @@
 <li><a href="com/amazonaws/athena/connector/lambda/examples/ExampleUserDefinedFunctionHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleUserDefinedFunctionHandler</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/Extractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">Extractor</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/handlers/FederationCapabilities.html" title="class in com.amazonaws.athena.connector.lambda.handlers">FederationCapabilities</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></li>
+<li><a href="com/amazonaws/athena/connector/validation/FederationService.html" title="interface in com.amazonaws.athena.connector.validation"><span class="interfaceName">FederationService</span></a></li>
+<li><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider.Mapper</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/exceptions/FederationThrottleException.html" title="class in com.amazonaws.athena.connector.lambda.exceptions">FederationThrottleException</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/FieldBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">FieldBuilder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/FieldResolver.html" title="interface in com.amazonaws.athena.connector.lambda.data"><span class="interfaceName">FieldResolver</span></a></li>
@@ -150,12 +161,9 @@
 <li><a href="com/amazonaws/athena/connectors/redis/JedisPoolFactory.html" title="class in com.amazonaws.athena.connectors.redis">JedisPoolFactory</a></li>
 <li><a href="com/amazonaws/athena/connectors/redis/KeyType.html" title="enum in com.amazonaws.athena.connectors.redis">KeyType</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/security/KmsKeyFactory.html" title="class in com.amazonaws.athena.connector.lambda.security">KmsKeyFactory</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/v2/LambdaFunctionExceptionSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">LambdaFunctionExceptionSerDe</a></li>
 <li><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.html" title="class in com.amazonaws.athena.connector.validation">LambdaMetadataProvider</a></li>
-<li><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">LambdaMetadataProvider.Mapper</a></li>
-<li><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.MetadataService.html" title="interface in com.amazonaws.athena.connector.validation"><span class="interfaceName">LambdaMetadataProvider.MetadataService</span></a></li>
 <li><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.html" title="class in com.amazonaws.athena.connector.validation">LambdaRecordProvider</a></li>
-<li><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">LambdaRecordProvider.Mapper</a></li>
-<li><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.RecordService.html" title="interface in com.amazonaws.athena.connector.validation"><span class="interfaceName">LambdaRecordProvider.RecordService</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/projectors/ListArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ListArrowValueProjector</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></li>
@@ -168,6 +176,8 @@
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">MarkerFactory</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/MetadataRequestType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata">MetadataRequestType</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/MetadataResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataResponse</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/metadata/MetadataService.html" title="interface in com.amazonaws.athena.connector.lambda.metadata"><span class="interfaceName">MetadataService</span></a></li>
@@ -191,8 +201,15 @@
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/holders/NullableVarBinaryHolder.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.holders">NullableVarBinaryHolder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/holders/NullableVarCharHolder.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.holders">NullableVarCharHolder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">ObjectMapperFactory</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/v2/ObjectMapperFactoryV2.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ObjectMapperFactoryV2</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Deserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Serializer</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Deserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Serializer</a></li>
 <li><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlCompositeHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlCompositeHandler</a></li>
 <li><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlMetadataHandler</a></li>
 <li><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlQueryStringBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlQueryStringBuilder</a></li>
@@ -232,6 +249,7 @@
 <li><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></li>
 <li><a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb">SchemaUtils</a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SecurityGroupsTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2">SecurityGroupsTableProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/handlers/SerDeVersion.html" title="class in com.amazonaws.athena.connector.lambda.handlers">SerDeVersion</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/projectors/SimpleArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">SimpleArrowValueProjector</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/SimpleBlockWriter.html" title="class in com.amazonaws.athena.connector.lambda.data">SimpleBlockWriter</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/SmallIntExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">SmallIntExtractor</span></a></li>
@@ -260,6 +278,7 @@
 <li><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda"><span class="interfaceName">ThrottlingInvoker.ExceptionFilter</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.State.html" title="enum in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.State</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/TinyIntExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">TinyIntExtractor</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/TinyIntFieldWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">TinyIntFieldWriter</a></li>
 <li><a href="com/amazonaws/athena/connectors/tpcds/TPCDSCompositeHandler.html" title="class in com.amazonaws.athena.connectors.tpcds">TPCDSCompositeHandler</a></li>
@@ -267,6 +286,8 @@
 <li><a href="com/amazonaws/athena/connectors/tpcds/TPCDSRecordHandler.html" title="class in com.amazonaws.athena.connectors.tpcds">TPCDSRecordHandler</a></li>
 <li><a href="com/amazonaws/athena/connectors/tpcds/TPCDSRecordHandler.CellWriter.html" title="interface in com.amazonaws.athena.connectors.tpcds"><span class="interfaceName">TPCDSRecordHandler.CellWriter</span></a></li>
 <li><a href="com/amazonaws/athena/connectors/tpcds/TPCDSUtils.html" title="class in com.amazonaws.athena.connectors.tpcds">TPCDSUtils</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a></li>
 <li><a href="com/amazonaws/athena/connectors/docdb/TypeUtils.html" title="class in com.amazonaws.athena.connectors.docdb">TypeUtils</a></li>
 <li><a href="com/amazonaws/athena/connectors/hbase/connection/UnrecoverableException.html" title="class in com.amazonaws.athena.connectors.hbase.connection">UnrecoverableException</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">UserDefinedFunctionHandler</a></li>
@@ -277,11 +298,13 @@
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueMarker.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="interfaceName">ValueMarker</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueMarkerComparator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ValueMarkerComparator</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="interfaceName">ValueSet</span></a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe</a></li>
 <li><a href="com/amazonaws/athena/connectors/redis/ValueType.html" title="enum in com.amazonaws.athena.connectors.redis">ValueType</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/VarBinaryExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">VarBinaryExtractor</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/VarBinaryFieldWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">VarBinaryFieldWriter</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/VarCharExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="interfaceName">VarCharExtractor</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/VarCharFieldWriter.html" title="class in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">VarCharFieldWriter</a></li>
+<li><a href="com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">VersionedObjectMapperFactory</a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/VpcTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2">VpcTableProvider</a></li>
 </ul>
 </div>

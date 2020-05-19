@@ -240,11 +240,11 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected static void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeList-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.FieldWriter-org.apache.arrow.vector.types.pojo.Field-int-java.util.Iterator-com.amazonaws.athena.connector.lambda.data.FieldResolver-">writeList</a></span>(org.apache.arrow.memory.BufferAllocator&nbsp;allocator,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeList-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.FieldWriter-org.apache.arrow.vector.types.pojo.Field-int-java.lang.Iterable-com.amazonaws.athena.connector.lambda.data.FieldResolver-">writeList</a></span>(org.apache.arrow.memory.BufferAllocator&nbsp;allocator,
          org.apache.arrow.vector.complex.writer.FieldWriter&nbsp;writer,
          org.apache.arrow.vector.types.pojo.Field&nbsp;field,
          int&nbsp;pos,
-         <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Iterator.html?is-external=true" title="class or interface in java.util">Iterator</a>&nbsp;value,
+         <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html?is-external=true" title="class or interface in java.lang">Iterable</a>&nbsp;value,
          <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/FieldResolver.html" title="interface in com.amazonaws.athena.connector.lambda.data">FieldResolver</a>&nbsp;resolver)</code>
 <div class="block">Used to write a List value.</div>
 </td>
@@ -425,7 +425,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>vector</code> - The FieldVector into which we should write the provided value.</dd>
 <dd><code>pos</code> - The row number that the value should be written to.</dd>
-<dd><code>value</code> - The value to write.</dd>
+<dd><code>rawValue</code> - The value to write.</dd>
 </dl>
 </li>
 </ul>
@@ -505,7 +505,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </dl>
 </li>
 </ul>
-<a name="writeList-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.FieldWriter-org.apache.arrow.vector.types.pojo.Field-int-java.util.Iterator-com.amazonaws.athena.connector.lambda.data.FieldResolver-">
+<a name="writeList-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.FieldWriter-org.apache.arrow.vector.types.pojo.Field-int-java.lang.Iterable-com.amazonaws.athena.connector.lambda.data.FieldResolver-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -515,7 +515,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
                                 org.apache.arrow.vector.complex.writer.FieldWriter&nbsp;writer,
                                 org.apache.arrow.vector.types.pojo.Field&nbsp;field,
                                 int&nbsp;pos,
-                                <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Iterator.html?is-external=true" title="class or interface in java.util">Iterator</a>&nbsp;value,
+                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Iterable.html?is-external=true" title="class or interface in java.lang">Iterable</a>&nbsp;value,
                                 <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/FieldResolver.html" title="interface in com.amazonaws.athena.connector.lambda.data">FieldResolver</a>&nbsp;resolver)</pre>
 <div class="block">Used to write a List value.</div>
 <dl>

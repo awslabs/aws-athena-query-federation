@@ -253,7 +253,9 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html#ALL_LOG_STREAMS_TABLE">ALL_LOG_STREAMS_TABLE</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#ALLOCATOR_ID_FIELD_NAME">ALLOCATOR_ID_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">AllOrNoneValueSet</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/domain/predicate/package-summary.html">com.amazonaws.athena.connector.lambda.domain.predicate</a></dt>
 <dd>
 <div class="block">Describes a constraint as a ValueSet which can have one of several states:
@@ -273,6 +275,8 @@
 <dd>
 <div class="block">Filters metrics who have at least 1 metric dimension that matches DIMENSION_NAME_FIELD and DIMENSION_VALUE_FIELD filters.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowRecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">ArrowRecordBatchSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">ArrowTypeComparator</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
 <div class="block">This utility class can be used to implement a comparator for various Apache Arrow typed values.</div>
@@ -287,6 +291,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html#ArrowValueProjectorImpl--">ArrowValueProjectorImpl()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ArrowValueProjectorImpl</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#assertFieldName-com.fasterxml.jackson.core.JsonParser-java.lang.String-">assertFieldName(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to validate an expected field name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SupportedTypes.html#assertSupported-org.apache.arrow.vector.types.pojo.Field-">assertSupported(Field)</a></span> - Static method in enum com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SupportedTypes.html" title="enum in com.amazonaws.athena.connector.lambda.data">SupportedTypes</a></dt>
 <dd>
 <div class="block">Asserts if the provided field (and its children) all use supported types.</div>
@@ -328,8 +336,18 @@
 </a>
 <h2 class="title">B</h2>
 <dl>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BATCH_FIELD_NAME">BATCH_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></dt>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">BaseDeserializer</span></a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="type parameter in BaseDeserializer">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#BaseDeserializer-java.lang.Class-">BaseDeserializer(Class&lt;T&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">BaseSerializer</span></a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="type parameter in BaseSerializer">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#BaseSerializer-java.lang.Class-">BaseSerializer(Class&lt;T&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BATCH_FIELD_NAME">BATCH_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#below-com.amazonaws.athena.connector.lambda.data.BlockAllocator-org.apache.arrow.vector.types.pojo.ArrowType-java.lang.Object-">below(BlockAllocator, ArrowType, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#bigDecimalToLocalDate-java.math.BigDecimal-java.time.ZoneId-">bigDecimalToLocalDate(BigDecimal, ZoneId)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
@@ -411,20 +429,28 @@
 </dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">BlockDeserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
-<div class="block">Uses either an explicit BlockAllocator or a BlockAllocatorRegistry to handle memory pooling associated with
- deserializing blocks.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment"><code>BlockSerDe</code> should be used instead</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html#BlockDeserializer-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">BlockDeserializer(BlockAllocator)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockDeserializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html#BlockDeserializer-com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry-">BlockDeserializer(BlockAllocatorRegistry)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockDeserializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">BlockSerializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
-<div class="block">Uses either an explicit BlockAllocator or a BlockAllocatorRegistry to handle memory pooling associated with
- serializing blocks.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment"><code>BlockSerDe</code> should be used instead</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BlockSerializer--">BlockSerializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">BlockSpiller</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
 <div class="block">Used to write blocks which may require chunking and optionally spilling via a secondary communication channel.</div>
@@ -508,6 +534,8 @@
  cache in front of SecretsManager to avoid bottlenecking on SecretsManager.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html#CachableSecretsManager-com.amazonaws.services.secretsmanager.AWSSecretsManager-">CachableSecretsManager(AWSSecretsManager)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationService.html#call-com.amazonaws.athena.connector.lambda.request.FederationRequest-">call(FederationRequest)</a></span> - Method in interface com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationService.html" title="interface in com.amazonaws.athena.connector.validation">FederationService</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/FederationCapabilities.html#CAPABILITIES">CAPABILITIES</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/FederationCapabilities.html" title="class in com.amazonaws.athena.connector.lambda.handlers">FederationCapabilities</a></dt>
 <dd>&nbsp;</dd>
@@ -669,7 +697,9 @@
 <div class="block">Helper that can coerce the given HBase value to the requested Apache Arrow type.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceValueToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-org.apache.arrow.vector.types.Types.MinorType-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">coerceValueToExpectedType(Object, Field, Types.MinorType, DDBRecordMetadata)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Coerces the raw value from DynamoDB to normalized type</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/CollectionsUtils.html" title="class in com.amazonaws.athena.connector.lambda"><span class="typeNameLink">CollectionsUtils</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a></dt>
 <dd>
 <div class="block">Simple collection helper that reduces duplicate code and allows us to avoid taking extra dependencies
@@ -677,6 +707,8 @@
  Lambda functions.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a> - package com.amazonaws.athena.connector.lambda</dt>
 <dd>&nbsp;</dd>
@@ -715,6 +747,8 @@
 <dt><a href="com/amazonaws/athena/connector/lambda/security/package-summary.html">com.amazonaws.athena.connector.lambda.security</a> - package com.amazonaws.athena.connector.lambda.security</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a> - package com.amazonaws.athena.connector.lambda.serde</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> - package com.amazonaws.athena.connector.lambda.serde.v2</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/udf/package-summary.html">com.amazonaws.athena.connector.lambda.udf</a> - package com.amazonaws.athena.connector.lambda.udf</dt>
 <dd>&nbsp;</dd>
@@ -841,6 +875,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#Constraints-java.util.Map-">Constraints(Map&lt;String, ValueSet&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#constructZonedDateTime-long-">constructZonedDateTime(long)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
+<dd>
+<div class="block">Reconstruct ZonedDateTime type from datetime and timezone packed long</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#contains-com.amazonaws.athena.connector.lambda.domain.predicate.Range-">contains(Range)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html#contains-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet-">contains(BlockAllocator, ValueSet)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a></dt>
@@ -888,7 +926,11 @@
 <dd>
 <div class="block">Allows for coercing types in the event that schema has evolved or there were other data issues.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.Object-">convertArrowTypeIfNecessary(Object)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-">convertArrowTypeIfNecessary(String, Object)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
+<dd>
+<div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">convertArrowTypeIfNecessary(String, Object, DDBRecordMetadata)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
 <dd>
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </dd>
@@ -937,7 +979,19 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/LocalKeyFactory.html#create--">create()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/LocalKeyFactory.html" title="class in com.amazonaws.athena.connector.lambda.security">LocalKeyFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html#create-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">create(BlockAllocator)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">ObjectMapperFactory</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/ObjectMapperFactoryV2.html#create-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">create(BlockAllocator)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/ObjectMapperFactoryV2.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ObjectMapperFactoryV2</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html#create-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">create(BlockAllocator)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">VersionedObjectMapperFactory</a></dt>
+<dd>
+<div class="block">Creates an <code>ObjectMapper</code> using the current SDK SerDe version.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html#create-com.amazonaws.athena.connector.lambda.data.BlockAllocator-int-">create(BlockAllocator, int)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">VersionedObjectMapperFactory</a></dt>
+<dd>
+<div class="block">Creates an <code>ObjectMapper</code> using the provided SerDe version.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ProjectorUtils.html#createArrowValueProjector-org.apache.arrow.vector.complex.reader.FieldReader-">createArrowValueProjector(FieldReader)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ProjectorUtils.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ProjectorUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html#createBlock-org.apache.arrow.vector.types.pojo.Schema-">createBlock(Schema)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a></dt>
@@ -1125,22 +1179,56 @@
 <dd>
 <div class="block">Defines the default mapping of AWS Glue Data Catalog types to Apache Arrow types.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">DelegatingDeserializer</span></a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="type parameter in DelegatingDeserializer">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html#DelegatingDeserializer-java.lang.Class-java.util.Set-">DelegatingDeserializer(Class&lt;T&gt;, Set&lt;TypedDeserializer&lt;T&gt;&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">DelegatingSerializer</span></a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="type parameter in DelegatingSerializer">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html#DelegatingSerializer-java.lang.Class-java.util.Set-">DelegatingSerializer(Class&lt;T&gt;, Set&lt;TypedSerializer&lt;T&gt;&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#deserialize-byte:A-">deserialize(byte[])</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">RecordBatchSerDe</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Attempts to deserialize the provided byte[] into an ArrowRecordBatch.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html#deserialize-java.io.InputStream-">deserialize(InputStream)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaSerDe</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Attempts to deserialize a Schema from the provided InputStream.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockDeserializer</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Deserializer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html#deserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">deserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaDeserializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#deserialize-java.lang.String-">deserialize(String)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
 <dd>
 <div class="block">Deserializes the provided String into a List of MetricStats.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html#Deserializer--">Deserializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Deserializer-">Deserializer(FederatedIdentitySerDe.Deserializer)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html#Deserializer--">Deserializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#deserializeWithType-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-com.fasterxml.jackson.databind.jsontype.TypeDeserializer-">deserializeWithType(JsonParser, DeserializationContext, TypeDeserializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html#deserializeWithType-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-com.fasterxml.jackson.databind.jsontype.TypeDeserializer-">deserializeWithType(JsonParser, DeserializationContext, TypeDeserializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html#deserializeWithType-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-com.fasterxml.jackson.databind.jsontype.TypeDeserializer-">deserializeWithType(JsonParser, DeserializationContext, TypeDeserializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#DIMENSION_NAME_FIELD">DIMENSION_NAME_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#DIMENSION_VALUE_FIELD">DIMENSION_VALUE_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
@@ -1183,6 +1271,14 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBRecordHandler.html#DocDBRecordHandler--">DocDBRecordHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBRecordHandler.html#DocDBRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.docdb.DocDBConnectionFactory-">DocDBRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, DocDBConnectionFactory)</a></span> - Constructor for class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBRecordHandler.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBRecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler</a></dt>
 <dd>
@@ -1437,6 +1533,34 @@
 <dd>
 <div class="block">Used to read the row data associated with the provided Split.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html#doRequestDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-com.amazonaws.athena.connector.lambda.security.FederatedIdentity-java.lang.String-java.lang.String-">doRequestDeserialize(JsonParser, DeserializationContext, FederatedIdentity, String, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html#doRequestSerialize-com.amazonaws.athena.connector.lambda.request.FederationRequest-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doRequestSerialize(FederationRequest, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html#doSerialize-com.amazonaws.athena.connector.lambda.security.FederatedIdentity-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize(FederatedIdentity, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Deserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize(JsonParser, DeserializationContext)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationRequest-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize(FederationRequest, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Serializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize(FederationResponse, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Serializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html#doTypedSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationRequest-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize(FederationRequest, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBCompositeHandler.html" title="class in com.amazonaws.athena.connectors.dynamodb"><span class="typeNameLink">DynamoDBCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/package-summary.html">com.amazonaws.athena.connectors.dynamodb</a></dt>
 <dd>
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -1568,6 +1692,8 @@
 <dd>
 <div class="block">Provides some basic equality checking for a Block.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">AllOrNoneValueSet</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
@@ -1613,6 +1739,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/records/ReadRecordsResponse.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.records.<a href="com/amazonaws/athena/connector/lambda/records/ReadRecordsResponse.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsResponse</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/records/RemoteReadRecordsResponse.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.records.<a href="com/amazonaws/athena/connector/lambda/records/RemoteReadRecordsResponse.html" title="class in com.amazonaws.athena.connector.lambda.records">RemoteReadRecordsResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingRequest.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></dt>
 <dd>&nbsp;</dd>
@@ -1810,6 +1940,14 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#FederatedIdentity-java.lang.String-java.lang.String-java.lang.String-">FederatedIdentity(String, String, String)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">FederatedIdentitySerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>
+<div class="block">Since this SerDe is used in <a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde"><code>PingRequestSerDe</code></a> it needs to be forwards compatible.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">FederatedIdentitySerDe.Deserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">FederatedIdentitySerDe.Serializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/handlers/FederationCapabilities.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">FederationCapabilities</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
 <dd>
 <div class="block">Used to convey the capabilities of this SDK instance when negotiating functionality with
@@ -1832,6 +1970,12 @@
 <div class="block">Base class for all user facing responses.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html#FederationResponse--">FederationResponse()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/validation/FederationService.html" title="interface in com.amazonaws.athena.connector.validation"><span class="typeNameLink">FederationService</span></a> - Interface in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">FederationServiceProvider</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">FederationServiceProvider.Mapper</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/exceptions/FederationThrottleException.html" title="class in com.amazonaws.athena.connector.lambda.exceptions"><span class="typeNameLink">FederationThrottleException</span></a> - Exception in <a href="com/amazonaws/athena/connector/lambda/exceptions/package-summary.html">com.amazonaws.athena.connector.lambda.exceptions</a></dt>
 <dd>
@@ -1930,11 +2074,13 @@
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/writers/GeneratedRowWriter.RowWriterBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data.writers"><span class="typeNameLink">GeneratedRowWriter.RowWriterBuilder</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/writers/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateFilterExpression-java.util.Set-java.util.Map-java.util.List-com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer-">generateFilterExpression(Set&lt;String&gt;, Map&lt;String, ValueSet&gt;, List&lt;AttributeValue&gt;, IncrementingValueNameProducer)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateFilterExpression-java.util.Set-java.util.Map-java.util.List-com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">generateFilterExpression(Set&lt;String&gt;, Map&lt;String, ValueSet&gt;, List&lt;AttributeValue&gt;, IncrementingValueNameProducer, DDBRecordMetadata)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
 <dd>
 <div class="block">Generates a combined filter expression for the given predicates.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateSingleColumnFilter-java.lang.String-com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet-java.util.List-com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer-">generateSingleColumnFilter(String, ValueSet, List&lt;AttributeValue&gt;, IncrementingValueNameProducer)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html#generateQueryId--">generateQueryId()</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#generateSingleColumnFilter-java.lang.String-com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet-java.util.List-com.amazonaws.athena.connectors.dynamodb.util.IncrementingValueNameProducer-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">generateSingleColumnFilter(String, ValueSet, List&lt;AttributeValue&gt;, IncrementingValueNameProducer, DDBRecordMetadata)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
 <dd>
 <div class="block">Generates a filter expression for a single column given a <a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><code>ValueSet</code></a> predicate for that column.</div>
 </dd>
@@ -2097,7 +2243,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html#getDateTimeFormat-java.lang.String-">getDateTimeFormat(String)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a></dt>
 <dd>
-<div class="block">Getter function retrieve the date/datetime formatting for a specific column name</div>
+<div class="block">Getter function that retrieves the date/datetime formatting for a specific column name</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.DatabaseEngine.html#getDbName--">getDbName()</a></span> - Method in enum com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.DatabaseEngine.html" title="enum in com.amazonaws.connectors.athena.jdbc.connection">JdbcConnectionFactory.DatabaseEngine</a></dt>
 <dd>&nbsp;</dd>
@@ -2107,6 +2253,10 @@
 <dd>
 <div class="block">Getter for default timezone</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html#getDelegateSerDeMap--">getDelegateSerDeMap()</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html#getDelegateSerDeMap--">getDelegateSerDeMap()</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionInfo.html#getDriverClassName--">getDriverClassName()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.html#getEncryptionKey--">getEncryptionKey()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig</a></dt>
@@ -2161,9 +2311,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlQueryStringBuilder.html#getFromClauseWithSplit-java.lang.String-java.lang.String-java.lang.String-com.amazonaws.athena.connector.lambda.domain.Split-">getFromClauseWithSplit(String, String, String, Split)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.postgresql.<a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlQueryStringBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlQueryStringBuilder</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.Mapper.html#getFunctionName-java.lang.reflect.Method-com.amazonaws.services.lambda.invoke.LambdaFunction-com.amazonaws.services.lambda.invoke.LambdaInvokerFactoryConfig-">getFunctionName(Method, LambdaFunction, LambdaInvokerFactoryConfig)</a></span> - Method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">LambdaMetadataProvider.Mapper</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.Mapper.html#getFunctionName-java.lang.reflect.Method-com.amazonaws.services.lambda.invoke.LambdaFunction-com.amazonaws.services.lambda.invoke.LambdaInvokerFactoryConfig-">getFunctionName(Method, LambdaFunction, LambdaInvokerFactoryConfig)</a></span> - Method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">LambdaRecordProvider.Mapper</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.Mapper.html#getFunctionName-java.lang.reflect.Method-com.amazonaws.services.lambda.invoke.LambdaFunction-com.amazonaws.services.lambda.invoke.LambdaInvokerFactoryConfig-">getFunctionName(Method, LambdaFunction, LambdaInvokerFactoryConfig)</a></span> - Method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider.Mapper</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#getFunctionType--">getFunctionType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
@@ -2176,6 +2324,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#getHigh--">getHigh()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#getHigh--">getHigh()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getId--">getId()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html#getId--">getId()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html" title="enum in com.amazonaws.athena.connector.lambda.examples">SplitProperties</a></dt>
 <dd>&nbsp;</dd>
@@ -2198,6 +2348,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getJdbcConnectionFactory--">getJdbcConnectionFactory()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html#getJdbcConnectionString--">getJdbcConnectionString()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionConfig</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getKey--">getKey()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.html#getKey--">getKey()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation</a></dt>
 <dd>
@@ -2245,8 +2397,6 @@
 <dd>
 <div class="block">Returns metadata corresponding to the request type.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.MetadataService.html#getMetadata-com.amazonaws.athena.connector.lambda.metadata.MetadataRequest-">getMetadata(MetadataRequest)</a></span> - Method in interface com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.MetadataService.html" title="interface in com.amazonaws.athena.connector.validation">LambdaMetadataProvider.MetadataService</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#getMethodName--">getMethodName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#getMethodName--">getMethodName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
@@ -2265,7 +2415,34 @@
 <dd>
 <div class="block">Returns the next alias.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextBinaryField-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextBinaryField(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to extract named byte array fields from the json parser in a streaming fashion.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextBoolField-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextBoolField(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to extract named boolean fields from the json parser in a streaming fashion.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextIntField-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextIntField(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to extract named integer fields from the json parser in a streaming fashion.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextStringArray-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextStringArray(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to read a list of strings.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextStringField-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextStringField(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to extract named String fields from the json parser in a streaming fashion.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html#getNonce--">getNonce()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html#getNonComparableColumns--">getNonComparableColumns()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a></dt>
+<dd>
+<div class="block">retrieves the names of columns that have types that are not natively supported by glue/dynamodb
+ and therefore needs to be excluded from the constraining clause in scan/query.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#getNonComparableSet--">getNonComparableSet()</a></span> - Static method in enum com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/records/RemoteReadRecordsResponse.html#getNumberBlocks--">getNumberBlocks()</a></span> - Method in class com.amazonaws.athena.connector.lambda.records.<a href="com/amazonaws/athena/connector/lambda/records/RemoteReadRecordsResponse.html" title="class in com.amazonaws.athena.connector.lambda.records">RemoteReadRecordsResponse</a></dt>
 <dd>
@@ -2623,6 +2800,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html#getSecret--">getSecret()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionConfig</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#getSerDeVersion--">getSerDeVersion()</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
+<dd>
+<div class="block">Returns the version of serialization used by the pinged endpoint.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html#getService-java.lang.String-com.amazonaws.athena.connector.lambda.security.FederatedIdentity-java.lang.String-">getService(String, FederatedIdentity, String)</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html#getSingleDatabaseConfigFromEnv-com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory.DatabaseEngine-">getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine)</a></span> - Static method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JDBCUtil</a></dt>
 <dd>
 <div class="block">Extracts default database configuration for a database.</div>
@@ -2730,6 +2913,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html#getSplitter-java.lang.String-java.sql.ResultSet-int-">getSplitter(String, ResultSet, int)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitterFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitterFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#getState--">getState()</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html#getSubType--">getSubType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html#getSubType--">getSubType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#getSummary--">getSummary()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
 <dd>
@@ -2885,6 +3072,14 @@
 <div class="block">Fetches table schema by first doing a Scan on the given table name, falling back to case insensitive
  resolution if the table isn't found.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getTimeZoneKey-short-">getTimeZoneKey(short)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getTimeZoneKey-java.lang.String-">getTimeZoneKey(String)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getTimeZoneKeyForOffset-long-">getTimeZoneKeyForOffset(long)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getTimeZoneKeys--">getTimeZoneKeys()</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html#getType--">getType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">AllOrNoneValueSet</a></dt>
 <dd>
 <div class="block">The Arrow Type of the field this constraint applies to.</div>
@@ -2913,6 +3108,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.BaseTypeMapper.html#getType-java.lang.String-">getType(String)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.BaseTypeMapper.html" title="interface in com.amazonaws.athena.connector.lambda.metadata.glue">GlueFieldLexer.BaseTypeMapper</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getType-com.fasterxml.jackson.core.JsonParser-">getType(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to parse the type of the object (usually the class name).</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html#getType--">getType()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionConfig</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html#getUsage--">getUsage()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a></dt>
@@ -3029,6 +3228,8 @@
 <dd>
 <div class="block">Provides some basic hashcode capabilities for the Block.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">AllOrNoneValueSet</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></dt>
@@ -3074,6 +3275,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/records/ReadRecordsResponse.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.records.<a href="com/amazonaws/athena/connector/lambda/records/ReadRecordsResponse.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsResponse</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/records/RemoteReadRecordsResponse.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.records.<a href="com/amazonaws/athena/connector/lambda/records/RemoteReadRecordsResponse.html" title="class in com.amazonaws.athena.connector.lambda.records">RemoteReadRecordsResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingRequest.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">PingRequest</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></dt>
 <dd>&nbsp;</dd>
@@ -3166,6 +3371,10 @@
 <dl>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#id">id</a></span> - Variable in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#ignoreRestOfObject-com.fasterxml.jackson.core.JsonParser-">ignoreRestOfObject(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to skip to the end of the current object.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/ImagesTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2"><span class="typeNameLink">ImagesTableProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/package-summary.html">com.amazonaws.athena.connectors.aws.cmdb.tables.ec2</a></dt>
 <dd>
 <div class="block">Maps your EC2 images (aka AMIs) to a table.</div>
@@ -3281,6 +3490,14 @@
 <dd>
 <div class="block">Indicates if this BlockAllocator has been closed.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html#isContainsCoercibleType--">isContainsCoercibleType()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a></dt>
+<dd>
+<div class="block">returns whether the schema contains any type that can be coercible</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html#isDateTimeFieldType-org.apache.arrow.vector.types.Types.MinorType-">isDateTimeFieldType(Types.MinorType)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a></dt>
+<dd>
+<div class="block">checks if the type is a datetime field type</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.html#isDirectory--">isDirectory()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation</a></dt>
 <dd>
 <div class="block">Indicates if the Key is actually a key prefix for a location that may have multiple blocks.</div>
@@ -3393,6 +3610,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueMarker.html#isUpperUnbounded--">isUpperUnbounded()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueMarker.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueMarker</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#isUtcZoneId-java.lang.String-">isUtcZoneId(String)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html#isWhiteList--">isWhiteList()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">EquatableValueSet</a></dt>
 <dd>
 <div class="block">Conveys if this ValueSet if a white list.</div>
@@ -3497,22 +3716,18 @@
 </a>
 <h2 class="title">L</h2>
 <dl>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/LambdaFunctionExceptionSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">LambdaFunctionExceptionSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
+<dd>
+<div class="block">Used strictly for deserialization only since we do not own <code>LambdaFunctionException</code> and never need-to/should serialize it.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">LambdaMetadataProvider</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
 <dd>
 <div class="block">This class offers multiple convenience methods to retrieve metadata from a deployed Lambda.</div>
 </dd>
-<dt><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">LambdaMetadataProvider.Mapper</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.MetadataService.html" title="interface in com.amazonaws.athena.connector.validation"><span class="typeNameLink">LambdaMetadataProvider.MetadataService</span></a> - Interface in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">LambdaRecordProvider</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
 <dd>
 <div class="block">This class offers a convenience method to retrieve records from a deployed Lambda.</div>
 </dd>
-<dt><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.Mapper.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">LambdaRecordProvider.Mapper</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.RecordService.html" title="interface in com.amazonaws.athena.connector.validation"><span class="typeNameLink">LambdaRecordProvider.RecordService</span></a> - Interface in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#lesserAdjacent--">lesserAdjacent()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html#lessThan-com.amazonaws.athena.connector.lambda.data.BlockAllocator-org.apache.arrow.vector.types.pojo.ArrowType-java.lang.Object-">lessThan(BlockAllocator, ArrowType, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a></dt>
@@ -3674,6 +3889,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html#MAX_SPLITS_PER_REQUEST">MAX_SPLITS_PER_REQUEST</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#MAX_TIME_ZONE_KEY">MAX_TIME_ZONE_KEY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">MetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
 <dd>
 <div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
@@ -3690,6 +3907,14 @@
 <dd>
 <div class="block">Constructs a new MetadataRequest object.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">MetadataRequestDeserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html#MetadataRequestDeserializer-java.lang.Class-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Deserializer-">MetadataRequestDeserializer(Class&lt;? extends FederationRequest&gt;, FederatedIdentitySerDe.Deserializer)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">MetadataRequestSerializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html#MetadataRequestSerializer-java.lang.Class-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Serializer-">MetadataRequestSerializer(Class&lt;? extends FederationRequest&gt;, FederatedIdentitySerDe.Serializer)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.v2.<a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/metadata/MetadataRequestType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata"><span class="typeNameLink">MetadataRequestType</span></a> - Enum in <a href="com/amazonaws/athena/connector/lambda/metadata/package-summary.html">com.amazonaws.athena.connector.lambda.metadata</a></dt>
 <dd>
 <div class="block">Enumerates the supported request types for <code>Metadata</code>.</div>
@@ -3921,9 +4146,12 @@
 <dl>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">ObjectMapperFactory</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
-<div class="block">Used to construct an ObjectMapper instead that is capable of handling some of our special objects (Apache Arrow Block,
- and Schema).</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">replaced with <a href="com/amazonaws/athena/connector/lambda/serde/v2/ObjectMapperFactoryV2.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><code>ObjectMapperFactoryV2</code></a></span></div>
+</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/ObjectMapperFactoryV2.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">ObjectMapperFactoryV2</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html#of-com.amazonaws.athena.connector.lambda.domain.predicate.Range-com.amazonaws.athena.connector.lambda.domain.predicate.Range...-">of(Range, Range...)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">SortedRangeSet</a></dt>
 <dd>
 <div class="block">Provided Ranges are unioned together to form the SortedRangeSet</div>
@@ -3970,6 +4198,18 @@
 </a>
 <h2 class="title">P</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#packDateTimeWithZone-java.time.ZonedDateTime-">packDateTimeWithZone(ZonedDateTime)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
+<dd>
+<div class="block">Extracts timezone value and time value (in millis in UTCC) from ZonedDateTime
+ and uses Bit Operation* to create a single long value representing ZonedDateTime.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#packDateTimeWithZone-long-java.lang.String-">packDateTimeWithZone(long, String)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
+<dd>
+<div class="block">Uses Bit Operation* to create a single long value representing timestamp with millisUtc and zoneId
+
+ Bit Operation* : bit-shifting (MILLIS_SHIFT) UTC equivalent time in millis
+ and &'ing with 12 bit representation of the timezone value in the ZonedDateTime.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/ConstraintParser.html#parseConstraints-org.apache.arrow.vector.types.pojo.Schema-java.util.Optional-">parseConstraints(Schema, Optional&lt;String&gt;)</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/ConstraintParser.html" title="class in com.amazonaws.athena.connector.validation">ConstraintParser</a></dt>
 <dd>
 <div class="block">This method takes in a table schema and a String representing the set of
@@ -3994,11 +4234,29 @@
 <dd>
 <div class="block">Constructs a new PingRequest object.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">PingRequestSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>
+<div class="block">This SerDe must remain backwards and forwards compatible in order as this call
+ is first and the SerDe version has not been set yet.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">PingRequestSerDe.Deserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">PingRequestSerDe.Serializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request"><span class="typeNameLink">PingResponse</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/request/package-summary.html">com.amazonaws.athena.connector.lambda.request</a></dt>
 <dd>
 <div class="block">Represents the output of a <code>Ping</code> operation.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#PingResponse-java.lang.String-java.lang.String-java.lang.String-int-">PingResponse(String, String, String, int)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html#PingResponse-java.lang.String-java.lang.String-java.lang.String-int-int-">PingResponse(String, String, String, int, int)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/PingResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">PingResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">PingResponseSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>
+<div class="block">This SerDe must remain backwards and forwards compatible in order as this call
+ is first and the SerDe version has not been set yet.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">PingResponseSerDe.Deserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">PingResponseSerDe.Serializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#populateSourceTableNameIfAvailable-com.amazonaws.services.glue.model.Table-com.amazonaws.athena.connector.lambda.data.SchemaBuilder-">populateSourceTableNameIfAvailable(Table, SchemaBuilder)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
 <dd>
@@ -4141,8 +4399,6 @@
 <dd>
 <div class="block">This method builds and executes a ReadRecordsRequest against the specified Lambda function.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.RecordService.html#readRecords-com.amazonaws.athena.connector.lambda.records.RecordRequest-">readRecords(RecordRequest)</a></span> - Method in interface com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/LambdaRecordProvider.RecordService.html" title="interface in com.amazonaws.athena.connector.validation">LambdaRecordProvider.RecordService</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records"><span class="typeNameLink">ReadRecordsRequest</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/records/package-summary.html">com.amazonaws.athena.connector.lambda.records</a></dt>
 <dd>
 <div class="block">Represents the input of a <code>ReadRecords</code> operation.</div>
@@ -4267,10 +4523,14 @@
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">RecordBatchSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
-<div class="block">used to serialize and deserialize ArrowRecordBatch.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment"><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowRecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><code>ArrowRecordBatchSerDe</code></a> should be used instead</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#RecordBatchSerDe-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">RecordBatchSerDe(BlockAllocator)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">RecordBatchSerDe</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/handlers/RecordHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">RecordHandler</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
 <dd>
 <div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
@@ -4445,9 +4705,13 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.ExampleTable.html#schema">schema</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.ExampleTable.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler.ExampleTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#SCHEMA_FIELD_NAME">SCHEMA_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html#SCHEMA_FIELD_NAME">SCHEMA_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html#SCHEMA_NAME">SCHEMA_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricsMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/tpcds/TPCDSMetadataHandler.html#SCHEMA_NAMES">SCHEMA_NAMES</a></span> - Static variable in class com.amazonaws.athena.connectors.tpcds.<a href="com/amazonaws/athena/connectors/tpcds/TPCDSMetadataHandler.html" title="class in com.amazonaws.athena.connectors.tpcds">TPCDSMetadataHandler</a></dt>
@@ -4467,24 +4731,36 @@
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">SchemaDeserializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
-<div class="block">Used to enhance Jackson's stock ObjectMapper with the ability to deserialize Apache Arrow Schema objects.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment"><code>SchemaSerDe</code> should be used instead</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html#SchemaDeserializer--">SchemaDeserializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaDeserializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.ExampleTable.html#schemaName">schemaName</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.ExampleTable.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler.ExampleTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">SchemaSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
-<div class="block">Used to serialize and deserialize Apache Arrow Schema objects.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment"><code>SchemaSerDe</code> should be used instead</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html#SchemaSerDe--">SchemaSerDe()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaSerDe</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">SchemaSerializer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
-<div class="block">Used to enhance Jackson's stock ObjectMapper with the ability to serialize Apache Arrow Schema objects.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment"><code>SchemaSerDe</code> should be used instead</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html#SchemaSerializer--">SchemaSerializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb"><span class="typeNameLink">SchemaUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/docdb/package-summary.html">com.amazonaws.athena.connectors.docdb</a></dt>
 <dd>
 <div class="block">Collection of helpful utilities that handle DocumentDB schema inference, type, and naming conversion.</div>
@@ -4505,24 +4781,47 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html#SERDE">SERDE</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/SerDeVersion.html#SERDE_VERSION">SERDE_VERSION</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/SerDeVersion.html" title="class in com.amazonaws.athena.connector.lambda.handlers">SerDeVersion</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/handlers/SerDeVersion.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">SerDeVersion</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a></dt>
+<dd>
+<div class="block">Used to convey the version of serialization of this SDK instance when negotiating functionality with
+ Athena.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#serialize-org.apache.arrow.vector.ipc.message.ArrowRecordBatch-java.io.OutputStream-">serialize(ArrowRecordBatch, OutputStream)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">RecordBatchSerDe</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Serialized the provided ArrowRecordBatch to the provided OutputStream and closes the batch once
  it is fully written to the OutputStream.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html#serialize-org.apache.arrow.vector.types.pojo.Schema-java.io.OutputStream-">serialize(Schema, OutputStream)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaSerDe</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Serialized the provided Schema to the provided OutputStream.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#serialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">serialize(T, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#serialize-com.amazonaws.athena.connector.lambda.data.Block-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">serialize(Block, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html#serialize-org.apache.arrow.vector.types.pojo.Schema-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">serialize(Schema, JsonGenerator, SerializerProvider)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#serialize-java.util.List-">serialize(List&lt;MetricStat&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
 <dd>
 <div class="block">Serializes the provided List of MetricStats.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html#SERIALIZED_METRIC_STATS_FIELD_NAME">SERIALIZED_METRIC_STATS_FIELD_NAME</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricStatSerDe.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricStatSerDe</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html#Serializer--">Serializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Serializer-">Serializer(FederatedIdentitySerDe.Serializer)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Serializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html#Serializer--">Serializer()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Serializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#serializeWithType-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-com.fasterxml.jackson.databind.jsontype.TypeSerializer-">serializeWithType(T, JsonGenerator, SerializerProvider, TypeSerializer)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html#setBlockSpiller-com.amazonaws.athena.connector.lambda.data.BlockSpiller-">setBlockSpiller(BlockSpiller)</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></dt>
 <dd>
@@ -4680,13 +4979,17 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html#STATISTICS">STATISTICS</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricsMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricsMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#stringToDateTime-java.lang.String-java.lang.String-java.time.ZoneId-">stringToDateTime(String, String, ZoneId)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
+<dd>
+<div class="block">Transforms the raw string to LocalDateTime using the provided default format</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#stringToLocalDate-java.lang.String-java.lang.String-java.time.ZoneId-">stringToLocalDate(String, String, ZoneId)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
 <dd>
 <div class="block">Transforms the raw string to LocalDate using the provided default format</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#stringToLocalDateTime-java.lang.String-java.lang.String-java.time.ZoneId-">stringToLocalDateTime(String, String, ZoneId)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html#stringToZonedDateTime-java.lang.String-java.lang.String-java.time.ZoneId-">stringToZonedDateTime(String, String, ZoneId)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/DateTimeFormatterUtil.html" title="class in com.amazonaws.athena.connector.lambda.data">DateTimeFormatterUtil</a></dt>
 <dd>
-<div class="block">Transforms the raw string to LocalDateTime using the provided default format</div>
+<div class="block">Tries to parse the string value to ZonedDateTime, If fails, then falls back to the LocalDateTime with default zone</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/projectors/StructArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors"><span class="typeNameLink">StructArrowValueProjector</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/projectors/package-summary.html">com.amazonaws.athena.connector.lambda.data.projectors</a></dt>
 <dd>&nbsp;</dd>
@@ -4762,6 +5065,11 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#TIMESTAMP_FIELD">TIMESTAMP_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">TimeZoneKey</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
+<dd>
+<div class="block">Class for representing timezone to be used in encoding datetime value and timezone value to a single long
+ Source: Presto TimeZoneKey</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/TinyIntExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="typeNameLink">TinyIntExtractor</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers.extractors</a></dt>
 <dd>
 <div class="block">Used to extract a TinyInt value from the context object.</div>
@@ -4792,6 +5100,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#Token-java.lang.String-java.lang.Character-int-">Token(String, Character, int)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html#toString--">toString()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/AllOrNoneValueSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">AllOrNoneValueSet</a></dt>
 <dd>&nbsp;</dd>
@@ -4882,6 +5192,14 @@
 <div class="block">Utility class that centralizes a few commonly used tools for working with
  the TPC-DS Tables,Columns,Schemas.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">TypedDeserializer</span></a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="type parameter in TypedDeserializer">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html#TypedDeserializer-java.lang.Class-java.lang.Class-">TypedDeserializer(Class&lt;T&gt;, Class&lt;? extends T&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">TypedSerializer</span></a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="type parameter in TypedSerializer">T</a>&gt; - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html#TypedSerializer-java.lang.Class-java.lang.Class-">TypedSerializer(Class&lt;T&gt;, Class&lt;? extends T&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/docdb/TypeUtils.html" title="class in com.amazonaws.athena.connectors.docdb"><span class="typeNameLink">TypeUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/docdb/package-summary.html">com.amazonaws.athena.connectors.docdb</a></dt>
 <dd>
 <div class="block">Helper class with useful methods for type conversion and coercion.</div>
@@ -4936,6 +5254,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#UTC">UTC</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#UTC_KEY">UTC_KEY</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#UTC_ZONE_ID">UTC_ZONE_ID</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
 <dd>&nbsp;</dd>
 </dl>
@@ -4944,6 +5264,18 @@
 </a>
 <h2 class="title">V</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateArrayStart-com.fasterxml.jackson.core.JsonParser-">validateArrayStart(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to validate that an array is starting (open bracket) at the next token.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectEnd-com.fasterxml.jackson.core.JsonParser-">validateObjectEnd(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to validate that an object is ending (close brace) at the next token.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectStart-com.fasterxml.jackson.core.JsonToken-">validateObjectStart(JsonToken)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to validate that an object is starting (open brace) at the provided <code>JsonToken</code>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableResolver.html#validateSchema-java.lang.String-">validateSchema(String)</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableResolver.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableResolver</a></dt>
 <dd>
 <div class="block">Used to validate and convert the given schema name to a properly cased and qualified CloudwatchTableName.</div>
@@ -5081,6 +5413,8 @@ the order they are declared.</div>
 <div class="block">Defines a construct that can be used to describe a set of values without containing all the individual
  values themselves.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><span class="typeNameLink">ValueSetSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/redis/ValueType.html" title="enum in com.amazonaws.athena.connectors.redis"><span class="typeNameLink">ValueType</span></a> - Enum in <a href="com/amazonaws/athena/connectors/redis/package-summary.html">com.amazonaws.athena.connectors.redis</a></dt>
 <dd>
 <div class="block">Defines the supported value types that can be used to define a Redis table in Glue and thus mapped to rows.</div>
@@ -5110,6 +5444,10 @@ the order they are declared.</div>
 <dd>
 <div class="block">Creates a new instance of this FieldWriter and configures is such that writing a value required minimal
  branching or secondary operations (metadata lookups, etc..)</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">VersionedObjectMapperFactory</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
+<dd>
+<div class="block">Vends <code>ObjectMapper</code> instances that correspond to SerDe versions.</div>
 </dd>
 <dt><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/VpcTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2"><span class="typeNameLink">VpcTableProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/package-summary.html">com.amazonaws.athena.connectors.aws.cmdb.tables.ec2</a></dt>
 <dd>
@@ -5238,7 +5576,7 @@ the order they are declared.</div>
 <div class="block">Converts a value from TPCDS' string representation into the appropriate Apache Arrow type
  and writes it to the correct field in the provided Block and row.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeList-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.FieldWriter-org.apache.arrow.vector.types.pojo.Field-int-java.util.Iterator-com.amazonaws.athena.connector.lambda.data.FieldResolver-">writeList(BufferAllocator, FieldWriter, Field, int, Iterator, FieldResolver)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeList-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.FieldWriter-org.apache.arrow.vector.types.pojo.Field-int-java.lang.Iterable-com.amazonaws.athena.connector.lambda.data.FieldResolver-">writeList(BufferAllocator, FieldWriter, Field, int, Iterable, FieldResolver)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
 <dd>
 <div class="block">Used to write a List value.</div>
 </dd>
@@ -5264,6 +5602,14 @@ the order they are declared.</div>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SimpleBlockWriter.html#writeRows-com.amazonaws.athena.connector.lambda.data.BlockWriter.RowWriter-">writeRows(BlockWriter.RowWriter)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SimpleBlockWriter.html" title="class in com.amazonaws.athena.connector.lambda.data">SimpleBlockWriter</a></dt>
 <dd>
 <div class="block">Used to write rows into the Block that is managed by this BlockWriter.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#writeStringArray-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Collection-">writeStringArray(JsonGenerator, String, Collection&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to help serialize a list of strings.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#writeStringArray-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Collection-">writeStringArray(JsonGenerator, String, Collection&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
+<dd>
+<div class="block">Helper used to help serialize a list of strings.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html#writeStruct-org.apache.arrow.memory.BufferAllocator-org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter-org.apache.arrow.vector.types.pojo.Field-int-java.lang.Object-com.amazonaws.athena.connector.lambda.data.FieldResolver-">writeStruct(BufferAllocator, BaseWriter.StructWriter, Field, int, Object, FieldResolver)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockUtils</a></dt>
 <dd>

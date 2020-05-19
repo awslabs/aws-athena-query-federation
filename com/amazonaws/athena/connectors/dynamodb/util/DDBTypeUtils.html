@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":9,"i1":9,"i2":9,"i3":9};
+var methods = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -135,22 +135,33 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceValueToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-org.apache.arrow.vector.types.Types.MinorType-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">coerceValueToExpectedType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value,
                          org.apache.arrow.vector.types.pojo.Field&nbsp;field,
                          org.apache.arrow.vector.types.Types.MinorType&nbsp;fieldType,
-                         <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)</code>&nbsp;</td>
+                         <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)</code>
+<div class="block">Coerces the raw value from DynamoDB to normalized type</div>
+</td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.Object-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;columnName,
+                           <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</code>
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;columnName,
+                           <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object,
+                           <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)</code>
+<div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowFieldFromDDBType-java.lang.String-java.lang.String-">getArrowFieldFromDDBType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeName,
                         <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeType)</code>
 <div class="block">Converts from DynamoDB Attribute Type to Arrow type.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#inferArrowField-java.lang.String-java.lang.Object-">inferArrowField</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;key,
                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value)</code>
@@ -198,17 +209,42 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </dl>
 </li>
 </ul>
-<a name="convertArrowTypeIfNecessary-java.lang.Object-">
+<a name="convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>convertArrowTypeIfNecessary</h4>
-<pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;convertArrowTypeIfNecessary(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</pre>
+<pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;convertArrowTypeIfNecessary(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;columnName,
+                                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</pre>
+<div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.
+ This is called from GetSplits request. Since DDBRecordMetadata object is used for any custom override for
+ data manipulation/formatting, it does not apply to GetSplits request.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>columnName</code> - column name where the input object comes from</dd>
+<dd><code>object</code> - the input object</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the converted-to object if convertible, otherwise the original object</dd>
+</dl>
+</li>
+</ul>
+<a name="convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>convertArrowTypeIfNecessary</h4>
+<pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;convertArrowTypeIfNecessary(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;columnName,
+                                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object,
+                                                 <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)</pre>
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>columnName</code> - column name where the input object comes from</dd>
 <dd><code>object</code> - the input object</dd>
+<dd><code>recordMetadata</code> - metadata object from glue table that contains customer specified information
+                       such as desired default timezone, or datetime formats</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the converted-to object if convertible, otherwise the original object</dd>
 </dl>
@@ -242,6 +278,16 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
                                                org.apache.arrow.vector.types.pojo.Field&nbsp;field,
                                                org.apache.arrow.vector.types.Types.MinorType&nbsp;fieldType,
                                                <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)</pre>
+<div class="block">Coerces the raw value from DynamoDB to normalized type</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>value</code> - raw value from DynamoDB</dd>
+<dd><code>field</code> - Arrow field from table schema</dd>
+<dd><code>fieldType</code> - Corresponding MinorType for field</dd>
+<dd><code>recordMetadata</code> - DDBRecordMetadata object containing any metadata that is passed from schema metadata</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>coerced value to normalized type</dd>
+</dl>
 </li>
 </ul>
 </li>

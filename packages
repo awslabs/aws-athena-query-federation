@@ -35,6 +35,7 @@ com.amazonaws.athena.connector.lambda.records
 com.amazonaws.athena.connector.lambda.request
 com.amazonaws.athena.connector.lambda.security
 com.amazonaws.athena.connector.lambda.serde
+com.amazonaws.athena.connector.lambda.serde.v2
 com.amazonaws.athena.connector.lambda.udf
 com.amazonaws.athena.connectors.tpcds
 com.amazonaws.connectors.athena.jdbc

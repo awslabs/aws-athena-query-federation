@@ -17,6 +17,7 @@ com.amazonaws.athena.connector.lambda.records
 com.amazonaws.athena.connector.lambda.request
 com.amazonaws.athena.connector.lambda.security
 com.amazonaws.athena.connector.lambda.serde
+com.amazonaws.athena.connector.lambda.serde.v2
 com.amazonaws.athena.connector.lambda.udf
 com.amazonaws.athena.connector.validation
 com.amazonaws.athena.connectors.aws.cmdb

@@ -44,7 +44,7 @@
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../../com/amazonaws/athena/connector/lambda/security/package-summary.html">Prev&nbsp;Package</a></li>
-<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/udf/package-summary.html">Next&nbsp;Package</a></li>
+<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">Next&nbsp;Package</a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../../index.html?com/amazonaws/athena/connector/lambda/serde/package-summary.html" target="_top">Frames</a></li>
@@ -83,36 +83,107 @@
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockDeserializer</a></td>
-<td class="colLast">
-<div class="block">Uses either an explicit BlockAllocator or a BlockAllocatorRegistry to handle memory pooling associated with
- deserializing blocks.</div>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment"><code>BlockSerDe</code> should be used instead</span></div>
 </td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BlockSerializer</a></td>
-<td class="colLast">
-<div class="block">Uses either an explicit BlockAllocator or a BlockAllocatorRegistry to handle memory pooling associated with
- serializing blocks.</div>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment"><code>BlockSerDe</code> should be used instead</span></div>
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">ObjectMapperFactory</a></td>
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe</a></td>
 <td class="colLast">
-<div class="block">Used to construct an ObjectMapper instead that is capable of handling some of our special objects (Apache Arrow Block,
- and Schema).</div>
+<div class="block">Since this SerDe is used in <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde"><code>PingRequestSerDe</code></a> it needs to be forwards compatible.</div>
 </td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaDeserializer</a></td>
-<td class="colLast">
-<div class="block">Used to enhance Jackson's stock ObjectMapper with the ability to deserialize Apache Arrow Schema objects.</div>
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">ObjectMapperFactory</a></td>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment">replaced with <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ObjectMapperFactoryV2.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><code>ObjectMapperFactoryV2</code></a></span></div>
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></td>
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe</a></td>
 <td class="colLast">
-<div class="block">Used to enhance Jackson's stock ObjectMapper with the ability to serialize Apache Arrow Schema objects.</div>
+<div class="block">This SerDe must remain backwards and forwards compatible in order as this call
+ is first and the SerDe version has not been set yet.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Deserializer</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingRequestSerDe.Serializer</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe</a></td>
+<td class="colLast">
+<div class="block">This SerDe must remain backwards and forwards compatible in order as this call
+ is first and the SerDe version has not been set yet.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Deserializer</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">PingResponseSerDe.Serializer</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/SchemaDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaDeserializer</a></td>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment"><code>SchemaSerDe</code> should be used instead</span></div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></td>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment"><code>SchemaSerDe</code> should be used instead</span></div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde">VersionedObjectMapperFactory</a></td>
+<td class="colLast">
+<div class="block">Vends <code>ObjectMapper</code> instances that correspond to SerDe versions.</div>
 </td>
 </tr>
 </tbody>
@@ -142,7 +213,7 @@
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../../com/amazonaws/athena/connector/lambda/security/package-summary.html">Prev&nbsp;Package</a></li>
-<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/udf/package-summary.html">Next&nbsp;Package</a></li>
+<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">Next&nbsp;Package</a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../../index.html?com/amazonaws/athena/connector/lambda/serde/package-summary.html" target="_top">Frames</a></li>

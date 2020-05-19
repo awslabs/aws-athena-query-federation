@@ -18,8 +18,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
+var methods = {"i0":42};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -50,7 +50,7 @@ var activeTableTab = "activeTableTab";
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../../index.html?com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" target="_top">Frames</a></li>
@@ -122,8 +122,12 @@ var activeTableTab = "activeTableTab";
 <dd>com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitable, com.fasterxml.jackson.databind.jsonschema.SchemaAware, <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html?is-external=true" title="class or interface in java.io">Serializable</a></dd>
 </dl>
 <hr>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment"><code>BlockSerDe</code> should be used instead</span></div>
+</div>
 <br>
-<pre>public class <span class="typeNameLabel">BlockSerializer</span>
+<pre><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Deprecated.html?is-external=true" title="class or interface in java.lang">@Deprecated</a>
+public class <span class="typeNameLabel">BlockSerializer</span>
 extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;</pre>
 <div class="block">Uses either an explicit BlockAllocator or a BlockAllocatorRegistry to handle memory pooling associated with
  serializing blocks. Blocks are serialized as an Apache Arrow Schema + Apache Arrow Record Batch. If you
@@ -174,15 +178,21 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#ALLOCATOR_ID_FIELD_NAME">ALLOCATOR_ID_FIELD_NAME</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#ALLOCATOR_ID_FIELD_NAME">ALLOCATOR_ID_FIELD_NAME</a></span></code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BATCH_FIELD_NAME">BATCH_FIELD_NAME</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BATCH_FIELD_NAME">BATCH_FIELD_NAME</a></span></code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#SCHEMA_FIELD_NAME">SCHEMA_FIELD_NAME</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#SCHEMA_FIELD_NAME">SCHEMA_FIELD_NAME</a></span></code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -206,7 +216,9 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BlockSerializer--">BlockSerializer</a></span>()</code>&nbsp;</td>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#BlockSerializer--">BlockSerializer</a></span>()</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -218,7 +230,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -227,7 +239,9 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html#serialize-com.amazonaws.athena.connector.lambda.data.Block-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">serialize</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&nbsp;block,
          com.fasterxml.jackson.core.JsonGenerator&nbsp;jsonGenerator,
-         com.fasterxml.jackson.databind.SerializerProvider&nbsp;serializerProvider)</code>&nbsp;</td>
+         com.fasterxml.jackson.databind.SerializerProvider&nbsp;serializerProvider)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -272,6 +286,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <li class="blockList">
 <h4>ALLOCATOR_ID_FIELD_NAME</h4>
 <pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> ALLOCATOR_ID_FIELD_NAME</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connector.lambda.serde.BlockSerializer.ALLOCATOR_ID_FIELD_NAME">Constant Field Values</a></dd>
@@ -285,6 +300,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <li class="blockList">
 <h4>SCHEMA_FIELD_NAME</h4>
 <pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> SCHEMA_FIELD_NAME</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connector.lambda.serde.BlockSerializer.SCHEMA_FIELD_NAME">Constant Field Values</a></dd>
@@ -298,6 +314,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <li class="blockList">
 <h4>BATCH_FIELD_NAME</h4>
 <pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> BATCH_FIELD_NAME</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../../constant-values.html#com.amazonaws.athena.connector.lambda.serde.BlockSerializer.BATCH_FIELD_NAME">Constant Field Values</a></dd>
@@ -319,6 +336,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <li class="blockList">
 <h4>BlockSerializer</h4>
 <pre>public&nbsp;BlockSerializer()</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </li>
 </ul>
 </li>
@@ -339,6 +357,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
                       com.fasterxml.jackson.core.JsonGenerator&nbsp;jsonGenerator,
                       com.fasterxml.jackson.databind.SerializerProvider&nbsp;serializerProvider)
                throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code>serialize</code>&nbsp;in class&nbsp;<code>com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;</code></dd>
@@ -376,7 +395,7 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;<a href="../../.
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BlockDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/ObjectMapperFactory.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../../index.html?com/amazonaws/athena/connector/lambda/serde/BlockSerializer.html" target="_top">Frames</a></li>

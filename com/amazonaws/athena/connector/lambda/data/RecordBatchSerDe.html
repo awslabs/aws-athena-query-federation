@@ -18,8 +18,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
+var methods = {"i0":42,"i1":42};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -108,8 +108,12 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <hr>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ArrowRecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2"><code>ArrowRecordBatchSerDe</code></a> should be used instead</span></div>
+</div>
 <br>
-<pre>public class <span class="typeNameLabel">RecordBatchSerDe</span>
+<pre><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Deprecated.html?is-external=true" title="class or interface in java.lang">@Deprecated</a>
+public class <span class="typeNameLabel">RecordBatchSerDe</span>
 extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></pre>
 <div class="block">used to serialize and deserialize ArrowRecordBatch.</div>
 </li>
@@ -130,7 +134,9 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#RecordBatchSerDe-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">RecordBatchSerDe</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator)</code>&nbsp;</td>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#RecordBatchSerDe-com.amazonaws.athena.connector.lambda.data.BlockAllocator-">RecordBatchSerDe</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -142,7 +148,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -150,6 +156,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>org.apache.arrow.vector.ipc.message.ArrowRecordBatch</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#deserialize-byte:A-">deserialize</a></span>(byte[]&nbsp;in)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Attempts to deserialize the provided byte[] into an ArrowRecordBatch.</div>
 </td>
 </tr>
@@ -157,6 +164,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#serialize-org.apache.arrow.vector.ipc.message.ArrowRecordBatch-java.io.OutputStream-">serialize</a></span>(org.apache.arrow.vector.ipc.message.ArrowRecordBatch&nbsp;batch,
          <a href="https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html?is-external=true" title="class or interface in java.io">OutputStream</a>&nbsp;out)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Serialized the provided ArrowRecordBatch to the provided OutputStream and closes the batch once
  it is fully written to the OutputStream.</div>
 </td>
@@ -190,6 +198,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <li class="blockList">
 <h4>RecordBatchSerDe</h4>
 <pre>public&nbsp;RecordBatchSerDe(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </li>
 </ul>
 </li>
@@ -209,6 +218,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <pre>public&nbsp;void&nbsp;serialize(org.apache.arrow.vector.ipc.message.ArrowRecordBatch&nbsp;batch,
                       <a href="https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html?is-external=true" title="class or interface in java.io">OutputStream</a>&nbsp;out)
                throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Serialized the provided ArrowRecordBatch to the provided OutputStream and closes the batch once
  it is fully written to the OutputStream.</div>
 <dl>
@@ -228,6 +238,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <h4>deserialize</h4>
 <pre>public&nbsp;org.apache.arrow.vector.ipc.message.ArrowRecordBatch&nbsp;deserialize(byte[]&nbsp;in)
                                                                  throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Attempts to deserialize the provided byte[] into an ArrowRecordBatch.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

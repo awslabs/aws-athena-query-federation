@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":9,"i1":10,"i2":9,"i3":9,"i4":9};
+var methods = {"i0":9,"i1":10,"i2":9,"i3":9,"i4":9,"i5":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -164,12 +164,15 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Enum.html?i
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#TIMESTAMP">TIMESTAMP</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#TINYINT">TINYINT</a></span></code>&nbsp;</td>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#TIMESTAMPMILLITZ">TIMESTAMPMILLITZ</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#VARBINARY">VARBINARY</a></span></code>&nbsp;</td>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#TINYINT">TINYINT</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#VARBINARY">VARBINARY</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#VARCHAR">VARCHAR</a></span></code>&nbsp;</td>
 </tr>
 </table>
@@ -196,16 +199,20 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Enum.html?i
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#getArrowType--">getArrowType</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#getNonComparableSet--">getNonComparableSet</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.ArrowType</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#toArrowType-java.lang.String-">toArrowType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;id)</code>&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#valueOf-java.lang.String-">valueOf</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;name)</code>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>static <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a>[]</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html#values--">values</a></span>()</code>
 <div class="block">Returns an array containing the constants of this enum type, in
@@ -331,6 +338,15 @@ the order they are declared.</div>
 <pre>public static final&nbsp;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a> TIMESTAMP</pre>
 </li>
 </ul>
+<a name="TIMESTAMPMILLITZ">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>TIMESTAMPMILLITZ</h4>
+<pre>public static final&nbsp;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/glue/DefaultGlueType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata.glue">DefaultGlueType</a> TIMESTAMPMILLITZ</pre>
+</li>
+</ul>
 <a name="DATE">
 <!--   -->
 </a>
@@ -411,10 +427,19 @@ not permitted.)</div>
 <a name="getArrowType--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getArrowType</h4>
 <pre>public&nbsp;org.apache.arrow.vector.types.pojo.ArrowType&nbsp;getArrowType()</pre>
+</li>
+</ul>
+<a name="getNonComparableSet--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getNonComparableSet</h4>
+<pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;getNonComparableSet()</pre>
 </li>
 </ul>
 </li>
