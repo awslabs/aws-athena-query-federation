@@ -42,18 +42,12 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperUtil;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -64,27 +58,16 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class ExampleMetadataHandlerTest
 {
@@ -331,140 +314,5 @@ public class ExampleMetadataHandlerTest
         assertTrue(numContinuations > 0);
 
         logger.info("doGetSplits: exit");
-    }
-
-    @Test
-    public void checkBucketAuthZ()
-    {
-        logger.info("checkBucketAuthZ - enter");
-
-        List<String> bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
-        List<Bucket> buckets = createBuckets(bucketNames);
-
-        Random random = new Random();
-        int index = random.nextInt(bucketNames.size());
-        ExampleMetadataHandler handler = createSpyExampleMetadataHandler(bucketNames.get(index));
-
-        AmazonS3 s3mock = createMockS3(buckets);
-        doReturn(s3mock).when(handler).getS3();
-
-        try {
-            handler.handleRequest(createInputStream(), null, null);
-        }
-        catch (IOException io) {
-            fail();
-        }
-        catch (RuntimeException rex) {
-            assertNotEquals("You do NOT own the spill bucket with the name: " + bucketNames.get(index), rex.getMessage());
-        }
-        verify(handler, times(1)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
-        verify(handler, times(1)).getS3();
-
-        try {
-            handler.handleRequest(createInputStream(), null, null);
-        }
-        catch (IOException io) {
-            fail();
-        }
-        catch (RuntimeException rex) {
-            assertNotEquals("You do NOT own the spill bucket with the name: " + bucketNames.get(index), rex.getMessage());
-        }
-        verify(handler, times(2)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
-        verify(handler, times(1)).getS3();
-
-        logger.info("checkBucketAuthZ - exit");
-    }
-
-    @Test
-    public void checkBucketAuthZFail() {
-        logger.info("checkBucketAuthZFail - enter");
-
-        List<String> bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
-        List<Bucket> buckets = createBuckets(bucketNames);
-
-        ExampleMetadataHandler handler = createSpyExampleMetadataHandler("bucket4");
-
-        AmazonS3 s3mock = createMockS3(buckets);
-        doReturn(s3mock).when(handler).getS3();
-
-        try {
-            handler.handleRequest(createInputStream(), null, null);
-            fail();
-        }
-        catch (IOException io) {
-            fail();
-        }
-        catch (RuntimeException rex) {
-            assertEquals("You do NOT own the spill bucket with the name: bucket4", rex.getMessage());
-        }
-
-        verify(handler, times(0)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
-        verify(handler, times(1)).getS3();
-
-        try {
-            handler.handleRequest(createInputStream(), null, null);
-        }
-        catch (IOException io) {
-            fail();
-        }
-        catch (RuntimeException rex) {
-            assertEquals("You do NOT own the spill bucket with the name: bucket4", rex.getMessage());
-        }
-        verify(handler, times(0)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
-        verify(handler, times(1)).getS3();
-
-        logger.info("checkBucketAuthZFail - exit");
-    }
-
-    private ExampleMetadataHandler createSpyExampleMetadataHandler(String bucketName)
-    {
-        return spy(new ExampleMetadataHandler(new LocalKeyFactory(),
-                mock(AWSSecretsManager.class),
-                mock(AmazonAthena.class),
-                bucketName,
-                "spill-prefix"));
-    }
-
-    private AmazonS3 createMockS3(List<Bucket> buckets)
-    {
-        AmazonS3 s3mock = mock(AmazonS3.class);
-        when(s3mock.listBuckets()).thenReturn(buckets);
-        return s3mock;
-    }
-
-    private InputStream createInputStream()
-    {
-        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-        Block partitions = BlockUtils.newBlock(allocator, "partition_id", Types.MinorType.INT.getType(), 0);
-        GetSplitsRequest req = new GetSplitsRequest(new FederatedIdentity("id", "principal", "account"),
-                "queryId",
-                "test",
-                new TableName("schema", "table"),
-                partitions,
-                ImmutableList.of(),
-                new Constraints(new HashMap<>()),
-                null);
-        String sreq = "";
-        try {
-            sreq = objectMapper.writeValueAsString(req);
-        }
-        catch (JsonProcessingException ex) {
-            logger.info("JsonProcessing Exception : " + ex.getMessage());
-            fail();
-        }
-
-        return new ByteArrayInputStream(sreq.getBytes());
-    }
-
-    private List<Bucket> createBuckets(List<String> names)
-    {
-        List<Bucket> buckets = new ArrayList();
-        for (String name : names) {
-            Bucket bucket = mock(Bucket.class);
-            when(bucket.getName()).thenReturn(name);
-            buckets.add(bucket);
-        }
-
-        return buckets;
     }
 }

@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -54,6 +55,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,11 +74,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class CompositeHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandlerTest.class);
 
-    private MetadataHandler mockMetadataHandler;
+    @Mock
+    private SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
+
+    @InjectMocks
+    private MetadataHandler mockMetadataHandler = mock(MetadataHandler.class);
     private RecordHandler mockRecordHandler;
     private CompositeHandler compositeHandler;
     private BlockAllocatorImpl allocator;
@@ -91,7 +101,6 @@ public class CompositeHandlerTest
 
         allocator = new BlockAllocatorImpl();
         objectMapper = ObjectMapperFactory.create(allocator);
-        mockMetadataHandler = mock(MetadataHandler.class);
         mockRecordHandler = mock(RecordHandler.class);
 
         schemaForRead = SchemaBuilder.newBuilder()
@@ -124,6 +133,8 @@ public class CompositeHandlerTest
         when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
                 .thenReturn(new ReadRecordsResponse("catalog",
                         BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
+
+        doNothing().when(mockVerifier).checkBucketAuthZ(any(String.class));
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
@@ -204,7 +215,6 @@ public class CompositeHandlerTest
     public void doGetSplits()
             throws Exception
     {
-        doNothing().when(mockMetadataHandler).checkBucketAuthZ();
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);

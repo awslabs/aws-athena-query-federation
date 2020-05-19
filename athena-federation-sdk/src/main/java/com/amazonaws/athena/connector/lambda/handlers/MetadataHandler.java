@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -60,12 +61,9 @@ import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -75,9 +73,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -120,10 +116,8 @@ public abstract class MetadataHandler
     private final String spillBucket;
     private final String spillPrefix;
     private final String sourceType;
-    private static BucketState bucketState;
 
-    private enum BucketState
-    {UNCHECKED, VALID, INVALID}
+    private SpillLocationVerifier verifier;
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
@@ -146,7 +140,7 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
-        this.bucketState = BucketState.UNCHECKED;
+        this.verifier = new SpillLocationVerifier(this.spillBucket);
     }
 
     /**
@@ -165,7 +159,7 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
-        this.bucketState = BucketState.UNCHECKED;
+        this.verifier = new SpillLocationVerifier(this.spillBucket);
     }
 
     /**
@@ -268,7 +262,7 @@ public abstract class MetadataHandler
                 }
                 return;
             case GET_SPLITS:
-                checkBucketAuthZ();
+                verifier.checkBucketAuthZ(spillBucket);
                 try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
                     assertNotNull(response);
@@ -456,37 +450,6 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
-    }
-
-    /**
-     * Helper function to get the AmazonS3 instance of the lambda
-     */
-    public AmazonS3 getS3()
-    {
-        return AmazonS3ClientBuilder.standard().build();
-    }
-
-    /**
-     * Helper function used to check if the account that calls the lambda function owns the spill bucket
-     */
-    @VisibleForTesting
-    void checkBucketAuthZ()
-    {
-        if (bucketState == BucketState.VALID) {
-            return;
-        }
-        else if (bucketState == BucketState.INVALID) {
-            throw new RuntimeException("You do NOT own the spill bucket with the name: " + spillBucket);
-        }
-
-        AmazonS3 s3 = getS3();
-        Set<String> buckets = s3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
-        if (!buckets.contains(spillBucket)) {
-            bucketState = BucketState.INVALID;
-            throw new RuntimeException("You do NOT own the spill bucket with the name: " + spillBucket);
-        }
-
-        bucketState = BucketState.VALID;
     }
 
     /**
