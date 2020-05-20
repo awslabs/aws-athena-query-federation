@@ -6,7 +6,7 @@ This essentially allows you to customize Athena's core execution engine with you
 
 You can find a collection of ready made modules that allow Athena to connect to various data sources by going to [Serverless Application Repository](https://console.aws.amazon.com/serverlessrepo/). Serverless Application Repository will allow you to search for and 1-Click deploy Athena connectors.
  
- Alternatively, you can explore [the Amazon Athena Query Federation github repositoru](https://github.com/awslabs/aws-athena-query-federation) for many of those same ready made connectors, modify them as you see fit, or write your own connector using the included example project. 
+ Alternatively, you can explore [the Amazon Athena Query Federation github repository](https://github.com/awslabs/aws-athena-query-federation) for many of those same ready made connectors, modify them as you see fit, or write your own connector using the included example project. 
 
 For those seeking to write their own connectors, we recommend you being by going through the [tutorial in athena-example](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-example)
 
@@ -28,14 +28,15 @@ For those seeking to write their own connectors, we recommend you being by going
 
 ### DataTypes
 
-The wire protocol between your connector(s) and Athena is built on Apache Arrow with JSON for request/response structures. As such we make use of Apache Arrow's type system. At this time we support the below Apache Arrow types with plans to add more (e.g. timestamp w/TZ and Map are some of the upcoming additions)
+The wire protocol between your connector(s) and Athena is built on Apache Arrow with JSON for request/response structures. As such we make use of Apache Arrow's type system. At this time we support the below Apache Arrow types with plans to add more.
 
 The below table lists the supported Apache Arrow types as well as the corresponding java type you can use to 'set' values via Block.setValue(...) or BlockUtils.setValue(...). It is important to remember that while this SDK offers a number of convenience helpers to make working with Apache Arrow easier for the beginner you always have the option of using Apache Arrow directly. Using Arrow Directly can offer improved performance as well as more options for how you handle type conversion and coercion.
 
 |Apache Arrow Data Type|Java Type|
 |-------------|-----------------|
 |BIT|int, boolean|
-|DATEMILLI|Date, long, int|
+|DATEMILLI|Date, long|
+|TIMESTAMPMILLITZ|Date, long|
 |DATEDAY|Date, long, int|
 |FLOAT8|double|
 |FLOAT4|float|

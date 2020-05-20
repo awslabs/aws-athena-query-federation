@@ -1,0 +1,8 @@
+{
+  "errorMessage": "Requested resource not found (Service: AmazonDynamoDBv2; Status Code: 400; Error Code: ResourceNotFoundException; Request ID: RIB6NOH4BNMAK6KQG88R5VE583VV4KQNSO5AEMVJF66Q9ASUAAJG)",
+  "errorType": "com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException",
+  "stackTrace": [
+    "com.amazonaws.http.AmazonHttpClient$RequestExecutor.handleErrorResponse(AmazonHttpClient.java:1701)",
+    "com.amazonaws.http.AmazonHttpClient$RequestExecutor.executeOneRequest(AmazonHttpClient.java:1356)"
+  ]
+}

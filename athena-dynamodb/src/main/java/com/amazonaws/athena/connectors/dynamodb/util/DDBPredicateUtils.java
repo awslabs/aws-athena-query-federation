@@ -151,18 +151,19 @@ public class DDBPredicateUtils
     /*
     Adds a value to the value accumulator.
      */
-    private static void bindValue(Object value, List<AttributeValue> accumulator)
+    private static void bindValue(String columnName, Object value, List<AttributeValue> accumulator, DDBRecordMetadata recordMetadata)
     {
-        accumulator.add(ItemUtils.toAttributeValue(DDBTypeUtils.convertArrowTypeIfNecessary(value)));
+        accumulator.add(ItemUtils.toAttributeValue(DDBTypeUtils.convertArrowTypeIfNecessary(columnName, value, recordMetadata)));
     }
 
     /*
     Adds a value to the value accumulator and also returns an expression with given operands.
      */
-    private static String toPredicate(String columnName, String operator, Object value, List<AttributeValue> accumulator, String valueName)
+    private static String toPredicate(String columnName, String operator, Object value, List<AttributeValue> accumulator,
+                                      String valueName, DDBRecordMetadata recordMetadata)
     {
-        bindValue(value, accumulator);
-        return columnName + " " + operator + " " + valueName;
+        bindValue(columnName, value, accumulator, recordMetadata);
+        return aliasColumn(columnName) + " " + operator + " " + valueName;
     }
 
     /**
@@ -172,19 +173,20 @@ public class DDBPredicateUtils
      * @param predicate the associated predicate
      * @param accumulator the value accumulator to add values to
      * @param valueNameProducer the value name producer to generate value aliases with
+     * @param recordMetadata object containing any necessary metadata from the glue table
      * @return the generated filter expression
      */
     public static String generateSingleColumnFilter(String originalColumnName, ValueSet predicate, List<AttributeValue> accumulator,
-            IncrementingValueNameProducer valueNameProducer)
+            IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata)
     {
         String columnName = aliasColumn(originalColumnName);
 
         if (predicate.isNone()) {
-            return "(attribute_not_exists(" + columnName + ") OR " + toPredicate(columnName, "=", null, accumulator, valueNameProducer.getNext()) + ")";
+            return "(attribute_not_exists(" + columnName + ") OR " + toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
         }
 
         if (predicate.isAll()) {
-            return "(attribute_exists(" + columnName + ") AND " + toPredicate(columnName, "<>", null, accumulator, valueNameProducer.getNext()) + ")";
+            return "(attribute_exists(" + columnName + ") AND " + toPredicate(originalColumnName, "<>", null, accumulator, valueNameProducer.getNext(), recordMetadata) + ")";
         }
 
         List<String> disjuncts = new ArrayList<>();
@@ -201,10 +203,10 @@ public class DDBPredicateUtils
                     if (!range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
-                                rangeConjuncts.add(toPredicate(columnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext()));
+                                rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext()));
+                                rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case BELOW:
                                 throw new IllegalArgumentException("Low marker should never use BELOW bound");
@@ -217,10 +219,10 @@ public class DDBPredicateUtils
                             case ABOVE:
                                 throw new IllegalArgumentException("High marker should never use ABOVE bound");
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext()));
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case BELOW:
-                                rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext()));
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             default:
                                 throw new AssertionError("Unhandled upper bound: " + range.getHigh().getBound());
@@ -243,11 +245,11 @@ public class DDBPredicateUtils
 
         // Add back all of the possible single values either as an equality or an IN predicate
         if (singleValues.size() == 1) {
-            disjuncts.add(toPredicate(columnName, isWhitelist ? "=" : "<>", getOnlyElement(singleValues), accumulator, valueNameProducer.getNext()));
+            disjuncts.add(toPredicate(originalColumnName, isWhitelist ? "=" : "<>", getOnlyElement(singleValues), accumulator, valueNameProducer.getNext(), recordMetadata));
         }
         else if (singleValues.size() > 1) {
             for (Object value : singleValues) {
-                bindValue(value, accumulator);
+                bindValue(originalColumnName, value, accumulator, recordMetadata);
             }
             String values = COMMA_JOINER.join(Stream.generate(valueNameProducer::getNext).limit(singleValues.size()).collect(toImmutableList()));
             disjuncts.add((isWhitelist ? "" : "NOT ") + columnName + " IN (" + values + ")");
@@ -258,7 +260,8 @@ public class DDBPredicateUtils
 
         // add nullability disjuncts
         if (predicate.isNullAllowed()) {
-            disjuncts.add("attribute_not_exists(" + columnName + ") OR " + toPredicate(columnName, "=", null, accumulator, valueNameProducer.getNext()));
+            disjuncts.add("attribute_not_exists(" + columnName + ") OR " +
+                    toPredicate(originalColumnName, "=", null, accumulator, valueNameProducer.getNext(), recordMetadata));
         }
 
         // DDB doesn't like redundant parentheses
@@ -272,20 +275,25 @@ public class DDBPredicateUtils
     /**
      * Generates a combined filter expression for the given predicates.
      *
+     * columnsToIgnore will contain any column that is of custom type (such as timestamp with tz)
+     * as these types are not natively supported by ddb or glue.
+     * we will need to filter them separately in the ddb query/scan result.
+     *
      * @param columnsToIgnore the columns to not generate filters for
      * @param predicates the map of columns to predicates
      * @param accumulator the value accumulator to add values to
      * @param valueNameProducer the value name producer to generate value aliases with
+     * @param recordMetadata object containing any necessary metadata from the glue table
      * @return the combined filter expression
      */
     public static String generateFilterExpression(Set<String> columnsToIgnore, Map<String, ValueSet> predicates, List<AttributeValue> accumulator,
-            IncrementingValueNameProducer valueNameProducer)
+            IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata)
     {
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (Map.Entry<String, ValueSet> predicate : predicates.entrySet()) {
             String columnName = predicate.getKey();
             if (!columnsToIgnore.contains(columnName)) {
-                builder.add(generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer));
+                builder.add(generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata));
             }
         }
         ImmutableList<String> filters = builder.build();

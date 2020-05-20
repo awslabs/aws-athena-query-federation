@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.serde.v2.ObjectMapperFactoryV2;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -30,7 +31,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 /**
  * Used to construct an ObjectMapper instead that is capable of handling some of our special objects (Apache Arrow Block,
  * and Schema).
+ *
+ * @deprecated replaced with {@link ObjectMapperFactoryV2}
  */
+@Deprecated
 public class ObjectMapperFactory
 {
     private ObjectMapperFactory()

@@ -1,0 +1,10 @@
+{
+  "@type" : "PingRequest",
+  "identity" : {
+    "id" : "test-id",
+    "principal" : "test-principal",
+    "account" : "0123456789"
+  },
+  "catalogName" : "test-catalog",
+  "queryId" : "test-query-id"
+}

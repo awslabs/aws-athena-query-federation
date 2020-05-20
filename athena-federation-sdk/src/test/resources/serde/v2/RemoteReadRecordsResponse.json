@@ -1,0 +1,20 @@
+{
+  "@type" : "RemoteReadRecordsResponse",
+  "catalogName" : "test-catalog",
+  "schema" : "BAEAABAAAAAAAAoADgAGAA0ACAAKAAAAAAADABAAAAAAAQoADAAAAAgABAAKAAAACAAAAAgAAAAAAAAAAwAAAIgAAAA8AAAABAAAAJb///8UAAAAFAAAABQAAAAAAAIBGAAAAAAAAAAAAAAAhP///wAAAAEgAAAAAwAAAGRheQDK////FAAAABQAAAAUAAAAAAACARgAAAAAAAAAAAAAALj///8AAAABIAAAAAUAAABtb250aAASABgAFAATABIADAAAAAgABAASAAAAFAAAABQAAAAcAAAAAAACASAAAAAAAAAAAAAAAAgADAAIAAcACAAAAAAAAAEgAAAABAAAAHllYXIAAAAA",
+  "remoteBlocks" : [ {
+    "@type" : "S3SpillLocation",
+    "bucket" : "athena-virtuoso-test",
+    "key" : "lambda-spill/test-query-id/test-split-id-1",
+    "directory" : true
+  }, {
+    "@type" : "S3SpillLocation",
+    "bucket" : "athena-virtuoso-test",
+    "key" : "lambda-spill/test-query-id/test-split-id-2",
+    "directory" : true
+  } ],
+  "encryptionKey" : {
+    "key" : "dGVzdC1rZXk=",
+    "nonce" : "dGVzdC1ub25jZQ=="
+  }
+}
