@@ -71,13 +71,13 @@ public class AwsRestHighLevelClientFactory
             logger.info("Client injected with AWS credentials");
 
             return new AwsRestHighLevelClient.Builder(endpoint)
-                    .setCredentials(new DefaultAWSCredentialsProviderChain()).build();
+                    .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
         }
         else if (!username.isEmpty() && !password.isEmpty()) {
             logger.info("Client injected with username/password credentials");
 
             return new AwsRestHighLevelClient.Builder(endpoint)
-                    .setCredentials(username, password).build();
+                    .withCredentials(username, password).build();
         }
 
         // Default client.
@@ -119,9 +119,9 @@ public class AwsRestHighLevelClientFactory
          * @param secretName is the name of the secret.
          * @return this.
          */
-        public Builder setUsernamePassword(String secretName)
+        public Builder withSecretCredentials(String secretName)
         {
-            logger.info("setUsernamePassword - enter: " + secretName);
+            logger.info("withSecretCredentials - enter: " + secretName);
 
             if (secretName.isEmpty()) {
                 logger.warn("Secret Name is empty.");

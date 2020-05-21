@@ -163,9 +163,9 @@ public class AwsRestHighLevelClient
          * @param credentialsProvider is the AWS credentials provider.
          * @return self.
          */
-        public Builder setCredentials(AWSCredentialsProvider credentialsProvider)
+        public Builder withCredentials(AWSCredentialsProvider credentialsProvider)
         {
-            logger.info("setCredentials(AWS) - enter");
+            logger.info("withCredentials(AWS) - enter");
 
             /**
              * endpoint:
@@ -200,9 +200,9 @@ public class AwsRestHighLevelClient
          * @param password is the password used for the domain.
          * @return self.
          */
-        public Builder setCredentials(String username, String password)
+        public Builder withCredentials(String username, String password)
         {
-            logger.info("setCredentials(username/password) - enter");
+            logger.info("withCredentials(username/password) - enter");
 
             final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
             credentialsProvider.setCredentials(AuthScope.ANY,

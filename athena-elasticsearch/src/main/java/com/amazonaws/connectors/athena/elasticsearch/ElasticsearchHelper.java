@@ -147,7 +147,7 @@ class ElasticsearchHelper
         }
         else {
             // Client factory for clients injected with username/password credentials.
-            return new AwsRestHighLevelClientFactory.Builder().setUsernamePassword(secretName).build();
+            return new AwsRestHighLevelClientFactory.Builder().withSecretCredentials(secretName).build();
         }
     }
 
