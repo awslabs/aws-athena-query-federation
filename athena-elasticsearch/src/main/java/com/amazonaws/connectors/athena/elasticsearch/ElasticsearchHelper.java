@@ -339,17 +339,21 @@ class ElasticsearchHelper
             case DATEMILLI:
                 if (fieldValue instanceof String) {
                     try {
-                        // Date should be in the format: yyyy-mm-ddThh:mm:ss.SSS (e.g. "2020-05-18T10:15:30.123").
+                        // Date should be a formatted String: yyyy-mm-dd'T'hh:mm:ss.SSS (e.g. "2020-05-18T10:15:30.123").
                         // Nanoseconds will be rounded to the nearest millisecond.
                         LocalDateTime localDateTime = LocalDateTime.parse((String) fieldValue,
                                 DateTimeFormatter.ISO_LOCAL_DATE_TIME.withResolverStyle(ResolverStyle.SMART));
                         double nanoSeconds = localDateTime.getNano();
-                        return localDateTime.toEpochSecond(ZoneOffset.MAX) * 1000 + Math.round(nanoSeconds / 1000000);
+                        return localDateTime.toEpochSecond(ZoneOffset.UTC) * 1000 + Math.round(nanoSeconds / 1000000);
                     }
                     catch (Exception error) {
                         logger.error("Error parsing localDateTime value: " + fieldValue, error);
                         return null;
                     }
+                }
+                if (fieldValue instanceof Number) {
+                    // Date should be a long numeric value representing epoch milliseconds (e.g. 1589525370001).
+                    return ((Number) fieldValue).longValue();
                 }
                 break;
             case BIT:

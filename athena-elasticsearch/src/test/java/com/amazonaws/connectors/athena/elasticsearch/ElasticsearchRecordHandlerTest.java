@@ -186,7 +186,7 @@ public class ElasticsearchRecordHandlerTest
                 "  \"myfloat\" : \"5.6\",\n" +
                 "  \"myhalf\" : \"6.2\",\n" +
                 "  \"mydatemilli\" : null,\n" +
-                "  \"mydatenano\" : \"2020-05-15T06:50:01.45678\",\n" +
+                "  \"mydatenano\" : 1589525370001,\n" +
                 "  \"myboolean\" : \"true\",\n" +
                 "  \"mybinary\" : \"U29tZSBiaW5hcnkgYmxvYg==\",\n" +
                 "  \"mynested\" : {\n" +
