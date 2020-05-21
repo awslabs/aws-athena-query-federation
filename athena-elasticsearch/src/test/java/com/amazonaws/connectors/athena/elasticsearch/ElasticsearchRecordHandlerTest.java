@@ -19,6 +19,7 @@
  */
 package com.amazonaws.connectors.athena.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
@@ -34,15 +35,18 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
+import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -64,7 +68,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +78,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -87,11 +93,10 @@ public class ElasticsearchRecordHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchRecordHandlerTest.class);
 
     private ElasticsearchRecordHandler handler;
-    private boolean enableTests = System.getenv("publishing") != null &&
-            System.getenv("publishing").equalsIgnoreCase("true");
     private BlockAllocatorImpl allocator;
-
     private Schema mapping;
+    private List<ByteHolder> mockS3Storage = new ArrayList<>();
+    private S3BlockSpillReader spillReader;
 
     @Mock
     private AwsRestHighLevelClientFactory clientFactory;
@@ -110,8 +115,6 @@ public class ElasticsearchRecordHandlerTest
 
     @Mock
     private AmazonAthena athena;
-
-    private S3BlockSpillReader spillReader;
 
     @After
     public void after()
@@ -243,7 +246,21 @@ public class ElasticsearchRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.doesObjectExist(anyString(), anyString())).thenReturn(true);
+        when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
+                .thenAnswer(new Answer<Object>()
+                {
+                    @Override
+                    public Object answer(InvocationOnMock invocationOnMock)
+                            throws Throwable
+                    {
+                        InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                        ElasticsearchRecordHandlerTest.ByteHolder byteHolder = new ByteHolder();
+                        byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
+                        mockS3Storage.add(byteHolder);
+                        return mock(PutObjectResult.class);
+                    }
+                });
+
         when(amazonS3.getObject(anyString(), anyString()))
                 .thenAnswer(new Answer<Object>()
                 {
@@ -252,9 +269,11 @@ public class ElasticsearchRecordHandlerTest
                             throws Throwable
                     {
                         S3Object mockObject = mock(S3Object.class);
+                        ByteHolder byteHolder = mockS3Storage.get(0);
+                        mockS3Storage.remove(0);
                         when(mockObject.getObjectContent()).thenReturn(
                                 new S3ObjectInputStream(
-                                        new ByteArrayInputStream(getFakeObject()), null));
+                                        new ByteArrayInputStream(byteHolder.getBytes()), null));
                         return mockObject;
                     }
                 });
@@ -351,8 +370,8 @@ public class ElasticsearchRecordHandlerTest
                 mapping,
                 Split.newBuilder(makeSpillLocation(), null).build(),
                 new Constraints(constraintsMap),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
+                10_000L, //10KB Expect this to spill
+                0L
         );
 
         Map<String, String> domainMap = ImmutableMap.of("movies",
@@ -361,35 +380,43 @@ public class ElasticsearchRecordHandlerTest
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
-        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("doReadRecordsSpill: rows[{}]", response.getRecordCount());
+        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
+            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
 
-        assertEquals(102, response.getRecords().getRowCount());
-        for (int i = 0; i < response.getRecords().getRowCount(); ++i) {
-            logger.info("doReadRecordsSpill - Row: {}\n{}", i, BlockUtils.rowToString(response.getRecords(), i));
+            assertTrue(response.getNumberBlocks() > 1);
+
+            int blockNum = 0;
+            for (SpillLocation next : response.getRemoteBlocks()) {
+                S3SpillLocation spillLocation = (S3SpillLocation) next;
+                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
+
+                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
+
+                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                    assertNotNull(BlockUtils.rowToString(block, 0));
+                }
+            }
         }
 
         logger.info("doReadRecordsSpill: exit");
     }
 
-    private byte[] getFakeObject()
-            throws UnsupportedEncodingException
+    private class ByteHolder
     {
-        StringBuilder sb = new StringBuilder();
-        sb.append("2017,11,1,2122792308,1755604178,false,0UTIXoWnKqtQe8y+BSHNmdEXmWfQalRQH60pobsgwws=\n");
-        sb.append("2017,11,1,2030248245,747575690,false,i9AoMmLI6JidPjw/SFXduBB6HUmE8aXQLMhekhIfE1U=\n");
-        sb.append("2017,11,1,23301515,1720603622,false,HWsLCXAnGFXnnjD8Nc1RbO0+5JzrhnCB/feJ/EzSxto=\n");
-        sb.append("2017,11,1,1342018392,1167647466,false,lqL0mxeOeEesRY7EU95Fi6QEW92nj2mh8xyex69j+8A=\n");
-        sb.append("2017,11,1,945994127,1854103174,true,C57VAyZ6Y0C+xKA2Lv6fOcIP0x6Px8BlEVBGSc74C4I=\n");
-        sb.append("2017,11,1,1102797454,2117019257,true,oO0S69X+N2RSyEhlzHguZSLugO8F2cDVDpcAslg0hhQ=\n");
-        sb.append("2017,11,1,862601609,392155621,true,L/Wpz4gHiRR7Sab1RCBrp4i1k+0IjUuJAV/Yn/7kZnc=\n");
-        sb.append("2017,11,1,1858905353,1131234096,false,w4R3N+vN/EcwrWP7q/h2DwyhyraM1AwLbCbe26a+mQ0=\n");
-        sb.append("2017,11,1,1300070253,247762646,false,cjbs6isGO0K7ib1D65VbN4lZEwQv2Y6Q/PoFZhyyacA=\n");
-        sb.append("2017,11,1,843851309,1886346292,true,sb/xc+uoe/ZXRXTYIv9OTY33Rj+zSS96Mj/3LVPXvRM=\n");
-        sb.append("2017,11,1,2013370128,1783091056,false,9MW9X3OUr40r4B/qeLz55yJIrvw7Gdk8RWUulNadIyw=\n");
-        return sb.toString().getBytes("UTF-8");
+        private byte[] bytes;
+
+        public void setBytes(byte[] bytes)
+        {
+            this.bytes = bytes;
+        }
+
+        public byte[] getBytes()
+        {
+            return bytes;
+        }
     }
 
     private static FederatedIdentity fakeIdentity()
