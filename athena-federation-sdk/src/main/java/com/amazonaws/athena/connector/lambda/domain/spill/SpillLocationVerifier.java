@@ -21,7 +21,6 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
  */
 
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +38,16 @@ public class SpillLocationVerifier
     private enum BucketState
     {UNCHECKED, VALID, INVALID}
 
+    private final AmazonS3 s3;
     private String bucket;
     private BucketState state;
 
     /**
      * @param bucket The name of the spill bucket.
      */
-    public SpillLocationVerifier(String bucket)
+    public SpillLocationVerifier(AmazonS3 s3, String bucket)
     {
+        this.s3 = s3;
         this.bucket = bucket;
         this.state = BucketState.UNCHECKED;
     }
@@ -58,8 +59,12 @@ public class SpillLocationVerifier
      */
     public void checkBucketAuthZ(String spillBucket)
     {
+        if (spillBucket == null) {
+            throw new RuntimeException("Spill bucket cannot be null!");
+        }
+
         if (!bucket.equals(spillBucket)) {
-            logger.debug("Spill bucket has been changed from " + bucket + " to " + spillBucket);
+            logger.info("Spill bucket has been changed from {} to {}", bucket, spillBucket);
             bucket = spillBucket;
             state = BucketState.UNCHECKED;
         }
@@ -78,7 +83,6 @@ public class SpillLocationVerifier
     @VisibleForTesting
     void updateBucketState()
     {
-        AmazonS3 s3 = getS3();
         Set<String> buckets = s3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
 
         if (!buckets.contains(bucket)) {
@@ -88,7 +92,7 @@ public class SpillLocationVerifier
             state = BucketState.VALID;
         }
 
-        logger.debug("The state of bucket " + bucket + " has been updated to " + state + " from " + BucketState.UNCHECKED);
+        logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
     }
 
     /**
@@ -107,14 +111,5 @@ public class SpillLocationVerifier
         else {
             // no op
         }
-    }
-
-    /**
-     * Helper function to get the AmazonS3 instance of the lambda
-     */
-    @VisibleForTesting
-    AmazonS3 getS3()
-    {
-        return AmazonS3ClientBuilder.standard().build();
     }
 }

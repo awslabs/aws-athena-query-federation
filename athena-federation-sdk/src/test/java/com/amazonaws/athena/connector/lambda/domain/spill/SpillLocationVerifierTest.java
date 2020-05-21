@@ -55,11 +55,10 @@ public class SpillLocationVerifierTest
     {
         logger.info("setUpBefore - enter");
 
-        spyVerifier = spy(new SpillLocationVerifier("spill-bucket"));
         bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
         List<Bucket> buckets = createBuckets(bucketNames);
         AmazonS3 mockS3 = createMockS3(buckets);
-        doReturn(mockS3).when(spyVerifier).getS3();
+        spyVerifier = spy(new SpillLocationVerifier(mockS3, "spill-bucket"));
 
         logger.info("setUpBefore - exit");
     }
@@ -85,7 +84,6 @@ public class SpillLocationVerifierTest
             fail("checkBucketAuthZ failed");
         }
         verify(spyVerifier, times(1)).updateBucketState();
-        verify(spyVerifier, times(1)).getS3();
         verify(spyVerifier, times(1)).passOrFail();
 
         try {
@@ -95,7 +93,6 @@ public class SpillLocationVerifierTest
             fail("checkBucketAuthZ failed");
         }
         verify(spyVerifier, times(1)).updateBucketState();
-        verify(spyVerifier, times(1)).getS3();
         verify(spyVerifier, times(2)).passOrFail();
 
         logger.info("checkBucketAuthZ - exit");
@@ -116,7 +113,6 @@ public class SpillLocationVerifierTest
             assertEquals("You do NOT own the spill bucket with the name: " + bucketNotOwn, e.getMessage());
         }
         verify(spyVerifier, times(1)).updateBucketState();
-        verify(spyVerifier, times(1)).getS3();
         verify(spyVerifier, times(1)).passOrFail();
 
         try {
@@ -127,7 +123,6 @@ public class SpillLocationVerifierTest
             assertEquals("You do NOT own the spill bucket with the name: " + bucketNotOwn, e.getMessage());
         }
         verify(spyVerifier, times(1)).updateBucketState();
-        verify(spyVerifier, times(1)).getS3();
         verify(spyVerifier, times(2)).passOrFail();
 
         logger.info("checkBucketAuthZFail - exit");

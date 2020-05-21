@@ -55,10 +55,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.internal.util.reflection.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,16 +71,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@RunWith(MockitoJUnitRunner.class)
 public class CompositeHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CompositeHandlerTest.class);
 
-    @Mock
-    private SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
-
-    @InjectMocks
-    private MetadataHandler mockMetadataHandler = mock(MetadataHandler.class);
+    private MetadataHandler mockMetadataHandler;
     private RecordHandler mockRecordHandler;
     private CompositeHandler compositeHandler;
     private BlockAllocatorImpl allocator;
@@ -101,6 +93,7 @@ public class CompositeHandlerTest
 
         allocator = new BlockAllocatorImpl();
         objectMapper = ObjectMapperFactory.create(allocator);
+        mockMetadataHandler = mock(MetadataHandler.class);
         mockRecordHandler = mock(RecordHandler.class);
 
         schemaForRead = SchemaBuilder.newBuilder()
@@ -133,8 +126,6 @@ public class CompositeHandlerTest
         when(mockRecordHandler.doReadRecords(any(BlockAllocatorImpl.class), any(ReadRecordsRequest.class)))
                 .thenReturn(new ReadRecordsResponse("catalog",
                         BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
-
-        doNothing().when(mockVerifier).checkBucketAuthZ(any(String.class));
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
@@ -217,6 +208,9 @@ public class CompositeHandlerTest
     {
         GetSplitsRequest req = mock(GetSplitsRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
+        SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
+        doNothing().when(mockVerifier).checkBucketAuthZ(any(String.class));
+        Whitebox.setInternalState(mockMetadataHandler, "verifier", mockVerifier);
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doGetSplits(any(BlockAllocatorImpl.class), any(GetSplitsRequest.class));
     }

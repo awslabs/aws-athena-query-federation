@@ -61,6 +61,7 @@ import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -116,8 +117,7 @@ public abstract class MetadataHandler
     private final String spillBucket;
     private final String spillPrefix;
     private final String sourceType;
-
-    private SpillLocationVerifier verifier;
+    private final SpillLocationVerifier verifier;
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
@@ -140,7 +140,7 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
-        this.verifier = new SpillLocationVerifier(this.spillBucket);
+        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build(), this.spillBucket);
     }
 
     /**
@@ -159,7 +159,7 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
-        this.verifier = new SpillLocationVerifier(this.spillBucket);
+        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build(), this.spillBucket);
     }
 
     /**
