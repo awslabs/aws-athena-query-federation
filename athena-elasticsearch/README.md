@@ -127,10 +127,11 @@ nearest millisecond. Valid values for date and date_nanos include but are not li
     * "2020-05-15T06:49:30.123-05:00"
     * 1589525370001 (epoch milliseconds)
 
-* A scaled_float is a floating-point number represented as a long and scaled by a fixed double 
+* A **scaled_float** is a floating-point number represented as a **BIGINT**, and scaled by a fixed double 
 scaling factor (e.g. 0.756 with a scaling factor of 100 is rounded to 76).
 
-* An Elasticsearch binary is a string representation of a binary value encoded using Base64.
+* An Elasticsearch **binary** is a string representation of a binary value encoded using Base64,
+and will be converted to a **VARCHAR**.
 
 ## Deploying The Connector
 
@@ -150,5 +151,5 @@ will allow users with permission to do so, the ability to deploy instances of th
 
 ## Performance
 
-The Athena Elasticsearch Connector does not current support parallel scans but will attempt 
+The Athena Elasticsearch Connector does not currently support parallel scans but will attempt 
 to push down predicates as part of its document search queries.
