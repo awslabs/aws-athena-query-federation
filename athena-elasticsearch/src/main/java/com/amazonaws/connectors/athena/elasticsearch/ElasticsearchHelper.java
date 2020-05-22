@@ -46,8 +46,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -339,15 +342,10 @@ class ElasticsearchHelper
             case DATEMILLI:
                 if (fieldValue instanceof String) {
                     try {
-                        // Date should be a formatted String: yyyy-mm-dd'T'hh:mm:ss.SSS (e.g. "2020-05-18T10:15:30.123").
-                        // Nanoseconds will be rounded to the nearest millisecond.
-                        LocalDateTime localDateTime = LocalDateTime.parse((String) fieldValue,
-                                DateTimeFormatter.ISO_LOCAL_DATE_TIME.withResolverStyle(ResolverStyle.SMART));
-                        double nanoSeconds = localDateTime.getNano();
-                        return localDateTime.toEpochSecond(ZoneOffset.UTC) * 1000 + Math.round(nanoSeconds / 1000000);
+                        return toEpochMillis((String) fieldValue);
                     }
-                    catch (Exception error) {
-                        logger.error("Error parsing localDateTime value: " + fieldValue, error);
+                    catch (DateTimeParseException error) {
+                        logger.warn("Error parsing localDateTime:\n{}.", error.getMessage());
                         return null;
                     }
                 }
@@ -405,6 +403,41 @@ class ElasticsearchHelper
 
         throw new RuntimeException("Invalid field value encountered in Document for field: " + field.toString() +
                 ",value: " + fieldValue.toString());
+    }
+
+    /**
+     * Converts a date-time string to epoch-milliseconds. The ISO_ZONED_DATE_TIME format will be attempted first,
+     * followed by the ISO_LOCAL_DATE_TIME format if the previous one fails. Examples of formats that will work:
+     * 1) "2020-05-18T10:15:30.123456789"
+     * 2) "2020-05-15T06:50:01.123Z"
+     * 3) "2020-05-15T06:49:30.123-05:00".
+     * Nanoseconds will be rounded to the nearest millisecond.
+     * @param dateTimeValue is the date-time value to be converted to epoch-milliseconds.
+     * @return a long value representing the epoch-milliseconds derived from dateTimeValue.
+     * @throws DateTimeParseException
+     */
+    public static long toEpochMillis(String dateTimeValue)
+            throws DateTimeParseException
+    {
+        long epochSeconds;
+        double nanoSeconds;
+
+        try {
+            ZonedDateTime zonedDateTime = ZonedDateTime.parse(dateTimeValue,
+                    DateTimeFormatter.ISO_ZONED_DATE_TIME.withZone(ZoneId.of("UTC"))
+                            .withResolverStyle(ResolverStyle.SMART));
+            epochSeconds = zonedDateTime.toEpochSecond();
+            nanoSeconds = zonedDateTime.getNano();
+        }
+        catch (DateTimeParseException error) {
+            LocalDateTime localDateTime = LocalDateTime.parse(dateTimeValue,
+                    DateTimeFormatter.ISO_LOCAL_DATE_TIME
+                            .withResolverStyle(ResolverStyle.SMART));
+            epochSeconds = localDateTime.toEpochSecond(ZoneOffset.UTC);
+            nanoSeconds = localDateTime.getNano();
+        }
+
+        return epochSeconds * 1000 + Math.round(nanoSeconds / 1000000);
     }
 
     /**
