@@ -275,6 +275,8 @@ public class ElasticsearchMetadataHandler
     @Override
     protected Field convertField(String fieldName, String glueType)
     {
-        return GlueFieldLexer.lex(fieldName, glueType);
+        logger.info("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
+
+        return GlueFieldLexer.lex(fieldName, glueType.toLowerCase());
     }
 }
