@@ -81,7 +81,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -116,11 +115,11 @@ public class ElasticsearchRecordHandlerTest
     @Mock
     private AmazonAthena athena;
 
-    @After
-    public void after()
-    {
-        allocator.close();
-    }
+    @Mock
+    PutObjectResult putObjectResult;
+
+    @Mock
+    S3Object s3Object;
 
     @Before
     public void setUp()
@@ -194,7 +193,7 @@ public class ElasticsearchRecordHandlerTest
                 "  \"mybinary\" : \"U29tZSBiaW5hcnkgYmxvYg==\",\n" +
                 "  \"mynested\" : {\n" +
                 "    \"l1long\" : \"357345987\",\n" +
-                "    \"l1date\" : \"2020-05-15T06:57:44.123\",\n" +
+                "    \"l1date\" : \"2020-05-15T06:57:44.7765+05:00\",\n" +
                 "    \"l1nested\" : {\n" +
                 "      \"l2short\" : [\n" +
                 "        1,\n" +
@@ -257,7 +256,7 @@ public class ElasticsearchRecordHandlerTest
                         ElasticsearchRecordHandlerTest.ByteHolder byteHolder = new ByteHolder();
                         byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                         mockS3Storage.add(byteHolder);
-                        return mock(PutObjectResult.class);
+                        return putObjectResult;
                     }
                 });
 
@@ -268,7 +267,7 @@ public class ElasticsearchRecordHandlerTest
                     public Object answer(InvocationOnMock invocationOnMock)
                             throws Throwable
                     {
-                        S3Object mockObject = mock(S3Object.class);
+                        S3Object mockObject = s3Object;
                         ByteHolder byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
                         when(mockObject.getObjectContent()).thenReturn(
@@ -286,6 +285,12 @@ public class ElasticsearchRecordHandlerTest
         when(mockClient.getDocument(anyObject())).thenReturn(document1, document2);
 
         logger.info("setUpBefore - exit");
+    }
+
+    @After
+    public void after()
+    {
+        allocator.close();
     }
 
     @Test
@@ -343,16 +348,17 @@ public class ElasticsearchRecordHandlerTest
     {
         logger.info("doReadRecordsSpill: enter");
 
-        SearchHit searchHit1[] = new SearchHit[handler.getQueryBatchSize()];
-        for (int i = 0; i < handler.getQueryBatchSize(); ++i) {
+        int batchSize = handler.getQueryBatchSize();
+        SearchHit searchHit1[] = new SearchHit[batchSize];
+        for (int i = 0; i < batchSize; ++i) {
             searchHit1[i] = new SearchHit(i + 1);
         }
 
         SearchHit searchHit2[] = new SearchHit[2];
-        searchHit2[0] = new SearchHit(101);
-        searchHit2[1] = new SearchHit(102);
+        searchHit2[0] = new SearchHit(batchSize + 1);
+        searchHit2[1] = new SearchHit(batchSize + 2);
         SearchHits searchHits1 =
-                new SearchHits(searchHit1, new TotalHits(100, TotalHits.Relation.EQUAL_TO), 4);
+                new SearchHits(searchHit1, new TotalHits(batchSize, TotalHits.Relation.EQUAL_TO), 4);
         SearchHits searchHits2 =
                 new SearchHits(searchHit2, new TotalHits(2, TotalHits.Relation.EQUAL_TO), 4);
         when(mockResponse.getHits())
@@ -391,10 +397,7 @@ public class ElasticsearchRecordHandlerTest
             for (SpillLocation next : response.getRemoteBlocks()) {
                 S3SpillLocation spillLocation = (S3SpillLocation) next;
                 try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
-
                     logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
-                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
-
                     logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
                     assertNotNull(BlockUtils.rowToString(block, 0));
                 }

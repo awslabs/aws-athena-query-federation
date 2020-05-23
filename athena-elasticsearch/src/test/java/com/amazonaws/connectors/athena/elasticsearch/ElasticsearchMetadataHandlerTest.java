@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.anyString;
@@ -65,8 +64,19 @@ public class ElasticsearchMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchMetadataHandlerTest.class);
 
+    private ElasticsearchMetadataHandler handler;
+    private boolean enableTests = System.getenv("publishing") != null &&
+            System.getenv("publishing").equalsIgnoreCase("true");
+    private BlockAllocatorImpl allocator;
+
     @Mock
     private AWSGlue awsGlue;
+
+    @Mock
+    private AWSSecretsManager awsSecretsManager;
+
+    @Mock
+    private AmazonAthena amazonAthena;
 
     @Mock
     private AwsRestHighLevelClient mockClient;
@@ -74,24 +84,16 @@ public class ElasticsearchMetadataHandlerTest
     @Mock
     private AwsRestHighLevelClientFactory clientFactory;
 
-    private ElasticsearchMetadataHandler handler;
-
-    private boolean enableTests = System.getenv("publishing") != null &&
-            System.getenv("publishing").equalsIgnoreCase("true");
-
-    private BlockAllocatorImpl allocator;
-
     @Before
     public void setUp()
     {
         logger.info("setUpBefore - enter");
 
         allocator = new BlockAllocatorImpl();
-        mockClient = mock(AwsRestHighLevelClient.class);
         when(clientFactory.getClient(anyString())).thenReturn(mockClient);
         doNothing().when(mockClient).shutdown();
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), mock(AWSSecretsManager.class),
-                mock(AmazonAthena.class), "spill-bucket", "spill-prefix",
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
+                amazonAthena, "spill-bucket", "spill-prefix",
                 clientFactory);
 
         logger.info("setUpBefore - exit");
