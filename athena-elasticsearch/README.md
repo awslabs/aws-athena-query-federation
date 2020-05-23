@@ -159,7 +159,7 @@ to push down predicates as part of its document search queries.
 
 ## Executing SQL Queries
 
-The following are examples of DDL query you can send with this connector. Note that 
+The following are examples of DDL queries you can send with this connector. Note that 
 **<function_name>** corresponds to the name of your Lambda function, **domain** is the name of 
 the domain you wish to query, and **index** is the name of your index:
 
