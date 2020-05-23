@@ -39,13 +39,13 @@ attempt to retrieve supplemental metadata from Glue.
 
 2. **auto_discover_endpoint** - true/false (true is the default value). For Amazon 
 Elasticsearch Service the domain-names and their associated endpoints are auto-discoverable.
-For any other service, the associated domain-endpoints must be specified in the domain_mapping 
+For any other service, the associated domain-endpoints must be specified in the **domain_mapping** 
 variable. This also determine which credentials will be used to access the endpoint. If 
 **auto_discover_endpoint**=**true**, then AWS credentials will be used. Otherwise, 
 username/password credentials retrieved from Amazon Secrets Manger via the **secret_name** 
 variable will be used.
 
-3. **domain_mapping** - Used only needed when **auto_discover_endpoint**=**false**, 
+3. **domain_mapping** - Used only when **auto_discover_endpoint**=**false**, 
 this is the mapping between the domain names and their associated endpoints (in the format:
 `domain1=endpoint1,domain2=endpont2`). 
 
@@ -61,8 +61,8 @@ Elasticsearch instance. The username and password can be stored in Secrets Manag
 following formats:
     
     * Two Key-Value Pairs:
-    `username/<username>, password/<password>`
-    * Single Key-Value: `<username>/<password>`
+    `"username": <username>, "password": <password>`
+    * Single Key-Value: `<username>: <password>`
     
 5. **spill_bucket** - When the data returned by your Lambda function exceeds Lambda’s limits, 
 this is the bucket that the data will be written to for Athena to read the excess from. (e.g. 
@@ -77,9 +77,9 @@ location to delete old spills after X days/hours.
 
 Elasticsearch does not have a dedicated array datatype. Any field can contain zero or more 
 values so long as they are of the same datatype. If you intend on using Elasticsearch as your 
-metadata source, you will have to define a **_meta** field in all indices used with Athena to 
-indicate which field(s) should be considered a list (array). The field names should be fully
-qualified for nested JSON structures (e.g. `address.street`, where street is a nested field 
+metadata definition source, you will have to define a **_meta** field in all indices used with 
+Athena to indicate which field(s) should be considered a list (array). The field names should be 
+fully qualified for nested JSON structures (e.g. `address.street`, where street is a nested field 
 inside an address structure).
 
 ``` 
@@ -94,17 +94,17 @@ inside an address structure).
     }
 ```
 
-Alternatively, a Glue table can be set up as a supplemental metadata source. To enable
+Alternatively, a Glue table can be set up as a supplemental metadata definition source. To enable
 this feature, define a Glue database and table that match the domain and index of the source
 you are trying to supplement.
 
 ### Data Types
 
-As discussed above, the schema inference feature of this connector will attempt to infer 
-Apache Arrow data types from either the Elasticsearch instance or Glue catalog using the 
-following table (see NOTES below):
+As discussed above, the schema inference feature of this connector will attempt to infer the
+indices' metadata definitions from either the Elasticsearch instance, or the Glue Data Catalog 
+and convert them to Apache Arrow data-types using the following table (see NOTES below):
 
-|*Elasticsearch*|*Apache Arrow*|*Glue* 
+|**Elasticsearch**|**Apache Arrow**|**Glue** 
 |----------------|-----------------|------------------|
 |text, keyword, binary|VARCHAR|string|
 |long, scaled_float|BIGINT|bigint
@@ -119,6 +119,9 @@ following table (see NOTES below):
 |_meta (see above)|LIST|ARRAY|
 
 NOTES:
+
+* Only the Elasticsearch/Glue data-types listed above are supported for this connector at 
+the present time.
 
 * When converting from **date_nanos** to **DATEMILLI**, nanoseconds will be rounded to the 
 nearest millisecond. Valid values for date and date_nanos include but are not limited to:
@@ -153,3 +156,31 @@ will allow users with permission to do so, the ability to deploy instances of th
 
 The Athena Elasticsearch Connector does not currently support parallel scans but will attempt 
 to push down predicates as part of its document search queries.
+
+## Executing SQL Queries
+
+The following are examples of DDL query you can send with this connector. Note that 
+**<function_name>** corresponds to the name of your Lambda function, **domain** is the name of 
+the domain you wish to query, and **index** is the name of your index:
+
+```sql
+show databases in `lambda:<function_name>`;
+show tables in `lambda:<function_name>`.domain;
+describe `lambda:<function_name>`.domain.index;
+```
+
+The following example demonstrates this connector's ability to utilize predicate push-down. The
+predicate pushed down in this query is `(_exists_:year) AND year:((>=1955 AND <=1962) OR 1996)`:
+
+```sql
+select * from "lambda:elasticsearch".movies.movies
+where year >= 1955 and year <= 1962 or year = 1996;
+```
+
+Results:
+
+|actor|year|director|genre|title
+|-----|----|--------|-----|-----|
+|Lansbury, Angela, Sinatra, Frank, Leigh, Janet, Harvey, Laurence, Silva, Henry, Frees, Paul, Gregory, James, Bissell, Whit, McGiver, John, Parrish, Leslie, Edwards, James, Flowers, Bess, Dhiegh, Khigh, Payne, Julie, Kleeb, Helen, Gray, Joe, Nalder, Reggie, Stevens, Bert, Masters, Michael, Lowell, Tom|1962|Frankenheimer, John|Drama, Mystery, Thriller, Crime|The Manchurian Candidate
+|Hopper, Dennis, Wood, Natalie, Dean, James, Mineo, Sal, Backus, Jim, Platt, Edward, Ray, Nicholas, Hopper, William, Allen, Corey, Birch, Paul, Hudson, Rochelle, Doran, Ann, Hicks, Chuck, Leigh, Nelson, Williams, Robert, Wessel, Dick, Bryar, Paul, Sessions, Almira, McMahon, David, Peters Jr., House|1955|Ray, Nicholas|Drama, Romance|Rebel Without a Cause
+|Jack Nicholson, Pierce Brosnan, Sarah Jessica Parker|1996|Burton, Tim|Comedy, Sci-Fi|Mars Attacks!
