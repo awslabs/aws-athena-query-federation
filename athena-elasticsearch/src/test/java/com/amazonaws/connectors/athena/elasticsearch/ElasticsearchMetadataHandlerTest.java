@@ -53,7 +53,6 @@ import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.anyString;
 
 /**
@@ -91,7 +90,6 @@ public class ElasticsearchMetadataHandlerTest
 
         allocator = new BlockAllocatorImpl();
         when(clientFactory.getClient(anyString())).thenReturn(mockClient);
-        doNothing().when(mockClient).shutdown();
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
                 amazonAthena, "spill-bucket", "spill-prefix",
                 clientFactory);
