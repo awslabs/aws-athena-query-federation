@@ -114,7 +114,7 @@ and convert them to Apache Arrow data-types using the following table (see NOTES
 |double|FLOAT8|double|
 |float, half_float|FLOAT4|float|
 |boolean|BIT|boolean|
-|data, date_nanos|DATEMILLI|timestamp
+|date, date_nanos|DATEMILLI|timestamp
 |JSON structure|STRUCT|STRUCT|
 |_meta (see above)|LIST|ARRAY|
 
