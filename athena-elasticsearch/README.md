@@ -31,7 +31,7 @@ fields defined in your Elasticsearch index.
 
 ## Parameters
 
-The Amazon Athena DocumentDB Connector exposes several configuration options via Lambda 
+The Amazon Athena Elasticsearch Connector exposes several configuration options via Lambda 
 environment variables:
 
 1. **disable_glue** - (Optional) If present, with any value, the connector will no longer 
