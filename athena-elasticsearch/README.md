@@ -40,14 +40,14 @@ attempt to retrieve supplemental metadata from Glue.
 2. **auto_discover_endpoint** - true/false (true is the default value). For Amazon 
 Elasticsearch Service the domain-names and their associated endpoints are auto-discoverable.
 For any other service, the associated domain-endpoints must be specified in the **domain_mapping** 
-variable. This also determine which credentials will be used to access the endpoint. If 
+variable. This also determines which credentials will be used to access the endpoint. If 
 **auto_discover_endpoint**=**true**, then AWS credentials will be used. Otherwise, 
-username/password credentials retrieved from Amazon Secrets Manger via the **secret_name** 
+username/password credentials retrieved from Amazon Secrets Manager via the **secret_name** 
 variable will be used.
 
 3. **domain_mapping** - Used only when **auto_discover_endpoint**=**false**, 
 this is the mapping between the domain names and their associated endpoints (in the format:
-`domain1=endpoint1,domain2=endpont2`). 
+`domain1=endpoint1,domain2=endpoint2`). 
 
     ```                        
         Example: 
@@ -75,9 +75,9 @@ location to delete old spills after X days/hours.
 
 ## Setting Up Databases & Tables
 
-Elasticsearch does not have a dedicated array datatype. Any field can contain zero or more 
-values so long as they are of the same datatype. If you intend on using Elasticsearch as your 
-metadata definition source, you will have to define a **_meta** field in all indices used with 
+Elasticsearch does not have a dedicated array data-type. Any field can contain zero or more 
+values so long as they are of the same data-type. If you intend on using Elasticsearch as your 
+metadata definition source, you will have to define a **_meta** property in all indices used with 
 Athena to indicate which field(s) should be considered a list (array). The field names should be 
 fully qualified for nested JSON structures (e.g. `address.street`, where street is a nested field 
 inside an address structure).
@@ -96,7 +96,7 @@ inside an address structure).
 
 Alternatively, a Glue table can be set up as a supplemental metadata definition source. To enable
 this feature, define a Glue database and table that match the domain and index of the source
-you are trying to supplement.
+you are supplementing.
 
 ### Data Types
 
@@ -140,17 +140,17 @@ and will be converted to a **VARCHAR**.
 
 To use this connector in your queries, navigate to AWS Serverless Application Repository and 
 deploy a pre-built version of this connector. Alternatively, you can build and deploy this 
-connector from source follow the below steps or use the more detailed tutorial in the 
+connector from source. To do so, follow the steps below, or use the more detailed tutorial in the 
 athena-example module:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-elasticsearch dir, run `mvn clean install`.
 3. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
 private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of 
-the connector's code will be stored for Serverless Application Repository to retrieve it. This 
-will allow users with permission to do so, the ability to deploy instances of the connector via 
-1-Click form. Then navigate to 
-[Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+the connector's code will be stored and retrieved by the Serverless Application Repository. This 
+will allow users with permission the ability to deploy instances of the connector via a
+1-Click form.
+4. Navigate to the [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
 ## Performance
 
@@ -181,6 +181,6 @@ Results:
 
 |actor|year|director|genre|title
 |-----|----|--------|-----|-----|
-|Lansbury, Angela, Sinatra, Frank, Leigh, Janet, Harvey, Laurence, Silva, Henry, Frees, Paul, Gregory, James, Bissell, Whit, McGiver, John, Parrish, Leslie, Edwards, James, Flowers, Bess, Dhiegh, Khigh, Payne, Julie, Kleeb, Helen, Gray, Joe, Nalder, Reggie, Stevens, Bert, Masters, Michael, Lowell, Tom|1962|Frankenheimer, John|Drama, Mystery, Thriller, Crime|The Manchurian Candidate
 |Hopper, Dennis, Wood, Natalie, Dean, James, Mineo, Sal, Backus, Jim, Platt, Edward, Ray, Nicholas, Hopper, William, Allen, Corey, Birch, Paul, Hudson, Rochelle, Doran, Ann, Hicks, Chuck, Leigh, Nelson, Williams, Robert, Wessel, Dick, Bryar, Paul, Sessions, Almira, McMahon, David, Peters Jr., House|1955|Ray, Nicholas|Drama, Romance|Rebel Without a Cause
+|Lansbury, Angela, Sinatra, Frank, Leigh, Janet, Harvey, Laurence, Silva, Henry, Frees, Paul, Gregory, James, Bissell, Whit, McGiver, John, Parrish, Leslie, Edwards, James, Flowers, Bess, Dhiegh, Khigh, Payne, Julie, Kleeb, Helen, Gray, Joe, Nalder, Reggie, Stevens, Bert, Masters, Michael, Lowell, Tom|1962|Frankenheimer, John|Drama, Mystery, Thriller, Crime|The Manchurian Candidate
 |Jack Nicholson, Pierce Brosnan, Sarah Jessica Parker|1996|Burton, Tim|Comedy, Sci-Fi|Mars Attacks!
