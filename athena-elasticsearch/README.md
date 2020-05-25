@@ -65,8 +65,8 @@ following formats:
     * Single Key-Value: `<username>: <password>`
     
 5. **spill_bucket** - When the data returned by your Lambda function exceeds Lambda’s limits, 
-this is the bucket that the data will be written to for Athena to read the excess from. (e.g. 
-my_bucket)
+this is the bucket that the data will be written to for Athena to read the excess from (e.g. 
+my_bucket).
 
 6. **spill_prefix** - (Optional) Defaults to sub-folder in your bucket called 
 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the 
@@ -150,7 +150,7 @@ private AWS Serverless Application Repository. The S3_BUCKET in the command is w
 the connector's code will be stored and retrieved by the Serverless Application Repository. This 
 will allow users with permission the ability to deploy instances of the connector via a
 1-Click form.
-4. Navigate to the [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+4. Navigate to the [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo).
 
 ## Performance
 
