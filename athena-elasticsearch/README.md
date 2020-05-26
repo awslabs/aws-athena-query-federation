@@ -4,10 +4,6 @@ This connector enables Amazon Athena to communicate with your Elasticsearch inst
 making your Elasticsearch data accessible via SQL. This connector will work with Amazon 
 Elasticsearch Service as well as any Elasticsearch compatible endpoint.
 
-To enable this Preview feature you need to create an Athena workgroup named 
-AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this 
-connector, use a UDF, or SageMaker inference from that workgroup.
-
 ## Nomenclature
 
 This document includes descriptions and explanations using Elasticsearch concepts and
