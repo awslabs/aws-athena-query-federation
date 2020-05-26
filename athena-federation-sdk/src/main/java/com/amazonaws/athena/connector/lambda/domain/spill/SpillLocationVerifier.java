@@ -38,17 +38,17 @@ public class SpillLocationVerifier
     private enum BucketState
     {UNCHECKED, VALID, INVALID}
 
-    private final AmazonS3 s3;
+    private final AmazonS3 amazons3;
     private String bucket;
     private BucketState state;
 
     /**
-     * @param bucket The name of the spill bucket.
+     * @param amazons3 The S3 object for the account.
      */
-    public SpillLocationVerifier(AmazonS3 s3, String bucket)
+    public SpillLocationVerifier(AmazonS3 amazons3)
     {
-        this.s3 = s3;
-        this.bucket = bucket;
+        this.amazons3 = amazons3;
+        this.bucket = "";
         this.state = BucketState.UNCHECKED;
     }
 
@@ -59,8 +59,8 @@ public class SpillLocationVerifier
      */
     public void checkBucketAuthZ(String spillBucket)
     {
-        if (spillBucket == null) {
-            throw new RuntimeException("Spill bucket cannot be null!");
+        if (spillBucket == null || spillBucket.equals("")) {
+            return;
         }
 
         if (!bucket.equals(spillBucket)) {
@@ -83,16 +83,21 @@ public class SpillLocationVerifier
     @VisibleForTesting
     void updateBucketState()
     {
-        Set<String> buckets = s3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
+        try {
+            Set<String> buckets = amazons3.listBuckets().stream().map(b -> b.getName()).collect(Collectors.toSet());
 
-        if (!buckets.contains(bucket)) {
-            state = BucketState.INVALID;
-        }
-        else {
-            state = BucketState.VALID;
-        }
+            if (!buckets.contains(bucket)) {
+                state = BucketState.INVALID;
+            }
+            else {
+                state = BucketState.VALID;
+            }
 
-        logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
+            logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
+        }
+        catch (Exception ex) {
+            throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
+        }
     }
 
     /**
@@ -102,14 +107,13 @@ public class SpillLocationVerifier
     @VisibleForTesting
     void passOrFail()
     {
-        if (state == BucketState.UNCHECKED) {
-            throw new RuntimeException("Bucket state should have been checked already.");
-        }
-        else if (state == BucketState.INVALID) {
-            throw new RuntimeException("You do NOT own the spill bucket with the name: " + bucket);
-        }
-        else {
-            // no op
+        switch (state) {
+            case UNCHECKED:
+                throw new RuntimeException("Bucket state should have been checked already.");
+            case INVALID:
+                throw new RuntimeException("You do NOT own the spill bucket with the name: " + bucket);
+            default:
+                return;
         }
     }
 }

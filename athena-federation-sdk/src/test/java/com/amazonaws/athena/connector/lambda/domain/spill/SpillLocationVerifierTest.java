@@ -58,7 +58,7 @@ public class SpillLocationVerifierTest
         bucketNames = Arrays.asList("bucket1", "bucket2", "bucket3");
         List<Bucket> buckets = createBuckets(bucketNames);
         AmazonS3 mockS3 = createMockS3(buckets);
-        spyVerifier = spy(new SpillLocationVerifier(mockS3, "spill-bucket"));
+        spyVerifier = spy(new SpillLocationVerifier(mockS3));
 
         logger.info("setUpBefore - exit");
     }
@@ -88,6 +88,15 @@ public class SpillLocationVerifierTest
 
         try {
             spyVerifier.checkBucketAuthZ(bucketNames.get(index));
+        }
+        catch(RuntimeException e) {
+            fail("checkBucketAuthZ failed");
+        }
+        verify(spyVerifier, times(1)).updateBucketState();
+        verify(spyVerifier, times(2)).passOrFail();
+
+        try {
+            spyVerifier.checkBucketAuthZ("");
         }
         catch(RuntimeException e) {
             fail("checkBucketAuthZ failed");

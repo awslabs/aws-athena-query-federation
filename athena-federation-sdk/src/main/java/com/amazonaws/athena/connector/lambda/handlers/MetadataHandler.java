@@ -140,7 +140,7 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
-        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build(), this.spillBucket);
+        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
     }
 
     /**
@@ -159,7 +159,7 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
-        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build(), this.spillBucket);
+        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
     }
 
     /**
