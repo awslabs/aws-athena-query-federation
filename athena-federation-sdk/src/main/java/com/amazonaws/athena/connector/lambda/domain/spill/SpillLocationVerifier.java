@@ -48,7 +48,7 @@ public class SpillLocationVerifier
     public SpillLocationVerifier(AmazonS3 amazons3)
     {
         this.amazons3 = amazons3;
-        this.bucket = "";
+        this.bucket = null;
         this.state = BucketState.UNCHECKED;
     }
 
@@ -63,7 +63,7 @@ public class SpillLocationVerifier
             return;
         }
 
-        if (!bucket.equals(spillBucket)) {
+        if (bucket == null || !bucket.equals(spillBucket)) {
             logger.info("Spill bucket has been changed from {} to {}", bucket, spillBucket);
             bucket = spillBucket;
             state = BucketState.UNCHECKED;
