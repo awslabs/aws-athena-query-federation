@@ -173,39 +173,39 @@ public class ElasticsearchRecordHandlerTest
 
         Map <String, Object> document2 = new ObjectMapper().readValue(
                 "{\n" +
-                "  \"mytext\" : \"My favorite Sci-Fi movie is Interstellar.\",\n" +
-                "  \"mykeyword\" : \"I love keywords.\",\n" +
+                "  \"mytext\" : \"My favorite TV comedy is Seinfeld.\",\n" +
+                "  \"mykeyword\" : \"I hate key-values.\",\n" +
                 "  \"mylong\" : [\n" +
-                "    \"11\",\n" +
-                "    12,\n" +
-                "    13\n" +
+                "    \"14\",\n" +
+                "    null,\n" +
+                "    16\n" +
                 "  ],\n" +
-                "  \"myinteger\" : \"666115\",\n" +
-                "  \"myshort\" : \"1972\",\n" +
-                "  \"mybyte\" : \"5\",\n" +
-                "  \"mydouble\" : \"47.5\",\n" +
-                "  \"myscaled\" : \"0.666\",\n" +
-                "  \"myfloat\" : \"5.6\",\n" +
-                "  \"myhalf\" : \"6.2\",\n" +
+                "  \"myinteger\" : \"732765666\",\n" +
+                "  \"myshort\" : \"1971\",\n" +
+                "  \"mybyte\" : \"7\",\n" +
+                "  \"mydouble\" : \"27.6\",\n" +
+                "  \"myscaled\" : \"0.999\",\n" +
+                "  \"myfloat\" : \"7.8\",\n" +
+                "  \"myhalf\" : \"7.3\",\n" +
                 "  \"mydatemilli\" : null,\n" +
                 "  \"mydatenano\" : 1589525370001,\n" +
-                "  \"myboolean\" : \"true\",\n" +
+                "  \"myboolean\" : \"false\",\n" +
                 "  \"mybinary\" : \"U29tZSBiaW5hcnkgYmxvYg==\",\n" +
                 "  \"mynested\" : {\n" +
-                "    \"l1long\" : \"357345987\",\n" +
+                "    \"l1long\" : \"7322775555\",\n" +
                 "    \"l1date\" : \"2020-05-15T06:57:44.7765+05:00\",\n" +
                 "    \"l1nested\" : {\n" +
                 "      \"l2short\" : [\n" +
-                "        1,\n" +
-                "        2,\n" +
-                "        3,\n" +
-                "        \"4\",\n" +
-                "        5,\n" +
-                "        6,\n" +
-                "        7,\n" +
-                "        8,\n" +
-                "        \"9\",\n" +
-                "        10\n" +
+                "        11,\n" +
+                "        12,\n" +
+                "        13,\n" +
+                "        \"14\",\n" +
+                "        15,\n" +
+                "        16,\n" +
+                "        17,\n" +
+                "        18,\n" +
+                "        \"19\",\n" +
+                "        20\n" +
                 "      ],\n" +
                 "      \"l2binary\" : \"U29tZSBiaW5hcnkgYmxvYg==\"\n" +
                 "    }\n" +
@@ -325,7 +325,7 @@ public class ElasticsearchRecordHandlerTest
 
         Map<String, String> domainMap = ImmutableMap.of("movies",
                 "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.setDomainMapping(domainMap);
+        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -382,7 +382,7 @@ public class ElasticsearchRecordHandlerTest
 
         Map<String, String> domainMap = ImmutableMap.of("movies",
                 "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.setDomainMapping(domainMap);
+        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 

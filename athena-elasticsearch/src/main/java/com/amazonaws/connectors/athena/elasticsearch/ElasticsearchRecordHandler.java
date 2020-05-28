@@ -22,6 +22,8 @@ package com.amazonaws.connectors.athena.elasticsearch;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -31,7 +33,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -42,10 +43,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static com.amazonaws.connectors.athena.elasticsearch.ElasticsearchFieldResolver.DEFAULT_FIELD_RESOLVER;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -75,11 +72,14 @@ public class ElasticsearchRecordHandler
     private AmazonS3 amazonS3;
 
     private final AwsRestHighLevelClientFactory clientFactory;
+    private final ElasticsearchQueryUtils queryUtils;
+    private final ElasticsearchTypeUtils typeUtils;
+    private final ElasticsearchHelper helper;
 
     public ElasticsearchRecordHandler()
     {
         this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), ElasticsearchHelper.getClientFactory());
+                AmazonAthenaClientBuilder.defaultClient(), ElasticsearchHelper.getInstance().getClientFactory());
     }
 
     @VisibleForTesting
@@ -89,6 +89,9 @@ public class ElasticsearchRecordHandler
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         this.amazonS3 = amazonS3;
         this.clientFactory = clientFactory;
+        this.queryUtils = new ElasticsearchQueryUtils();
+        this.typeUtils = new ElasticsearchTypeUtils();
+        this.helper = ElasticsearchHelper.getInstance();
     }
 
     /**
@@ -110,22 +113,32 @@ public class ElasticsearchRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker)
     {
-        logger.info("readWithConstraint - enter\n\nDomain: {}\n\nIndex: {}\n\nMapping: {}\n\nConstraints: {}",
+        logger.info("readWithConstraint - enter\n\nDomain: {}\n\nIndex: {}\n\nMapping: {}",
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
-                recordsRequest.getSchema(), recordsRequest.getConstraints().getSummary());
+                recordsRequest.getSchema());
 
-        String endpoint = ElasticsearchHelper.getDomainEndpoint(recordsRequest.getTableName().getSchemaName());
+        String endpoint = helper.getDomainEndpoint(recordsRequest.getTableName().getSchemaName());
         long numRows = 0;
-        AtomicLong numResultRows = new AtomicLong(0);
 
         if (!endpoint.isEmpty() && queryStatusChecker.isQueryRunning()) {
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
             try {
+                // Create field extractors for all data types in the schema.
+                GeneratedRowWriter.RowWriterBuilder builder =
+                        GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+                for (Field field : recordsRequest.getSchema().getFields()) {
+                    Extractor extractor = typeUtils.makeExtractor(field);
+                    if (extractor != null) {
+                        builder.withExtractor(field.getName(), extractor);
+                    }
+                    else {
+                        builder.withFieldWriterFactory(field.getName(), typeUtils.makeFactory(field));
+                    }
+                }
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
-                        .fetchSource(ElasticsearchHelper
-                                .getProjection(recordsRequest.getSchema())).query(ElasticsearchHelper
-                                .getQuery(recordsRequest.getConstraints().getSummary()));
+                        .fetchSource(queryUtils.getProjection(recordsRequest.getSchema()))
+                        .query(queryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
                 SearchRequest searchRequest = new SearchRequest(recordsRequest.getTableName().getTableName());
                 int hitsNum;
@@ -140,11 +153,12 @@ public class ElasticsearchRecordHandler
                     // Process hits.
                     Iterator<SearchHit> hitIterator = searchResponse.getHits().iterator();
                     hitsNum = searchResponse.getHits().getHits().length;
+                    GeneratedRowWriter rowWriter = builder.build();
 
                     while (hitIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
                         ++numRows;
-                        processDocument(spiller, recordsRequest.getSchema().getFields().iterator(),
-                                client.getDocument(hitIterator.next()), numResultRows);
+                        spiller.writeRows((Block block, int rowNum) ->
+                                rowWriter.writeRow(block, rowNum, client.getDocument(hitIterator.next())) ? 1 : 0);
                     }
                     // if hitsNum < QUERY_BATCH_SIZE, then this is the last batch of documents.
                 } while (hitsNum == QUERY_BATCH_SIZE && queryStatusChecker.isQueryRunning());
@@ -157,58 +171,11 @@ public class ElasticsearchRecordHandler
             }
         }
 
-        logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
-    }
-
-    /**
-     * Process the Document extracted from the SearchHit and write it's data into the BlockSpiller.
-     * @param spiller is a BlockSpiller that should be used to write the row data associated with this Document.
-     *                The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
-     * @param fieldIterator is the iterator for the list of schema fields extracted from the RecordRequest.
-     * @param document is the Document to be processed.
-     * @param numResultRows is the number of successfully processed Rows (Documents).
-     */
-    protected void processDocument(BlockSpiller spiller, Iterator<Field> fieldIterator,
-                                   Map<String, Object> document, AtomicLong numResultRows)
-    {
-        spiller.writeRows((Block block, int rowNum) -> {
-            boolean matched = true;
-            while (fieldIterator.hasNext()) {
-                Field field = fieldIterator.next();
-                String fieldName = field.getName();
-
-                if (!document.containsKey(fieldName)) {
-                    throw new RuntimeException("Field not found in Document: " + fieldName);
-                }
-
-                Object fieldValue = ElasticsearchHelper.coerceField(field, document.get(field.getName()));
-                Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
-                try {
-                    switch (fieldType) {
-                        case LIST:
-                        case STRUCT:
-                            matched &= block.offerComplexValue(fieldName, rowNum, DEFAULT_FIELD_RESOLVER, fieldValue);
-                            break;
-                        default:
-                            matched &= block.offerValue(fieldName, rowNum, fieldValue);
-                            break;
-                    }
-                    if (!matched) {
-                        return 0;
-                    }
-                }
-                catch (Exception error) {
-                    throw new RuntimeException("Error while processing field:" + fieldName, error);
-                }
-            }
-
-            numResultRows.getAndIncrement();
-            return 1;
-        });
+        logger.info("readWithConstraint: numRows[{}]", numRows);
     }
 
     @VisibleForTesting
-    public int getQueryBatchSize()
+    protected int getQueryBatchSize()
     {
         return QUERY_BATCH_SIZE;
     }

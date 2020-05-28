@@ -147,7 +147,7 @@ public class ElasticsearchMetadataHandlerTest
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
         Map<String, String> domainMap = ImmutableMap.of("domain1", "endpoint1",
                 "domain2", "endpoint2","domain3", "endpoint3");
-        ElasticsearchHelper.setDomainMapping(domainMap);
+        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
         ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
 
         logger.info("doListSchemas - {}", realDomains.getSchemas());
@@ -203,7 +203,7 @@ public class ElasticsearchMetadataHandlerTest
                 new TableName("movies", "customer"));
         Map<String, String> domainMap = ImmutableMap.of("movies",
                 "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.setDomainMapping(domainMap);
+        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
         when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
 
         ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
@@ -436,7 +436,7 @@ public class ElasticsearchMetadataHandlerTest
 
         Map<String, String> domainMap = ImmutableMap.of("movies",
                 "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.setDomainMapping(domainMap);
+        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
                 new TableName("movies", "mishmash"));
         GetTableResponse res = handler.doGetTable(allocator, req);

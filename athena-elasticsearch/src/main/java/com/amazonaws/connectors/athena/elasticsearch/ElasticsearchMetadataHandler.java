@@ -79,15 +79,19 @@ public class ElasticsearchMetadataHandler
 
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
+    private final ElasticsearchSchemaUtil schemaUtil;
+    private final ElasticsearchHelper helper;
 
     public ElasticsearchMetadataHandler()
     {
         //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
-        this.clientFactory = ElasticsearchHelper.getClientFactory();
+        this.schemaUtil = new ElasticsearchSchemaUtil();
+        this.helper = ElasticsearchHelper.getInstance();
+        this.clientFactory = helper.getClientFactory();
 
-        ElasticsearchHelper.setDomainMapping();
+        this.helper.setDomainMapping();
     }
 
     @VisibleForTesting
@@ -102,8 +106,10 @@ public class ElasticsearchMetadataHandler
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
         this.clientFactory = clientFactory;
+        this.schemaUtil = new ElasticsearchSchemaUtil();
+        this.helper = ElasticsearchHelper.getInstance();
 
-        ElasticsearchHelper.setDomainMapping();
+        this.helper.setDomainMapping();
     }
 
     /**
@@ -118,13 +124,13 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doListSchemaNames: enter - " + request);
 
-        if (ElasticsearchHelper.isAutoDiscoverEndpoint()) {
+        if (helper.isAutoDiscoverEndpoint()) {
             // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initialize
             // the connector, the domainMap needs to be refreshed each time for Amazon ES.
-            ElasticsearchHelper.setDomainMapping();
+            helper.setDomainMapping();
         }
 
-        return new ListSchemasResponse(request.getCatalogName(), ElasticsearchHelper.getDomainList());
+        return new ListSchemasResponse(request.getCatalogName(), helper.getDomainList());
     }
 
     /**
@@ -140,7 +146,7 @@ public class ElasticsearchMetadataHandler
         logger.info("doListTables: enter - " + request);
 
         List<TableName> indices = new ArrayList<>();
-        String endpoint = ElasticsearchHelper.getDomainEndpoint(request.getSchemaName());
+        String endpoint = helper.getDomainEndpoint(request.getSchemaName());
 
         if (!endpoint.isEmpty()) {
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
@@ -201,7 +207,7 @@ public class ElasticsearchMetadataHandler
 
         // Supplement GLUE catalog if not present.
         if (schema == null) {
-            String endpoint = ElasticsearchHelper.getDomainEndpoint(request.getTableName().getSchemaName());
+            String endpoint = helper.getDomainEndpoint(request.getTableName().getSchemaName());
 
             if (!endpoint.isEmpty()) {
                 String index = request.getTableName().getTableName();
@@ -210,11 +216,15 @@ public class ElasticsearchMetadataHandler
                     LinkedHashMap<String, Object> mappings = client.getMapping(index);
                     LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
 
+                    // Elasticsearch does not have a dedicated array type. All fields can contain one or more elements
+                    // so long as they are of the same type. For this reasons, users will have to add a _meta property
+                    // to the indices they intend on using with Athena. This property is used in the building of the
+                    // Schema to indicate which fields should be considered a LIST.
                     if (mappings.containsKey("_meta")) {
                         meta.putAll((LinkedHashMap) mappings.get("_meta"));
                     }
 
-                    schema = ElasticsearchHelper.parseMapping(mappings, meta);
+                    schema = schemaUtil.parseMapping(mappings, meta);
                 }
                 catch (IOException error) {
                     logger.error("Error mapping index:", error);
