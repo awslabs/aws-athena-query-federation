@@ -101,6 +101,9 @@ public class ElasticsearchRecordHandlerTest
     private AwsRestHighLevelClientFactory clientFactory;
 
     @Mock
+    private ElasticsearchHelper helper;
+
+    @Mock
     private AwsRestHighLevelClient mockClient;
 
     @Mock
@@ -277,12 +280,16 @@ public class ElasticsearchRecordHandlerTest
                     }
                 });
 
-        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory);
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
+        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("movies",
+                "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
+        when(helper.getClientFactory()).thenReturn(clientFactory);
         when(clientFactory.getClient(anyString())).thenReturn(mockClient);
         when(mockClient.getDocuments(anyObject())).thenReturn(mockResponse);
         when(mockClient.getDocument(anyObject())).thenReturn(document1, document2);
+
+        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, helper);
 
         logger.info("setUpBefore - exit");
     }
@@ -304,8 +311,7 @@ public class ElasticsearchRecordHandlerTest
         searchHit[1] = new SearchHit(2);
         SearchHits searchHits =
                 new SearchHits(searchHit, new TotalHits(2, TotalHits.Relation.EQUAL_TO), 4);
-        when(mockResponse.getHits())
-                .thenReturn(searchHits);
+        when(mockResponse.getHits()).thenReturn(searchHits);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("myshort", SortedRangeSet.copyOf(Types.MinorType.SMALLINT.getType(),
@@ -322,10 +328,6 @@ public class ElasticsearchRecordHandlerTest
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
-
-        Map<String, String> domainMap = ImmutableMap.of("movies",
-                "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 
@@ -379,10 +381,6 @@ public class ElasticsearchRecordHandlerTest
                 10_000L, //10KB Expect this to spill
                 0L
         );
-
-        Map<String, String> domainMap = ImmutableMap.of("movies",
-                "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
 

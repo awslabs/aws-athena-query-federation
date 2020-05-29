@@ -20,17 +20,11 @@
 package com.amazonaws.connectors.athena.elasticsearch;
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This class creates a REST client injected with an endpoint and credentials.
@@ -40,8 +34,7 @@ public class AwsRestHighLevelClientFactory
     private static final Logger logger = LoggerFactory.getLogger(AwsRestHighLevelClientFactory.class);
 
     private final boolean useDefaultCredentials;
-    private final String username;
-    private final String password;
+    private static final Pattern credentialsPattern = Pattern.compile("[^/@]+@[^:]+:");
 
     /**
      * Constructs a new client factory (using a builder) that will create clients injected with credentials.
@@ -50,14 +43,15 @@ public class AwsRestHighLevelClientFactory
     private AwsRestHighLevelClientFactory(Builder builder)
     {
         this.useDefaultCredentials = builder.useDefaultCredentials;
-        this.username = builder.username;
-        this.password = builder.password;
     }
 
     /**
      * Gets an Elasticsearch REST client injected with credentials.
-     * @param endpoint is the Elasticsearch cluster's domain endpoint
-     *                 (e.g. search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com).
+     * @param endpoint is the Elasticsearch instance endpoint. The latter may contain username/password credentials
+     *                 for Elasticsearch services that are external to Amazon.
+     *                 Examples:
+     *                 1) https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
+     *                 2) http://username@password:www.google.com
      * @return an Elasticsearch REST client. If useDefaultCredentials = true, the client is injected
      *          with AWS credentials. If useDefaultCredentials = false and username/password are not
      *          empty, it is injected with username/password credentials. Otherwise a default client
@@ -65,22 +59,28 @@ public class AwsRestHighLevelClientFactory
      */
     public AwsRestHighLevelClient getClient(String endpoint)
     {
-        logger.info("getClient - enter: " + endpoint);
+        logger.info("getClient - enter");
 
         if (useDefaultCredentials) {
-            logger.info("Client injected with AWS credentials");
-
             return new AwsRestHighLevelClient.Builder(endpoint)
                     .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
         }
-        else if (!username.isEmpty() && !password.isEmpty()) {
-            logger.info("Client injected with username/password credentials");
+        else {
+            Matcher credentials = credentialsPattern.matcher(endpoint);
+            if (credentials.find()) {
+                String usernameAndPassword = credentials.group();
+                String username = usernameAndPassword.substring(0, usernameAndPassword.indexOf("@"));
+                String password = usernameAndPassword.substring(usernameAndPassword.indexOf("@") + 1,
+                        usernameAndPassword.lastIndexOf(":"));
+                String finalEndpoint = endpoint.replace(usernameAndPassword, "");
 
-            return new AwsRestHighLevelClient.Builder(endpoint)
-                    .withCredentials(username, password).build();
+                return new AwsRestHighLevelClient.Builder(finalEndpoint).withCredentials(username, password).build();
+            }
         }
 
-        // Default client.
+        logger.info("Default client w/o credentials");
+
+        // Default client w/o credentials.
         return new AwsRestHighLevelClient.Builder(endpoint).build();
     }
 
@@ -90,6 +90,8 @@ public class AwsRestHighLevelClientFactory
      */
     public static AwsRestHighLevelClientFactory defaultFactory()
     {
+        logger.info("defaultFactory - enter");
+
         return new Builder().build();
     }
 
@@ -99,8 +101,6 @@ public class AwsRestHighLevelClientFactory
     public static class Builder
     {
         private boolean useDefaultCredentials;
-        private String username;
-        private String password;
 
         /**
          * A constructor for the builder. As a default behaviour, it sets the client factory to use AWS credentials
@@ -109,63 +109,18 @@ public class AwsRestHighLevelClientFactory
         public Builder()
         {
             useDefaultCredentials = true;
-            username = "";
-            password = "";
         }
 
         /**
          * Sets the client factory to use username/password credentials from Amazon Secrets Manager when constructing
          * the client.
-         * @param secretName is the name of the secret.
          * @return this.
          */
-        public Builder withSecretCredentials(String secretName)
+        public Builder withSecretCredentials()
         {
-            logger.info("withSecretCredentials - enter: " + secretName);
+            logger.info("withSecretCredentials - enter");
 
-            if (secretName.isEmpty()) {
-                logger.warn("Secret Name is empty.");
-                return this;
-            }
-
-            AWSSecretsManager awsSecretsManager = AWSSecretsManagerClientBuilder.standard()
-                    .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
-
-            try {
-                GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest().withSecretId(secretName);
-                GetSecretValueResult getSecretValueResult;
-                getSecretValueResult = awsSecretsManager.getSecretValue(getSecretValueRequest);
-                String secretString;
-
-                if (getSecretValueResult.getSecretString() != null) {
-                    secretString = getSecretValueResult.getSecretString();
-                }
-                else {
-                    secretString = new String(Base64.getDecoder().decode(getSecretValueResult.getSecretBinary()).array());
-                }
-
-                Map<String, String> secrets = new ObjectMapper().readValue(secretString, HashMap.class);
-                if (secrets.size() == 1) {
-                    // Secret was saved as: { <username>: <password> }
-                    secrets.forEach((key, value) ->
-                    {
-                        username = key;
-                        password = value;
-                    });
-                }
-                else {
-                    // Secret was saved as: { "username": <username>, "password": <password> }
-                    username = secrets.get("username");
-                    password = secrets.get("password");
-                }
-                useDefaultCredentials = false;
-            }
-            catch (Exception error) {
-                logger.error("Error accessing Secrets Manager:", error);
-            }
-            finally {
-                awsSecretsManager.shutdown();
-            }
+            useDefaultCredentials = false;
 
             return this;
         }

@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -77,6 +78,13 @@ public class ElasticsearchMetadataHandler
     //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
 
+    // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
+    // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
+    // and the value = endpoint.
+    private static final String DOMAIN_MAPPING = "domain_mapping";
+    // A Map of the domain-names and their respective endpoints.
+    private Map<String, String> domainMap;
+
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchSchemaUtil schemaUtil;
@@ -88,7 +96,8 @@ public class ElasticsearchMetadataHandler
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
         this.schemaUtil = new ElasticsearchSchemaUtil();
-        this.helper = ElasticsearchHelper.getInstance();
+        this.helper = new ElasticsearchHelper();
+        this.domainMap = helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = this.helper.getClientFactory();
     }
 
@@ -99,13 +108,14 @@ public class ElasticsearchMetadataHandler
                                            AmazonAthena athena,
                                            String spillBucket,
                                            String spillPrefix,
-                                           AwsRestHighLevelClientFactory clientFactory)
+                                           ElasticsearchHelper helper)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
-        this.clientFactory = clientFactory;
         this.schemaUtil = new ElasticsearchSchemaUtil();
-        this.helper = ElasticsearchHelper.getInstance();
+        this.helper = helper;
+        this.domainMap = this.helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
+        this.clientFactory = this.helper.getClientFactory();
     }
 
     /**
@@ -120,13 +130,7 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doListSchemaNames: enter - " + request);
 
-        if (helper.isAutoDiscoverEndpoint()) {
-            // Since adding/deleting domains in Amazon Elasticsearch Service doesn't re-initialize
-            // the connector, the domainMap needs to be refreshed each time for Amazon ES.
-            helper.setDomainMapping();
-        }
-
-        return new ListSchemasResponse(request.getCatalogName(), helper.getDomainList());
+        return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
     }
 
     /**
@@ -142,7 +146,7 @@ public class ElasticsearchMetadataHandler
         logger.info("doListTables: enter - " + request);
 
         List<TableName> indices = new ArrayList<>();
-        String endpoint = helper.getDomainEndpoint(request.getSchemaName());
+        String endpoint = getDomainEndpoint(request.getSchemaName());
 
         if (!endpoint.isEmpty()) {
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
@@ -203,7 +207,7 @@ public class ElasticsearchMetadataHandler
 
         // Supplement GLUE catalog if not present.
         if (schema == null) {
-            String endpoint = helper.getDomainEndpoint(request.getTableName().getSchemaName());
+            String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
 
             if (!endpoint.isEmpty()) {
                 String index = request.getTableName().getTableName();
@@ -273,6 +277,22 @@ public class ElasticsearchMetadataHandler
         //Since our connector does not support parallel reads we return a fixed split.
         return new GetSplitsResponse(request.getCatalogName(),
                 Split.newBuilder(spillLocation, makeEncryptionKey()).build());
+    }
+
+    /**
+     * Gets an endpoint from the domain mapping.
+     * @param domain is used for searching the domain map for the corresponding endpoint.
+     * @return endpoint corresponding to the domain or an empty string if domain does not exist in the map.
+     */
+    private String getDomainEndpoint(String domain)
+    {
+        String endpoint = "";
+
+        if (domainMap.containsKey(domain)) {
+            return domainMap.get(domain);
+        }
+
+        return endpoint;
     }
 
     /**

@@ -35,12 +35,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * This singleton manages environment variables such as the domain_mapping and auto_discover_endpoint, as well as a map
- * of the domain-names and their associated endpoints. Additionally, it provides an interface for getting a client
- * Factory used for creating clients that can communicate with a specified Elasticsearch endpoint.
+ * This class provides interfaces related to parsing of the domain-names and their associated endpoints.
+ * Additionally, it provides an interface for getting a REST client factory used for creating clients that can
+ * communicate with a specific Elasticsearch endpoint.
  */
 class ElasticsearchHelper
 {
@@ -52,46 +51,12 @@ class ElasticsearchHelper
     private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
     private boolean autoDiscoverEndpoint;
 
-    // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
-    // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
-    // and the value = endpoint.
-    private static final String DOMAIN_MAPPING = "domain_mapping";
-    private String domainMapping;
-
-    // Splitter for inline map properties extracted from the DOMAIN_MAPPING.
+    // Splitter for inline map properties extracted from the domain_mapping environment variable.
     private final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
 
-    // A Map of the domain-names and their respective endpoints.
-    private final Map<String, String> domainMap = new HashMap<>();
-
-    // Used when autoDiscoverEndpoint is false to create a client injected with username/password credentials
-    // extracted from Amazon Secrets Manager.
-    private static final String SECRET_NAME = "secret_name";
-    private String secretName;
-
-    // Singleton instance variable.
-    private static ElasticsearchHelper instance = null;
-
-    private ElasticsearchHelper()
+    protected ElasticsearchHelper()
     {
         this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        this.secretName = getEnv(SECRET_NAME);
-        this.domainMapping = getEnv(DOMAIN_MAPPING);
-
-        setDomainMapping();
-    }
-
-    protected static ElasticsearchHelper getInstance()
-    {
-        if (instance == null) {
-            synchronized (ElasticsearchHelper.class) {
-                if (instance == null) {
-                    instance = new ElasticsearchHelper();
-                }
-            }
-        }
-
-        return instance;
     }
 
     /**
@@ -99,7 +64,7 @@ class ElasticsearchHelper
      * @param var is the environment variable.
      * @return the contents of the environment variable or an empty String if it's not defined.
      */
-    private final String getEnv(String var)
+    protected final String getEnv(String var)
     {
         String result = System.getenv(var);
 
@@ -107,68 +72,33 @@ class ElasticsearchHelper
     }
 
     /**
-     * @return the boolean value of autoDiscoverEndpoint.
-     */
-    protected final boolean isAutoDiscoverEndpoint()
-    {
-        return autoDiscoverEndpoint;
-    }
-
-    /**
-     * Gets a client factory that can create an Elasticsearch REST client injected with credentials.
-     * @return a new client factory.
-     */
-    protected AwsRestHighLevelClientFactory getClientFactory()
-    {
-        logger.info("getClientFactory - enter");
-
-        if (autoDiscoverEndpoint) {
-            // Client factory for clients injected with AWS credentials.
-            return AwsRestHighLevelClientFactory.defaultFactory();
-        }
-        else {
-            // Client factory for clients injected with username/password credentials.
-            return new AwsRestHighLevelClientFactory.Builder().withSecretCredentials(secretName).build();
-        }
-    }
-
-    /**
-     * Sets the domainMap with domain-names and corresponding endpoints retrieved from the AWS ES SDK.
+     * Gets the domainMap with domain-names and corresponding endpoints retrieved from the AWS ES SDK.
      * @param domainStatusList is a list of status objects returned by a listDomainNames request to the AWS ES SDK.
+     * @return populated domainMap with domain-names and corresponding endpoints.
      */
-    private final void setDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
+    private Map<String, String> getDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
     {
         logger.info("setDomainMapping(List<>) - enter");
 
-        domainMap.clear();
+        Map<String, String> domainMap = new HashMap<>();
+
         for (ElasticsearchDomainStatus domainStatus : domainStatusList) {
-            domainMap.put(domainStatus.getDomainName(), domainStatus.getEndpoint());
+            domainMap.put(domainStatus.getDomainName(), "https://" + domainStatus.getEndpoint());
         }
 
-        logger.info("setDomainMapping(List<>) - exit: " + domainMap);
+        return domainMap;
     }
 
     /**
-     * Sets the domainMap with domain-names and corresponding endpoints stored in a Map object.
-     * @param mapping is a map of domain-names and their corresponding endpoints.
-     */
-    protected final void setDomainMapping(Map<String, String> mapping)
-    {
-        logger.info("setDomainMapping(Map<>) - enter");
-
-        domainMap.clear();
-        domainMap.putAll(mapping);
-
-        logger.info("setDomainMapping(Map<>) - exit: " + domainMap);
-    }
-
-    /**
-     * Populates the domainMap with domain-mapping from either the domain_mapping environment variable
+     * Gets the domain-mapping from either the domain_mapping environment variable
      * (auto_discover_endpoint is false), or from the AWS ES SDK (auto_discover_endpoint is true).
-     * This method is called from the constructor(s) and from doListSchemaNames(). The call from the latter is used to
-     * refresh the domainMap with the underlying assumption that domain(s) could have been added or deleted.
+     * @param domainMapping is the contents of the domain_mapping environment variable with secrets already resolved.
+     *                      This parameter will be ignored (and should be empty) when auto_discover_endpoint=true.
+     * @return populated domainMap with domain-names and corresponding endpoints.
+     * @throws RuntimeException
      */
-    protected void setDomainMapping()
+    protected Map<String, String> getDomainMapping(String domainMapping)
+            throws RuntimeException
     {
         logger.info("setDomainMapping - enter");
 
@@ -191,7 +121,7 @@ class ElasticsearchHelper
                 DescribeElasticsearchDomainsResult describeDomainsResult =
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
 
-                setDomainMapping(describeDomainsResult.getDomainStatusList());
+                return getDomainMapping(describeDomainsResult.getDomainStatusList());
             }
             catch (Exception error) {
                 logger.error("Error getting list of domain names:", error);
@@ -203,36 +133,28 @@ class ElasticsearchHelper
         else {
             // Get domain mapping from environment variable.
             if (!domainMapping.isEmpty()) {
-                setDomainMapping(domainSplitter.split(domainMapping));
+                return domainSplitter.split(domainMapping);
             }
         }
 
-        logger.info("setDomainMapping - exit");
+        throw new RuntimeException("Unable to extract list of domain names and endpoints.");
     }
 
     /**
-     * Gets a list of domain names.
-     * @return a list of domain-names stored in the domainMap.
+     * Gets a client factory that can create an Elasticsearch REST client injected with credentials.
+     * @return a new client factory.
      */
-    protected final Set<String> getDomainList()
+    protected AwsRestHighLevelClientFactory getClientFactory()
     {
-        return domainMap.keySet();
-    }
+        logger.info("getClientFactory - enter");
 
-    /**
-     * Gets the domain's endpoint.
-     * @param domainName is the name associated with the endpoint.
-     * @return a String containing the endpoint associated with the domainName, or an empty String if the domain-
-     * name doesn't exist in the map.
-     */
-    protected final String getDomainEndpoint(String domainName)
-    {
-        String endpoint = "";
-
-        if (domainMap.containsKey(domainName)) {
-            endpoint = domainMap.get(domainName);
+        if (autoDiscoverEndpoint) {
+            // Client factory for clients injected with AWS credentials.
+            return AwsRestHighLevelClientFactory.defaultFactory();
         }
-
-        return endpoint;
+        else {
+            // Client factory for clients injected with username/password credentials.
+            return new AwsRestHighLevelClientFactory.Builder().withSecretCredentials().build();
+        }
     }
 }

@@ -153,7 +153,7 @@ public class AwsRestHighLevelClient
         public Builder(String endpoint)
         {
             this.endpoint = endpoint;
-            this.clientBuilder = RestClient.builder(HttpHost.create("https://" + this.endpoint));
+            this.clientBuilder = RestClient.builder(HttpHost.create(this.endpoint));
             this.signer = new AWS4Signer();
             this.domainSplitter = Splitter.on(".");
         }
@@ -169,14 +169,14 @@ public class AwsRestHighLevelClient
 
             /**
              * endpoint:
-             * search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
+             * https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
              *
              * domainSplits:
-             * 0 = "search-movies-ne3fcqzfipy6jcrew2wca6kyqu"
-             * 1 = "us-east-1"
-             * 2 = "es"
-             * 3 = "amazonaws"
-             * 4 = "com"
+             * [0] = "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu"
+             * [1] = "us-east-1"
+             * [2] = "es"
+             * [3] = "amazonaws"
+             * [4] = "com"
              */
             List<String> domainSplits = domainSplitter.splitToList(endpoint);
 

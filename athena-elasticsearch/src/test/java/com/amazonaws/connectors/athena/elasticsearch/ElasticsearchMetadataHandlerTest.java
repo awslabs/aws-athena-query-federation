@@ -83,16 +83,17 @@ public class ElasticsearchMetadataHandlerTest
     @Mock
     private AwsRestHighLevelClientFactory clientFactory;
 
+    @Mock
+    private ElasticsearchHelper helper;
+
     @Before
     public void setUp()
     {
         logger.info("setUpBefore - enter");
 
         allocator = new BlockAllocatorImpl();
+        when(helper.getClientFactory()).thenReturn(clientFactory);
         when(clientFactory.getClient(anyString())).thenReturn(mockClient);
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
-                amazonAthena, "spill-bucket", "spill-prefix",
-                clientFactory);
 
         logger.info("setUpBefore - exit");
     }
@@ -101,6 +102,39 @@ public class ElasticsearchMetadataHandlerTest
     public void after()
     {
         allocator.close();
+    }
+
+    /**
+     * Used to test the doListSchemaNames() functionality in the ElasticsearchMetadataHandler class.
+     */
+    @Test
+    public void doListSchemaNames()
+    {
+        logger.info("doListSchemaNames - enter");
+
+        // Generate hard-coded response with 3 domains.
+        ListSchemasResponse mockDomains =
+                new ListSchemasResponse("elasticsearch", ImmutableList.of("domain2", "domain3", "domain1"));
+
+        // Get real response from doListSchemaNames().
+        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("domain1", "endpoint1",
+                "domain2", "endpoint2","domain3", "endpoint3"));
+
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
+                amazonAthena, "spill-bucket", "spill-prefix", helper);
+
+        ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
+        ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
+
+        logger.info("doListSchemaNames - {}", realDomains.getSchemas());
+
+        // Test 1 - Real domain list should NOT be empty.
+        assertFalse("Real domain list has no domain names!", realDomains.getSchemas().isEmpty());
+        // Test 2 - Real and mocked responses should have the same domains.
+        assertTrue("Real and mocked domain responses have different domains!",
+                domainsEqual(realDomains.getSchemas(), mockDomains.getSchemas()));
+
+        logger.info("doListSchemaNames - exit");
     }
 
     /**
@@ -132,33 +166,39 @@ public class ElasticsearchMetadataHandlerTest
     }
 
     /**
-     * Used to test the doListSchemaNames() functionality in the ElasticsearchMetadataHandler class.
+     * Used to test the doListTables() functionality in the ElasticsearchMetadataHandler class.
+     * @throws IOException
      */
     @Test
-    public void doListSchemaNames()
+    public void doListTables()
+            throws IOException
     {
-        logger.info("doListSchemas - enter");
+        logger.info("doListTables - enter");
 
-        // Generate hard-coded response with 3 domains.
-        ListSchemasResponse mockDomains =
-                new ListSchemasResponse("elasticsearch", ImmutableList.of("domain1", "domain2", "domain3"));
+        // Hardcoded response with 2 indices.
+        Collection<TableName> mockIndices = ImmutableList.of(new TableName("movies", "customer"),
+                new TableName("movies", "movies"));
 
-        // Get real response from doListSchemaNames().
-        ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
-        Map<String, String> domainMap = ImmutableMap.of("domain1", "endpoint1",
-                "domain2", "endpoint2","domain3", "endpoint3");
-        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
-        ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
+        // Get real indices.
+        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("movies",
+                "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
+                amazonAthena, "spill-bucket", "spill-prefix", helper);
+        when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
 
-        logger.info("doListSchemas - {}", realDomains.getSchemas());
+        ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
+                "queryId", "elasticsearch", "movies");
+        Collection<TableName> realIndices = handler.doListTables(allocator, req).getTables();
 
-        // Test 1 - Real domain list should NOT be empty.
-        assertFalse("Real domain list has no domain names!", realDomains.getSchemas().isEmpty());
-        // Test 2 - Real and mocked responses should have the same domains.
-        assertTrue("Real and mocked domain responses have different domains!",
-                domainsEqual(realDomains.getSchemas(), mockDomains.getSchemas()));
+        logger.info("doListTables - {}", realIndices);
 
-        logger.info("doListSchemas - exit");
+        // Test 1 - Indices list should NOT be empty.
+        assertFalse("Real indices list is empty!", realIndices.isEmpty());
+        // Test 2 - Real list and mocked list should have the same indices.
+        assertTrue("Real and mocked indices list are different!",
+                indicesEqual(realIndices, mockIndices));
+
+        logger.info("doListTables - exit");
     }
 
     /**
@@ -190,131 +230,6 @@ public class ElasticsearchMetadataHandlerTest
     }
 
     /**
-     * Used to test the doListTables() functionality in the ElasticsearchMetadataHandler class.
-     * @throws IOException
-     */
-    @Test
-    public void doListTables()
-            throws IOException
-    {
-        logger.info("doListTables - enter");
-
-        Collection<TableName> mockIndices = ImmutableList.of(new TableName("movies", "movies"),
-                new TableName("movies", "customer"));
-        Map<String, String> domainMap = ImmutableMap.of("movies",
-                "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
-        when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
-
-        ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
-                "queryId", "elasticsearch", "movies");
-        Collection<TableName> realIndices = handler.doListTables(allocator, req).getTables();
-
-        logger.info("doListTables - {}", realIndices);
-
-        // Test 1 - Indices list should NOT be empty.
-        assertFalse("Real indices list is empty!", realIndices.isEmpty());
-        // Test 2 - Real list and mocked list should have the same indices.
-        assertTrue("Real and mocked indices list are different!",
-                indicesEqual(realIndices, mockIndices));
-
-        logger.info("doListTables - exit");
-    }
-
-    /**
-     * Used to assert that children fields inside two mappings are equal.
-     * @param list1 is a list of children fields to be compared.
-     * @param list2 is a list of children fields to be compared.
-     * @return true if the lists are equal, false otherwise.
-     */
-    private final boolean childrenEqual(List<Field> list1, List<Field> list2)
-    {
-        logger.info("childrenEqual - Enter:\nChildren1: {}\nChildren2: {}", list1, list2);
-
-        // Children lists must have the same number of elements.
-        if (list1.size() != list2.size()) {
-            logger.warn("Children lists are different sizes!");
-            return false;
-        }
-
-        Map<String, Field> fields = new LinkedHashMap<>();
-        list2.forEach(value -> fields.put(value.getName(), value));
-
-        // lists must have the same Fields (irrespective of internal ordering).
-        for (Field field1 : list1) {
-            Field field2 = fields.get(field1.getName());
-            if (field2 == null || field1.getType() != field2.getType()) {
-                logger.warn("Children fields mismatch!");
-                return false;
-            }
-            // process complex/nested types (LIST and STRUCT), the children fields must also equal.
-            switch(Types.getMinorTypeForArrowType(field1.getType())) {
-                case LIST:
-                case STRUCT:
-                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
-                        return false;
-                    }
-                    break;
-                default:
-                    // For non-complex types, compare the metadata as well.
-                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
-                        logger.warn("Fields' metadata mismatch!");
-                        return false;
-                    }
-                    break;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Used to assert that both real and mocked mappings are equal.
-     * @param mapping1 is a mapping to be compared.
-     * @param mapping2 is a mapping to be compared.
-     * @return true if the lists are equal, false otherwise.
-     */
-    private final boolean mappingsEqual(Schema mapping1, Schema mapping2)
-    {
-        logger.info("mappingsEqual - Enter:\nMapping1: {}\nMapping2: {}", mapping1, mapping2);
-
-        // Schemas must have the same number of elements.
-        if (mapping1.getFields().size() != mapping2.getFields().size()) {
-            logger.warn("Mappings are different sizes!");
-            return false;
-        }
-
-        // Mappings must have the same fields (irrespective of internal ordering).
-        for (Field field1 : mapping1.getFields()) {
-            Field field2 = mapping2.findField(field1.getName());
-            if (field2 == null || field1.getType() != field2.getType()) {
-                logger.warn("Mapping fields mismatch!");
-                return false;
-            }
-
-            switch(Types.getMinorTypeForArrowType(field1.getType())) {
-                // process complex/nested types (LIST and STRUCT), the children fields must also equal.
-                case LIST:
-                case STRUCT:
-                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
-                        logger.warn("Children fields mismatch!");
-                        return false;
-                    }
-                    break;
-                default:
-                    // For non-complex types, compare the metadata as well.
-                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
-                        logger.warn("Fields' metadata mismatch!");
-                        return false;
-                    }
-                    break;
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * Used to test the doGetTable() functionality in the ElasticsearchMetadataHandler class.
      * @throws IOException
      */
@@ -324,6 +239,37 @@ public class ElasticsearchMetadataHandlerTest
     {
         logger.info("doGetTable - enter");
 
+        // Mock mapping.
+        Schema mockMapping = SchemaBuilder.newBuilder()
+                .addField("mytext", Types.MinorType.VARCHAR.getType())
+                .addField("mykeyword", Types.MinorType.VARCHAR.getType())
+                .addField(new Field("mylong", FieldType.nullable(Types.MinorType.LIST.getType()),
+                        Collections.singletonList(new Field("mylong",
+                                FieldType.nullable(Types.MinorType.BIGINT.getType()), null))))
+                .addField("myinteger", Types.MinorType.INT.getType())
+                .addField("myshort", Types.MinorType.SMALLINT.getType())
+                .addField("mybyte", Types.MinorType.TINYINT.getType())
+                .addField("mydouble", Types.MinorType.FLOAT8.getType())
+                .addField(new Field("myscaled",
+                        new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                                ImmutableMap.of("scaling_factor", "10.0")), null))
+                .addField("myfloat", Types.MinorType.FLOAT4.getType())
+                .addField("myhalf", Types.MinorType.FLOAT4.getType())
+                .addField("mydatemilli", Types.MinorType.DATEMILLI.getType())
+                .addField("mydatenano", Types.MinorType.DATEMILLI.getType())
+                .addField("myboolean", Types.MinorType.BIT.getType())
+                .addField("mybinary", Types.MinorType.VARCHAR.getType())
+                .addField("mynested", Types.MinorType.STRUCT.getType(), ImmutableList.of(
+                        new Field("l1long", FieldType.nullable(Types.MinorType.BIGINT.getType()), null),
+                        new Field("l1date", FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null),
+                        new Field("l1nested", FieldType.nullable(Types.MinorType.STRUCT.getType()), ImmutableList.of(
+                                new Field("l2short", FieldType.nullable(Types.MinorType.LIST.getType()),
+                                        Collections.singletonList(new Field("l2short",
+                                                FieldType.nullable(Types.MinorType.SMALLINT.getType()), null))),
+                                new Field("l2binary", FieldType.nullable(Types.MinorType.VARCHAR.getType()),
+                                        null))))).build();
+
+        // Real mapping.
         LinkedHashMap<String, Object> mapping = new ObjectMapper().readValue(
                 "{\n" +
                 "  \"mishmash\" : {\n" +                                // Index: mishmash
@@ -405,38 +351,11 @@ public class ElasticsearchMetadataHandlerTest
 
         when(mockClient.getMapping(anyString())).thenReturn(mappings);
 
-        Schema mockMapping = SchemaBuilder.newBuilder()
-                .addField("mytext", Types.MinorType.VARCHAR.getType())
-                .addField("mykeyword", Types.MinorType.VARCHAR.getType())
-                .addField(new Field("mylong", FieldType.nullable(Types.MinorType.LIST.getType()),
-                        Collections.singletonList(new Field("mylong",
-                                FieldType.nullable(Types.MinorType.BIGINT.getType()), null))))
-                .addField("myinteger", Types.MinorType.INT.getType())
-                .addField("myshort", Types.MinorType.SMALLINT.getType())
-                .addField("mybyte", Types.MinorType.TINYINT.getType())
-                .addField("mydouble", Types.MinorType.FLOAT8.getType())
-                .addField(new Field("myscaled",
-                        new FieldType(true, Types.MinorType.BIGINT.getType(), null,
-                                ImmutableMap.of("scaling_factor", "10.0")), null))
-                .addField("myfloat", Types.MinorType.FLOAT4.getType())
-                .addField("myhalf", Types.MinorType.FLOAT4.getType())
-                .addField("mydatemilli", Types.MinorType.DATEMILLI.getType())
-                .addField("mydatenano", Types.MinorType.DATEMILLI.getType())
-                .addField("myboolean", Types.MinorType.BIT.getType())
-                .addField("mybinary", Types.MinorType.VARCHAR.getType())
-                .addField("mynested", Types.MinorType.STRUCT.getType(), ImmutableList.of(
-                        new Field("l1long", FieldType.nullable(Types.MinorType.BIGINT.getType()), null),
-                        new Field("l1date", FieldType.nullable(Types.MinorType.DATEMILLI.getType()), null),
-                        new Field("l1nested", FieldType.nullable(Types.MinorType.STRUCT.getType()), ImmutableList.of(
-                                new Field("l2short", FieldType.nullable(Types.MinorType.LIST.getType()),
-                                        Collections.singletonList(new Field("l2short",
-                                                FieldType.nullable(Types.MinorType.SMALLINT.getType()), null))),
-                                new Field("l2binary", FieldType.nullable(Types.MinorType.VARCHAR.getType()),
-                                        null))))).build();
-
-        Map<String, String> domainMap = ImmutableMap.of("movies",
-                "search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com");
-        ElasticsearchHelper.getInstance().setDomainMapping(domainMap);
+        // Get real mapping.
+        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("movies",
+                "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
+                amazonAthena, "spill-bucket", "spill-prefix", helper);
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
                 new TableName("movies", "mishmash"));
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -450,6 +369,99 @@ public class ElasticsearchMetadataHandlerTest
         assertTrue("Real and mocked mappings are different!", mappingsEqual(realMapping, mockMapping));
 
         logger.info("doGetTable - exit");
+    }
+
+    /**
+     * Used to assert that both real and mocked mappings are equal.
+     * @param mapping1 is a mapping to be compared.
+     * @param mapping2 is a mapping to be compared.
+     * @return true if the lists are equal, false otherwise.
+     */
+    private final boolean mappingsEqual(Schema mapping1, Schema mapping2)
+    {
+        logger.info("mappingsEqual - Enter:\nMapping1: {}\nMapping2: {}", mapping1, mapping2);
+
+        // Schemas must have the same number of elements.
+        if (mapping1.getFields().size() != mapping2.getFields().size()) {
+            logger.warn("Mappings are different sizes!");
+            return false;
+        }
+
+        // Mappings must have the same fields (irrespective of internal ordering).
+        for (Field field1 : mapping1.getFields()) {
+            Field field2 = mapping2.findField(field1.getName());
+            if (field2 == null || field1.getType() != field2.getType()) {
+                logger.warn("Mapping fields mismatch!");
+                return false;
+            }
+
+            switch(Types.getMinorTypeForArrowType(field1.getType())) {
+                // process complex/nested types (LIST and STRUCT), the children fields must also equal.
+                case LIST:
+                case STRUCT:
+                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
+                        logger.warn("Children fields mismatch!");
+                        return false;
+                    }
+                    break;
+                default:
+                    // For non-complex types, compare the metadata as well.
+                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
+                        logger.warn("Fields' metadata mismatch!");
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Used to assert that children fields inside two mappings are equal.
+     * @param list1 is a list of children fields to be compared.
+     * @param list2 is a list of children fields to be compared.
+     * @return true if the lists are equal, false otherwise.
+     */
+    private final boolean childrenEqual(List<Field> list1, List<Field> list2)
+    {
+        logger.info("childrenEqual - Enter:\nChildren1: {}\nChildren2: {}", list1, list2);
+
+        // Children lists must have the same number of elements.
+        if (list1.size() != list2.size()) {
+            logger.warn("Children lists are different sizes!");
+            return false;
+        }
+
+        Map<String, Field> fields = new LinkedHashMap<>();
+        list2.forEach(value -> fields.put(value.getName(), value));
+
+        // lists must have the same Fields (irrespective of internal ordering).
+        for (Field field1 : list1) {
+            Field field2 = fields.get(field1.getName());
+            if (field2 == null || field1.getType() != field2.getType()) {
+                logger.warn("Children fields mismatch!");
+                return false;
+            }
+            // process complex/nested types (LIST and STRUCT), the children fields must also equal.
+            switch(Types.getMinorTypeForArrowType(field1.getType())) {
+                case LIST:
+                case STRUCT:
+                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
+                        return false;
+                    }
+                    break;
+                default:
+                    // For non-complex types, compare the metadata as well.
+                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
+                        logger.warn("Fields' metadata mismatch!");
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -478,6 +490,10 @@ public class ElasticsearchMetadataHandlerTest
 
         logger.info("doGetSplits: req[{}]", req);
 
+        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("movies",
+                "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
+                amazonAthena, "spill-bucket", "spill-prefix", helper);
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 

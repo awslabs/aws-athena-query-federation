@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -66,10 +67,15 @@ public class ElasticsearchRecordHandler
      */
     private static final String SOURCE_TYPE = "elasticsearch";
 
+    // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
+    // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
+    // and the value = endpoint.
+    private static final String DOMAIN_MAPPING = "domain_mapping";
+    // A Map of the domain-names and their respective endpoints.
+    private Map<String, String> domainMap;
+
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
-
-    private AmazonS3 amazonS3;
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchQueryUtils queryUtils;
@@ -78,20 +84,27 @@ public class ElasticsearchRecordHandler
 
     public ElasticsearchRecordHandler()
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), ElasticsearchHelper.getInstance().getClientFactory());
+        super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
+                AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE);
+
+        this.queryUtils = new ElasticsearchQueryUtils();
+        this.typeUtils = new ElasticsearchTypeUtils();
+        this.helper = new ElasticsearchHelper();
+        this.domainMap = helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
+        this.clientFactory = helper.getClientFactory();
     }
 
     @VisibleForTesting
     protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         AwsRestHighLevelClientFactory clientFactory)
+                                         ElasticsearchHelper helper)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
-        this.amazonS3 = amazonS3;
-        this.clientFactory = clientFactory;
+
         this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.helper = ElasticsearchHelper.getInstance();
+        this.helper = helper;
+        this.domainMap = this.helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
+        this.clientFactory = helper.getClientFactory();
     }
 
     /**
@@ -117,7 +130,7 @@ public class ElasticsearchRecordHandler
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
                 recordsRequest.getSchema());
 
-        String endpoint = helper.getDomainEndpoint(recordsRequest.getTableName().getSchemaName());
+        String endpoint = getDomainEndpoint(recordsRequest.getTableName().getSchemaName());
         long numRows = 0;
 
         if (!endpoint.isEmpty() && queryStatusChecker.isQueryRunning()) {
@@ -172,6 +185,17 @@ public class ElasticsearchRecordHandler
         }
 
         logger.info("readWithConstraint: numRows[{}]", numRows);
+    }
+
+    private String getDomainEndpoint(String domain)
+    {
+        String endpoint = "";
+
+        if (domainMap.containsKey(domain)) {
+            return domainMap.get(domain);
+        }
+
+        return endpoint;
     }
 
     @VisibleForTesting

@@ -3,7 +3,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   AWS::ServerlessRepo::Application:
     Name: ElasticsearchAthenaConnector
-    Description: ElasticsearchAthenaConnector Description
+    Description: 'This connector enables Amazon Athena to communicate with your Elasticsearch instance(s).'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -20,12 +20,12 @@ Parameters:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-    Default: elasticsearch
+  SecretNamePrefix:
+    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena Elasticsearch Federation secret names can be prefixed with "AthenaESFederation" and authorization policy will allow "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaESFederation*". Parameter value in this case should be "AthenaESFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+    Type: String
+    Default: ""
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
-    Type: String
-  DataBucket:
-    Description: "The bucket where this tutorial's data lives."
     Type: String
   SpillPrefix:
     Description: 'The prefix within SpillBucket where this function can spill data.'
@@ -43,18 +43,22 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
-  SecretName:
-    Description: "The name within Secrets Manager that this function should have access to. (e.g. elasticsearch-creds)."
-    Default: ""
-    Type: String
   AutoDiscoverEndpoint:
-    Description: "Use Amazon Elasticsearch Service: true/false. WARNING: If 'true' service must be set up with Amazon. If 'false', DomainMapping is required."
+    Description: "Set to 'true' when using Amazon Elasticsearch Service. Otherwise, set to 'false' (DomainMapping is required when set to false)."
     Default: "true"
     Type: String
   DomainMapping:
-    Description: "List of one or more domain-names and their respective Elasticsearch cluster endpoints in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=search-movies-ne...qu.us-east-1.es.amazonaws.com)."
+    Description: "List of one or more domain-names and their respective endpoints (including secret credentials) in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=https://${secret-credentials}:www.mymovies.com)."
     Default: ""
     Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+    Default: ""
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: ""
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -64,10 +68,8 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
-          data_bucket: !Ref DataBucket
           auto_discover_endpoint: !Ref AutoDiscoverEndpoint
           domain_mapping: !Ref DomainMapping
-          secret_name: !Ref SecretName
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-1.0.jar"
@@ -80,7 +82,7 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretName}'
+              Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
           Version: '2012-10-17'
         - Statement:
             - Action:
@@ -103,5 +105,3 @@ Resources:
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
             BucketName: !Ref SpillBucket
-        - S3CrudPolicy:
-            BucketName: !Ref DataBucket
