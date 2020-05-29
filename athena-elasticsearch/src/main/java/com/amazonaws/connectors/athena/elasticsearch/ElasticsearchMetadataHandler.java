@@ -89,9 +89,7 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = getAwsGlue();
         this.schemaUtil = new ElasticsearchSchemaUtil();
         this.helper = ElasticsearchHelper.getInstance();
-        this.clientFactory = helper.getClientFactory();
-
-        this.helper.setDomainMapping();
+        this.clientFactory = this.helper.getClientFactory();
     }
 
     @VisibleForTesting
@@ -108,8 +106,6 @@ public class ElasticsearchMetadataHandler
         this.clientFactory = clientFactory;
         this.schemaUtil = new ElasticsearchSchemaUtil();
         this.helper = ElasticsearchHelper.getInstance();
-
-        this.helper.setDomainMapping();
     }
 
     /**

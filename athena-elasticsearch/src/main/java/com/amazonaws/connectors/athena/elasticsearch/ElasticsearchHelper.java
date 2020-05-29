@@ -51,6 +51,7 @@ class ElasticsearchHelper
     // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
     // and the value = endpoint.
     private static final String DOMAIN_MAPPING = "domain_mapping";
+    private String domainMapping;
 
     // Splitter for inline map properties extracted from the DOMAIN_MAPPING.
     private final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
@@ -66,7 +67,14 @@ class ElasticsearchHelper
     // Singleton instance variable.
     private static ElasticsearchHelper instance = null;
 
-    private ElasticsearchHelper() {}
+    private ElasticsearchHelper()
+    {
+        this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
+        this.secretName = getEnv(SECRET_NAME);
+        this.domainMapping = getEnv(DOMAIN_MAPPING);
+
+        setDomainMapping();
+    }
 
     protected static ElasticsearchHelper getInstance()
     {
@@ -108,9 +116,6 @@ class ElasticsearchHelper
     protected AwsRestHighLevelClientFactory getClientFactory()
     {
         logger.info("getClientFactory - enter");
-
-        autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        secretName = getEnv(SECRET_NAME);
 
         if (autoDiscoverEndpoint) {
             // Client factory for clients injected with AWS credentials.
@@ -192,7 +197,6 @@ class ElasticsearchHelper
         }
         else {
             // Get domain mapping from environment variable.
-            String domainMapping = getEnv(DOMAIN_MAPPING);
             if (!domainMapping.isEmpty()) {
                 setDomainMapping(domainSplitter.split(domainMapping));
             }
