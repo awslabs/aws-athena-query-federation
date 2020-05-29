@@ -37,6 +37,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * This singleton manages environment variables such as the domain_mapping and auto_discover_endpoint, as well as a map
+ * of the domain-names and their associated endpoints. Additionally, it provides an interface for getting a client
+ * Factory used for creating clients that can communicate with a specified Elasticsearch endpoint.
+ */
 class ElasticsearchHelper
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchHelper.class);

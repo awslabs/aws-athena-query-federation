@@ -58,6 +58,10 @@ import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Map;
 
+/**
+ * This class has interfaces used for document field-values extraction after they are retrieved from an Elasticsearch
+ * instance. This includes field extractors and field writer factories using the field extractor framework.
+ */
 class ElasticsearchTypeUtils
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTypeUtils.class);

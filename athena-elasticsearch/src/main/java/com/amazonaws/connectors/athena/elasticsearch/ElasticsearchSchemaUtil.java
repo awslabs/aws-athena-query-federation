@@ -34,6 +34,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This class has interfaces used for the parsing and creation of a schema based on an index mapping retrieved
+ * from an Elasticsearch instance. It also has an interface for converting Elasticsearch data types to Apache Arrow.
+ */
 class ElasticsearchSchemaUtil
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSchemaUtil.class);

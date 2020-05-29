@@ -37,6 +37,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This class has interfaces used for the generation of projections and predicates used for document search queries.
+ */
 class ElasticsearchQueryUtils
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchQueryUtils.class);
