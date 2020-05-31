@@ -174,7 +174,7 @@ class ElasticsearchTypeUtils
                 dst.value = ((Number) fieldValue).longValue();
             }
             else if (fieldValue instanceof String) {
-                dst.value = new Long((String) fieldValue);
+                dst.value = new Double((String) fieldValue).longValue();
             }
             else if (fieldValue instanceof ArrayList) {
                 Object value = ((ArrayList) fieldValue).get(0);
@@ -182,7 +182,7 @@ class ElasticsearchTypeUtils
                     dst.value = ((Number) value).longValue();
                 }
                 else if (value instanceof String) {
-                    dst.value = new Long((String) value);
+                    dst.value = new Double((String) value).longValue();
                 }
                 else {
                     dst.isSet = 0;
@@ -210,7 +210,7 @@ class ElasticsearchTypeUtils
                 dst.value = ((Number) fieldValue).intValue();
             }
             else if (fieldValue instanceof String) {
-                dst.value = new Integer((String) fieldValue);
+                dst.value = new Double((String) fieldValue).intValue();
             }
             else if (fieldValue instanceof ArrayList) {
                 Object value = ((ArrayList) fieldValue).get(0);
@@ -218,7 +218,7 @@ class ElasticsearchTypeUtils
                     dst.value = ((Number) value).intValue();
                 }
                 else if (value instanceof String) {
-                    dst.value = new Integer((String) value);
+                    dst.value = new Double((String) value).intValue();
                 }
                 else {
                     dst.isSet = 0;
@@ -246,7 +246,7 @@ class ElasticsearchTypeUtils
                 dst.value = ((Number) fieldValue).shortValue();
             }
             else if (fieldValue instanceof String) {
-                dst.value = new Short((String) fieldValue);
+                dst.value = new Double((String) fieldValue).shortValue();
             }
             else if (fieldValue instanceof ArrayList) {
                 Object value = ((ArrayList) fieldValue).get(0);
@@ -254,7 +254,7 @@ class ElasticsearchTypeUtils
                     dst.value = ((Number) value).shortValue();
                 }
                 else if (value instanceof String) {
-                    dst.value = new Short((String) value);
+                    dst.value = new Double((String) value).shortValue();
                 }
                 else {
                     dst.isSet = 0;
@@ -282,7 +282,7 @@ class ElasticsearchTypeUtils
                 dst.value = ((Number) fieldValue).byteValue();
             }
             else if (fieldValue instanceof String) {
-                dst.value = new Byte((String) fieldValue);
+                dst.value = new Double((String) fieldValue).byteValue();
             }
             else if (fieldValue instanceof ArrayList) {
                 Object value = ((ArrayList) fieldValue).get(0);
@@ -290,7 +290,7 @@ class ElasticsearchTypeUtils
                     dst.value = ((Number) value).byteValue();
                 }
                 else if (value instanceof String) {
-                    dst.value = new Byte((String) value);
+                    dst.value = new Double((String) value).byteValue();
                 }
                 else {
                     dst.isSet = 0;

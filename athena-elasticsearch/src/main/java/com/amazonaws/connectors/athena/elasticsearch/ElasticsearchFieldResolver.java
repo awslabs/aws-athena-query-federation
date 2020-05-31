@@ -166,7 +166,7 @@ public class ElasticsearchFieldResolver
                     break;
                 }
                 else if (fieldValue instanceof String) {
-                    return new Long((String) fieldValue);
+                    return new Double((String) fieldValue).longValue();
                 }
                 else if (fieldValue instanceof Number) {
                     return ((Number) fieldValue).longValue();
@@ -174,7 +174,7 @@ public class ElasticsearchFieldResolver
                 break;
             case INT:
                 if (fieldValue instanceof String) {
-                    return new Integer((String) fieldValue);
+                    return new Double((String) fieldValue).intValue();
                 }
                 else if (fieldValue instanceof Number) {
                     return ((Number) fieldValue).intValue();
@@ -182,7 +182,7 @@ public class ElasticsearchFieldResolver
                 break;
             case SMALLINT:
                 if (fieldValue instanceof String) {
-                    return new Short((String) fieldValue);
+                    return new Double((String) fieldValue).shortValue();
                 }
                 else if (fieldValue instanceof Number) {
                     return ((Number) fieldValue).shortValue();
@@ -190,7 +190,7 @@ public class ElasticsearchFieldResolver
                 break;
             case TINYINT:
                 if (fieldValue instanceof String) {
-                    return new Byte((String) fieldValue);
+                    return new Double((String) fieldValue).byteValue();
                 }
                 else if (fieldValue instanceof Number) {
                     return ((Number) fieldValue).byteValue();
