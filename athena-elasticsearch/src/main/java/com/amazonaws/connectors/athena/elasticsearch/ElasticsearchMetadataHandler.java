@@ -87,7 +87,7 @@ public class ElasticsearchMetadataHandler
 
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
-    private final ElasticsearchSchemaUtil schemaUtil;
+    private final ElasticsearchSchemaUtils schemaUtils;
     private final ElasticsearchHelper helper;
 
     public ElasticsearchMetadataHandler()
@@ -95,7 +95,7 @@ public class ElasticsearchMetadataHandler
         //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
-        this.schemaUtil = new ElasticsearchSchemaUtil();
+        this.schemaUtils = new ElasticsearchSchemaUtils();
         this.helper = new ElasticsearchHelper();
         this.domainMap = helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = this.helper.getClientFactory();
@@ -112,7 +112,7 @@ public class ElasticsearchMetadataHandler
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
-        this.schemaUtil = new ElasticsearchSchemaUtil();
+        this.schemaUtils = new ElasticsearchSchemaUtils();
         this.helper = helper;
         this.domainMap = this.helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = this.helper.getClientFactory();
@@ -224,7 +224,7 @@ public class ElasticsearchMetadataHandler
                         meta.putAll((LinkedHashMap) mappings.get("_meta"));
                     }
 
-                    schema = schemaUtil.parseMapping(mappings, meta);
+                    schema = schemaUtils.parseMapping(mappings, meta);
                 }
                 catch (IOException error) {
                     logger.error("Error mapping index:", error);

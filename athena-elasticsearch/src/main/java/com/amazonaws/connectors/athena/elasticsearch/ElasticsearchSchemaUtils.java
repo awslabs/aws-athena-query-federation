@@ -38,9 +38,9 @@ import java.util.Map;
  * This class has interfaces used for the parsing and creation of a schema based on an index mapping retrieved
  * from an Elasticsearch instance. It also has an interface for converting Elasticsearch data types to Apache Arrow.
  */
-class ElasticsearchSchemaUtil
+class ElasticsearchSchemaUtils
 {
-    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSchemaUtil.class);
+    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSchemaUtils.class);
 
     // Used in parseMapping() to store the _meta structure (the mapping containing the fields that should be
     // considered a list).
@@ -49,7 +49,7 @@ class ElasticsearchSchemaUtil
     // Used in parseMapping() to build the schema recursively.
     private SchemaBuilder builder;
 
-    protected ElasticsearchSchemaUtil() {}
+    protected ElasticsearchSchemaUtils() {}
 
     /**
      * Main parsing method for the GET <index>/_mapping request.
