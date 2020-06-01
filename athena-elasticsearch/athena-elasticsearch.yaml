@@ -51,14 +51,6 @@ Parameters:
     Description: "List of one or more domain-names and their respective endpoints (including secret credentials) in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=https://${secret-credentials}:www.mymovies.com)."
     Default: ""
     Type: String
-  SecurityGroupIds:
-    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
-    Type: 'List<AWS::EC2::SecurityGroup::Id>'
-    Default: ""
-  SubnetIds:
-    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
-    Type: 'List<AWS::EC2::Subnet::Id>'
-    Default: ""
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
