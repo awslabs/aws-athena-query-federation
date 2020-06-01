@@ -58,6 +58,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -94,9 +96,9 @@ public class ElasticsearchMetadataHandler
     private class ElasticsearchTypeMapper
             implements GlueFieldLexer.BaseTypeMapper
     {
-        private static final String SCALED_FLOAT = "scaled_float";
         private static final String SCALING_FACTOR = "scaling_factor";
-        private static final String SCALED_FLOAT_SEP = "@";
+        private final Pattern scaledFloatPattern = Pattern.compile("SCALED_FLOAT\\(\\d+(\\.\\d+)?\\)");
+        private final Pattern scalingFactorPattern = Pattern.compile("\\d+(\\.\\d+)?");
 
         /**
          * Gets the Arrow type equivalent for the Glue type string representation using the DefaultGlueType.toArrowType
@@ -121,11 +123,12 @@ public class ElasticsearchMetadataHandler
         public Field getField(String name, String type)
         {
             if (getType(type) == null) {
-                if (type.toLowerCase().startsWith(SCALED_FLOAT)) {
-                    String[] scaledFloat = type.split(SCALED_FLOAT_SEP);
-                    if (scaledFloat.length == 2) {
-                        return new Field(name, new FieldType(true, Types.MinorType.BIGINT.getType(),
-                                null, Collections.singletonMap(SCALING_FACTOR, scaledFloat[1])), null);
+                Matcher scaledFloat = scaledFloatPattern.matcher(type);
+                if (scaledFloat.find() && scaledFloat.group().length() == type.length()) {
+                    Matcher scalingFactor = scalingFactorPattern.matcher(scaledFloat.group());
+                    if (scalingFactor.find()) {
+                        return new Field(name, new FieldType(true, Types.MinorType.BIGINT.getType(), null,
+                                Collections.singletonMap(SCALING_FACTOR, scalingFactor.group())), null);
                     }
                 }
                 return null;

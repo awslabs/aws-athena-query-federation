@@ -524,22 +524,22 @@ public class ElasticsearchMetadataHandlerTest
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
                 amazonAthena, "spill-bucket", "spill-prefix", helper);
 
-        Field field = handler.convertField("myscaled", "SCALED_FLOAT@10.51");
+        Field field = handler.convertField("myscaled", "SCALED_FLOAT(10.51)");
 
         assertEquals("myscaled", field.getName());
         assertEquals("10.51", field.getMetadata().get("scaling_factor"));
 
-        field = handler.convertField("myscaledlist", "ARRAY<SCALED_FLOAT@10.51>");
+        field = handler.convertField("myscaledlist", "ARRAY<SCALED_FLOAT(100)>");
 
         assertEquals("myscaledlist", field.getName());
         assertEquals(Types.MinorType.LIST.getType(), field.getType());
-        assertEquals("10.51", field.getChildren().get(0).getMetadata().get("scaling_factor"));
+        assertEquals("100", field.getChildren().get(0).getMetadata().get("scaling_factor"));
 
-        field = handler.convertField("myscaledstruct", "STRUCT<myscaledstruct:SCALED_FLOAT@10.51>");
+        field = handler.convertField("myscaledstruct", "STRUCT<myscaledstruct:SCALED_FLOAT(10.0)>");
 
         assertEquals(Types.MinorType.STRUCT.getType(), field.getType());
         assertEquals("myscaledstruct", field.getChildren().get(0).getName());
-        assertEquals("10.51", field.getChildren().get(0).getMetadata().get("scaling_factor"));
+        assertEquals("10.0", field.getChildren().get(0).getMetadata().get("scaling_factor"));
 
         logger.info("convertFieldTest: exit");
     }

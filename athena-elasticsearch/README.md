@@ -112,7 +112,7 @@ data-types using the following table (see NOTES below):
 |-----------------|----------------|------------------|
 |text, keyword, binary|VARCHAR|string|
 |long|BIGINT|bigint
-|scaled_float|BIGINT|SCALED_FLOAT@...
+|scaled_float|BIGINT|SCALED_FLOAT(...)
 |integer|INT|int
 |short|SMALLINT|smallint
 |byte|TINYINT|tinyint
@@ -132,13 +132,19 @@ the present time.
 represented as a **BIGINT** in Arrow (e.g. 0.756 with a scaling factor of 100 is rounded to 76).
 
 * To define a scaled_float in Glue you must select the **array** column type and declare the 
-field using the format `SCALED_FLOAT@<scaling_factor>`.
-    ```
-    Example:
-  
-    SCALED_FLOAT@10.51
+field using the format `SCALED_FLOAT(<scaling_factor>)`.
+    
+    Examples of valid values:
+    ```  
+    SCALED_FLOAT(10.51)
+    SCALED_FLOAT(100)
+    SCALED_FLOAT(100.0)
     ```
 
+    Example of invalid value:
+    ```
+    SCALED_FLOAT(10.)
+    ```
 * When converting from **date_nanos** to **DATEMILLI**, nanoseconds will be rounded to the 
 nearest millisecond. Valid values for date and date_nanos include but are not limited to:
     * "2020-05-18T10:15:30.123456789"
