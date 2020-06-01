@@ -179,13 +179,13 @@ public class ElasticsearchRecordHandlerTest
                 "  \"mytext\" : \"My favorite TV comedy is Seinfeld.\",\n" +
                 "  \"mykeyword\" : \"I hate key-values.\",\n" +
                 "  \"mylong\" : [\n" +
-                "    \"14\",\n" +
+                "    \"14.5\",\n" +
                 "    null,\n" +
                 "    16\n" +
                 "  ],\n" +
-                "  \"myinteger\" : \"732765666\",\n" +
-                "  \"myshort\" : \"1971\",\n" +
-                "  \"mybyte\" : \"7\",\n" +
+                "  \"myinteger\" : \"732765666.5\",\n" +
+                "  \"myshort\" : \"1971.1\",\n" +
+                "  \"mybyte\" : \"7.2\",\n" +
                 "  \"mydouble\" : \"27.6\",\n" +
                 "  \"myscaled\" : \"0.999\",\n" +
                 "  \"myfloat\" : \"7.8\",\n" +
@@ -202,12 +202,12 @@ public class ElasticsearchRecordHandlerTest
                 "        11,\n" +
                 "        12,\n" +
                 "        13,\n" +
-                "        \"14\",\n" +
+                "        \"14.3\",\n" +
                 "        15,\n" +
-                "        16,\n" +
-                "        17,\n" +
+                "        16.5,\n" +
+                "        null,\n" +
                 "        18,\n" +
-                "        \"19\",\n" +
+                "        \"19.4\",\n" +
                 "        20\n" +
                 "      ],\n" +
                 "      \"l2binary\" : \"U29tZSBiaW5hcnkgYmxvYg==\"\n" +
