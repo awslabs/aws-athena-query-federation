@@ -45,15 +45,8 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * This class is part of an tutorial that will walk you through how to build a connector for your
- * custom data source. The README for this module (athena-elasticsearch) will guide you through preparing
- * your development environment, modifying this elasticsearch RecordHandler, building, deploying, and then
- * using your new source in an Athena query.
- * <p>
- * More specifically, this class is responsible for providing Athena with actual rows level data from your source. Athena
+ * This class is responsible for providing Athena with actual rows level data from your Elasticsearch instance. Athena
  * will call readWithConstraint(...) on this class for each 'Split' you generated in ElasticsearchMetadataHandler.
- * <p>
- * For more elasticsearchs, please see the other connectors in this repository (e.g. athena-cloudwatch, athena-docdb, etc...)
  */
 public class ElasticsearchRecordHandler
         extends RecordHandler
