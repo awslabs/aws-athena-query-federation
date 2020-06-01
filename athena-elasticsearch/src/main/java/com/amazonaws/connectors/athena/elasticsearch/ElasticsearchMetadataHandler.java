@@ -148,7 +148,7 @@ public class ElasticsearchMetadataHandler
         List<TableName> indices = new ArrayList<>();
         String endpoint = getDomainEndpoint(request.getSchemaName());
 
-        if (!endpoint.isEmpty()) {
+        if (endpoint != null) {
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
             try {
                 for (String index : client.getAliases()) {
@@ -209,7 +209,7 @@ public class ElasticsearchMetadataHandler
         if (schema == null) {
             String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
 
-            if (!endpoint.isEmpty()) {
+            if (endpoint != null) {
                 String index = request.getTableName().getTableName();
                 AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
                 try {
@@ -248,7 +248,6 @@ public class ElasticsearchMetadataHandler
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
-            throws Exception
     {
         // NoOp - Elasticsearch does not support partitioning.
     }
@@ -271,28 +270,37 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("doGetSplits: enter - " + request);
 
-        //Every split must have a unique location if we wish to spill to avoid failures
+        String domain = request.getTableName().getSchemaName();
+        String endpoint = getDomainEndpoint(domain);
+
+        // Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
-        //Since our connector does not support parallel reads we return a fixed split.
-        return new GetSplitsResponse(request.getCatalogName(),
-                Split.newBuilder(spillLocation, makeEncryptionKey()).build());
+        // Create split
+        Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey());
+        if (endpoint != null) {
+            // Add domain and endpoint to the split to be used by the Record Handler.
+            splitBuilder.add(domain, endpoint);
+        }
+
+        return new GetSplitsResponse(request.getCatalogName(), splitBuilder.build());
     }
 
     /**
-     * Gets an endpoint from the domain mapping.
+     * Gets an endpoint from the domain mapping. For AWS Elasticsearch Service, if the domain does not exist in
+     * the domain map, refresh the latter by calling the AWS ES SDK (it's possible that the domain was added
+     * after the last connector refresh).
      * @param domain is used for searching the domain map for the corresponding endpoint.
-     * @return endpoint corresponding to the domain or an empty string if domain does not exist in the map.
+     * @return endpoint corresponding to the domain or a null if domain does not exist in the map.
      */
     private String getDomainEndpoint(String domain)
     {
-        String endpoint = "";
-
-        if (domainMap.containsKey(domain)) {
-            return domainMap.get(domain);
+        if (!domainMap.containsKey(domain) && helper.isAutoDiscoverEndpoint()) {
+            logger.warn("Unable to find domain in map! Attempting to refresh map...");
+            domainMap = helper.getDomainMapping(null);
         }
 
-        return endpoint;
+        return domainMap.get(domain);
     }
 
     /**

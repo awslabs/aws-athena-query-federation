@@ -43,7 +43,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Map;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -67,13 +66,6 @@ public class ElasticsearchRecordHandler
      */
     private static final String SOURCE_TYPE = "elasticsearch";
 
-    // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
-    // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
-    // and the value = endpoint.
-    private static final String DOMAIN_MAPPING = "domain_mapping";
-    // A Map of the domain-names and their respective endpoints.
-    private Map<String, String> domainMap;
-
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
 
@@ -90,7 +82,6 @@ public class ElasticsearchRecordHandler
         this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
         this.helper = new ElasticsearchHelper();
-        this.domainMap = helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = helper.getClientFactory();
     }
 
@@ -103,7 +94,6 @@ public class ElasticsearchRecordHandler
         this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
         this.helper = helper;
-        this.domainMap = this.helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = helper.getClientFactory();
     }
 
@@ -130,10 +120,11 @@ public class ElasticsearchRecordHandler
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
                 recordsRequest.getSchema());
 
-        String endpoint = getDomainEndpoint(recordsRequest.getTableName().getSchemaName());
+        String domain = recordsRequest.getTableName().getSchemaName();
+        String endpoint = recordsRequest.getSplit().getProperty(domain);
         long numRows = 0;
 
-        if (!endpoint.isEmpty() && queryStatusChecker.isQueryRunning()) {
+        if (endpoint != null && queryStatusChecker.isQueryRunning()) {
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
@@ -148,6 +139,8 @@ public class ElasticsearchRecordHandler
                         builder.withFieldWriterFactory(field.getName(), typeUtils.makeFactory(field));
                     }
                 }
+                GeneratedRowWriter rowWriter = builder.build();
+
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
                         .fetchSource(queryUtils.getProjection(recordsRequest.getSchema()))
@@ -166,7 +159,6 @@ public class ElasticsearchRecordHandler
                     // Process hits.
                     Iterator<SearchHit> hitIterator = searchResponse.getHits().iterator();
                     hitsNum = searchResponse.getHits().getHits().length;
-                    GeneratedRowWriter rowWriter = builder.build();
 
                     while (hitIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
                         ++numRows;
@@ -187,17 +179,9 @@ public class ElasticsearchRecordHandler
         logger.info("readWithConstraint: numRows[{}]", numRows);
     }
 
-    private String getDomainEndpoint(String domain)
-    {
-        String endpoint = "";
-
-        if (domainMap.containsKey(domain)) {
-            return domainMap.get(domain);
-        }
-
-        return endpoint;
-    }
-
+    /**
+     * @return value used for pagination batch size.
+     */
     @VisibleForTesting
     protected int getQueryBatchSize()
     {

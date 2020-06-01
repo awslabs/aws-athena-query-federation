@@ -490,8 +490,9 @@ public class ElasticsearchMetadataHandlerTest
 
         logger.info("doGetSplits: req[{}]", req);
 
-        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("movies",
-                "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
+        String domain = "movies";
+        String endpoint = "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com";
+        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of(domain, endpoint));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
                 amazonAthena, "spill-bucket", "spill-prefix", helper);
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
@@ -504,6 +505,7 @@ public class ElasticsearchMetadataHandlerTest
                 new Object[] {continuationToken, response.getSplits().size()});
 
         assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
+        assertEquals(endpoint, response.getSplits().iterator().next().getProperty(domain));
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
         logger.info("doGetSplits: exit");

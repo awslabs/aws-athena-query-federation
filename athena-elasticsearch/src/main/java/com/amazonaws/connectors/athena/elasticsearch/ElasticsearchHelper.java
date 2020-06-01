@@ -60,6 +60,14 @@ class ElasticsearchHelper
     }
 
     /**
+     * @return the value of the auto_discover_endpoint environment variable.
+     */
+    protected boolean isAutoDiscoverEndpoint()
+    {
+        return autoDiscoverEndpoint;
+    }
+
+    /**
      * Get an environment variable using System.getenv().
      * @param var is the environment variable.
      * @return the contents of the environment variable or an empty String if it's not defined.

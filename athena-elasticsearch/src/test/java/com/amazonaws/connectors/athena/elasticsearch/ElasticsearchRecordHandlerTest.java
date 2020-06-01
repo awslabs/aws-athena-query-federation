@@ -96,6 +96,7 @@ public class ElasticsearchRecordHandlerTest
     private Schema mapping;
     private List<ByteHolder> mockS3Storage = new ArrayList<>();
     private S3BlockSpillReader spillReader;
+    private Split split;
 
     @Mock
     private AwsRestHighLevelClientFactory clientFactory;
@@ -282,8 +283,10 @@ public class ElasticsearchRecordHandlerTest
 
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
-        when(helper.getDomainMapping(anyString())).thenReturn(ImmutableMap.of("movies",
-                "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
+        split = Split.newBuilder(makeSpillLocation(), null)
+                .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
+                .build();
+
         when(helper.getClientFactory()).thenReturn(clientFactory);
         when(clientFactory.getClient(anyString())).thenReturn(mockClient);
         when(mockClient.getDocuments(anyObject())).thenReturn(mockResponse);
@@ -323,7 +326,7 @@ public class ElasticsearchRecordHandlerTest
                 "queryId-" + System.currentTimeMillis(),
                 new TableName("movies", "mishmash"),
                 mapping,
-                Split.newBuilder(makeSpillLocation(), null).build(),
+                split,
                 new Constraints(constraintsMap),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
@@ -376,7 +379,7 @@ public class ElasticsearchRecordHandlerTest
                 "queryId-" + System.currentTimeMillis(),
                 new TableName("movies", "mishmash"),
                 mapping,
-                Split.newBuilder(makeSpillLocation(), null).build(),
+                split,
                 new Constraints(constraintsMap),
                 10_000L, //10KB Expect this to spill
                 0L
@@ -389,7 +392,7 @@ public class ElasticsearchRecordHandlerTest
         try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
             logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
 
-            assertTrue(response.getNumberBlocks() > 1);
+            assertEquals(3, response.getNumberBlocks());
 
             int blockNum = 0;
             for (SpillLocation next : response.getRemoteBlocks()) {
