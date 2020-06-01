@@ -22,6 +22,7 @@ package com.amazonaws.connectors.athena.elasticsearch;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -36,13 +37,17 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,16 +60,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This class is part of an tutorial that will walk you through how to build a connector for your
- * custom data source. The README for this module (athena-elasticsearch) will guide you through preparing
- * your development environment, modifying this elasticsearch Metadatahandler, building, deploying, and then
- * using your new source in an Athena query.
- * <p>
- * More specifically, this class is responsible for providing Athena with metadata about the schemas (aka databases),
- * tables, and table partitions that your source contains. Lastly, this class tells Athena how to split up reads against
- * this source. This gives you control over the level of performance and parallelism your source can support.
- * <p>
- * For more examples, please see the other connectors in this repository (e.g. athena-cloudwatch, athena-docdb, etc...)
+ * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
+ * in your Elasticsearch instance. Additionally, this class tells Athena how to split up reads against this source.
+ * This gives you control over the level of performance and parallelism your source can support.
  */
 public class ElasticsearchMetadataHandler
         extends GlueMetadataHandler
@@ -90,6 +88,55 @@ public class ElasticsearchMetadataHandler
     private final ElasticsearchSchemaUtils schemaUtils;
     private final ElasticsearchHelper helper;
 
+    /**
+     * This class is used for mapping the Glue data type to Apache Arrow.
+     */
+    private class ElasticsearchTypeMapper
+            implements GlueFieldLexer.BaseTypeMapper
+    {
+        private static final String SCALED_FLOAT = "scaled_float";
+        private static final String SCALING_FACTOR = "scaling_factor";
+        private static final String SCALED_FLOAT_SEP = "@";
+
+        /**
+         * Gets the Arrow type equivalent for the Glue type string representation using the DefaultGlueType.toArrowType
+         * conversion routine.
+         * @param type is the string representation of a Glue data type to be converted to Apache Arrow.
+         * @return an Arrow data type.
+         */
+        @Override
+        public ArrowType getType(String type)
+        {
+            return DefaultGlueType.toArrowType(type);
+        }
+
+        /**
+         * Creates a Field object based on the name and type. Special logic is done to extract the scaling factor
+         * for a scaled_float data type.
+         * @param name is the name of the field.
+         * @param type is the string representation of a Glue data type to be converted to Apache Arrow.
+         * @return a new Field.
+         */
+        @Override
+        public Field getField(String name, String type)
+        {
+            if (getType(type) == null) {
+                if (type.toLowerCase().startsWith(SCALED_FLOAT)) {
+                    String[] scaledFloat = type.split(SCALED_FLOAT_SEP);
+                    if (scaledFloat.length == 2) {
+                        return new Field(name, new FieldType(true, Types.MinorType.BIGINT.getType(),
+                                null, Collections.singletonMap(SCALING_FACTOR, scaledFloat[1])), null);
+                    }
+                }
+                return null;
+            }
+
+            return FieldBuilder.newBuilder(name, getType(type)).build();
+        }
+    }
+
+    private ElasticsearchTypeMapper mapper;
+
     public ElasticsearchMetadataHandler()
     {
         //Disable Glue if the env var is present and not explicitly set to "false"
@@ -99,6 +146,7 @@ public class ElasticsearchMetadataHandler
         this.helper = new ElasticsearchHelper();
         this.domainMap = helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = this.helper.getClientFactory();
+        this.mapper = new ElasticsearchTypeMapper();
     }
 
     @VisibleForTesting
@@ -116,6 +164,7 @@ public class ElasticsearchMetadataHandler
         this.helper = helper;
         this.domainMap = this.helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
         this.clientFactory = this.helper.getClientFactory();
+        this.mapper = new ElasticsearchTypeMapper();
     }
 
     /**
@@ -311,6 +360,6 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
 
-        return GlueFieldLexer.lex(fieldName, glueType.toLowerCase());
+        return GlueFieldLexer.lex(fieldName, glueType, mapper);
     }
 }

@@ -515,4 +515,32 @@ public class ElasticsearchMetadataHandlerTest
     {
         return new FederatedIdentity("access_key_id", "principle", "account");
     }
+
+    @Test
+    public void convertFieldTest()
+    {
+        logger.info("convertFieldTest: enter");
+
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
+                amazonAthena, "spill-bucket", "spill-prefix", helper);
+
+        Field field = handler.convertField("myscaled", "SCALED_FLOAT@10.51");
+
+        assertEquals("myscaled", field.getName());
+        assertEquals("10.51", field.getMetadata().get("scaling_factor"));
+
+        field = handler.convertField("myscaledlist", "ARRAY<SCALED_FLOAT@10.51>");
+
+        assertEquals("myscaledlist", field.getName());
+        assertEquals(Types.MinorType.LIST.getType(), field.getType());
+        assertEquals("10.51", field.getChildren().get(0).getMetadata().get("scaling_factor"));
+
+        field = handler.convertField("myscaledstruct", "STRUCT<myscaledstruct:SCALED_FLOAT@10.51>");
+
+        assertEquals(Types.MinorType.STRUCT.getType(), field.getType());
+        assertEquals("myscaledstruct", field.getChildren().get(0).getName());
+        assertEquals("10.51", field.getChildren().get(0).getMetadata().get("scaling_factor"));
+
+        logger.info("convertFieldTest: exit");
+    }
 }

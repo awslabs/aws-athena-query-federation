@@ -44,11 +44,12 @@ Amazon Secrets Manager via the **domain_mapping** variable will be used.
 
 3. **domain_mapping** - Used only when **auto_discover_endpoint**=**false**, 
 this is the mapping between the domain names and their associated endpoints. The variable can
-accommodate multiple Elasticsearch endpoints using the following format: `domain1=endpoint1,
-domain2=endpoint2,domain3=endpoint3,...` For the purpose of authenticating to an Elasticsearch 
-endpoint, this connector supports substitution strings injected with the format `${SecretName}:` 
-with username and password retrieved from AWS Secrets Manager (see example below). The colon 
-`:` at the end of the expression serves as a separator from the rest of the endpoint.
+accommodate multiple Elasticsearch endpoints using the following format: 
+`domain1=endpoint1,domain2=endpoint2,domain3=endpoint3,...` For the purpose of authenticating to 
+an Elasticsearch endpoint, this connector supports substitution strings injected with the format 
+`${SecretName}:` with username and password retrieved from AWS Secrets Manager (see example 
+below). The colon `:` at the end of the expression serves as a separator from the rest of the 
+endpoint.
     ```                        
         Example (using secret elasticsearch-creds): 
             
@@ -111,7 +112,7 @@ data-types using the following table (see NOTES below):
 |-----------------|----------------|------------------|
 |text, keyword, binary|VARCHAR|string|
 |long|BIGINT|bigint
-|scaled_float|BIGINT|(Not Supported)
+|scaled_float|BIGINT|SCALED_FLOAT@...
 |integer|INT|int
 |short|SMALLINT|smallint
 |byte|TINYINT|tinyint
@@ -130,11 +131,13 @@ the present time.
 * A **scaled_float** is a floating-point number scaled by a fixed double scaling factor and
 represented as a **BIGINT** in Arrow (e.g. 0.756 with a scaling factor of 100 is rounded to 76).
 
-* Presently, **scaled_float** fields cannot be supported by Glue since there is no way to 
-store the scaling factor required to turn the float value into a long value. fields defined as
-scaled_float should be excluded from Glue tables used as the metadata definition sources.
-As an alternative, you can use the Elasticsearch instance as the metadata definition source for
-indices that include scaled_float fields.
+* To define a scaled_float in Glue you must select the **array** column type and declare the 
+field using the format `SCALED_FLOAT@<scaling_factor>`.
+    ```
+    Example:
+  
+    SCALED_FLOAT@10.51
+    ```
 
 * When converting from **date_nanos** to **DATEMILLI**, nanoseconds will be rounded to the 
 nearest millisecond. Valid values for date and date_nanos include but are not limited to:
