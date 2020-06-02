@@ -52,6 +52,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.lucene.search.TotalHits;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
@@ -59,6 +60,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
@@ -82,6 +84,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 /**
  * This class is used to test the ElasticsearchRecordHandler class.
@@ -321,6 +324,10 @@ public class ElasticsearchRecordHandlerTest
                 ImmutableList.of(Range.range(allocator, Types.MinorType.SMALLINT.getType(),
                         (short) 1955, false, (short) 1972, true)), false));
 
+        List<String> expectedProjection = ImmutableList.copyOf(new String[] {"mytext", "mykeyword", "mylong", "myinteger", "myshort", "mybyte", "mydouble",
+                "myscaled", "myfloat", "myhalf", "mydatemilli", "mydatenano", "myboolean", "mybinary", "mynested"});
+        String expectedPredicate = "(_exists_:myshort) AND myshort:((>1955 AND <=1972))";
+
         ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
                 "elasticsearch",
                 "queryId-" + System.currentTimeMillis(),
@@ -333,6 +340,18 @@ public class ElasticsearchRecordHandlerTest
         );
 
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        // Capture the SearchRequest object from the call to client.getDocuments().
+        // The former contains information such as the projection and predicate.
+        ArgumentCaptor<SearchRequest> argumentCaptor = ArgumentCaptor.forClass(SearchRequest.class);
+        verify(mockClient).getDocuments(argumentCaptor.capture());
+        SearchRequest searchRequest = argumentCaptor.getValue();
+        // Get the actual projection and compare to the expected one.
+        List<String> actualProjection = ImmutableList.copyOf(searchRequest.source().fetchSource().includes());
+        assertEquals("Projections do not match", expectedProjection, actualProjection);
+        // Get the actual predicate and compare to the expected one.
+        String actualPredicate = searchRequest.source().query().queryName();
+        assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
         assertTrue(rawResponse instanceof ReadRecordsResponse);
 

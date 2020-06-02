@@ -116,7 +116,7 @@ class ElasticsearchQueryUtils
         String formedPredicates = Strings.collectionToDelimitedString(predicates, AND_OPER);
         logger.info("Formed Predicates: " + formedPredicates);
 
-        return QueryBuilders.queryStringQuery(formedPredicates);
+        return QueryBuilders.queryStringQuery(formedPredicates).queryName(formedPredicates);
     }
 
     /**
