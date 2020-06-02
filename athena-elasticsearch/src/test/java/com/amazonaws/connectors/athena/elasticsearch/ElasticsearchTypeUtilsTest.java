@@ -60,8 +60,8 @@ import static org.junit.Assert.assertEquals;
  * This class is used to test the ElasticsearchTypeUtils class.
  */
 @RunWith(MockitoJUnitRunner.class)
-public class ElasticsearchTypeUtilsTest {
-
+public class ElasticsearchTypeUtilsTest
+{
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTypeUtilsTest.class);
     private ElasticsearchTypeUtils typeUtils = new ElasticsearchTypeUtils();
     private Schema mapping;
