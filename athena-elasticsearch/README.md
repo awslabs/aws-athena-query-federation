@@ -141,9 +141,10 @@ field using the format `SCALED_FLOAT(<scaling_factor>)`.
     SCALED_FLOAT(100.0)
     ```
 
-    Example of invalid value:
+    Examples of invalid values:
     ```
     SCALED_FLOAT(10.)
+    SCALED_FLOAT(.5)
     ```
 * When converting from **date_nanos** to **DATEMILLI**, nanoseconds will be rounded to the 
 nearest millisecond. Valid values for date and date_nanos include but are not limited to:
