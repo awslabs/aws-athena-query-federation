@@ -324,8 +324,8 @@ public class ElasticsearchRecordHandlerTest
                 ImmutableList.of(Range.range(allocator, Types.MinorType.SMALLINT.getType(),
                         (short) 1955, false, (short) 1972, true)), false));
 
-        List<String> expectedProjection = ImmutableList.copyOf(new String[] {"mytext", "mykeyword", "mylong", "myinteger", "myshort", "mybyte", "mydouble",
-                "myscaled", "myfloat", "myhalf", "mydatemilli", "mydatenano", "myboolean", "mybinary", "mynested"});
+        List<String> expectedProjection = new ArrayList<>();
+        mapping.getFields().forEach(field -> { expectedProjection.add(field.getName()); });
         String expectedPredicate = "(_exists_:myshort) AND myshort:((>1955 AND <=1972))";
 
         ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
