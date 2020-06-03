@@ -138,9 +138,9 @@ public class ElasticsearchQueryUtilsTest
     }
 
     @Test
-    public void getEquitableValuesPredicate()
+    public void getWhitelistedEquitableValuesPredicate()
     {
-        logger.info("getEquitableValuesPredicate - enter");
+        logger.info("getWhitelistedEquitableValuesPredicate - enter");
 
         constraintsMap.put("age", EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(),
                 true, true).addAll(ImmutableList.of(20, 25, 30, 35)).build());
@@ -153,7 +153,26 @@ public class ElasticsearchQueryUtilsTest
         logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
-        logger.info("getEquitableValuesPredicate - exit");
+        logger.info("getWhitelistedEquitableValuesPredicate - exit");
+    }
+
+    @Test
+    public void getExclusiveEquitableValuesPredicate()
+    {
+        logger.info("getExclusiveEquitableValuesPredicate - enter");
+
+        constraintsMap.put("age", EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(),
+                false, true).addAll(ImmutableList.of(20, 25, 30, 35)).build());
+        String expectedPredicate = "age:(NOT 20 AND NOT 25 AND NOT 30 AND NOT 35)";
+
+        // Get the actual predicate and compare to the expected one.
+        QueryBuilder builder = queryUtils.getQuery(constraintsMap);
+        String actualPredicate = builder.queryName();
+
+        logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
+        assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
+
+        logger.info("getExclusiveEquitableValuesPredicate - exit");
     }
 
     @Test

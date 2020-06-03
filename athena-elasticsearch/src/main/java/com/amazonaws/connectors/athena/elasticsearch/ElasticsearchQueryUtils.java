@@ -44,6 +44,7 @@ class ElasticsearchQueryUtils
 
     // Predicate conjunctions.
     private static final String AND_OPER = " AND ";
+    private static final String AND_NOT_OPER = " AND NOT ";
     private static final String OR_OPER = " OR ";
     private static final String NO_OPER = "";
     private static final String LESS_THAN = "<";
@@ -152,13 +153,18 @@ class ElasticsearchQueryUtils
         if (constraint instanceof EquatableValueSet) {
             EquatableValueSet equatableValueSet = (EquatableValueSet) constraint;
             List<String> singleValues = new ArrayList<>();
-            if (equatableValueSet.isWhiteList()) {
-                for (int pos = 0; pos < equatableValueSet.getValueBlock().getRowCount(); pos++) {
-                    singleValues.add(equatableValueSet.getValue(pos).toString());
-                }
+            for (int pos = 0; pos < equatableValueSet.getValueBlock().getRowCount(); pos++) {
+                singleValues.add(equatableValueSet.getValue(pos).toString());
             }
-            // field:(value1 OR value2 OR value3...)
-            predicateParts.add(fieldName + ":(" + Strings.collectionToDelimitedString(singleValues, OR_OPER) + ")");
+
+            if (equatableValueSet.isWhiteList()) {
+                // field:(value1 OR value2 OR value3...)
+                predicateParts.add(fieldName + ":(" + Strings.collectionToDelimitedString(singleValues, OR_OPER) + ")");
+            }
+            else {
+                // field:(NOT value1 AND NOT value2 AND NOT value3...)
+                predicateParts.add(fieldName + ":(NOT " + Strings.collectionToDelimitedString(singleValues, AND_NOT_OPER) + ")");
+            }
         }
         else {
             String rangedPredicate = getPredicateFromRange(fieldName, constraint);
