@@ -19,11 +19,9 @@
  */
 package com.amazonaws.connectors.athena.elasticsearch;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.elasticsearch.common.Strings;
@@ -47,6 +45,11 @@ class ElasticsearchQueryUtils
     // Predicate conjunctions.
     private static final String AND_OPER = " AND ";
     private static final String OR_OPER = " OR ";
+    private static final String NO_OPER = "";
+    private static final String LESS_THAN = "<";
+    private static final String LESS_THAN_OR_EQUAL = "<=";
+    private static final String GREATER_THAN = ">";
+    private static final String GREATER_THAN_OR_EQUAL = ">=";
     private static final String EMPTY_PREDICATE = "";
 
     // Existence predicates.
@@ -127,7 +130,7 @@ class ElasticsearchQueryUtils
      */
     private String getPredicate(String fieldName, ValueSet constraint)
     {
-        logger.info("getPredicate - enter\n\nField Name: {}\n\nConstraint: {}", fieldName, constraint);
+        logger.info("getPredicate - enter");
 
         if (constraint.isNone()) {
             // (NOT _exists_:field)
@@ -135,7 +138,7 @@ class ElasticsearchQueryUtils
         }
 
         if (constraint.isAll()) {
-            // (_exists:field)
+            // (_exists_:field)
             return existsPredicate(true, fieldName);
         }
 
@@ -147,14 +150,13 @@ class ElasticsearchQueryUtils
         }
 
         if (constraint instanceof EquatableValueSet) {
-            Block block = ((EquatableValueSet) constraint).getValues();
+            EquatableValueSet equatableValueSet = (EquatableValueSet) constraint;
             List<String> singleValues = new ArrayList<>();
-            FieldReader fieldReader = block.getFieldReaders().get(0);
-
-            for (int i = 0; i < block.getRowCount(); i++) {
-                singleValues.add(fieldReader.readObject().toString());
+            if (equatableValueSet.isWhiteList()) {
+                for (int pos = 0; pos < equatableValueSet.getValueBlock().getRowCount(); pos++) {
+                    singleValues.add(equatableValueSet.getValue(pos).toString());
+                }
             }
-
             // field:(value1 OR value2 OR value3...)
             predicateParts.add(fieldName + ":(" + Strings.collectionToDelimitedString(singleValues, OR_OPER) + ")");
         }
@@ -185,14 +187,17 @@ class ElasticsearchQueryUtils
                 singleValues.add(range.getSingleValue().toString());
             }
             else {
+                boolean lowerBounded = false;
                 String rangeConjuncts = "(";
                 if (!range.getLow().isLowerUnbounded()) {
                     switch (range.getLow().getBound()) {
                         case EXACTLY:
-                            rangeConjuncts += ">=" + range.getLow().getValue().toString();
+                            rangeConjuncts += GREATER_THAN_OR_EQUAL + range.getLow().getValue().toString();
+                            lowerBounded = true;
                             break;
                         case ABOVE:
-                            rangeConjuncts += ">" + range.getLow().getValue().toString();
+                            rangeConjuncts += GREATER_THAN + range.getLow().getValue().toString();
+                            lowerBounded = true;
                             break;
                         case BELOW:
                             logger.warn("Low Marker should never use BELOW bound: " + range);
@@ -205,10 +210,12 @@ class ElasticsearchQueryUtils
                 if (!range.getHigh().isUpperUnbounded()) {
                     switch (range.getHigh().getBound()) {
                         case EXACTLY:
-                            rangeConjuncts += AND_OPER + "<=" + range.getHigh().getValue().toString();
+                            rangeConjuncts += (lowerBounded ? AND_OPER : NO_OPER) +
+                                    LESS_THAN_OR_EQUAL + range.getHigh().getValue().toString();
                             break;
                         case BELOW:
-                            rangeConjuncts += AND_OPER + "<" + range.getHigh().getValue().toString();
+                            rangeConjuncts += (lowerBounded ? AND_OPER : NO_OPER) +
+                                    LESS_THAN + range.getHigh().getValue().toString();
                             break;
                         case ABOVE:
                             logger.warn("High Marker should never use ABOVE bound: " + range);
