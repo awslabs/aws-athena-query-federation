@@ -44,9 +44,9 @@ class ElasticsearchQueryUtils
 
     // Predicate conjunctions.
     private static final String AND_OPER = " AND ";
-    private static final String AND_NOT_OPER = " AND NOT ";
     private static final String OR_OPER = " OR ";
     private static final String NO_OPER = "";
+    private static final String NOT_OPER = "NOT ";
     private static final String LESS_THAN = "<";
     private static final String LESS_THAN_OR_EQUAL = "<=";
     private static final String GREATER_THAN = ">";
@@ -156,14 +156,15 @@ class ElasticsearchQueryUtils
             for (int pos = 0; pos < equatableValueSet.getValueBlock().getRowCount(); pos++) {
                 singleValues.add(equatableValueSet.getValue(pos).toString());
             }
-
             if (equatableValueSet.isWhiteList()) {
                 // field:(value1 OR value2 OR value3...)
-                predicateParts.add(fieldName + ":(" + Strings.collectionToDelimitedString(singleValues, OR_OPER) + ")");
+                predicateParts.add(fieldName + ":(" +
+                        Strings.collectionToDelimitedString(singleValues, OR_OPER) + ")");
             }
             else {
-                // field:(NOT value1 AND NOT value2 AND NOT value3...)
-                predicateParts.add(fieldName + ":(NOT " + Strings.collectionToDelimitedString(singleValues, AND_NOT_OPER) + ")");
+                // NOT field:(value1 OR value2 OR value3...)
+                predicateParts.add(NOT_OPER + fieldName + ":(" +
+                        Strings.collectionToDelimitedString(singleValues, OR_OPER) + ")");
             }
         }
         else {
