@@ -163,7 +163,7 @@ public class ElasticsearchQueryUtilsTest
 
         constraintsMap.put("age", EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(),
                 false, true).addAll(ImmutableList.of(20, 25, 30, 35)).build());
-        String expectedPredicate = "age:(NOT 20 AND NOT 25 AND NOT 30 AND NOT 35)";
+        String expectedPredicate = "NOT age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
         QueryBuilder builder = queryUtils.getQuery(constraintsMap);
