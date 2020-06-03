@@ -266,17 +266,7 @@ public class ElasticsearchMetadataHandler
                 AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
                 try {
                     LinkedHashMap<String, Object> mappings = client.getMapping(index);
-                    LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
-
-                    // Elasticsearch does not have a dedicated array type. All fields can contain one or more elements
-                    // so long as they are of the same type. For this reasons, users will have to add a _meta property
-                    // to the indices they intend on using with Athena. This property is used in the building of the
-                    // Schema to indicate which fields should be considered a LIST.
-                    if (mappings.containsKey("_meta")) {
-                        meta.putAll((LinkedHashMap) mappings.get("_meta"));
-                    }
-
-                    schema = schemaUtils.parseMapping(mappings, meta);
+                    schema = schemaUtils.parseMapping(mappings);
                 }
                 catch (IOException error) {
                     logger.error("Error mapping index:", error);

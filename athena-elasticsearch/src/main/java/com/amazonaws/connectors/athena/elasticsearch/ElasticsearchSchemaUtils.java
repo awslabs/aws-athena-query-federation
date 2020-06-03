@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * This class has interfaces used for the parsing and creation of a schema based on an index mapping retrieved
@@ -53,20 +54,27 @@ class ElasticsearchSchemaUtils
 
     /**
      * Main parsing method for the GET <index>/_mapping request.
-     * @param mapping is the structure that contains the mapping for all elements for the index.
-     * @param metaMap is the structure in the mapping containing the fields that should be considered a list.
+     * @param mappings is the structure that contains the metadata definitions for the index, as well as the _meta
+     *                 property used to define list fields.
      * @return a Schema derived from the mapping.
      */
-    protected Schema parseMapping(LinkedHashMap<String, Object> mapping, LinkedHashMap<String, Object> metaMap)
+    protected Schema parseMapping(LinkedHashMap<String, Object> mappings)
     {
         logger.info("parseMapping - enter");
 
         builder = SchemaBuilder.newBuilder();
-        meta.clear();
-        meta.putAll(metaMap);
 
-        if (mapping.containsKey("properties")) {
-            LinkedHashMap<String, Object> fields = (LinkedHashMap) mapping.get("properties");
+        // Elasticsearch does not have a dedicated array type. All fields can contain zero or more elements
+        // so long as they are of the same type. For this reasons, users will have to add a _meta property
+        // to the indices they intend on using with Athena. This property is used in the building of the
+        // Schema to indicate which fields should be considered a LIST.
+        meta.clear();
+        if (mappings.containsKey("_meta")) {
+            meta.putAll((LinkedHashMap) mappings.get("_meta"));
+        }
+
+        if (mappings.containsKey("properties")) {
+            LinkedHashMap<String, Object> fields = (LinkedHashMap) mappings.get("properties");
 
             for (String fieldName : fields.keySet()) {
                 builder.addField(inferField(fieldName, fieldName, (LinkedHashMap) fields.get(fieldName)));
@@ -169,5 +177,98 @@ class ElasticsearchSchemaUtils
         logger.info("Arrow Type: {}, metadata: {}", minorType.toString(), metadata);
 
         return new FieldType(true, minorType.getType(), null, metadata);
+    }
+
+    /**
+     * Checks that two mappings are equal.
+     * @param mapping1 is a mapping to be compared.
+     * @param mapping2 is a mapping to be compared.
+     * @return true if the lists are equal, false otherwise.
+     */
+    protected final boolean mappingsEqual(Schema mapping1, Schema mapping2)
+    {
+        logger.info("mappingsEqual - Enter:\nMapping1: {}\nMapping2: {}", mapping1, mapping2);
+
+        // Schemas must have the same number of elements.
+        if (mapping1.getFields().size() != mapping2.getFields().size()) {
+            logger.warn("Mappings are different sizes!");
+            return false;
+        }
+
+        // Mappings must have the same fields (irrespective of internal ordering).
+        for (Field field1 : mapping1.getFields()) {
+            Field field2 = mapping2.findField(field1.getName());
+            if (field2 == null || field1.getType() != field2.getType()) {
+                logger.warn("Mapping fields mismatch!");
+                return false;
+            }
+
+            switch(Types.getMinorTypeForArrowType(field1.getType())) {
+                // process complex/nested types (LIST and STRUCT), the children fields must also equal.
+                case LIST:
+                case STRUCT:
+                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
+                        logger.warn("Children fields mismatch!");
+                        return false;
+                    }
+                    break;
+                default:
+                    // For non-complex types, compare the metadata as well.
+                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
+                        logger.warn("Fields' metadata mismatch!");
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Used to assert that children fields inside two mappings are equal.
+     * @param list1 is a list of children fields to be compared.
+     * @param list2 is a list of children fields to be compared.
+     * @return true if the lists are equal, false otherwise.
+     */
+    private final boolean childrenEqual(List<Field> list1, List<Field> list2)
+    {
+        logger.info("childrenEqual - Enter:\nChildren1: {}\nChildren2: {}", list1, list2);
+
+        // Children lists must have the same number of elements.
+        if (list1.size() != list2.size()) {
+            logger.warn("Children lists are different sizes!");
+            return false;
+        }
+
+        Map<String, Field> fields = new LinkedHashMap<>();
+        list2.forEach(value -> fields.put(value.getName(), value));
+
+        // lists must have the same Fields (irrespective of internal ordering).
+        for (Field field1 : list1) {
+            Field field2 = fields.get(field1.getName());
+            if (field2 == null || field1.getType() != field2.getType()) {
+                logger.warn("Children fields mismatch!");
+                return false;
+            }
+            // process complex/nested types (LIST and STRUCT), the children fields must also equal.
+            switch(Types.getMinorTypeForArrowType(field1.getType())) {
+                case LIST:
+                case STRUCT:
+                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
+                        return false;
+                    }
+                    break;
+                default:
+                    // For non-complex types, compare the metadata as well.
+                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
+                        logger.warn("Fields' metadata mismatch!");
+                        return false;
+                    }
+                    break;
+            }
+        }
+
+        return true;
     }
 }
