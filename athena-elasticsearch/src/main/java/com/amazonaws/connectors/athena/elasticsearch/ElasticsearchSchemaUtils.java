@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * This class has interfaces used for the parsing and creation of a schema based on an index mapping retrieved
@@ -180,7 +179,8 @@ class ElasticsearchSchemaUtils
     }
 
     /**
-     * Checks that two mappings are equal.
+     * Checks that two mappings are equal irrespective of the ordering of the fields and their children inside
+     * of the Schema objects.
      * @param mapping1 is a mapping to be compared.
      * @param mapping2 is a mapping to be compared.
      * @return true if the lists are equal, false otherwise.
@@ -202,23 +202,11 @@ class ElasticsearchSchemaUtils
                 logger.warn("Mapping fields mismatch!");
                 return false;
             }
-
-            switch(Types.getMinorTypeForArrowType(field1.getType())) {
-                // process complex/nested types (LIST and STRUCT), the children fields must also equal.
-                case LIST:
-                case STRUCT:
-                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
-                        logger.warn("Children fields mismatch!");
-                        return false;
-                    }
-                    break;
-                default:
-                    // For non-complex types, compare the metadata as well.
-                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
-                        logger.warn("Fields' metadata mismatch!");
-                        return false;
-                    }
-                    break;
+            // The fields' children and metadata maps must also match.
+            logger.info("\nField Name: {}\nField Type: {}", field1.getName(), field1.getType());
+            if (!childrenEqual(field1.getChildren(), field2.getChildren()) ||
+                    !field1.getMetadata().equals(field2.getMetadata())) {
+                return false;
             }
         }
 
@@ -251,21 +239,11 @@ class ElasticsearchSchemaUtils
                 logger.warn("Children fields mismatch!");
                 return false;
             }
-            // process complex/nested types (LIST and STRUCT), the children fields must also equal.
-            switch(Types.getMinorTypeForArrowType(field1.getType())) {
-                case LIST:
-                case STRUCT:
-                    if (!childrenEqual(field1.getChildren(), field2.getChildren())) {
-                        return false;
-                    }
-                    break;
-                default:
-                    // For non-complex types, compare the metadata as well.
-                    if (!Objects.equals(field1.getMetadata(), field2.getMetadata())) {
-                        logger.warn("Fields' metadata mismatch!");
-                        return false;
-                    }
-                    break;
+            // The fields' children and metadata maps must also match.
+            logger.info("\nField Name: {}\nField Type: {}", field1.getName(), field1.getType());
+            if (!childrenEqual(field1.getChildren(), field2.getChildren()) ||
+                    !field1.getMetadata().equals(field2.getMetadata())) {
+                return false;
             }
         }
 
