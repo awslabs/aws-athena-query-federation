@@ -99,13 +99,13 @@ public class ElasticsearchQueryUtilsTest
         logger.info("getProjectionTest - enter");
 
         List<String> expectedProjection = new ArrayList<>();
-        mapping.getFields().forEach(field -> { expectedProjection.add(field.getName()); });
+        mapping.getFields().forEach(field -> expectedProjection.add(field.getName()));
 
         // Get the actual projection and compare to the expected one.
         FetchSourceContext context = queryUtils.getProjection(mapping);
         List<String> actualProjection = ImmutableList.copyOf(context.includes());
 
-        logger.info("Projections -\nExpected: {}\nActual: {}", expectedProjection, actualProjection);
+        logger.info("Projections - Expected: {}, Actual: {}", expectedProjection, actualProjection);
         assertEquals("Projections do not match", expectedProjection, actualProjection);
 
         logger.info("getProjectionTest - exit");
@@ -131,7 +131,7 @@ public class ElasticsearchQueryUtilsTest
         QueryBuilder builder = queryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
-        logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
+        logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
         logger.info("getRangePredicateTest - exit");
@@ -150,7 +150,7 @@ public class ElasticsearchQueryUtilsTest
         QueryBuilder builder = queryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
-        logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
+        logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
         logger.info("getWhitelistedEquitableValuesPredicate - exit");
@@ -169,7 +169,7 @@ public class ElasticsearchQueryUtilsTest
         QueryBuilder builder = queryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
-        logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
+        logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
         logger.info("getExclusiveEquitableValuesPredicate - exit");
@@ -187,7 +187,7 @@ public class ElasticsearchQueryUtilsTest
         QueryBuilder builder = queryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
-        logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
+        logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
         logger.info("getAllValuePredicate - exit");
@@ -205,7 +205,7 @@ public class ElasticsearchQueryUtilsTest
         QueryBuilder builder = queryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
-        logger.info("Predicates -\nExpected: {}\nActual: {}", expectedPredicate, actualPredicate);
+        logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
         assertEquals("Predicates do not match", expectedPredicate, actualPredicate);
 
         logger.info("getNoneValuePredicate - exit");

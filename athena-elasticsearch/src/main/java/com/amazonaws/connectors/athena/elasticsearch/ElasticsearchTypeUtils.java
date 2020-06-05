@@ -414,7 +414,7 @@ class ElasticsearchTypeUtils
                     dst.value = epochSeconds * 1000 + Math.round(nanoSeconds / 1000000);
                 }
                 catch (DateTimeParseException error) {
-                    logger.warn("Error parsing localDateTime:\n{}.", error.getMessage());
+                    logger.warn("Error parsing localDateTime: {}.", error.getMessage());
                     dst.isSet = 0;
                 }
             }
@@ -444,7 +444,7 @@ class ElasticsearchTypeUtils
                         dst.value = epochSeconds * 1000 + Math.round(nanoSeconds / 1000000);
                     }
                     catch (DateTimeParseException error) {
-                        logger.warn("Error parsing localDateTime:\n{}.", error.getMessage());
+                        logger.warn("Error parsing localDateTime: {}.", error.getMessage());
                         dst.isSet = 0;
                     }
                 }

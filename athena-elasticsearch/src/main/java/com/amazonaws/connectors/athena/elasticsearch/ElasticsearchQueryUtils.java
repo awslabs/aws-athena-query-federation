@@ -78,15 +78,13 @@ class ElasticsearchQueryUtils
      */
     protected FetchSourceContext getProjection(Schema schema)
     {
-        logger.info("getProjection - enter");
-
         List<String> includedFields = new ArrayList<>();
 
         for (Field field : schema.getFields()) {
             includedFields.add(field.getName());
         }
 
-        logger.info("Included fields: " + includedFields.toString());
+        logger.info("Included fields: " + includedFields);
 
         return new FetchSourceContext(true, Strings.toStringArray(includedFields), Strings.EMPTY_ARRAY);
     }
@@ -98,8 +96,6 @@ class ElasticsearchQueryUtils
      */
     protected QueryBuilder getQuery(Map<String, ValueSet> constraintSummary)
     {
-        logger.info("getQuery - enter");
-
         List<String> predicates = new ArrayList<>();
 
         constraintSummary.forEach((fieldName, constraint) -> {
@@ -118,7 +114,7 @@ class ElasticsearchQueryUtils
 
         // predicate1 AND predicate2 AND predicate3...
         String formedPredicates = Strings.collectionToDelimitedString(predicates, AND_OPER);
-        logger.info("Formed Predicates: " + formedPredicates);
+        logger.info("Formed Predicates: {}", formedPredicates);
 
         return QueryBuilders.queryStringQuery(formedPredicates).queryName(formedPredicates);
     }
@@ -131,8 +127,6 @@ class ElasticsearchQueryUtils
      */
     private String getPredicate(String fieldName, ValueSet constraint)
     {
-        logger.info("getPredicate - enter");
-
         if (constraint.isNone()) {
             // (NOT _exists_:field)
             return existsPredicate(false, fieldName);
@@ -185,8 +179,6 @@ class ElasticsearchQueryUtils
      */
     private String getPredicateFromRange(String fieldName, ValueSet constraint)
     {
-        logger.info("getPredicateFromRange - enter: " + fieldName);
-
         List<String> singleValues = new ArrayList<>();
         List<String> disjuncts = new ArrayList<>();
         for (Range range : constraint.getRanges().getOrderedRanges()) {
@@ -194,17 +186,15 @@ class ElasticsearchQueryUtils
                 singleValues.add(range.getSingleValue().toString());
             }
             else {
-                boolean lowerBounded = false;
+                boolean lowerBounded = !range.getLow().isLowerUnbounded();
                 String rangeConjuncts = "(";
-                if (!range.getLow().isLowerUnbounded()) {
+                if (lowerBounded) {
                     switch (range.getLow().getBound()) {
                         case EXACTLY:
                             rangeConjuncts += GREATER_THAN_OR_EQUAL + range.getLow().getValue().toString();
-                            lowerBounded = true;
                             break;
                         case ABOVE:
                             rangeConjuncts += GREATER_THAN + range.getLow().getValue().toString();
-                            lowerBounded = true;
                             break;
                         case BELOW:
                             logger.warn("Low Marker should never use BELOW bound: " + range);

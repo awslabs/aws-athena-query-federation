@@ -109,7 +109,7 @@ public class ElasticsearchRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker)
     {
-        logger.info("readWithConstraint - enter\n\nDomain: {}\n\nIndex: {}\n\nMapping: {}",
+        logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}",
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
                 recordsRequest.getSchema());
 

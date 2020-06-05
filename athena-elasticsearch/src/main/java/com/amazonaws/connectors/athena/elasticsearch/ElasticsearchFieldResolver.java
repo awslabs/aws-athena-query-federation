@@ -218,7 +218,7 @@ public class ElasticsearchFieldResolver
                         return toEpochMillis((String) fieldValue);
                     }
                     catch (DateTimeParseException error) {
-                        logger.warn("Error parsing localDateTime:\n{}.", error.getMessage());
+                        logger.warn("Error parsing localDateTime: {}.", error.getMessage());
                         return null;
                     }
                 }

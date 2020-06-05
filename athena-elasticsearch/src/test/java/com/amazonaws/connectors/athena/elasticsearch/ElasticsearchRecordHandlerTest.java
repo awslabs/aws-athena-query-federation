@@ -325,7 +325,7 @@ public class ElasticsearchRecordHandlerTest
                         (short) 1955, false, (short) 1972, true)), false));
 
         List<String> expectedProjection = new ArrayList<>();
-        mapping.getFields().forEach(field -> { expectedProjection.add(field.getName()); });
+        mapping.getFields().forEach(field -> expectedProjection.add(field.getName()));
         String expectedPredicate = "(_exists_:myshort) AND myshort:((>1955 AND <=1972))";
 
         ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
@@ -360,7 +360,7 @@ public class ElasticsearchRecordHandlerTest
 
         assertEquals(2, response.getRecords().getRowCount());
         for (int i = 0; i < response.getRecords().getRowCount(); ++i) {
-            logger.info("doReadRecordsNoSpill - Row: {}\n{}", i, BlockUtils.rowToString(response.getRecords(), i));
+            logger.info("doReadRecordsNoSpill - Row: {}, {}", i, BlockUtils.rowToString(response.getRecords(), i));
         }
 
         logger.info("doReadRecordsNoSpill: exit");

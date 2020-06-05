@@ -187,7 +187,7 @@ class ElasticsearchSchemaUtils
      */
     protected final boolean mappingsEqual(Schema mapping1, Schema mapping2)
     {
-        logger.info("mappingsEqual - Enter:\nMapping1: {}\nMapping2: {}", mapping1, mapping2);
+        logger.info("mappingsEqual - Enter - Mapping1: {}, Mapping2: {}", mapping1, mapping2);
 
         // Schemas must have the same number of elements.
         if (mapping1.getFields().size() != mapping2.getFields().size()) {
@@ -203,7 +203,7 @@ class ElasticsearchSchemaUtils
                 return false;
             }
             // The fields' children and metadata maps must also match.
-            logger.info("\nField Name: {}\nField Type: {}", field1.getName(), field1.getType());
+            logger.info("Field Name: {}, Field Type: {}", field1.getName(), field1.getType());
             if (!childrenEqual(field1.getChildren(), field2.getChildren()) ||
                     !field1.getMetadata().equals(field2.getMetadata())) {
                 return false;
@@ -221,7 +221,7 @@ class ElasticsearchSchemaUtils
      */
     private final boolean childrenEqual(List<Field> list1, List<Field> list2)
     {
-        logger.info("childrenEqual - Enter:\nChildren1: {}\nChildren2: {}", list1, list2);
+        logger.info("childrenEqual - Enter - Children1: {}, Children2: {}", list1, list2);
 
         // Children lists must have the same number of elements.
         if (list1.size() != list2.size()) {
@@ -240,7 +240,7 @@ class ElasticsearchSchemaUtils
                 return false;
             }
             // The fields' children and metadata maps must also match.
-            logger.info("\nField Name: {}\nField Type: {}", field1.getName(), field1.getType());
+            logger.info("Field Name: {}, Field Type: {}", field1.getName(), field1.getType());
             if (!childrenEqual(field1.getChildren(), field2.getChildren()) ||
                     !field1.getMetadata().equals(field2.getMetadata())) {
                 return false;

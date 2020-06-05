@@ -94,7 +94,7 @@ public class ElasticsearchTypeUtilsTest
                 "mytext", "My favorite Sci-Fi movie is Interstellar.",
                 "mytextlist", "Hey, this is an array!");
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeVarCharExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeVarCharExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeVarCharExtractorTest - exit");
@@ -163,7 +163,7 @@ public class ElasticsearchTypeUtilsTest
         expectedResults.put("mylonglist", new Long(2374637));
         expectedResults.put("mylongstringlist", new Long(945857834));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeBigIntExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeBigIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeBigIntExtractorTest - exit");
@@ -206,7 +206,7 @@ public class ElasticsearchTypeUtilsTest
                 "myintlist", new Integer(472394),
                 "myintstringlist", new Integer(34875934));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeIntExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeIntExtractorTest - exit");
@@ -249,7 +249,7 @@ public class ElasticsearchTypeUtilsTest
                 "myshortlist", new Short((short) 543),
                 "myshortstringlist", new Short((short) 334));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeSmallIntExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeSmallIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeSmallIntExtractorTest - exit");
@@ -292,7 +292,7 @@ public class ElasticsearchTypeUtilsTest
                 "mybytelist", new Byte((byte) 1),
                 "mybytestringlist", new Byte((byte) 3));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeTinyIntExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeTinyIntExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeTinyIntExtractorTest - exit");
@@ -335,7 +335,7 @@ public class ElasticsearchTypeUtilsTest
                 "mydoublelist", new Double(65.0),
                 "mydoublestringlist", new Double(10.0));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeFloat8ExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeFloat8ExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeFloat8ExtractorTest - exit");
@@ -378,7 +378,7 @@ public class ElasticsearchTypeUtilsTest
                 "myfloatlist", new Float(23.0),
                 "myfloatstringlist", new Float(45.0));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeFloat4ExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeFloat4ExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeFloat4ExtractorTest - exit");
@@ -421,7 +421,7 @@ public class ElasticsearchTypeUtilsTest
                 "mydatelist", new Long("1589969730789"),
                 "mydatestringlist", new Long("1589525370123"));
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeDateMilliExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeDateMilliExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeDateMilliExtractorTest - exit");
@@ -464,7 +464,7 @@ public class ElasticsearchTypeUtilsTest
                 "mybooleanlist", 0,
                 "mybooleanstringlist", 1);
         Map<String, Object> extractedResults = testField(mapping, document);
-        logger.info("makeBooleanExtractorTest - \nExpected: {}\nExtracted: {}", expectedResults, extractedResults);
+        logger.info("makeBooleanExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
 
         logger.info("makeBooleanExtractorTest - exit");

@@ -146,7 +146,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     private final boolean domainsEqual(Collection<String> list1, Collection<String> list2)
     {
-        logger.info("domainsEqual - Enter:\nDomain1: {}\nDomain2: {}", list1, list2);
+        logger.info("domainsEqual - Enter - Domain1: {}, Domain2: {}", list1, list2);
 
         // lists must have the same number of domains.
         if (list1.size() != list2.size()) {
@@ -172,7 +172,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     @Test
     public void doListTables()
-            throws IOException
+            throws Exception
     {
         logger.info("doListTables - enter");
 
@@ -210,7 +210,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     private final boolean indicesEqual(Collection<TableName> list1, Collection<TableName> list2)
     {
-        logger.info("indicesEqual - Enter:\nIndex1: {}\nIndex2: {}", list1, list2);
+        logger.info("indicesEqual - Enter - Index1: {}, Index2: {}", list1, list2);
 
         // lists must have the same number of indices.
         if (list1.size() != list2.size()) {
@@ -236,7 +236,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     @Test
     public void doGetTable()
-            throws IOException
+            throws Exception
     {
         logger.info("doGetTable - enter");
 
@@ -378,6 +378,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     @Test
     public void doGetSplits()
+            throws RuntimeException
     {
         logger.info("doGetSplits: enter");
 

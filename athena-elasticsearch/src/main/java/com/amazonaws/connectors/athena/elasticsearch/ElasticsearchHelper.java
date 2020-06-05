@@ -86,8 +86,6 @@ class ElasticsearchHelper
      */
     private Map<String, String> getDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
     {
-        logger.info("setDomainMapping(List<>) - enter");
-
         Map<String, String> domainMap = new HashMap<>();
 
         for (ElasticsearchDomainStatus domainStatus : domainStatusList) {
@@ -108,8 +106,6 @@ class ElasticsearchHelper
     protected Map<String, String> getDomainMapping(String domainMapping)
             throws RuntimeException
     {
-        logger.info("setDomainMapping - enter");
-
         if (autoDiscoverEndpoint) {
             // Get domain mapping via the AWS ES SDK (1.x).
             // NOTE: Gets called at construction and each call to doListSchemaNames() when autoDiscoverEndpoint is true.
@@ -154,8 +150,6 @@ class ElasticsearchHelper
      */
     protected AwsRestHighLevelClientFactory getClientFactory()
     {
-        logger.info("getClientFactory - enter");
-
         if (autoDiscoverEndpoint) {
             // Client factory for clients injected with AWS credentials.
             return AwsRestHighLevelClientFactory.defaultFactory();
