@@ -186,21 +186,24 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-      * Used to get the list of indices contained in the specified domain.
-      * @param allocator Tool for creating and managing Apache Arrow Blocks.
-      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
-      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
-      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
-      */
+     * Used to get the list of indices contained in the specified domain.
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details on who made the request and which Athena catalog and database they are querying.
+     * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
+     * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
+     * @throws RuntimeException when the domain does not exist in the map, or the client is unable to retrieve the
+     * indices from the Elasticsearch instance.
+     */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
+            throws RuntimeException
     {
         logger.info("doListTables: enter - " + request);
 
         List<TableName> indices = new ArrayList<>();
-        String endpoint = getDomainEndpoint(request.getSchemaName());
 
-        if (endpoint != null) {
+        try {
+            String endpoint = getDomainEndpoint(request.getSchemaName());
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
             try {
                 for (String index : client.getAliases()) {
@@ -213,14 +216,14 @@ public class ElasticsearchMetadataHandler
                 }
             }
             catch (IOException error) {
-                logger.error("Error getting indices:", error);
+                throw new RuntimeException("Error retrieving indices: " + error.getMessage());
             }
             finally {
                 client.shutdown();
             }
         }
-        else {
-            logger.warn("Domain does not exist in map: " + request.getSchemaName());
+        catch (RuntimeException error) {
+            throw new RuntimeException("Error processing request to list indices: " + error.getMessage());
         }
 
         return new ListTablesResponse(request.getCatalogName(), indices);
@@ -235,9 +238,12 @@ public class ElasticsearchMetadataHandler
      * 2. A Set<String> of partition column names (or empty if the table isn't partitioned).
      * 3. A TableName object confirming the schema and table name the response is for.
      * 4. A catalog name corresponding the Athena catalog that was queried.
+     * @throws RuntimeException when the domain does not exist in the map, or the client is unable to retrieve mapping
+     * information for the index from the Elasticsearch instance.
      */
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
+            throws RuntimeException
     {
         logger.info("doGetTable: enter - " + request);
 
@@ -259,21 +265,25 @@ public class ElasticsearchMetadataHandler
 
         // Supplement GLUE catalog if not present.
         if (schema == null) {
-            String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-
-            if (endpoint != null) {
-                String index = request.getTableName().getTableName();
+            String index = request.getTableName().getTableName();
+            try {
+                String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
                 AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
                 try {
                     LinkedHashMap<String, Object> mappings = client.getMapping(index);
                     schema = schemaUtils.parseMapping(mappings);
                 }
                 catch (IOException error) {
-                    logger.error("Error mapping index:", error);
+                    throw new RuntimeException("Error retrieving mapping information for index (" +
+                            index + "): " + error.getMessage());
                 }
                 finally {
                     client.shutdown();
                 }
+            }
+            catch (RuntimeException error) {
+                throw new RuntimeException("Error processing request to map index (" +
+                        index + "): " + error.getMessage());
             }
         }
 
@@ -286,7 +296,6 @@ public class ElasticsearchMetadataHandler
      * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws Exception
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
@@ -306,23 +315,29 @@ public class ElasticsearchMetadataHandler
      * @note A Split is a mostly opaque object to Amazon Athena. Amazon Athena will use the optional SpillLocation and
      * optional EncryptionKey for pipelined reads but all properties you set on the Split are passed to your read
      * function to help you perform the read.
+     * @throws RuntimeException when the domain does not exist in the map.
      */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+            throws RuntimeException
     {
         logger.info("doGetSplits: enter - " + request);
 
         String domain = request.getTableName().getSchemaName();
-        String endpoint = getDomainEndpoint(domain);
 
         // Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
         // Create split
         Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey());
-        if (endpoint != null) {
+
+        try {
+            String endpoint = getDomainEndpoint(domain);
             // Add domain and endpoint to the split to be used by the Record Handler.
             splitBuilder.add(domain, endpoint);
+        }
+        catch (RuntimeException error) {
+            throw new RuntimeException("Error trying to generate splits: " + error.getMessage());
         }
 
         return new GetSplitsResponse(request.getCatalogName(), splitBuilder.build());
@@ -334,15 +349,24 @@ public class ElasticsearchMetadataHandler
      * after the last connector refresh).
      * @param domain is used for searching the domain map for the corresponding endpoint.
      * @return endpoint corresponding to the domain or a null if domain does not exist in the map.
+     * @throws RuntimeException when the endpoint does not exist in the domain map even after a map refresh.
      */
     private String getDomainEndpoint(String domain)
+            throws RuntimeException
     {
-        if (!domainMap.containsKey(domain) && helper.isAutoDiscoverEndpoint()) {
-            logger.warn("Unable to find domain in map! Attempting to refresh map...");
+        String endpoint = domainMap.get(domain);
+
+        if (endpoint == null && helper.isAutoDiscoverEndpoint()) {
+            logger.warn("Unable to find domain ({}) in map! Attempting to refresh map...", domain);
             domainMap = helper.getDomainMapping(null);
+            endpoint = domainMap.get(domain);
         }
 
-        return domainMap.get(domain);
+        if (endpoint == null) {
+            throw new RuntimeException("Unable to find domain: " + domain);
+        }
+
+        return endpoint;
     }
 
     /**

@@ -117,7 +117,7 @@ public class ElasticsearchRecordHandler
         String endpoint = recordsRequest.getSplit().getProperty(domain);
         long numRows = 0;
 
-        if (endpoint != null && queryStatusChecker.isQueryRunning()) {
+        if (queryStatusChecker.isQueryRunning()) {
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
