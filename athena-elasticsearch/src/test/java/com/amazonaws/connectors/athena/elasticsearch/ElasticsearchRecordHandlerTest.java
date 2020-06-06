@@ -105,9 +105,6 @@ public class ElasticsearchRecordHandlerTest
     private AwsRestHighLevelClientFactory clientFactory;
 
     @Mock
-    private ElasticsearchHelper helper;
-
-    @Mock
     private AwsRestHighLevelClient mockClient;
 
     @Mock
@@ -290,12 +287,11 @@ public class ElasticsearchRecordHandlerTest
                 .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
                 .build();
 
-        when(helper.getClientFactory()).thenReturn(clientFactory);
         when(clientFactory.getClient(anyString())).thenReturn(mockClient);
         when(mockClient.getDocuments(anyObject())).thenReturn(mockResponse);
         when(mockClient.getDocument(anyObject())).thenReturn(document1, document2);
 
-        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, helper);
+        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory);
 
         logger.info("setUpBefore - exit");
     }

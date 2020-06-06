@@ -33,16 +33,17 @@ public class AwsRestHighLevelClientFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(AwsRestHighLevelClientFactory.class);
 
-    private final boolean useDefaultCredentials;
+    private final boolean useAwsCredentials;
     private static final Pattern credentialsPattern = Pattern.compile("[^/@]+@[^:]+:");
 
     /**
      * Constructs a new client factory (using a builder) that will create clients injected with credentials.
-     * @param builder is used to initialize the client factory.
+     * @param useAwsCredentials if true the factory create clients injected with AWC credentials.
+     *                              If false, it will create clients injected with username/password credentials.
      */
-    private AwsRestHighLevelClientFactory(Builder builder)
+    protected AwsRestHighLevelClientFactory(boolean useAwsCredentials)
     {
-        this.useDefaultCredentials = builder.useDefaultCredentials;
+        this.useAwsCredentials = useAwsCredentials;
     }
 
     /**
@@ -52,8 +53,8 @@ public class AwsRestHighLevelClientFactory
      *                 Examples:
      *                 1) https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
      *                 2) http://username@password:www.google.com
-     * @return an Elasticsearch REST client. If useDefaultCredentials = true, the client is injected
-     *          with AWS credentials. If useDefaultCredentials = false and username/password are not
+     * @return an Elasticsearch REST client. If useAwsCredentials = true, the client is injected
+     *          with AWS credentials. If useAwsCredentials = false and username/password are not
      *          empty, it is injected with username/password credentials. Otherwise a default client
      *          with no credentials is returned.
      */
@@ -61,7 +62,7 @@ public class AwsRestHighLevelClientFactory
     {
         logger.info("getClient - enter");
 
-        if (useDefaultCredentials) {
+        if (useAwsCredentials) {
             return new AwsRestHighLevelClient.Builder(endpoint)
                     .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
         }
@@ -82,56 +83,5 @@ public class AwsRestHighLevelClientFactory
 
         // Default client w/o credentials.
         return new AwsRestHighLevelClient.Builder(endpoint).build();
-    }
-
-    /**
-     * Gets a default client factory that will create Elasticsearch REST clients injected with AWS Credentials.
-     * @return a new default client factory.
-     */
-    public static AwsRestHighLevelClientFactory defaultFactory()
-    {
-        logger.info("defaultFactory - enter");
-
-        return new Builder().build();
-    }
-
-    /**
-     * A builder for the AwsRestHighLevelClientFactory class.
-     */
-    public static class Builder
-    {
-        private boolean useDefaultCredentials;
-
-        /**
-         * A constructor for the builder. As a default behaviour, it sets the client factory to use AWS credentials
-         * when constructing the client.
-         */
-        public Builder()
-        {
-            useDefaultCredentials = true;
-        }
-
-        /**
-         * Sets the client factory to use username/password credentials from Amazon Secrets Manager when constructing
-         * the client.
-         * @return this.
-         */
-        public Builder withSecretCredentials()
-        {
-            logger.info("withSecretCredentials - enter");
-
-            useDefaultCredentials = false;
-
-            return this;
-        }
-
-        /**
-         * Builds the client factory.
-         * @return a new client factory injected with the builder.
-         */
-        public AwsRestHighLevelClientFactory build()
-        {
-            return new AwsRestHighLevelClientFactory(this);
-        }
     }
 }

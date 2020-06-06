@@ -59,13 +59,17 @@ public class ElasticsearchRecordHandler
      */
     private static final String SOURCE_TYPE = "elasticsearch";
 
+    // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
+    // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
+    // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
+    private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
+
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchQueryUtils queryUtils;
     private final ElasticsearchTypeUtils typeUtils;
-    private final ElasticsearchHelper helper;
 
     public ElasticsearchRecordHandler()
     {
@@ -74,20 +78,20 @@ public class ElasticsearchRecordHandler
 
         this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.helper = new ElasticsearchHelper();
-        this.clientFactory = helper.getClientFactory();
+        this.clientFactory = new AwsRestHighLevelClientFactory(System
+                .getenv(AUTO_DISCOVER_ENDPOINT) != null && System
+                .getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true"));
     }
 
     @VisibleForTesting
     protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         ElasticsearchHelper helper)
+                                         AwsRestHighLevelClientFactory clientFactory)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
 
         this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.helper = helper;
-        this.clientFactory = helper.getClientFactory();
+        this.clientFactory = clientFactory;
     }
 
     /**

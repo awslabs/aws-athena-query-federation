@@ -41,42 +41,21 @@ import java.util.Map;
  * Additionally, it provides an interface for getting a REST client factory used for creating clients that can
  * communicate with a specific Elasticsearch endpoint.
  */
-class ElasticsearchHelper
+class ElasticsearchDomainMapper
 {
-    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchHelper.class);
+    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchDomainMapper.class);
 
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
-    private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
-    private boolean autoDiscoverEndpoint;
+    private final boolean autoDiscoverEndpoint;
 
     // Splitter for inline map properties extracted from the domain_mapping environment variable.
     private final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
 
-    protected ElasticsearchHelper()
+    protected ElasticsearchDomainMapper(boolean autoDiscoverEndpoint)
     {
-        this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-    }
-
-    /**
-     * @return the value of the auto_discover_endpoint environment variable.
-     */
-    protected boolean isAutoDiscoverEndpoint()
-    {
-        return autoDiscoverEndpoint;
-    }
-
-    /**
-     * Get an environment variable using System.getenv().
-     * @param var is the environment variable.
-     * @return the contents of the environment variable or an empty String if it's not defined.
-     */
-    protected final String getEnv(String var)
-    {
-        String result = System.getenv(var);
-
-        return result == null ? "" : result;
+        this.autoDiscoverEndpoint = autoDiscoverEndpoint;
     }
 
     /**
@@ -142,21 +121,5 @@ class ElasticsearchHelper
         }
 
         throw new RuntimeException("Unable to extract list of domain names and endpoints.");
-    }
-
-    /**
-     * Gets a client factory that can create an Elasticsearch REST client injected with credentials.
-     * @return a new client factory.
-     */
-    protected AwsRestHighLevelClientFactory getClientFactory()
-    {
-        if (autoDiscoverEndpoint) {
-            // Client factory for clients injected with AWS credentials.
-            return AwsRestHighLevelClientFactory.defaultFactory();
-        }
-        else {
-            // Client factory for clients injected with username/password credentials.
-            return new AwsRestHighLevelClientFactory.Builder().withSecretCredentials().build();
-        }
     }
 }

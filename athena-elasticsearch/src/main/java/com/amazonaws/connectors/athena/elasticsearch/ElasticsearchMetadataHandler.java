@@ -78,6 +78,12 @@ public class ElasticsearchMetadataHandler
     //metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
 
+    // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
+    // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
+    // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
+    private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
+    private boolean autoDiscoverEndpoint;
+
     // Env. variable that holds the mappings of the domain-names to their respective endpoints. The contents of
     // this environment variable is fed into the domainSplitter to populate the domainMap where the key = domain-name,
     // and the value = endpoint.
@@ -88,7 +94,7 @@ public class ElasticsearchMetadataHandler
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchSchemaUtils schemaUtils;
-    private final ElasticsearchHelper helper;
+    private final ElasticsearchDomainMapper domainMapper;
 
     /**
      * This class is used for mapping the Glue data type to Apache Arrow.
@@ -146,9 +152,10 @@ public class ElasticsearchMetadataHandler
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
         this.schemaUtils = new ElasticsearchSchemaUtils();
-        this.helper = new ElasticsearchHelper();
-        this.domainMap = helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
-        this.clientFactory = this.helper.getClientFactory();
+        this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
+        this.domainMapper = new ElasticsearchDomainMapper(this.autoDiscoverEndpoint);
+        this.domainMap = domainMapper.getDomainMapping(resolveSecrets(getEnv(DOMAIN_MAPPING)));
+        this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.mapper = new ElasticsearchTypeMapper();
     }
 
@@ -159,15 +166,28 @@ public class ElasticsearchMetadataHandler
                                            AmazonAthena athena,
                                            String spillBucket,
                                            String spillPrefix,
-                                           ElasticsearchHelper helper)
+                                           ElasticsearchDomainMapper domainMapper,
+                                           AwsRestHighLevelClientFactory clientFactory)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
         this.schemaUtils = new ElasticsearchSchemaUtils();
-        this.helper = helper;
-        this.domainMap = this.helper.getDomainMapping(resolveSecrets(this.helper.getEnv(DOMAIN_MAPPING)));
-        this.clientFactory = this.helper.getClientFactory();
+        this.domainMapper = domainMapper;
+        this.domainMap = this.domainMapper.getDomainMapping(null);
+        this.clientFactory = clientFactory;
         this.mapper = new ElasticsearchTypeMapper();
+    }
+
+    /**
+     * Get an environment variable using System.getenv().
+     * @param var is the environment variable.
+     * @return the contents of the environment variable or an empty String if it's not defined.
+     */
+    protected final String getEnv(String var)
+    {
+        String result = System.getenv(var);
+
+        return result == null ? "" : result;
     }
 
     /**
@@ -356,9 +376,9 @@ public class ElasticsearchMetadataHandler
     {
         String endpoint = domainMap.get(domain);
 
-        if (endpoint == null && helper.isAutoDiscoverEndpoint()) {
+        if (endpoint == null && autoDiscoverEndpoint) {
             logger.warn("Unable to find domain ({}) in map! Attempting to refresh map...", domain);
-            domainMap = helper.getDomainMapping(null);
+            domainMap = domainMapper.getDomainMapping(null);
             endpoint = domainMap.get(domain);
         }
 
