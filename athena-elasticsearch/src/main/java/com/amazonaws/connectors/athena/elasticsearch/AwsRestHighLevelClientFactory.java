@@ -34,6 +34,12 @@ public class AwsRestHighLevelClientFactory
     private static final Logger logger = LoggerFactory.getLogger(AwsRestHighLevelClientFactory.class);
 
     private final boolean useAwsCredentials;
+
+    /**
+     * credentialsPattern is used for parsing out the username/password credentials out of the endpoint with the
+     * format: "username@password:" (e.g. if the endpoint is http://myusername@mypassword:www.google.com, then this
+     * pattern will be used to extract the following credentials string: "myusername@mypassword:").
+     */
     private static final Pattern credentialsPattern = Pattern.compile("[^/@]+@[^:]+:");
 
     /**
@@ -52,10 +58,10 @@ public class AwsRestHighLevelClientFactory
      *                 for Elasticsearch services that are external to Amazon.
      *                 Examples:
      *                 1) https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
-     *                 2) http://username@password:www.google.com
+     *                 2) http://myusername@mypassword:www.google.com
      * @return an Elasticsearch REST client. If useAwsCredentials = true, the client is injected
-     *          with AWS credentials. If useAwsCredentials = false and username/password are not
-     *          empty, it is injected with username/password credentials. Otherwise a default client
+     *          with AWS credentials. If useAwsCredentials = false and username/password are extracted using the
+     *          credentialsPattern, it is injected with username/password credentials. Otherwise a default client
      *          with no credentials is returned.
      */
     public AwsRestHighLevelClient getClient(String endpoint)
