@@ -121,20 +121,21 @@ class ElasticsearchDomainMapper
             if (domainMapping == null || domainMapping.isEmpty()) {
                 throw new RuntimeException("Unable to create domain map: Empty or null value found.");
             }
-
+            Map<String, String> domainMap;
             try {
-                Map<String, String> domainMap = domainSplitter.split(domainMapping);
-                if (domainMap.isEmpty()) {
-                    // Intentional obfuscation of error message: domainMapping contains sensitive info (e.g. username/password).
-                    throw new RuntimeException("Unable to create domain map: Invalid Domain Mapping value.");
-                }
-
-                return domainMap;
+                domainMap = domainSplitter.split(domainMapping);
             }
             catch (Exception error) {
                 // Intentional obfuscation of error message as it may contain sensitive info (e.g. username/password).
                 throw new RuntimeException("Unable to create domain map: Parsing error.");
             }
+
+            if (domainMap.isEmpty()) {
+                // Intentional obfuscation of error message: domainMapping contains sensitive info (e.g. username/password).
+                throw new RuntimeException("Unable to create domain map: Invalid Domain Mapping value.");
+            }
+
+            return domainMap;
         }
     }
 }
