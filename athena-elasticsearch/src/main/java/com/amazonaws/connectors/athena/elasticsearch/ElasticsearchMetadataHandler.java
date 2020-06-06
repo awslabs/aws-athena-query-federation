@@ -22,7 +22,6 @@ package com.amazonaws.connectors.athena.elasticsearch;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -37,17 +36,13 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,8 +53,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -96,55 +89,7 @@ public class ElasticsearchMetadataHandler
     private final ElasticsearchSchemaUtils schemaUtils;
     private final ElasticsearchDomainMapper domainMapper;
 
-    /**
-     * This class is used for mapping the Glue data type to Apache Arrow.
-     */
-    private class ElasticsearchTypeMapper
-            implements GlueFieldLexer.BaseTypeMapper
-    {
-        private static final String SCALING_FACTOR = "scaling_factor";
-        private final Pattern scaledFloatPattern = Pattern.compile("SCALED_FLOAT\\(\\d+(\\.\\d+)?\\)");
-        private final Pattern scalingFactorPattern = Pattern.compile("\\d+(\\.\\d+)?");
-
-        /**
-         * Gets the Arrow type equivalent for the Glue type string representation using the DefaultGlueType.toArrowType
-         * conversion routine.
-         * @param type is the string representation of a Glue data type to be converted to Apache Arrow.
-         * @return an Arrow data type.
-         */
-        @Override
-        public ArrowType getType(String type)
-        {
-            return DefaultGlueType.toArrowType(type);
-        }
-
-        /**
-         * Creates a Field object based on the name and type. Special logic is done to extract the scaling factor
-         * for a scaled_float data type.
-         * @param name is the name of the field.
-         * @param type is the string representation of a Glue data type to be converted to Apache Arrow.
-         * @return a new Field.
-         */
-        @Override
-        public Field getField(String name, String type)
-        {
-            if (getType(type) == null) {
-                Matcher scaledFloat = scaledFloatPattern.matcher(type);
-                if (scaledFloat.find() && scaledFloat.group().length() == type.length()) {
-                    Matcher scalingFactor = scalingFactorPattern.matcher(scaledFloat.group());
-                    if (scalingFactor.find()) {
-                        return new Field(name, new FieldType(true, Types.MinorType.BIGINT.getType(), null,
-                                Collections.singletonMap(SCALING_FACTOR, scalingFactor.group())), null);
-                    }
-                }
-                return null;
-            }
-
-            return FieldBuilder.newBuilder(name, getType(type)).build();
-        }
-    }
-
-    private ElasticsearchTypeMapper mapper;
+    private ElasticsearchGlueTypeMapper glueTypeMapper;
 
     public ElasticsearchMetadataHandler()
     {
@@ -156,7 +101,7 @@ public class ElasticsearchMetadataHandler
         this.domainMapper = new ElasticsearchDomainMapper(this.autoDiscoverEndpoint);
         this.domainMap = domainMapper.getDomainMapping(resolveSecrets(getEnv(DOMAIN_MAPPING)));
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
-        this.mapper = new ElasticsearchTypeMapper();
+        this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
     }
 
     @VisibleForTesting
@@ -175,7 +120,7 @@ public class ElasticsearchMetadataHandler
         this.domainMapper = domainMapper;
         this.domainMap = this.domainMapper.getDomainMapping(null);
         this.clientFactory = clientFactory;
-        this.mapper = new ElasticsearchTypeMapper();
+        this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
     }
 
     /**
@@ -397,6 +342,6 @@ public class ElasticsearchMetadataHandler
     {
         logger.info("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
 
-        return GlueFieldLexer.lex(fieldName, glueType, mapper);
+        return GlueFieldLexer.lex(fieldName, glueType, glueTypeMapper);
     }
 }
