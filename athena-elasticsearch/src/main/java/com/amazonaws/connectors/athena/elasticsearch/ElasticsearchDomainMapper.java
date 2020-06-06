@@ -28,8 +28,6 @@ import com.amazonaws.services.elasticsearch.model.ElasticsearchDomainStatus;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
 import com.google.common.base.Splitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,14 +35,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This class provides interfaces related to parsing of the domain-names and their associated endpoints.
- * Additionally, it provides an interface for getting a REST client factory used for creating clients that can
- * communicate with a specific Elasticsearch endpoint.
+ * This class provides a method for creating a map between the domain-names and their associated endpoints.
+ * The method of creating the map depends on the autoDiscoverEndpoint parameter passed in at construction. When
+ * autoDiscoverEndpoint=true, the getDomainMapping() method will send list/describe commands via the AWS ES SDK
+ * to create the map. When auto_discover_endpoint=false, the map will be derived from the domainMapping string
+ * passed in as an argument.
  */
 class ElasticsearchDomainMapper
 {
-    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchDomainMapper.class);
-
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
@@ -62,8 +60,10 @@ class ElasticsearchDomainMapper
      * Gets the domainMap with domain-names and corresponding endpoints retrieved from the AWS ES SDK.
      * @param domainStatusList is a list of status objects returned by a listDomainNames request to the AWS ES SDK.
      * @return populated domainMap with domain-names and corresponding endpoints.
+     * @throws RuntimeException when Amazon ES contains no domain information for user.
      */
     private Map<String, String> getDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
+            throws RuntimeException
     {
         Map<String, String> domainMap = new HashMap<>();
 
@@ -71,25 +71,28 @@ class ElasticsearchDomainMapper
             domainMap.put(domainStatus.getDomainName(), "https://" + domainStatus.getEndpoint());
         }
 
+        if (domainMap.isEmpty()) {
+            throw new RuntimeException("Amazon Elasticsearch Service has no domain information for user.");
+        }
+
         return domainMap;
     }
 
     /**
-     * Gets the domain-mapping from either the domain_mapping environment variable
-     * (auto_discover_endpoint is false), or from the AWS ES SDK (auto_discover_endpoint is true).
+     * Gets a map of the domain names and their associated endpoints based on the autoDiscoverEndpoint flag. When
+     * autoDiscoverEndpoint=true, this method will send list/describe commands via the AWS ES SDD to create the map.
+     * When auto_discover_endpoint=false, the map will be derived from the domainMapping string passed in as argument.
      * @param domainMapping is the contents of the domain_mapping environment variable with secrets already resolved.
-     *                      This parameter will be ignored (and should be empty) when auto_discover_endpoint=true.
+     *                      This parameter will be ignored when autoDiscoverEndpoint=true.
      * @return populated domainMap with domain-names and corresponding endpoints.
-     * @throws RuntimeException
+     * @throws RuntimeException when the domain map cannot be created due to an error with the AWS ES SDK or an invalid
+     * domainMapping variable (empty, null, or contain invalid information that cannot be parsed successfully).
      */
     protected Map<String, String> getDomainMapping(String domainMapping)
             throws RuntimeException
     {
         if (autoDiscoverEndpoint) {
             // Get domain mapping via the AWS ES SDK (1.x).
-            // NOTE: Gets called at construction and each call to doListSchemaNames() when autoDiscoverEndpoint is true.
-
-            // AWS ES Client for retrieving domain mapping info from the Amazon Elasticsearch Service.
             AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
 
             try {
@@ -107,19 +110,31 @@ class ElasticsearchDomainMapper
                 return getDomainMapping(describeDomainsResult.getDomainStatusList());
             }
             catch (Exception error) {
-                logger.error("Error getting list of domain names:", error);
+                throw new RuntimeException("Unable to create domain map: " + error.getMessage());
             }
             finally {
                 awsEsClient.shutdown();
             }
         }
         else {
-            // Get domain mapping from environment variable.
-            if (!domainMapping.isEmpty()) {
-                return domainSplitter.split(domainMapping);
+            // Get domain mapping from the domainMapping variable.
+            if (domainMapping == null || domainMapping.isEmpty()) {
+                throw new RuntimeException("Unable to create domain map: Empty or null value found.");
+            }
+
+            try {
+                Map<String, String> domainMap = domainSplitter.split(domainMapping);
+                if (domainMap.isEmpty()) {
+                    // Intentional obfuscation of error message: domainMapping contains sensitive info (e.g. username/password).
+                    throw new RuntimeException("Unable to create domain map: Invalid Domain Mapping value.");
+                }
+
+                return domainMap;
+            }
+            catch (Exception error) {
+                // Intentional obfuscation of error message as it may contain sensitive info (e.g. username/password).
+                throw new RuntimeException("Unable to create domain map: Parsing error.");
             }
         }
-
-        throw new RuntimeException("Unable to extract list of domain names and endpoints.");
     }
 }
