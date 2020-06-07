@@ -68,7 +68,6 @@ public class ElasticsearchRecordHandler
     private static final int QUERY_BATCH_SIZE = 100;
 
     private final AwsRestHighLevelClientFactory clientFactory;
-    private final ElasticsearchQueryUtils queryUtils;
     private final ElasticsearchTypeUtils typeUtils;
 
     public ElasticsearchRecordHandler()
@@ -76,7 +75,6 @@ public class ElasticsearchRecordHandler
         super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE);
 
-        this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = new AwsRestHighLevelClientFactory(System
                 .getenv(AUTO_DISCOVER_ENDPOINT) != null && System
@@ -89,7 +87,6 @@ public class ElasticsearchRecordHandler
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
 
-        this.queryUtils = new ElasticsearchQueryUtils();
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
     }
@@ -125,23 +122,12 @@ public class ElasticsearchRecordHandler
             AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
-                GeneratedRowWriter.RowWriterBuilder builder =
-                        GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-                for (Field field : recordsRequest.getSchema().getFields()) {
-                    Extractor extractor = typeUtils.makeExtractor(field);
-                    if (extractor != null) {
-                        builder.withExtractor(field.getName(), extractor);
-                    }
-                    else {
-                        builder.withFieldWriterFactory(field.getName(), typeUtils.makeFactory(field));
-                    }
-                }
-                GeneratedRowWriter rowWriter = builder.build();
+                GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);
 
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
-                        .fetchSource(queryUtils.getProjection(recordsRequest.getSchema()))
-                        .query(queryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
+                        .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
+                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
                 SearchRequest searchRequest = new SearchRequest(recordsRequest.getTableName().getTableName());
                 int hitsNum;
@@ -174,6 +160,33 @@ public class ElasticsearchRecordHandler
         }
 
         logger.info("readWithConstraint: numRows[{}]", numRows);
+    }
+
+    /**
+     * Creates field extractors to aid in extracting values from retrieved documents. Method makeExtractor()
+     * is used for creating the extractors for simple data types (e.g. INT, BIGINT, etc...) Complex data types such as
+     * LIST and STRUCT, however require the makeFactory() method to create the extractors.
+     * @param recordsRequest Details of the read request that include the constraints and list of fields in the schema.
+     * @return GeneratedRowWriter which includes all field extractors used for processing of retrieved documents.
+     */
+    private GeneratedRowWriter createFieldExtractors(ReadRecordsRequest recordsRequest)
+    {
+        GeneratedRowWriter.RowWriterBuilder builder =
+                GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+
+        for (Field field : recordsRequest.getSchema().getFields()) {
+            Extractor extractor = typeUtils.makeExtractor(field);
+            if (extractor != null) {
+                // Simple data types (e.g. INT, BIGINT, etc...)
+                builder.withExtractor(field.getName(), extractor);
+            }
+            else {
+                // Complex data types (e.g. LIST, STRUCT)
+                builder.withFieldWriterFactory(field.getName(), typeUtils.makeFactory(field));
+            }
+        }
+
+        return builder.build();
     }
 
     /**

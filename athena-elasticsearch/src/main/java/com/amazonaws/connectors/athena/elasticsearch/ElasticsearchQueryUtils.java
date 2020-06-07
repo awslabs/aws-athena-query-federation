@@ -54,7 +54,7 @@ class ElasticsearchQueryUtils
     private static final String EMPTY_PREDICATE = "";
 
     // Existence predicates.
-    private final String existsPredicate(boolean exists, String fieldName)
+    private static final String existsPredicate(boolean exists, String fieldName)
     {
         if (exists) {
             // (_exists:field)
@@ -66,7 +66,7 @@ class ElasticsearchQueryUtils
         }
     }
 
-    protected ElasticsearchQueryUtils() {}
+    private ElasticsearchQueryUtils() {}
 
     /**
      * Creates a projection (using the schema) on which fields should be included in the search index request. For
@@ -76,7 +76,7 @@ class ElasticsearchQueryUtils
      * @param schema is the schema containing the requested projection.
      * @return a projection wrapped in a FetchSourceContext object.
      */
-    protected FetchSourceContext getProjection(Schema schema)
+    protected static FetchSourceContext getProjection(Schema schema)
     {
         List<String> includedFields = new ArrayList<>();
 
@@ -94,7 +94,7 @@ class ElasticsearchQueryUtils
      * @param constraintSummary is a map containing the constraints used to form the predicate for predicate push-down.
      * @return the query builder that will be injected into the query.
      */
-    protected QueryBuilder getQuery(Map<String, ValueSet> constraintSummary)
+    protected static QueryBuilder getQuery(Map<String, ValueSet> constraintSummary)
     {
         List<String> predicates = new ArrayList<>();
 
@@ -125,7 +125,7 @@ class ElasticsearchQueryUtils
      * @param constraint The constraint to apply to the given field.
      * @return A string describing the constraint for pushing down into Elasticsearch.
      */
-    private String getPredicate(String fieldName, ValueSet constraint)
+    private static String getPredicate(String fieldName, ValueSet constraint)
     {
         if (constraint.isNone()) {
             // (NOT _exists_:field)
@@ -177,7 +177,7 @@ class ElasticsearchQueryUtils
      * @param constraint The constraint to apply to the given field.
      * @return A string describing the constraint for pushing down into Elasticsearch.
      */
-    private String getPredicateFromRange(String fieldName, ValueSet constraint)
+    private static String getPredicateFromRange(String fieldName, ValueSet constraint)
     {
         List<String> singleValues = new ArrayList<>();
         List<String> disjuncts = new ArrayList<>();

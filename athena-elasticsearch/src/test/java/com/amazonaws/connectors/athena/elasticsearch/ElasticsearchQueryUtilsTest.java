@@ -54,7 +54,6 @@ public class ElasticsearchQueryUtilsTest
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchQueryUtilsTest.class);
 
     private final BlockAllocatorImpl allocator = new BlockAllocatorImpl();
-    private final ElasticsearchQueryUtils queryUtils = new ElasticsearchQueryUtils();
     Schema mapping;
     Map<String, ValueSet> constraintsMap = new HashMap<>();
 
@@ -102,7 +101,7 @@ public class ElasticsearchQueryUtilsTest
         mapping.getFields().forEach(field -> expectedProjection.add(field.getName()));
 
         // Get the actual projection and compare to the expected one.
-        FetchSourceContext context = queryUtils.getProjection(mapping);
+        FetchSourceContext context = ElasticsearchQueryUtils.getProjection(mapping);
         List<String> actualProjection = ImmutableList.copyOf(context.includes());
 
         logger.info("Projections - Expected: {}, Actual: {}", expectedProjection, actualProjection);
@@ -128,7 +127,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "(_exists_:year) AND year:((<1950) OR (>1955 AND <=1972) OR (>=2010) OR 1952 OR 1996)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = queryUtils.getQuery(constraintsMap);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -147,7 +146,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = queryUtils.getQuery(constraintsMap);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -166,7 +165,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "NOT age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = queryUtils.getQuery(constraintsMap);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -184,7 +183,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "(_exists_:number)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = queryUtils.getQuery(constraintsMap);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -202,7 +201,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "(NOT _exists_:number)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = queryUtils.getQuery(constraintsMap);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraintsMap);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
