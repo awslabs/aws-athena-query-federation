@@ -87,7 +87,7 @@ public class ElasticsearchMetadataHandler
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchSchemaUtils schemaUtils;
-    private final ElasticsearchDomainMapper domainMapper;
+    private final ElasticsearchDomainMapProvider domainMapProvider;
 
     private ElasticsearchGlueTypeMapper glueTypeMapper;
 
@@ -98,8 +98,8 @@ public class ElasticsearchMetadataHandler
         this.awsGlue = getAwsGlue();
         this.schemaUtils = new ElasticsearchSchemaUtils();
         this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
-        this.domainMapper = new ElasticsearchDomainMapper(this.autoDiscoverEndpoint);
-        this.domainMap = domainMapper.getDomainMapping(resolveSecrets(getEnv(DOMAIN_MAPPING)));
+        this.domainMapProvider = new ElasticsearchDomainMapProvider(this.autoDiscoverEndpoint);
+        this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(getEnv(DOMAIN_MAPPING)));
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
     }
@@ -111,14 +111,14 @@ public class ElasticsearchMetadataHandler
                                            AmazonAthena athena,
                                            String spillBucket,
                                            String spillPrefix,
-                                           ElasticsearchDomainMapper domainMapper,
+                                           ElasticsearchDomainMapProvider domainMapProvider,
                                            AwsRestHighLevelClientFactory clientFactory)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
         this.schemaUtils = new ElasticsearchSchemaUtils();
-        this.domainMapper = domainMapper;
-        this.domainMap = this.domainMapper.getDomainMapping(null);
+        this.domainMapProvider = domainMapProvider;
+        this.domainMap = this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
     }
@@ -323,7 +323,7 @@ public class ElasticsearchMetadataHandler
 
         if (endpoint == null && autoDiscoverEndpoint) {
             logger.warn("Unable to find domain ({}) in map! Attempting to refresh map...", domain);
-            domainMap = domainMapper.getDomainMapping(null);
+            domainMap = domainMapProvider.getDomainMap(null);
             endpoint = domainMap.get(domain);
         }
 

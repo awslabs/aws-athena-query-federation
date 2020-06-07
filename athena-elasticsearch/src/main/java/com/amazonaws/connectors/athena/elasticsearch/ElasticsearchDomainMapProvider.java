@@ -41,7 +41,7 @@ import java.util.Map;
  * to create the map. When auto_discover_endpoint=false, the map will be derived from the domainMapping string
  * passed in as an argument.
  */
-class ElasticsearchDomainMapper
+class ElasticsearchDomainMapProvider
 {
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
@@ -51,7 +51,7 @@ class ElasticsearchDomainMapper
     // Splitter for inline map properties extracted from the domain_mapping environment variable.
     private final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
 
-    protected ElasticsearchDomainMapper(boolean autoDiscoverEndpoint)
+    protected ElasticsearchDomainMapProvider(boolean autoDiscoverEndpoint)
     {
         this.autoDiscoverEndpoint = autoDiscoverEndpoint;
     }
@@ -62,7 +62,7 @@ class ElasticsearchDomainMapper
      * @return populated domainMap with domain-names and corresponding endpoints.
      * @throws RuntimeException when Amazon ES contains no domain information for user.
      */
-    private Map<String, String> getDomainMapping(List<ElasticsearchDomainStatus> domainStatusList)
+    private Map<String, String> getDomainMap(List<ElasticsearchDomainStatus> domainStatusList)
             throws RuntimeException
     {
         Map<String, String> domainMap = new HashMap<>();
@@ -88,7 +88,7 @@ class ElasticsearchDomainMapper
      * @throws RuntimeException when the domain map cannot be created due to an error with the AWS ES SDK or an invalid
      * domainMapping variable (empty, null, or contain invalid information that cannot be parsed successfully).
      */
-    protected Map<String, String> getDomainMapping(String domainMapping)
+    protected Map<String, String> getDomainMap(String domainMapping)
             throws RuntimeException
     {
         if (autoDiscoverEndpoint) {
@@ -107,7 +107,7 @@ class ElasticsearchDomainMapper
                 DescribeElasticsearchDomainsResult describeDomainsResult =
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
 
-                return getDomainMapping(describeDomainsResult.getDomainStatusList());
+                return getDomainMap(describeDomainsResult.getDomainStatusList());
             }
             catch (Exception error) {
                 throw new RuntimeException("Unable to create domain map: " + error.getMessage());

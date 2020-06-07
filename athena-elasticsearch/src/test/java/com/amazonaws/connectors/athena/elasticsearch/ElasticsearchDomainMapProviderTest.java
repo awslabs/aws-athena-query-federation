@@ -30,25 +30,25 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 /**
- * This class is used to test the ElasticsearchDomainMapper class.
+ * This class is used to test the ElasticsearchDomainMapProvider class.
  */
 @RunWith(MockitoJUnitRunner.class)
-public class ElasticsearchDomainMapperTest
+public class ElasticsearchDomainMapProviderTest
 {
-    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchFieldResolverTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchDomainMapProviderTest.class);
 
     /**
      * Tests that a domain mapping string is parsed correctly into a domain map containing domain names and their
      * associated endpoints.
      */
     @Test
-    public void getDomainMappingTest()
+    public void getDomainMapTest()
     {
-        logger.info("getDomainMappingTest - enter");
+        logger.info("getDomainMapTest - enter");
 
-        ElasticsearchDomainMapper domainMapper = new ElasticsearchDomainMapper(false);
+        ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
         String domainMapping = "domain1=myusername@password:www.endpoint1.com,domain2=myusername@password:www.endpoint2.com";
-        Map<String, String> domainMap = domainMapper.getDomainMapping(domainMapping);
+        Map<String, String> domainMap = domainMapProvider.getDomainMap(domainMapping);
 
         logger.info("Domain map: {}", domainMap);
 
@@ -58,6 +58,6 @@ public class ElasticsearchDomainMapperTest
         assertEquals("Invalid value for domain2:", "myusername@password:www.endpoint2.com",
                 domainMap.get("domain2"));
 
-        logger.info("getDomainMappingTest - exit");
+        logger.info("getDomainMapTest - exit");
     }
 }
