@@ -169,7 +169,7 @@ public class ElasticsearchFieldResolverTest
                 new Double(103434.8643), new Double(14353254.232)));
         expectedResults.put("myfloat", ImmutableList.of(new Float(10624), new Float(14543),
                 new Float(103.83), new Float(13354.32)));
-        expectedResults.put("mydate", ImmutableList.of(new Long("1589883330457"), new Long("1589525370123"),
+        expectedResults.put("mydate", ImmutableList.of(new Long("1589883330457"), new Long("1589543370123"),
                 new Long("1589969730789")));
         expectedResults.put("myboolean", ImmutableList.of(true, false, true, false));
     }

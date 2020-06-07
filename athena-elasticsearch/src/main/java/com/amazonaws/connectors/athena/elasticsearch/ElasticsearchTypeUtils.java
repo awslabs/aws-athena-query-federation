@@ -399,8 +399,7 @@ class ElasticsearchTypeUtils
                     double nanoSeconds;
                     try {
                         ZonedDateTime zonedDateTime = ZonedDateTime.parse((String) fieldValue,
-                                DateTimeFormatter.ISO_ZONED_DATE_TIME.withZone(ZoneId.of("UTC"))
-                                        .withResolverStyle(ResolverStyle.SMART));
+                                DateTimeFormatter.ISO_ZONED_DATE_TIME.withResolverStyle(ResolverStyle.SMART));
                         epochSeconds = zonedDateTime.toEpochSecond();
                         nanoSeconds = zonedDateTime.getNano();
                     }

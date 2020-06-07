@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -258,8 +257,7 @@ public class ElasticsearchFieldResolver
 
         try {
             ZonedDateTime zonedDateTime = ZonedDateTime.parse(dateTimeValue,
-                    DateTimeFormatter.ISO_ZONED_DATE_TIME.withZone(ZoneId.of("UTC"))
-                            .withResolverStyle(ResolverStyle.SMART));
+                    DateTimeFormatter.ISO_ZONED_DATE_TIME.withResolverStyle(ResolverStyle.SMART));
             epochSeconds = zonedDateTime.toEpochSecond();
             nanoSeconds = zonedDateTime.getNano();
         }
