@@ -48,7 +48,6 @@ public class ElasticsearchSchemaUtilsTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSchemaUtilsTest.class);
 
-    private ElasticsearchSchemaUtils schemaUtils = new ElasticsearchSchemaUtils();
     Schema expectedSchema;
     LinkedHashMap<String, Object> mapping;
 
@@ -164,11 +163,11 @@ public class ElasticsearchSchemaUtilsTest
     {
         logger.info("parseMappingTest - enter");
 
-        Schema builtSchema = schemaUtils.parseMapping(mapping);
+        Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(mapping);
 
         // The built mapping and expected mapping should match.
         assertTrue("Real and mocked mappings are different!",
-                schemaUtils.mappingsEqual(expectedSchema, builtSchema));
+                ElasticsearchSchemaUtils.mappingsEqual(expectedSchema, builtSchema));
 
         logger.info("parseMappingTest - exit");
     }

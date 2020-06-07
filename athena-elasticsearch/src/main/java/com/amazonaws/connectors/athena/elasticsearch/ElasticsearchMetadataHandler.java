@@ -86,7 +86,6 @@ public class ElasticsearchMetadataHandler
 
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
-    private final ElasticsearchSchemaUtils schemaUtils;
     private final ElasticsearchDomainMapProvider domainMapProvider;
 
     private ElasticsearchGlueTypeMapper glueTypeMapper;
@@ -96,7 +95,6 @@ public class ElasticsearchMetadataHandler
         //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
-        this.schemaUtils = new ElasticsearchSchemaUtils();
         this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
         this.domainMapProvider = new ElasticsearchDomainMapProvider(this.autoDiscoverEndpoint);
         this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(getEnv(DOMAIN_MAPPING)));
@@ -116,7 +114,6 @@ public class ElasticsearchMetadataHandler
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
-        this.schemaUtils = new ElasticsearchSchemaUtils();
         this.domainMapProvider = domainMapProvider;
         this.domainMap = this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
@@ -236,7 +233,7 @@ public class ElasticsearchMetadataHandler
                 AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
                 try {
                     LinkedHashMap<String, Object> mappings = client.getMapping(index);
-                    schema = schemaUtils.parseMapping(mappings);
+                    schema = ElasticsearchSchemaUtils.parseMapping(mappings);
                 }
                 catch (IOException error) {
                     throw new RuntimeException("Error retrieving mapping information for index (" +

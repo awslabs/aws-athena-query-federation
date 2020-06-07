@@ -67,7 +67,6 @@ public class ElasticsearchMetadataHandlerTest
     private boolean enableTests = System.getenv("publishing") != null &&
             System.getenv("publishing").equalsIgnoreCase("true");
     private BlockAllocatorImpl allocator;
-    private ElasticsearchSchemaUtils schemaUtils = new ElasticsearchSchemaUtils();
 
     @Mock
     private AWSGlue awsGlue;
@@ -367,7 +366,7 @@ public class ElasticsearchMetadataHandlerTest
         assertTrue("Real mapping is empty!", realMapping.getFields().size() > 0);
         // Test2 - Real and mocked mappings must have the same fields.
         assertTrue("Real and mocked mappings are different!",
-                schemaUtils.mappingsEqual(realMapping, mockMapping));
+                ElasticsearchSchemaUtils.mappingsEqual(realMapping, mockMapping));
 
         logger.info("doGetTable - exit");
     }

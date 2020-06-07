@@ -42,14 +42,7 @@ class ElasticsearchSchemaUtils
 {
     private static final Logger logger = LoggerFactory.getLogger(ElasticsearchSchemaUtils.class);
 
-    // Used in parseMapping() to store the _meta structure (the mapping containing the fields that should be
-    // considered a list).
-    private LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
-
-    // Used in parseMapping() to build the schema recursively.
-    private SchemaBuilder builder;
-
-    protected ElasticsearchSchemaUtils() {}
+    private ElasticsearchSchemaUtils() {}
 
     /**
      * Main parsing method for the GET <index>/_mapping request.
@@ -57,11 +50,13 @@ class ElasticsearchSchemaUtils
      *                 property used to define list fields.
      * @return a Schema derived from the mapping.
      */
-    protected Schema parseMapping(LinkedHashMap<String, Object> mappings)
+    protected static Schema parseMapping(LinkedHashMap<String, Object> mappings)
     {
         logger.info("parseMapping - enter");
 
-        builder = SchemaBuilder.newBuilder();
+        // Used to store the _meta structure (the mapping containing the fields that should be considered a list).
+        LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
+        SchemaBuilder builder = SchemaBuilder.newBuilder();
 
         // Elasticsearch does not have a dedicated array type. All fields can contain zero or more elements
         // so long as they are of the same type. For this reasons, users will have to add a _meta property
@@ -76,7 +71,7 @@ class ElasticsearchSchemaUtils
             LinkedHashMap<String, Object> fields = (LinkedHashMap) mappings.get("properties");
 
             for (String fieldName : fields.keySet()) {
-                builder.addField(inferField(fieldName, fieldName, (LinkedHashMap) fields.get(fieldName)));
+                builder.addField(inferField(fieldName, fieldName, (LinkedHashMap) fields.get(fieldName), meta));
             }
         }
 
@@ -88,9 +83,11 @@ class ElasticsearchSchemaUtils
      * @param fieldName is the name of the current field being processed (e.g. street).
      * @param qualifiedName is the qualified name of the field (e.g. address.street).
      * @param mapping is the current map of the element in question.
+     * @param meta is the map of fields that are considered to be lists.
      * @return a Field object injected with the field's info.
      */
-    private Field inferField(String fieldName, String qualifiedName, LinkedHashMap<String, Object> mapping)
+    private static Field inferField(String fieldName, String qualifiedName,
+                             LinkedHashMap<String, Object> mapping, LinkedHashMap<String, Object> meta)
     {
         Field field;
 
@@ -101,7 +98,7 @@ class ElasticsearchSchemaUtils
 
             for (String childField : childFields.keySet()) {
                 children.add(inferField(childField, qualifiedName + "." + childField,
-                        (LinkedHashMap) childFields.get(childField)));
+                        (LinkedHashMap) childFields.get(childField), meta));
             }
 
             field = new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
@@ -124,7 +121,7 @@ class ElasticsearchSchemaUtils
      * @param mapping is the map containing the Elasticsearch datatype.
      * @return a new FieldType corresponding to the Elasticsearch type.
      */
-    private FieldType toFieldType(LinkedHashMap<String, Object> mapping)
+    private static FieldType toFieldType(LinkedHashMap<String, Object> mapping)
     {
         logger.info("toFieldType - enter: " + mapping);
 
@@ -154,6 +151,7 @@ class ElasticsearchSchemaUtils
                 minorType = Types.MinorType.FLOAT8;
                 break;
             case "scaled_float":
+                // Store the scaling factor in the field's metadata map.
                 minorType = Types.MinorType.BIGINT;
                 metadata.put("scaling_factor", mapping.get("scaling_factor").toString());
                 break;
@@ -179,31 +177,45 @@ class ElasticsearchSchemaUtils
     }
 
     /**
-     * Checks that two mappings are equal irrespective of the ordering of the fields and their children inside
-     * of the Schema objects.
+     * Checks that two Schema objects are equal using the following criteria:
+     * 1) The Schemas must have the same number of fields.
+     * 2) The corresponding fields in the two Schema objects must also be the same irrespective of ordering within
+     *    the Schema object using the following criteria:
+     *    a) The fields' names must match.
+     *    b) The fields' Arrow types must match.
+     *    c) The fields' children lists (used for complex fields, e.g. LIST and STRUCT) must match irrespective of
+     *       field ordering within the lists.
+     *    d) The fields' metadata maps must match. Currently that's only applicable for scaled_float data types that
+     *       use the field's metadata map to store the scaling factor associated with the data type.
      * @param mapping1 is a mapping to be compared.
      * @param mapping2 is a mapping to be compared.
      * @return true if the lists are equal, false otherwise.
      */
-    protected final boolean mappingsEqual(Schema mapping1, Schema mapping2)
+    protected static final boolean mappingsEqual(Schema mapping1, Schema mapping2)
     {
         logger.info("mappingsEqual - Enter - Mapping1: {}, Mapping2: {}", mapping1, mapping2);
 
         // Schemas must have the same number of elements.
         if (mapping1.getFields().size() != mapping2.getFields().size()) {
-            logger.warn("Mappings are different sizes!");
+            logger.warn("Mappings are different sizes - Mapping1: {}, Mapping2: {}",
+                    mapping1.getFields().size(), mapping2.getFields().size());
             return false;
         }
 
         // Mappings must have the same fields (irrespective of internal ordering).
         for (Field field1 : mapping1.getFields()) {
             Field field2 = mapping2.findField(field1.getName());
+            // Corresponding fields must have the same Arrow types or the Schemas are deemed not equal.
             if (field2 == null || field1.getType() != field2.getType()) {
-                logger.warn("Mapping fields mismatch!");
+                logger.warn("Fields' types do not match - Field1: {}, Field2: {}",
+                        field1.getType(), field2 == null ? "null" : field2.getType());
                 return false;
             }
-            // The fields' children and metadata maps must also match.
-            logger.info("Field Name: {}, Field Type: {}", field1.getName(), field1.getType());
+            logger.info("Field1 Name: {}, Field1 Type: {}, Field1 Metadata: {}",
+                    field1.getName(), field1.getType(), field1.getMetadata());
+            logger.info("Field2 Name: {}, Field2 Type: {}, Field2 Metadata: {}",
+                    field2.getName(), field2.getType(), field2.getMetadata());
+            // The corresponding fields' children and metadata maps must also match or the Schemas are deemed not equal.
             if (!childrenEqual(field1.getChildren(), field2.getChildren()) ||
                     !field1.getMetadata().equals(field2.getMetadata())) {
                 return false;
@@ -214,18 +226,27 @@ class ElasticsearchSchemaUtils
     }
 
     /**
-     * Used to assert that children fields inside two mappings are equal.
+     * Checks that two lists of Field objects (corresponding to the children lists of two corresponding fields in
+     * two different Schema objects) are the same irrespective of ordering within the lists using the following
+     * criteria:
+     *    1) The lists of Field objects must be the same size.
+     *    1) The corresponding fields' names must match.
+     *    b) The corresponding fields' Arrow types must match.
+     *    c) The corresponding fields' children lists (used for complex fields, e.g. LIST and STRUCT) must match
+     *       irrespective of field ordering within the lists.
+     *    d) The corresponding fields' metadata maps must match. Currently that's only applicable for scaled_float
+     *       data types that use the field's metadata map to store the scaling factor associated with the data type.
      * @param list1 is a list of children fields to be compared.
      * @param list2 is a list of children fields to be compared.
      * @return true if the lists are equal, false otherwise.
      */
-    private final boolean childrenEqual(List<Field> list1, List<Field> list2)
+    private static final boolean childrenEqual(List<Field> list1, List<Field> list2)
     {
         logger.info("childrenEqual - Enter - Children1: {}, Children2: {}", list1, list2);
 
         // Children lists must have the same number of elements.
         if (list1.size() != list2.size()) {
-            logger.warn("Children lists are different sizes!");
+            logger.warn("Children lists are different sizes - List1: {}, List2: {}", list1.size(), list2.size());
             return false;
         }
 
@@ -234,13 +255,18 @@ class ElasticsearchSchemaUtils
 
         // lists must have the same Fields (irrespective of internal ordering).
         for (Field field1 : list1) {
+            // Corresponding fields must have the same Arrow types or the Schemas are deemed not equal.
             Field field2 = fields.get(field1.getName());
             if (field2 == null || field1.getType() != field2.getType()) {
-                logger.warn("Children fields mismatch!");
+                logger.warn("Fields' types do not match - Field1: {}, Field2: {}",
+                        field1.getType(), field2 == null ? "null" : field2.getType());
                 return false;
             }
-            // The fields' children and metadata maps must also match.
-            logger.info("Field Name: {}, Field Type: {}", field1.getName(), field1.getType());
+            logger.info("Field1 Name: {}, Field1 Type: {}, Field1 Metadata: {}",
+                    field1.getName(), field1.getType(), field1.getMetadata());
+            logger.info("Field2 Name: {}, Field2 Type: {}, Field2 Metadata: {}",
+                    field2.getName(), field2.getType(), field2.getMetadata());
+            // The corresponding fields' children and metadata maps must also match or the Schemas are deemed not equal.
             if (!childrenEqual(field1.getChildren(), field2.getChildren()) ||
                     !field1.getMetadata().equals(field2.getMetadata())) {
                 return false;
