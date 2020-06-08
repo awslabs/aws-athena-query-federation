@@ -405,8 +405,7 @@ class ElasticsearchTypeUtils
                     }
                     catch (DateTimeParseException error) {
                         LocalDateTime localDateTime = LocalDateTime.parse((String) fieldValue,
-                                DateTimeFormatter.ISO_LOCAL_DATE_TIME
-                                        .withResolverStyle(ResolverStyle.SMART));
+                                DateTimeFormatter.ISO_LOCAL_DATE_TIME.withResolverStyle(ResolverStyle.SMART));
                         epochSeconds = localDateTime.toEpochSecond(ZoneOffset.UTC);
                         nanoSeconds = localDateTime.getNano();
                     }

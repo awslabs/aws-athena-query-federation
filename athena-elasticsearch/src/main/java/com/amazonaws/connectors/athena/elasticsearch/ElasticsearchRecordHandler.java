@@ -102,13 +102,14 @@ public class ElasticsearchRecordHandler
      * 3. The filtering predicate (if any)
      * 4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws IOException
+     * @throws RuntimeException when an error occurs while attempting to send the DB query.
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker)
+            throws RuntimeException
     {
         logger.info("readWithConstraint - enter - Domain: {}, Index: {}, Mapping: {}",
                 recordsRequest.getTableName().getSchemaName(), recordsRequest.getTableName().getTableName(),
@@ -152,7 +153,7 @@ public class ElasticsearchRecordHandler
                 } while (hitsNum == QUERY_BATCH_SIZE && queryStatusChecker.isQueryRunning());
             }
             catch (IOException error) {
-                logger.error("Error sending query:", error);
+                throw new RuntimeException("Error sending query: " + error.getMessage());
             }
             finally {
                 client.shutdown();

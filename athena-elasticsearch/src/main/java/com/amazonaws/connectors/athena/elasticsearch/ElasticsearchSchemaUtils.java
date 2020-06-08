@@ -62,7 +62,6 @@ class ElasticsearchSchemaUtils
         // so long as they are of the same type. For this reasons, users will have to add a _meta property
         // to the indices they intend on using with Athena. This property is used in the building of the
         // Schema to indicate which fields should be considered a LIST.
-        meta.clear();
         if (mappings.containsKey("_meta")) {
             meta.putAll((LinkedHashMap) mappings.get("_meta"));
         }
