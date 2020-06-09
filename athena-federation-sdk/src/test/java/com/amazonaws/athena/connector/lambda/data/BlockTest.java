@@ -24,14 +24,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.BasicSessionCredentials;
-import com.amazonaws.internal.StaticCredentialsProvider;
-import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
-import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.arrow.vector.BigIntVector;
@@ -53,7 +45,6 @@ import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
-import org.apache.arrow.vector.complex.reader.BaseReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.reader.Float8Reader;
 import org.apache.arrow.vector.complex.reader.IntReader;
@@ -65,15 +56,12 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.Text;
 import org.apache.commons.codec.Charsets;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.activation.UnsupportedDataTypeException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -85,9 +73,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -305,7 +290,7 @@ public class BlockTest
                     //no supported for unsetRow(...) this is a TODO to see if its possible some other way
                     break;
                 default:
-                    throw new UnsupportedDataTypeException(next.getType().getTypeID() + " is not supported");
+                    throw new UnsupportedOperationException(next.getType().getTypeID() + " is not supported");
             }
             actualFieldCount++;
         }
@@ -375,7 +360,7 @@ public class BlockTest
     }
 
     public static Block generateTestBlock(BlockAllocatorImpl expectedAllocator, Schema origSchema, int expectedRows)
-            throws UnsupportedDataTypeException
+            throws UnsupportedOperationException
     {
         /**
          * Generate and write the block
@@ -637,7 +622,7 @@ public class BlockTest
                     }
                     break;
                 default:
-                    throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                    throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
             }
             fieldCount++;
         }
@@ -685,13 +670,13 @@ public class BlockTest
                                 value.add(values);
                                 break;
                             default:
-                                throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                                throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
                         }
                         BlockUtils.setComplexValue((ListVector) vector, i, FieldResolver.DEFAULT, value);
                     }
                     break;
                 default:
-                    throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                    throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
             }
         }
         expectedBlock.setRowCount(expectedRows);
@@ -748,7 +733,7 @@ public class BlockTest
                     assertEquals("failed for " + vector.getField().getName(), actualBlock.getRowCount(), actual);
                     break;
                 default:
-                    throw new UnsupportedDataTypeException(next.getType().getTypeID() + " is not supported");
+                    throw new UnsupportedOperationException(next.getType().getTypeID() + " is not supported");
             }
             actualFieldCount++;
         }
@@ -798,13 +783,13 @@ public class BlockTest
                                 value.add(values);
                                 break;
                             default:
-                                throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                                throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
                         }
                         BlockUtils.setComplexValue((ListVector) vector, i, FieldResolver.DEFAULT, value);
                     }
                     break;
                 default:
-                    throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                    throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
             }
         }
         expectedBlock.setRowCount(expectedRows);
@@ -858,7 +843,7 @@ public class BlockTest
                     assertEquals("failed for " + vector.getField().getName(), actualBlock.getRowCount(), actual);
                     break;
                 default:
-                    throw new UnsupportedDataTypeException(next.getType().getTypeID() + " is not supported");
+                    throw new UnsupportedOperationException(next.getType().getTypeID() + " is not supported");
             }
             actualFieldCount++;
         }
@@ -908,7 +893,7 @@ public class BlockTest
                         BlockUtils.setComplexValue((StructVector) vector, i, FieldResolver.DEFAULT, value);
                         break;
                     default:
-                        throw new UnsupportedDataTypeException(vector.getMinorType() + " is not supported");
+                        throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
                 }
             }
         }
@@ -965,7 +950,7 @@ public class BlockTest
                         }
                         break;
                     default:
-                        throw new UnsupportedDataTypeException(next.getType().getTypeID() + " is not supported");
+                        throw new UnsupportedOperationException(next.getType().getTypeID() + " is not supported");
                 }
             }
         }
@@ -983,7 +968,7 @@ public class BlockTest
      * layer is currently being refactored and eventually this assertion will not be needed.
      *
      * @param serializedBlock The bytes of the block to serialize.
-     * @see https://github.com/awslabs/aws-athena-query-federation/issues/121
+     * @note https://github.com/awslabs/aws-athena-query-federation/issues/121
      */
     private void assertSerializationOverhead(ByteArrayOutputStream serializedBlock)
     {
