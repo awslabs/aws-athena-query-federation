@@ -33,7 +33,6 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,11 +51,12 @@ public class ElasticsearchFieldResolver
      * Return the field value from a complex structure or list.
      * @param field is the field that we would like to extract from the provided value.
      * @param originalValue is the original value object.
-     * @return the field's value as an ArrayList for a LIST field type, a HashMap for a STRUCT field type, or the actual
+     * @return the field's value as a List for a LIST field type, a Map for a STRUCT field type, or the actual
      * value if neither of the above.
+     * @throws IllegalArgumentException if originalValue is not an instance of Map.
      * @throws RuntimeException if the fieldName does not exist in originalValue, if the fieldType is a STRUCT and
-     * the fieldValue is not instance of HashMap, or if the fieldType is neither a LIST or a STRUCT but the fieldValue
-     * is instance of HashMap (STRUCT).
+     * the fieldValue is not instance of Map, or if the fieldType is neither a LIST or a STRUCT but the fieldValue
+     * is instance of Map (STRUCT).
      */
     @Override
     public Object getFieldValue(Field field, Object originalValue)
@@ -66,31 +66,37 @@ public class ElasticsearchFieldResolver
         String fieldName = field.getName();
         Object fieldValue;
 
-        if (originalValue instanceof HashMap && ((Map) originalValue).containsKey(fieldName)) {
-            fieldValue = ((Map) originalValue).get(fieldName);
+        if (originalValue instanceof Map) {
+            if (((Map) originalValue).containsKey(fieldName)) {
+                fieldValue = ((Map) originalValue).get(fieldName);
+            }
+            else {
+                throw new RuntimeException("Field not found in Document: " + fieldName);
+            }
         }
         else {
-            throw new RuntimeException("Field not found in Document: " + fieldName);
+            throw new IllegalArgumentException("Invalid argument type. Expecting a Map, but got: " +
+                    originalValue.getClass().getTypeName());
         }
 
         switch (fieldType) {
             case LIST:
                 return coerceListField(field, fieldValue);
             case STRUCT:
-                if (fieldValue instanceof HashMap) {
+                if (fieldValue instanceof Map) {
                     // Both fieldType and fieldValue are nested structures => return as map.
                     return fieldValue;
                 }
                 break;
             default:
-                if (!(fieldValue instanceof HashMap)) {
+                if (!(fieldValue instanceof Map)) {
                     return coerceField(field, fieldValue);
                 }
                 break;
         }
 
-        throw new RuntimeException("Invalid field value encountered in Document for field: " + field.toString() +
-                ",value: " + fieldValue.toString());
+        throw new RuntimeException("Invalid field value encountered in Document for field: " + field +
+                ",value: " + fieldValue);
     }
 
     /**
@@ -99,7 +105,7 @@ public class ElasticsearchFieldResolver
      * @param field is the field that we are coercing the value into.
      * @param fieldValue is the list of value to coerce
      * @return the coerced list of value.
-     * @throws RuntimeException if the fieldType is not a LIST or the fieldValue is instanceof HashMap (STRUCT).
+     * @throws RuntimeException if the fieldType is not a LIST or the fieldValue is instanceof Map (STRUCT).
      */
     protected Object coerceListField(Field field, Object fieldValue)
             throws RuntimeException
@@ -109,15 +115,15 @@ public class ElasticsearchFieldResolver
         switch (fieldType) {
             case LIST:
                 Field childField = field.getChildren().get(0);
-                if (fieldValue instanceof ArrayList) {
+                if (fieldValue instanceof List) {
                     // Both fieldType and fieldValue are lists => Return as a new list of values, applying coercion
                     // where necessary in order to match the type of the field being mapped into.
                     List<Object> coercedValues = new ArrayList<>();
-                    ((ArrayList) fieldValue).forEach(value ->
+                    ((List) fieldValue).forEach(value ->
                             coercedValues.add(coerceField(childField, value)));
                     return coercedValues;
                 }
-                else if (!(fieldValue instanceof HashMap)) {
+                else if (!(fieldValue instanceof Map)) {
                     // This is an abnormal case where the fieldType was defined as a list in the schema,
                     // however, the fieldValue returns as a single value => Return as a list of a single value
                     // applying coercion where necessary in order to match the type of the field being mapped into.
@@ -143,11 +149,11 @@ public class ElasticsearchFieldResolver
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
 
-        if (fieldType != Types.MinorType.LIST && fieldValue instanceof ArrayList) {
+        if (fieldType != Types.MinorType.LIST && fieldValue instanceof List) {
             // This is an abnormal case where the field was not defined as a list in the schema,
             // however, fieldValue returns a list => return first item in list only applying coercion
             // where necessary in order to match the type of the field being mapped into.
-            return coerceField(field, ((ArrayList) fieldValue).get(0));
+            return coerceField(field, ((List) fieldValue).get(0));
         }
 
         switch (fieldType) {

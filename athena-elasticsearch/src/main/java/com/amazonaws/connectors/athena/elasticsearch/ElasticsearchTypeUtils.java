@@ -55,7 +55,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -107,7 +107,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create a VARCHAR field extractor to extract a string value from a Document. The Document value can be returned
-     * as a String or an ArrayList. For the latter, extract the first element only.
+     * as a String or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -120,8 +120,8 @@ class ElasticsearchTypeUtils
             if (fieldValue instanceof String) {
                 dst.value = (String) fieldValue;
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof String) {
                     dst.value = (String) value;
                 }
@@ -137,7 +137,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create a BIGINT field extractor to extract a long value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only. Special logic
+     * as a numeric value, a String, or a List. For the latter, extract the first element only. Special logic
      * is employed to parse out a scaled_float which is a float represented as a long (scaled by a double value).
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
@@ -157,8 +157,8 @@ class ElasticsearchTypeUtils
                 else if (fieldValue instanceof String) {
                     dst.value = Math.round(new Double((String) fieldValue) * scalingFactor);
                 }
-                else if (fieldValue instanceof ArrayList) {
-                    Object value = ((ArrayList) fieldValue).get(0);
+                else if (fieldValue instanceof List) {
+                    Object value = ((List) fieldValue).get(0);
                     if (value instanceof Number) {
                         dst.value =  Math.round(((Number) value).doubleValue() * scalingFactor);
                     }
@@ -176,8 +176,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof String) {
                 dst.value = new Double((String) fieldValue).longValue();
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Number) {
                     dst.value = ((Number) value).longValue();
                 }
@@ -196,7 +196,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an INT field extractor to extract an integer value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a numeric value, a String, or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -212,8 +212,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof String) {
                 dst.value = new Double((String) fieldValue).intValue();
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Number) {
                     dst.value = ((Number) value).intValue();
                 }
@@ -232,7 +232,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an SMALLINT field extractor to extract a short value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a numeric value, a String, or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -248,8 +248,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof String) {
                 dst.value = new Double((String) fieldValue).shortValue();
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Number) {
                     dst.value = ((Number) value).shortValue();
                 }
@@ -268,7 +268,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an TINYINT field extractor to extract a byte value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a numeric value, a String, or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -284,8 +284,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof String) {
                 dst.value = new Double((String) fieldValue).byteValue();
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Number) {
                     dst.value = ((Number) value).byteValue();
                 }
@@ -304,7 +304,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an FLOAT8 field extractor to extract a double value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a numeric value, a String, or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -320,8 +320,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof String) {
                 dst.value = new Double((String) fieldValue);
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Number) {
                     dst.value = ((Number) value).doubleValue();
                 }
@@ -340,7 +340,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an FLOAT4 field extractor to extract a float value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a numeric value, a String, or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -356,8 +356,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof String) {
                 dst.value = new Float((String) fieldValue);
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Number) {
                     dst.value = ((Number) value).floatValue();
                 }
@@ -376,7 +376,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an DATEMILLI field extractor to extract a date value from a Document. The Document value can be returned
-     * as a numeric value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a numeric value, a String, or a List. For the latter, extract the first element only.
      * For dates extracted as a string, the ISO_ZONED_DATE_TIME format will be attempted first, followed by the
      * ISO_LOCAL_DATE_TIME format if the previous one fails. Examples of formats that will work:
      * 1) "2020-05-18T10:15:30.123456789"
@@ -419,8 +419,8 @@ class ElasticsearchTypeUtils
             else if (fieldValue instanceof Number) {
                 dst.value = ((Number) fieldValue).longValue();
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof String) {
                     try {
                         long epochSeconds;
@@ -461,7 +461,7 @@ class ElasticsearchTypeUtils
 
     /**
      * Create an BIT field extractor to extract a boolean value from a Document. The Document value can be returned
-     * as a boolean value, a String, or an ArrayList. For the latter, extract the first element only.
+     * as a boolean value, a String, or a List. For the latter, extract the first element only.
      * @param field is used to determine which extractor to generate based on the field type.
      * @return a field extractor.
      */
@@ -479,8 +479,8 @@ class ElasticsearchTypeUtils
                 boolean booleanValue = new Boolean((String) fieldValue);
                 dst.value = booleanValue ? 1 : 0;
             }
-            else if (fieldValue instanceof ArrayList) {
-                Object value = ((ArrayList) fieldValue).get(0);
+            else if (fieldValue instanceof List) {
+                Object value = ((List) fieldValue).get(0);
                 if (value instanceof Boolean) {
                     boolean booleanValue = (Boolean) value;
                     dst.value = booleanValue ? 1 : 0;
