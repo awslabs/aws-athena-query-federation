@@ -66,8 +66,6 @@ public class AwsRestHighLevelClientFactory
      */
     public AwsRestHighLevelClient getClient(String endpoint)
     {
-        logger.info("getClient - enter");
-
         if (useAwsCredentials) {
             return new AwsRestHighLevelClient.Builder(endpoint)
                     .withCredentials(new DefaultAWSCredentialsProviderChain()).build();
@@ -85,7 +83,7 @@ public class AwsRestHighLevelClientFactory
             }
         }
 
-        logger.info("Default client w/o credentials");
+        logger.debug("Default client w/o credentials");
 
         // Default client w/o credentials.
         return new AwsRestHighLevelClient.Builder(endpoint).build();

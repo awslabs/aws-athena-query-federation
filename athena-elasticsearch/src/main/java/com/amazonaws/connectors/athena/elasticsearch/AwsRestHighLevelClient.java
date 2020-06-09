@@ -73,8 +73,6 @@ public class AwsRestHighLevelClient
     public Set<String> getAliases()
             throws IOException
     {
-        logger.info("getAliases - enter");
-
         GetAliasesRequest getAliasesRequest = new GetAliasesRequest();
         GetAliasesResponse getAliasesResponse = indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
         return getAliasesResponse.getAliases().keySet();
@@ -89,8 +87,6 @@ public class AwsRestHighLevelClient
     public LinkedHashMap<String, Object> getMapping(String index)
             throws IOException
     {
-        logger.info("getMapping - enter");
-
         GetMappingsRequest mappingsRequest = new GetMappingsRequest();
         mappingsRequest.indices(index);
         GetMappingsResponse mappingsResponse = indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
@@ -113,7 +109,7 @@ public class AwsRestHighLevelClient
 
     /**
      * Gets the Document from the search hit.
-     * @param searchHit is the serach hit containing the document source.
+     * @param searchHit is the search hit containing the document source.
      * @return the Document as a Map object.
      */
     public Map<String, Object> getDocument(SearchHit searchHit)
@@ -126,8 +122,6 @@ public class AwsRestHighLevelClient
      */
     public void shutdown()
     {
-        logger.info("shutdown - enter");
-
         try {
             close();
         }
@@ -165,8 +159,6 @@ public class AwsRestHighLevelClient
          */
         public Builder withCredentials(AWSCredentialsProvider credentialsProvider)
         {
-            logger.info("withCredentials(AWS) - enter");
-
             /**
              * endpoint:
              * https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
@@ -202,8 +194,6 @@ public class AwsRestHighLevelClient
          */
         public Builder withCredentials(String username, String password)
         {
-            logger.info("withCredentials(username/password) - enter");
-
             final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
             credentialsProvider.setCredentials(AuthScope.ANY,
                     new UsernamePasswordCredentials(username, password));

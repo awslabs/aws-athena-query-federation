@@ -62,7 +62,7 @@ class ElasticsearchQueryUtils
         }
         else {
             // (NOT _exists_:field)
-            return "(NOT _exists_:" + fieldName + ")";
+            return "(" + NOT_OPER + "_exists_:" + fieldName + ")";
         }
     }
 

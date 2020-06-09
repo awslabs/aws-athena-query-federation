@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Used to resolve Elasticsearch complex structures to Apache Arrow Types.
@@ -65,8 +66,8 @@ public class ElasticsearchFieldResolver
         String fieldName = field.getName();
         Object fieldValue;
 
-        if (((HashMap<String, Object>) originalValue).containsKey(fieldName)) {
-            fieldValue = ((HashMap<String, Object>) originalValue).get(fieldName);
+        if (originalValue instanceof HashMap && ((Map) originalValue).containsKey(fieldName)) {
+            fieldValue = ((Map) originalValue).get(fieldName);
         }
         else {
             throw new RuntimeException("Field not found in Document: " + fieldName);

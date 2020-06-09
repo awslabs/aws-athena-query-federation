@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -142,7 +141,7 @@ public class ElasticsearchMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
-        logger.info("doListSchemaNames: enter - " + request);
+        logger.debug("doListSchemaNames: enter - " + request);
 
         return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
     }
@@ -160,7 +159,7 @@ public class ElasticsearchMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
             throws RuntimeException
     {
-        logger.info("doListTables: enter - " + request);
+        logger.debug("doListTables: enter - " + request);
 
         List<TableName> indices = new ArrayList<>();
 
@@ -178,14 +177,14 @@ public class ElasticsearchMetadataHandler
                 }
             }
             catch (IOException error) {
-                throw new RuntimeException("Error retrieving indices: " + error.getMessage());
+                throw new RuntimeException("Error retrieving indices: " + error.getMessage(), error);
             }
             finally {
                 client.shutdown();
             }
         }
         catch (RuntimeException error) {
-            throw new RuntimeException("Error processing request to list indices: " + error.getMessage());
+            throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
         }
 
         return new ListTablesResponse(request.getCatalogName(), indices);
@@ -207,7 +206,7 @@ public class ElasticsearchMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
             throws RuntimeException
     {
-        logger.info("doGetTable: enter - " + request);
+        logger.debug("doGetTable: enter - " + request);
 
         Schema schema = null;
 
@@ -232,12 +231,12 @@ public class ElasticsearchMetadataHandler
                 String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
                 AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
                 try {
-                    LinkedHashMap<String, Object> mappings = client.getMapping(index);
+                    Map<String, Object> mappings = client.getMapping(index);
                     schema = ElasticsearchSchemaUtils.parseMapping(mappings);
                 }
                 catch (IOException error) {
                     throw new RuntimeException("Error retrieving mapping information for index (" +
-                            index + "): " + error.getMessage());
+                            index + "): " + error.getMessage(), error);
                 }
                 finally {
                     client.shutdown();
@@ -245,7 +244,7 @@ public class ElasticsearchMetadataHandler
             }
             catch (RuntimeException error) {
                 throw new RuntimeException("Error processing request to map index (" +
-                        index + "): " + error.getMessage());
+                        index + "): " + error.getMessage(), error);
             }
         }
 
@@ -283,7 +282,7 @@ public class ElasticsearchMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
             throws RuntimeException
     {
-        logger.info("doGetSplits: enter - " + request);
+        logger.debug("doGetSplits: enter - " + request);
 
         String domain = request.getTableName().getSchemaName();
 
@@ -299,7 +298,7 @@ public class ElasticsearchMetadataHandler
             splitBuilder.add(domain, endpoint);
         }
         catch (RuntimeException error) {
-            throw new RuntimeException("Error trying to generate splits: " + error.getMessage());
+            throw new RuntimeException("Error trying to generate splits: " + error.getMessage(), error);
         }
 
         return new GetSplitsResponse(request.getCatalogName(), splitBuilder.build());
@@ -337,7 +336,7 @@ public class ElasticsearchMetadataHandler
     @Override
     protected Field convertField(String fieldName, String glueType)
     {
-        logger.info("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
+        logger.debug("convertField - fieldName: {}, glueType: {}", fieldName, glueType);
 
         return GlueFieldLexer.lex(fieldName, glueType, glueTypeMapper);
     }

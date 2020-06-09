@@ -49,7 +49,9 @@ class ElasticsearchDomainMapProvider
     private final boolean autoDiscoverEndpoint;
 
     // Splitter for inline map properties extracted from the domain_mapping environment variable.
-    private final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
+    private static final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
+
+    private static final String endpointPrefix = "https://";
 
     protected ElasticsearchDomainMapProvider(boolean autoDiscoverEndpoint)
     {
@@ -68,7 +70,7 @@ class ElasticsearchDomainMapProvider
         Map<String, String> domainMap = new HashMap<>();
 
         for (ElasticsearchDomainStatus domainStatus : domainStatusList) {
-            domainMap.put(domainStatus.getDomainName(), "https://" + domainStatus.getEndpoint());
+            domainMap.put(domainStatus.getDomainName(), endpointPrefix + domainStatus.getEndpoint());
         }
 
         if (domainMap.isEmpty()) {
@@ -110,7 +112,7 @@ class ElasticsearchDomainMapProvider
                 return getDomainMap(describeDomainsResult.getDomainStatusList());
             }
             catch (Exception error) {
-                throw new RuntimeException("Unable to create domain map: " + error.getMessage());
+                throw new RuntimeException("Unable to create domain map: " + error.getMessage(), error);
             }
             finally {
                 awsEsClient.shutdown();
@@ -119,7 +121,7 @@ class ElasticsearchDomainMapProvider
         else {
             // Get domain mapping from the domainMapping variable.
             if (domainMapping == null || domainMapping.isEmpty()) {
-                throw new RuntimeException("Unable to create domain map: Empty or null value found.");
+                throw new RuntimeException("Unable to create domain map: Empty or null value found in DomainMapping.");
             }
             Map<String, String> domainMap;
             try {
@@ -127,12 +129,12 @@ class ElasticsearchDomainMapProvider
             }
             catch (Exception error) {
                 // Intentional obfuscation of error message as it may contain sensitive info (e.g. username/password).
-                throw new RuntimeException("Unable to create domain map: Parsing error.");
+                throw new RuntimeException("Unable to create domain map: DomainMapping Parsing error.");
             }
 
             if (domainMap.isEmpty()) {
                 // Intentional obfuscation of error message: domainMapping contains sensitive info (e.g. username/password).
-                throw new RuntimeException("Unable to create domain map: Invalid Domain Mapping value.");
+                throw new RuntimeException("Unable to create domain map: Invalid DomainMapping value.");
             }
 
             return domainMap;

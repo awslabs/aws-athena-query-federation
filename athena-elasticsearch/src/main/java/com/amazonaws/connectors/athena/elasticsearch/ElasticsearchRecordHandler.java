@@ -76,9 +76,8 @@ public class ElasticsearchRecordHandler
                 AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE);
 
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.clientFactory = new AwsRestHighLevelClientFactory(System
-                .getenv(AUTO_DISCOVER_ENDPOINT) != null && System
-                .getenv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true"));
+        this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
+                .equalsIgnoreCase("true"));
     }
 
     @VisibleForTesting
@@ -89,6 +88,18 @@ public class ElasticsearchRecordHandler
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
+    }
+
+    /**
+     * Get an environment variable using System.getenv().
+     * @param var is the environment variable.
+     * @return the contents of the environment variable or an empty String if it's not defined.
+     */
+    protected final String getEnv(String var)
+    {
+        String result = System.getenv(var);
+
+        return result == null ? "" : result;
     }
 
     /**
@@ -153,7 +164,7 @@ public class ElasticsearchRecordHandler
                 } while (hitsNum == QUERY_BATCH_SIZE && queryStatusChecker.isQueryRunning());
             }
             catch (IOException error) {
-                throw new RuntimeException("Error sending query: " + error.getMessage());
+                throw new RuntimeException("Error sending query: " + error.getMessage(), error);
             }
             finally {
                 client.shutdown();

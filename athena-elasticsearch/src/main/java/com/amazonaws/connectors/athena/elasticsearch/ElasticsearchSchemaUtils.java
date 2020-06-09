@@ -20,6 +20,7 @@
 package com.amazonaws.connectors.athena.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -50,12 +51,10 @@ class ElasticsearchSchemaUtils
      *                 property used to define list fields.
      * @return a Schema derived from the mapping.
      */
-    protected static Schema parseMapping(LinkedHashMap<String, Object> mappings)
+    protected static Schema parseMapping(Map<String, Object> mappings)
     {
-        logger.info("parseMapping - enter");
-
         // Used to store the _meta structure (the mapping containing the fields that should be considered a list).
-        LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
+        Map<String, Object> meta = new HashMap<>();
         SchemaBuilder builder = SchemaBuilder.newBuilder();
 
         // Elasticsearch does not have a dedicated array type. All fields can contain zero or more elements
@@ -63,14 +62,16 @@ class ElasticsearchSchemaUtils
         // to the indices they intend on using with Athena. This property is used in the building of the
         // Schema to indicate which fields should be considered a LIST.
         if (mappings.containsKey("_meta")) {
-            meta.putAll((LinkedHashMap) mappings.get("_meta"));
+            meta.putAll((Map) mappings.get("_meta"));
         }
 
         if (mappings.containsKey("properties")) {
-            LinkedHashMap<String, Object> fields = (LinkedHashMap) mappings.get("properties");
+            Map<String, Object> fields = (Map) mappings.get("properties");
 
-            for (String fieldName : fields.keySet()) {
-                builder.addField(inferField(fieldName, fieldName, (LinkedHashMap) fields.get(fieldName), meta));
+            for (Map.Entry<String, Object> entry : fields.entrySet()) {
+                String fieldName = entry.getKey();
+                Map<String, Object> value = (Map) entry.getValue();
+                builder.addField(inferField(fieldName, fieldName, value, meta));
             }
         }
 
@@ -86,18 +87,19 @@ class ElasticsearchSchemaUtils
      * @return a Field object injected with the field's info.
      */
     private static Field inferField(String fieldName, String qualifiedName,
-                             LinkedHashMap<String, Object> mapping, LinkedHashMap<String, Object> meta)
+                                    Map<String, Object> mapping, Map<String, Object> meta)
     {
         Field field;
 
         if (mapping.containsKey("properties")) {
             // Process STRUCT.
-            LinkedHashMap<String, Object> childFields = (LinkedHashMap) mapping.get("properties");
+            Map<String, Object> childFields = (Map) mapping.get("properties");
             List<Field> children = new ArrayList<>();
 
-            for (String childField : childFields.keySet()) {
-                children.add(inferField(childField, qualifiedName + "." + childField,
-                        (LinkedHashMap) childFields.get(childField), meta));
+            for (Map.Entry<String, Object> entry : childFields.entrySet()) {
+                String childField = entry.getKey();
+                Map<String, Object> value = (Map) entry.getValue();
+                children.add(inferField(childField, qualifiedName + "." + childField, value, meta));
             }
 
             field = new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
@@ -120,9 +122,9 @@ class ElasticsearchSchemaUtils
      * @param mapping is the map containing the Elasticsearch datatype.
      * @return a new FieldType corresponding to the Elasticsearch type.
      */
-    private static FieldType toFieldType(LinkedHashMap<String, Object> mapping)
+    private static FieldType toFieldType(Map<String, Object> mapping)
     {
-        logger.info("toFieldType - enter: " + mapping);
+        logger.debug("toFieldType - enter: " + mapping);
 
         String elasticType = (String) mapping.get("type");
         Types.MinorType minorType;
@@ -170,7 +172,7 @@ class ElasticsearchSchemaUtils
                 break;
         }
 
-        logger.info("Arrow Type: {}, metadata: {}", minorType.toString(), metadata);
+        logger.debug("Arrow Type: {}, metadata: {}", minorType.toString(), metadata);
 
         return new FieldType(true, minorType.getType(), null, metadata);
     }
@@ -190,6 +192,7 @@ class ElasticsearchSchemaUtils
      * @param mapping2 is a mapping to be compared.
      * @return true if the lists are equal, false otherwise.
      */
+    @VisibleForTesting
     protected static final boolean mappingsEqual(Schema mapping1, Schema mapping2)
     {
         logger.info("mappingsEqual - Enter - Mapping1: {}, Mapping2: {}", mapping1, mapping2);
@@ -229,11 +232,11 @@ class ElasticsearchSchemaUtils
      * two different Schema objects) are the same irrespective of ordering within the lists using the following
      * criteria:
      *    1) The lists of Field objects must be the same size.
-     *    1) The corresponding fields' names must match.
-     *    b) The corresponding fields' Arrow types must match.
-     *    c) The corresponding fields' children lists (used for complex fields, e.g. LIST and STRUCT) must match
+     *    2) The corresponding fields' names must match.
+     *    3) The corresponding fields' Arrow types must match.
+     *    4) The corresponding fields' children lists (used for complex fields, e.g. LIST and STRUCT) must match
      *       irrespective of field ordering within the lists.
-     *    d) The corresponding fields' metadata maps must match. Currently that's only applicable for scaled_float
+     *    5) The corresponding fields' metadata maps must match. Currently that's only applicable for scaled_float
      *       data types that use the field's metadata map to store the scaling factor associated with the data type.
      * @param list1 is a list of children fields to be compared.
      * @param list2 is a list of children fields to be compared.
