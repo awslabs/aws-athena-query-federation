@@ -49,6 +49,7 @@
         <module>athena-hbase</module>
         <module>athena-cloudwatch-metrics</module>
         <module>athena-example</module>
+        <module>athena-elasticsearch</module>
         <module>athena-federation-sdk</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>

@@ -47,12 +47,21 @@ public class GlueFieldLexer
     {
         //Return Null if the supplied value is not a base type
         ArrowType getType(String type);
+
+        default Field getField(String name, String type)
+        {
+            if (getType(type) != null) {
+                return FieldBuilder.newBuilder(name, getType(type)).build();
+            }
+            return null;
+        }
     }
 
     public static Field lex(String name, String input)
     {
-        if (DEFAULT_TYPE_MAPPER.getType(input) != null) {
-            return FieldBuilder.newBuilder(name, DEFAULT_TYPE_MAPPER.getType(input)).build();
+        ArrowType typeResult = DEFAULT_TYPE_MAPPER.getType(input);
+        if (typeResult != null) {
+            return FieldBuilder.newBuilder(name, typeResult).build();
         }
 
         GlueTypeParser parser = new GlueTypeParser(input);
@@ -61,8 +70,9 @@ public class GlueFieldLexer
 
     public static Field lex(String name, String input, BaseTypeMapper mapper)
     {
-        if (mapper.getType(input) != null) {
-            return FieldBuilder.newBuilder(name, mapper.getType(input)).build();
+        Field result = mapper.getField(name, input);
+        if (result != null) {
+            return result;
         }
 
         GlueTypeParser parser = new GlueTypeParser(input);
@@ -85,8 +95,7 @@ public class GlueFieldLexer
         else if (startToken.getValue().toLowerCase().equals(LIST)) {
             GlueTypeParser.Token arrayType = parser.next();
             return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType())
-                    .addField(FieldBuilder.newBuilder(name, mapper.getType(arrayType.getValue())).build())
-                    .build();
+                    .addField(mapper.getField(name, arrayType.getValue())).build();
         }
         else {
             throw new RuntimeException("Unexpected start type " + startToken.getValue());
@@ -122,7 +131,7 @@ public class GlueFieldLexer
                 typeToken.getMarker().equals(GlueTypeParser.FIELD_END)
         ) {
             logger.debug("lex: exit - {}", nameToken.getValue());
-            return FieldBuilder.newBuilder(name, mapper.getType(typeToken.getValue())).build();
+            return mapper.getField(name, typeToken.getValue());
         }
         throw new RuntimeException("Unexpected Token " + typeToken.getValue() + "[" + typeToken.getMarker() + "]"
                 + " @ " + typeToken.getPos() + " while processing " + name);
