@@ -4,7 +4,7 @@ Metadata:
   AWS::ServerlessRepo::Application:
     Name: AthenaElasticsearchConnector
     Description: 'This connector enables Amazon Athena to communicate with your Elasticsearch instance(s).'
-    Author: 'Amazon Athena Federation'
+    Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
