@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: ElasticsearchAthenaConnector
+    Name: AthenaElasticsearchConnector
     Description: 'This connector enables Amazon Athena to communicate with your Elasticsearch instance(s).'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
