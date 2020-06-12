@@ -118,19 +118,6 @@ public class AwsRestHighLevelClient
     }
 
     /**
-     * Shuts down the client.
-     */
-    public void shutdown()
-    {
-        try {
-            close();
-        }
-        catch (IOException error) {
-            logger.error("Unable to shutdown client:", error);
-        }
-    }
-
-    /**
      * A builder for the AwsRestHighLevelClient class.
      */
     public static class Builder

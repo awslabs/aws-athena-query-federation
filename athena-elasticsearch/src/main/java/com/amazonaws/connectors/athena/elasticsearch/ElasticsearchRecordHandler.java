@@ -166,9 +166,6 @@ public class ElasticsearchRecordHandler
             catch (IOException error) {
                 throw new RuntimeException("Error sending query: " + error.getMessage(), error);
             }
-            finally {
-                client.shutdown();
-            }
         }
 
         logger.info("readWithConstraint: numRows[{}]", numRows);

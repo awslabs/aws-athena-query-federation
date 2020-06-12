@@ -179,9 +179,6 @@ public class ElasticsearchMetadataHandler
             catch (IOException error) {
                 throw new RuntimeException("Error retrieving indices: " + error.getMessage(), error);
             }
-            finally {
-                client.shutdown();
-            }
         }
         catch (RuntimeException error) {
             throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
@@ -237,9 +234,6 @@ public class ElasticsearchMetadataHandler
                 catch (IOException error) {
                     throw new RuntimeException("Error retrieving mapping information for index (" +
                             index + "): " + error.getMessage(), error);
-                }
-                finally {
-                    client.shutdown();
                 }
             }
             catch (RuntimeException error) {
