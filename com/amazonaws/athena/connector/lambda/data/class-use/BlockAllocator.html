@@ -155,22 +155,26 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc">com.amazonaws.connectors.athena.jdbc</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.manager">com.amazonaws.connectors.athena.jdbc.manager</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.mysql">com.amazonaws.connectors.athena.jdbc.mysql</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.postgresql">com.amazonaws.connectors.athena.jdbc.postgresql</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -1193,6 +1197,48 @@
 <td class="colLast"><span class="typeNameLabel">TPCDSMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/tpcds/TPCDSMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code>
 <div class="block">Used to get the list of static tables from TerraData's TPCDS generator.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.connectors.athena.elasticsearch">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
+<div class="block">Used to split-up the reads required to scan the requested index/indices.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doListSchemaNames-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest-">doListSchemaNames</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                 <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code>
+<div class="block">Used to get the list of domains (aka databases) for the Elasticsearch service.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code>
+<div class="block">Used to get the list of indices contained in the specified domain.</div>
 </td>
 </tr>
 </tbody>

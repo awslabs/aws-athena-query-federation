@@ -39,6 +39,7 @@ com.amazonaws.athena.connectors.hbase.connection
 com.amazonaws.athena.connectors.redis
 com.amazonaws.athena.connectors.tpcds
 com.amazonaws.athena.connectors.udfs
+com.amazonaws.connectors.athena.elasticsearch
 com.amazonaws.connectors.athena.example
 com.amazonaws.connectors.athena.jdbc
 com.amazonaws.connectors.athena.jdbc.connection

@@ -16,6 +16,7 @@ com.amazonaws.athena.connectors.hbase.connection
 com.amazonaws.athena.connectors.cloudwatch.metrics
 com.amazonaws.athena.connectors.cloudwatch.metrics.tables
 com.amazonaws.connectors.athena.example
+com.amazonaws.connectors.athena.elasticsearch
 com.amazonaws.athena.connector.lambda
 com.amazonaws.athena.connector.lambda.data
 com.amazonaws.athena.connector.lambda.data.projectors
