@@ -67,6 +67,12 @@ public class ElasticsearchRecordHandler
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
 
+    /**
+     * Key used to retrieve shard information from the Split's properties map sent as a request preference to retrieve
+     * a specific shard (e.g. "_shards:5" - retrieve shard number 5).
+     */
+    private static final String SHARD_KEY = "shard";
+
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
 
@@ -128,6 +134,7 @@ public class ElasticsearchRecordHandler
 
         String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
+        String shard = recordsRequest.getSplit().getProperty(SHARD_KEY);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
@@ -141,7 +148,8 @@ public class ElasticsearchRecordHandler
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
-                SearchRequest searchRequest = new SearchRequest(recordsRequest.getTableName().getTableName());
+                SearchRequest searchRequest = new SearchRequest(recordsRequest.getTableName().getTableName())
+                        .preference(shard);
                 int hitsNum;
                 int currPosition = 0;
                 do {

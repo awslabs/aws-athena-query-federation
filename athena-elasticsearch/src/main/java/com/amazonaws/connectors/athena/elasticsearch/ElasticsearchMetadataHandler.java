@@ -41,17 +41,21 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.elasticsearch.cluster.health.ClusterShardHealth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class is responsible for providing Athena with metadata about the domain (aka databases), indices, contained
@@ -82,6 +86,17 @@ public class ElasticsearchMetadataHandler
     private static final String DOMAIN_MAPPING = "domain_mapping";
     // A Map of the domain-names and their respective endpoints.
     private Map<String, String> domainMap;
+
+    /**
+     * Key used to store shard information in the Split's properties map (later used by the Record Handler).
+     */
+    private static final String SHARD_KEY = "shard";
+    /**
+     * Value used in combination with the shard ID to store shard information in the Split's properties map (later
+     * used by the Record Handler). The completed value is sent as a request preference to retrieve a specific shard
+     * from the Elasticsearch instance (e.g. "_shards:5" - retrieve shard number 5).
+     */
+    private static final String SHARD_VALUE = "_shards:";
 
     private final AWSGlue awsGlue;
     private final AwsRestHighLevelClientFactory clientFactory;
@@ -259,18 +274,16 @@ public class ElasticsearchMetadataHandler
     }
 
     /**
-     * Used to split-up the reads required to scan the requested index/indices. This initial implementation supports
-     * a single split solution.
+     * Used to split-up the reads required to scan the requested index by shard. Cluster-health information is
+     * retrieved for shards associated with the specified index. A split will then be generated for each shard that
+     * is primary and active.
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details of the catalog, database, table, andpartition(s) being queried as well as
-     * any filter predicate.
+     * @param request Provides details of the catalog, domain, and index being queried, as well as any filter predicate.
      * @return A GetSplitsResponse which primarily contains:
-     * 1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
+     * 1. A Set<Split> each containing a domain and endpoint, and the shard to be retrieved by the Record handler.
      * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
-     * @note A Split is a mostly opaque object to Amazon Athena. Amazon Athena will use the optional SpillLocation and
-     * optional EncryptionKey for pipelined reads but all properties you set on the Split are passed to your read
-     * function to help you perform the read.
-     * @throws RuntimeException when the domain does not exist in the map.
+     * @throws RuntimeException when the domain does not exist in the map, or an error occurs while processing the
+     * cluster/shard health information.
      */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
@@ -278,24 +291,42 @@ public class ElasticsearchMetadataHandler
     {
         logger.debug("doGetSplits: enter - " + request);
 
+        // Create set of splits
+        Set<Split> splits = new HashSet<>();
+        // Get domain
         String domain = request.getTableName().getSchemaName();
-
-        // Every split must have a unique location if we wish to spill to avoid failures
-        SpillLocation spillLocation = makeSpillLocation(request);
-
-        // Create split
-        Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey());
+        // Get index
+        String index = request.getTableName().getTableName();
 
         try {
             String endpoint = getDomainEndpoint(domain);
-            // Add domain and endpoint to the split to be used by the Record Handler.
-            splitBuilder.add(domain, endpoint);
+            AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
+            try {
+                Map<Integer, ClusterShardHealth> shardHealthInfo = client.getShardHealthInfo(index);
+                for (Map.Entry<Integer, ClusterShardHealth> entry : shardHealthInfo.entrySet()) {
+                    Integer shardId = entry.getKey();
+                    ClusterShardHealth shardHealth = entry.getValue();
+                    // Process only primary active shards.
+                    if (shardHealth.isPrimaryActive()) {
+                        // Every split must have a unique location if we wish to spill to avoid failures
+                        SpillLocation spillLocation = makeSpillLocation(request);
+                        // Create a new split (added to the splits set) that includes the domain and endpoint, and
+                        // shard information (to be used later by the Record Handler).
+                        splits.add(new Split(spillLocation, makeEncryptionKey(), ImmutableMap
+                                .of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())));
+                    }
+                }
+            }
+            catch (IOException error) {
+                throw new RuntimeException("Error retrieving shard-health information: " + error.getMessage(), error);
+            }
         }
         catch (RuntimeException error) {
-            throw new RuntimeException("Error trying to generate splits: " + error.getMessage(), error);
+            throw new RuntimeException("Error trying to generate splits for index (" +
+                    index + "): " + error.getMessage(), error);
         }
 
-        return new GetSplitsResponse(request.getCatalogName(), splitBuilder.build());
+        return new GetSplitsResponse(request.getCatalogName(), splits);
     }
 
     /**

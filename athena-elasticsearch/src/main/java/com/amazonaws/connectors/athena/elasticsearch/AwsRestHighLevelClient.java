@@ -28,6 +28,8 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -38,6 +40,7 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
+import org.elasticsearch.cluster.health.ClusterShardHealth;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +58,11 @@ public class AwsRestHighLevelClient
         extends RestHighLevelClient
 {
     private static final Logger logger = LoggerFactory.getLogger(AwsRestHighLevelClient.class);
+
+    /**
+     * Timeout period for the cluster health request (30 seconds).
+     */
+    private static final String CLUSTER_HEALTH_TIMEOUT = "30s";
 
     /**
      * Constructs a new client (using a builder) injected with credentials.
@@ -92,6 +100,33 @@ public class AwsRestHighLevelClient
         GetMappingsResponse mappingsResponse = indices().getMapping(mappingsRequest, RequestOptions.DEFAULT);
 
         return (LinkedHashMap<String, Object>) mappingsResponse.mappings().get(index).sourceAsMap();
+    }
+
+    /**
+     * Retrieves cluster-health information for shards associated with the specified index. The request will time out
+     * if response is not received within 30 seconds.
+     * @param index is used to restrict the request to a specified index.
+     * @return a Map of cluster Ids with their associated health information.
+     * @throws IOException if an error occurs while sending the request to the Elasticsearch instance, the request
+     * times out, or no active-primary shards are present.
+     */
+    public Map<Integer, ClusterShardHealth> getShardHealthInfo(String index)
+            throws IOException
+    {
+        ClusterHealthRequest request = new ClusterHealthRequest(index).timeout(CLUSTER_HEALTH_TIMEOUT);
+        // Set request to shard-level details
+        request.level(ClusterHealthRequest.Level.SHARDS);
+
+        ClusterHealthResponse response = cluster().health(request, RequestOptions.DEFAULT);
+
+        if (response.isTimedOut()) {
+            throw new IOException("Request timed out.");
+        }
+        else if (response.getActivePrimaryShards() == 0) {
+            throw new IOException("There are no active primary shards.");
+        }
+
+        return response.getIndices().get(index).getShards();
     }
 
     /**
