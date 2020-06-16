@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
@@ -39,12 +40,13 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.elasticsearch.cluster.health.ClusterShardHealth;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +54,9 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * This class is used to test the ElasticsearchMetadataHandler class.
@@ -116,7 +119,7 @@ public class ElasticsearchMetadataHandlerTest
                 new ListSchemasResponse("elasticsearch", ImmutableList.of("domain2", "domain3", "domain1"));
 
         // Get real response from doListSchemaNames().
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of("domain1", "endpoint1",
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("domain1", "endpoint1",
                 "domain2", "endpoint2","domain3", "endpoint3"));
 
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
@@ -179,7 +182,7 @@ public class ElasticsearchMetadataHandlerTest
                 new TableName("movies", "movies"));
 
         // Get real indices.
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of("movies",
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
                 amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
@@ -351,7 +354,7 @@ public class ElasticsearchMetadataHandlerTest
         when(mockClient.getMapping(anyString())).thenReturn(mappings);
 
         // Get real mapping.
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of("movies",
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
                 amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
@@ -376,7 +379,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     @Test
     public void doGetSplits()
-            throws RuntimeException
+            throws Exception
     {
         logger.info("doGetSplits: enter");
 
@@ -398,11 +401,23 @@ public class ElasticsearchMetadataHandlerTest
 
         logger.info("doGetSplits: req[{}]", req);
 
+        // Setup domain and endpoint
         String domain = "movies";
         String endpoint = "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com";
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of(domain, endpoint));
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of(domain, endpoint));
+
+        // Setup shard health info
+        ClusterShardHealth  mockShardHealth = mock(ClusterShardHealth.class);
+        when(mockClient.getShardHealthInfo(anyString())).thenReturn(ImmutableMap
+                .of(new Integer(0), mockShardHealth, new Integer(1), mockShardHealth,
+                        new Integer(2), mockShardHealth));
+        when(mockShardHealth.isPrimaryActive()).thenReturn(true, false, true);
+
+        // Instantiate handler
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
                 amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
+
+        // Call doGetSplits()
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
@@ -412,8 +427,24 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]",
                 new Object[] {continuationToken, response.getSplits().size()});
 
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
-        assertEquals(endpoint, response.getSplits().iterator().next().getProperty(domain));
+        // Response should contain 2 splits.
+        assertTrue("Continuation criteria violated", response.getSplits().size() == 2);
+        Iterator<Split> splitIterator = response.getSplits().iterator();
+
+        // Get 1st split.
+        Split split = splitIterator.next();
+        logger.info("doGetSplits - Split Properties: {}", split.getProperties());
+        // Endpoint and shard info should match.
+        assertEquals(endpoint, split.getProperty(domain));
+        assertEquals("_shards:0", split.getProperty("shard"));
+
+        // Get 2nd split.
+        split = splitIterator.next();
+        logger.info("doGetSplits - Split Properties: {}", split.getProperties());
+        // Endpoint and shard info should match.
+        assertEquals(endpoint, split.getProperty(domain));
+        assertEquals("_shards:2", split.getProperty("shard"));
+
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
         logger.info("doGetSplits: exit");
