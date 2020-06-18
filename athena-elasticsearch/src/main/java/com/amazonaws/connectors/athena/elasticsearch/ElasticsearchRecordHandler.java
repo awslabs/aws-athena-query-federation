@@ -36,6 +36,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class is responsible for providing Athena with actual rows level data from your Elasticsearch instance. Athena
@@ -72,6 +74,11 @@ public class ElasticsearchRecordHandler
      * a specific shard (e.g. "_shards:5" - retrieve shard number 5).
      */
     private static final String SHARD_KEY = "shard";
+
+    /**
+     * Timeout period for the search document request (60 seconds).
+     */
+    private final TimeValue searchDocumentTimeout = new TimeValue(60, TimeUnit.SECONDS);
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
@@ -145,6 +152,7 @@ public class ElasticsearchRecordHandler
 
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
+                        .timeout(searchDocumentTimeout)
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
@@ -157,6 +165,12 @@ public class ElasticsearchRecordHandler
                     // used for pagination of results.
                     SearchResponse searchResponse = client
                             .getDocuments(searchRequest.source(searchSource.from(currPosition)));
+
+                    // Throw on query timeout.
+                    if (searchResponse.isTimedOut()) {
+                        throw new IOException("Request for " + shard + " timed out.");
+                    }
+
                     // Increment current position to next batch of results.
                     currPosition += QUERY_BATCH_SIZE;
                     // Process hits.
