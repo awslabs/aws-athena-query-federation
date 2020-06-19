@@ -70,12 +70,6 @@ public class ElasticsearchRecordHandler
     private static final int QUERY_BATCH_SIZE = 100;
 
     /**
-     * Key used to retrieve shard information from the Split's properties map sent as a request preference to retrieve
-     * a specific shard (e.g. "_shards:5" - retrieve shard number 5).
-     */
-    private static final String SHARD_KEY = "shard";
-
-    /**
      * Timeout period for the search document request (60 seconds).
      */
     private final TimeValue searchDocumentTimeout = new TimeValue(60, TimeUnit.SECONDS);
@@ -141,7 +135,7 @@ public class ElasticsearchRecordHandler
 
         String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
-        String shard = recordsRequest.getSplit().getProperty(SHARD_KEY);
+        String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {

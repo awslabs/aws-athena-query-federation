@@ -107,11 +107,11 @@ public class AwsRestHighLevelClient
      * if response is not received within 30 seconds.
      * @param index is used to restrict the request to a specified index.
      * @return a Map of cluster Ids with their associated health information.
-     * @throws IOException if an error occurs while sending the request to the Elasticsearch instance, the request
-     * times out, or no active-primary shards are present.
+     * @throws IOException if an error occurs while sending the request to the Elasticsearch instance.
+     * @throws RuntimeException if the request times out, or no active-primary shards are present.
      */
     public Map<Integer, ClusterShardHealth> getShardHealthInfo(String index)
-            throws IOException
+            throws RuntimeException, IOException
     {
         ClusterHealthRequest request = new ClusterHealthRequest(index).timeout(CLUSTER_HEALTH_TIMEOUT);
         // Set request to shard-level details
@@ -120,10 +120,10 @@ public class AwsRestHighLevelClient
         ClusterHealthResponse response = cluster().health(request, RequestOptions.DEFAULT);
 
         if (response.isTimedOut()) {
-            throw new IOException("Request timed out.");
+            throw new RuntimeException("Request timed out.");
         }
         else if (response.getActivePrimaryShards() == 0) {
-            throw new IOException("There are no active primary shards.");
+            throw new RuntimeException("There are no active primary shards.");
         }
 
         return response.getIndices().get(index).getShards();

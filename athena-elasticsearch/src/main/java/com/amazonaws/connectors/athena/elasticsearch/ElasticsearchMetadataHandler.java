@@ -90,7 +90,7 @@ public class ElasticsearchMetadataHandler
     /**
      * Key used to store shard information in the Split's properties map (later used by the Record Handler).
      */
-    private static final String SHARD_KEY = "shard";
+    protected static final String SHARD_KEY = "shard";
     /**
      * Value used in combination with the shard ID to store shard information in the Split's properties map (later
      * used by the Record Handler). The completed value is sent as a request preference to retrieve a specific shard
@@ -306,7 +306,7 @@ public class ElasticsearchMetadataHandler
                 for (Map.Entry<Integer, ClusterShardHealth> entry : shardHealthInfo.entrySet()) {
                     Integer shardId = entry.getKey();
                     ClusterShardHealth shardHealth = entry.getValue();
-                    // Process only primary active shards.
+                    // Process only primary active shards. If a shard is not active it is not available for reading.
                     if (shardHealth.isPrimaryActive()) {
                         // Every split must have a unique location if we wish to spill to avoid failures
                         SpillLocation spillLocation = makeSpillLocation(request);
