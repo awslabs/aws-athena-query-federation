@@ -19,7 +19,6 @@
  */
 package com.amazonaws.connectors.athena.elasticsearch;
 
-import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Test;

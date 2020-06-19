@@ -145,7 +145,7 @@ public class ElasticsearchRecordHandler
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
-            AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
+            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);

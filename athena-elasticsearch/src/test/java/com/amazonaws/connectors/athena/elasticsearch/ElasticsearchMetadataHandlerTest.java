@@ -95,7 +95,7 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("setUpBefore - enter");
 
         allocator = new BlockAllocatorImpl();
-        when(clientFactory.getClient(anyString())).thenReturn(mockClient);
+        when(clientFactory.getOrCreateClient(anyString())).thenReturn(mockClient);
 
         logger.info("setUpBefore - exit");
     }

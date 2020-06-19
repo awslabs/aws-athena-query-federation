@@ -23,8 +23,6 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -55,7 +53,7 @@ public class AwsRestHighLevelClientFactory
     /**
      * Stored cache of clients accessible via the endpoint.
      */
-    private final Map<String, AwsRestHighLevelClient> clientCache;
+    private final CacheableAwsRestHighLevelClient clientCache = new CacheableAwsRestHighLevelClient();
 
     /**
      * Constructs a new client factory (using a builder) that will create clients injected with credentials.
@@ -65,7 +63,6 @@ public class AwsRestHighLevelClientFactory
     public AwsRestHighLevelClientFactory(boolean useAwsCredentials)
     {
         this.useAwsCredentials = useAwsCredentials;
-        this.clientCache = new HashMap<>();
     }
 
     /**
@@ -75,7 +72,7 @@ public class AwsRestHighLevelClientFactory
      * @param endpoint is the Elasticsearch instance endpoint.
      * @return an Elasticsearch REST client.
      */
-    public synchronized AwsRestHighLevelClient getClient(String endpoint)
+    public synchronized AwsRestHighLevelClient getOrCreateClient(String endpoint)
     {
         AwsRestHighLevelClient client = clientCache.get(endpoint);
 

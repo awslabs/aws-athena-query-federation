@@ -180,7 +180,7 @@ public class ElasticsearchMetadataHandler
 
         try {
             String endpoint = getDomainEndpoint(request.getSchemaName());
-            AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
+            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 for (String index : client.getAliases()) {
                     // Add all Indices except for kibana.
@@ -241,7 +241,7 @@ public class ElasticsearchMetadataHandler
             String index = request.getTableName().getTableName();
             try {
                 String endpoint = getDomainEndpoint(request.getTableName().getSchemaName());
-                AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
+                AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
                 try {
                     Map<String, Object> mappings = client.getMapping(index);
                     schema = ElasticsearchSchemaUtils.parseMapping(mappings);
@@ -300,7 +300,7 @@ public class ElasticsearchMetadataHandler
 
         try {
             String endpoint = getDomainEndpoint(domain);
-            AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
+            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 Map<Integer, ClusterShardHealth> shardHealthInfo = client.getShardHealthInfo(index);
                 for (Map.Entry<Integer, ClusterShardHealth> entry : shardHealthInfo.entrySet()) {
