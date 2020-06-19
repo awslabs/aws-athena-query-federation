@@ -1,4 +1,4 @@
-#Mockito Configuration
+# Mockito Configuration
 
 The file `org.mockito.plugins.MockMaker` contains a configuration (**mock-maker-inline**) allowing Mockito to mock
 methods and objects declared `final`.
