@@ -185,8 +185,6 @@ The Athena Elasticsearch Connector supports shard-based parallel scans. Using cl
 retrieved from the Elasticsearch instance, the connector generates multiple requests (for a document
 search query) that are split per shard and run concurrently.
 
-**NOTE: Only primary shards that are active at the time of the query will be considered for parallel scans**.
-
 Additionally, the connector will push down predicates as part of its document search queries. The following
 example demonstrates this connector's ability to utilize predicate push-down.
 
