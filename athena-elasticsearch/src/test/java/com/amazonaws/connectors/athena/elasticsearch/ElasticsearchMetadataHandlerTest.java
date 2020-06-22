@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.*;
@@ -40,7 +39,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.elasticsearch.cluster.health.ClusterShardHealth;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,8 +52,8 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -406,12 +404,8 @@ public class ElasticsearchMetadataHandlerTest
         String endpoint = "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com";
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of(domain, endpoint));
 
-        // Setup shard health info
-        ClusterShardHealth  mockShardHealth = mock(ClusterShardHealth.class);
-        when(mockClient.getShardHealthInfo(anyString())).thenReturn(ImmutableMap
-                .of(new Integer(0), mockShardHealth, new Integer(1), mockShardHealth,
-                        new Integer(2), mockShardHealth));
-        when(mockShardHealth.isPrimaryActive()).thenReturn(true, false, true);
+        when(mockClient.getShardIds(anyString(), anyLong())).thenReturn(ImmutableSet
+                .of(new Integer(0), new Integer(1), new Integer(2)));
 
         // Instantiate handler
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
@@ -428,22 +422,18 @@ public class ElasticsearchMetadataHandlerTest
                 new Object[] {continuationToken, response.getSplits().size()});
 
         // Response should contain 2 splits.
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 2);
-        Iterator<Split> splitIterator = response.getSplits().iterator();
+        assertEquals("Response has invalid number of splits", 3, response.getSplits().size());
 
-        // Get 1st split.
-        Split split = splitIterator.next();
-        logger.info("doGetSplits - Split Properties: {}", split.getProperties());
-        // Endpoint and shard info should match.
-        assertEquals(endpoint, split.getProperty(domain));
-        assertEquals("_shards:0", split.getProperty("shard"));
-
-        // Get 2nd split.
-        split = splitIterator.next();
-        logger.info("doGetSplits - Split Properties: {}", split.getProperties());
-        // Endpoint and shard info should match.
-        assertEquals(endpoint, split.getProperty(domain));
-        assertEquals("_shards:2", split.getProperty("shard"));
+        Set<String> shardIds = new HashSet<>(2);
+        shardIds.add("_shards:0");
+        shardIds.add("_shards:1");
+        shardIds.add("_shards:2");
+        response.getSplits().forEach(split -> {
+            assertEquals(endpoint, split.getProperty(domain));
+            String shard = split.getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
+            assertTrue("Split contains invalid shard: " + shard, shardIds.contains(shard));
+            shardIds.remove(shard);
+        });
 
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 

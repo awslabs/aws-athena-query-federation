@@ -40,7 +40,7 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
-import org.elasticsearch.cluster.health.ClusterShardHealth;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class is used to create a new REST client injected with either AWS credentials or username/password credentials.
@@ -58,11 +59,6 @@ public class AwsRestHighLevelClient
         extends RestHighLevelClient
 {
     private static final Logger logger = LoggerFactory.getLogger(AwsRestHighLevelClient.class);
-
-    /**
-     * Timeout period for the cluster health request (30 seconds).
-     */
-    private static final String CLUSTER_HEALTH_TIMEOUT = "30s";
 
     /**
      * Constructs a new client (using a builder) injected with credentials.
@@ -104,16 +100,18 @@ public class AwsRestHighLevelClient
 
     /**
      * Retrieves cluster-health information for shards associated with the specified index. The request will time out
-     * if response is not received within 30 seconds.
+     * if no results are returned after a period of time indicated by timeout.
      * @param index is used to restrict the request to a specified index.
-     * @return a Map of cluster Ids with their associated health information.
+     * @param timeout is the command timeout period in seconds.
+     * @return a set of shard ids for the specified index.
      * @throws IOException if an error occurs while sending the request to the Elasticsearch instance.
      * @throws RuntimeException if the request times out, or no active-primary shards are present.
      */
-    public Map<Integer, ClusterShardHealth> getShardHealthInfo(String index)
+    public Set<Integer> getShardIds(String index, long timeout)
             throws RuntimeException, IOException
     {
-        ClusterHealthRequest request = new ClusterHealthRequest(index).timeout(CLUSTER_HEALTH_TIMEOUT);
+        ClusterHealthRequest request = new ClusterHealthRequest(index)
+                .timeout(new TimeValue(timeout, TimeUnit.SECONDS));
         // Set request to shard-level details
         request.level(ClusterHealthRequest.Level.SHARDS);
 
@@ -122,11 +120,11 @@ public class AwsRestHighLevelClient
         if (response.isTimedOut()) {
             throw new RuntimeException("Request timed out.");
         }
-        else if (response.getActivePrimaryShards() == 0) {
-            throw new RuntimeException("There are no active primary shards.");
+        else if (response.getActiveShards() == 0) {
+            throw new RuntimeException("There are no active shards.");
         }
 
-        return response.getIndices().get(index).getShards();
+        return response.getIndices().get(index).getShards().keySet();
     }
 
     /**

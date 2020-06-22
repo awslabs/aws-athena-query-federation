@@ -45,14 +45,13 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.elasticsearch.cluster.health.ClusterShardHealth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,6 +86,10 @@ public class ElasticsearchMetadataHandler
     // A Map of the domain-names and their respective endpoints.
     private Map<String, String> domainMap;
 
+    // Env. variable that holds the query timeout period for the Cluster-Health queries.
+    private static final String QUERY_TIMEOUT_CLUSTER = "query_timeout_cluster";
+    private Long queryTimeout;
+
     /**
      * Key used to store shard information in the Split's properties map (later used by the Record Handler).
      */
@@ -114,6 +117,7 @@ public class ElasticsearchMetadataHandler
         this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(getEnv(DOMAIN_MAPPING)));
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
+        this.queryTimeout = new Long(getEnv(QUERY_TIMEOUT_CLUSTER));
     }
 
     @VisibleForTesting
@@ -132,6 +136,7 @@ public class ElasticsearchMetadataHandler
         this.domainMap = this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
+        this.queryTimeout = new Long(30);
     }
 
     /**
@@ -292,7 +297,7 @@ public class ElasticsearchMetadataHandler
         logger.debug("doGetSplits: enter - " + request);
 
         // Create set of splits
-        Set<Split> splits = new LinkedHashSet<>();
+        Set<Split> splits = new HashSet<>();
         // Get domain
         String domain = request.getTableName().getSchemaName();
         // Get index
@@ -302,19 +307,14 @@ public class ElasticsearchMetadataHandler
             String endpoint = getDomainEndpoint(domain);
             AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
-                Map<Integer, ClusterShardHealth> shardHealthInfo = client.getShardHealthInfo(index);
-                for (Map.Entry<Integer, ClusterShardHealth> entry : shardHealthInfo.entrySet()) {
-                    Integer shardId = entry.getKey();
-                    ClusterShardHealth shardHealth = entry.getValue();
-                    // Process only primary active shards. If a shard is not active it is not available for reading.
-                    if (shardHealth.isPrimaryActive()) {
-                        // Every split must have a unique location if we wish to spill to avoid failures
-                        SpillLocation spillLocation = makeSpillLocation(request);
-                        // Create a new split (added to the splits set) that includes the domain and endpoint, and
-                        // shard information (to be used later by the Record Handler).
-                        splits.add(new Split(spillLocation, makeEncryptionKey(), ImmutableMap
-                                .of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())));
-                    }
+                Set<Integer> shardIds = client.getShardIds(index, queryTimeout);
+                for (Integer shardId : shardIds) {
+                    // Every split must have a unique location if we wish to spill to avoid failures
+                    SpillLocation spillLocation = makeSpillLocation(request);
+                    // Create a new split (added to the splits set) that includes the domain and endpoint, and
+                    // shard information (to be used later by the Record Handler).
+                    splits.add(new Split(spillLocation, makeEncryptionKey(), ImmutableMap
+                            .of(domain, endpoint, SHARD_KEY, SHARD_VALUE + shardId.toString())));
                 }
             }
             catch (IOException error) {

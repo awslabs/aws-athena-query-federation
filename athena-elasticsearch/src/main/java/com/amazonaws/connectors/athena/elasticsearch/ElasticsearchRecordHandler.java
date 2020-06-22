@@ -66,13 +66,12 @@ public class ElasticsearchRecordHandler
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
     private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
 
+    // Env. variable that holds the query timeout period for the Search queries.
+    private static final String QUERY_TIMEOUT_SEARCH = "query_timeout_search";
+    private Long queryTimeout;
+
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
-
-    /**
-     * Timeout period for the search document request (60 seconds).
-     */
-    private final TimeValue searchDocumentTimeout = new TimeValue(60, TimeUnit.SECONDS);
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
@@ -85,6 +84,7 @@ public class ElasticsearchRecordHandler
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
                 .equalsIgnoreCase("true"));
+        this.queryTimeout = new Long(getEnv(QUERY_TIMEOUT_SEARCH));
     }
 
     @VisibleForTesting
@@ -95,6 +95,7 @@ public class ElasticsearchRecordHandler
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
+        this.queryTimeout = new Long(30);
     }
 
     /**
@@ -120,7 +121,7 @@ public class ElasticsearchRecordHandler
      * 3. The filtering predicate (if any)
      * 4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws RuntimeException when an error occurs while attempting to send the DB query.
+     * @throws RuntimeException when an error occurs while attempting to send the query, or the query timed out.
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
@@ -146,7 +147,7 @@ public class ElasticsearchRecordHandler
 
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
-                        .timeout(searchDocumentTimeout)
+                        .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
@@ -162,7 +163,7 @@ public class ElasticsearchRecordHandler
 
                     // Throw on query timeout.
                     if (searchResponse.isTimedOut()) {
-                        throw new IOException("Request for " + shard + " timed out.");
+                        throw new RuntimeException("Request for " + shard + " timed out.");
                     }
 
                     // Increment current position to next batch of results.
