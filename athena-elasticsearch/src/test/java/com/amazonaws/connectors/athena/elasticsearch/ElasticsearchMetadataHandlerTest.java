@@ -44,7 +44,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,8 +52,9 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.when;
 
 /**
  * This class is used to test the ElasticsearchMetadataHandler class.
@@ -92,7 +93,7 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("setUpBefore - enter");
 
         allocator = new BlockAllocatorImpl();
-        when(clientFactory.getClient(anyString())).thenReturn(mockClient);
+        when(clientFactory.getOrCreateClient(anyString())).thenReturn(mockClient);
 
         logger.info("setUpBefore - exit");
     }
@@ -116,11 +117,11 @@ public class ElasticsearchMetadataHandlerTest
                 new ListSchemasResponse("elasticsearch", ImmutableList.of("domain2", "domain3", "domain1"));
 
         // Get real response from doListSchemaNames().
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of("domain1", "endpoint1",
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("domain1", "endpoint1",
                 "domain2", "endpoint2","domain3", "endpoint3"));
 
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
-                amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
 
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
         ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
@@ -179,10 +180,10 @@ public class ElasticsearchMetadataHandlerTest
                 new TableName("movies", "movies"));
 
         // Get real indices.
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of("movies",
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
-                amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
         when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
 
         ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
@@ -351,10 +352,10 @@ public class ElasticsearchMetadataHandlerTest
         when(mockClient.getMapping(anyString())).thenReturn(mappings);
 
         // Get real mapping.
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of("movies",
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
-                amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory,10);
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
                 new TableName("movies", "mishmash"));
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -376,7 +377,7 @@ public class ElasticsearchMetadataHandlerTest
      */
     @Test
     public void doGetSplits()
-            throws RuntimeException
+            throws Exception
     {
         logger.info("doGetSplits: enter");
 
@@ -398,11 +399,19 @@ public class ElasticsearchMetadataHandlerTest
 
         logger.info("doGetSplits: req[{}]", req);
 
+        // Setup domain and endpoint
         String domain = "movies";
         String endpoint = "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com";
-        when(domainMapProvider.getDomainMap(anyString())).thenReturn(ImmutableMap.of(domain, endpoint));
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
-                amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
+        when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of(domain, endpoint));
+
+        when(mockClient.getShardIds(anyString(), anyLong())).thenReturn(ImmutableSet
+                .of(new Integer(0), new Integer(1), new Integer(2)));
+
+        // Instantiate handler
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
+
+        // Call doGetSplits()
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
         assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
@@ -412,8 +421,20 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]",
                 new Object[] {continuationToken, response.getSplits().size()});
 
-        assertTrue("Continuation criteria violated", response.getSplits().size() == 1);
-        assertEquals(endpoint, response.getSplits().iterator().next().getProperty(domain));
+        // Response should contain 2 splits.
+        assertEquals("Response has invalid number of splits", 3, response.getSplits().size());
+
+        Set<String> shardIds = new HashSet<>(2);
+        shardIds.add("_shards:0");
+        shardIds.add("_shards:1");
+        shardIds.add("_shards:2");
+        response.getSplits().forEach(split -> {
+            assertEquals(endpoint, split.getProperty(domain));
+            String shard = split.getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
+            assertTrue("Split contains invalid shard: " + shard, shardIds.contains(shard));
+            shardIds.remove(shard);
+        });
+
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
         logger.info("doGetSplits: exit");
@@ -429,8 +450,8 @@ public class ElasticsearchMetadataHandlerTest
     {
         logger.info("convertFieldTest: enter");
 
-        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager,
-                amazonAthena, "spill-bucket", "spill-prefix", domainMapProvider, clientFactory);
+        handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
 
         Field field = handler.convertField("myscaled", "SCALED_FLOAT(10.51)");
 

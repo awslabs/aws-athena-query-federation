@@ -63,7 +63,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,8 +81,8 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
@@ -249,7 +249,7 @@ public class ElasticsearchRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
+        when(amazonS3.putObject(any(), any(), any(), any()))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
@@ -287,11 +287,11 @@ public class ElasticsearchRecordHandlerTest
                 .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
                 .build();
 
-        when(clientFactory.getClient(anyString())).thenReturn(mockClient);
-        when(mockClient.getDocuments(anyObject())).thenReturn(mockResponse);
-        when(mockClient.getDocument(anyObject())).thenReturn(document1, document2);
+        when(clientFactory.getOrCreateClient(anyString())).thenReturn(mockClient);
+        when(mockClient.getDocuments(any())).thenReturn(mockResponse);
+        when(mockClient.getDocument(any())).thenReturn(document1, document2);
 
-        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory);
+        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory, 720);
 
         logger.info("setUpBefore - exit");
     }
