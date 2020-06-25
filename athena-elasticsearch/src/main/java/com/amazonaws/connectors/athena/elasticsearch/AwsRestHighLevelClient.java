@@ -40,6 +40,7 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
@@ -123,8 +124,12 @@ public class AwsRestHighLevelClient
         else if (response.getActiveShards() == 0) {
             throw new RuntimeException("There are no active shards for index (" + index + ").");
         }
-        else if (index == null || !response.getIndices().containsKey(index)) {
-            throw new RuntimeException("Request has an invalid index (" + (index == null ? "null" : index) + ").");
+        else if (response.getStatus() == ClusterHealthStatus.RED) {
+            throw new RuntimeException("Request aborted for index (" + index +
+                    ") due to cluster's status (RED) - One or more primary shards are unassigned.");
+        }
+        else if (!response.getIndices().containsKey(index)) {
+            throw new RuntimeException("Request has an invalid index (" + index + ").");
         }
 
         return response.getIndices().get(index).getShards().keySet();
