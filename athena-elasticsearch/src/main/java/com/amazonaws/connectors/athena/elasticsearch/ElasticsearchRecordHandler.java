@@ -68,7 +68,7 @@ public class ElasticsearchRecordHandler
 
     // Env. variable that holds the query timeout period for the Search queries.
     private static final String QUERY_TIMEOUT_SEARCH = "query_timeout_search";
-    private Long queryTimeout;
+    private final long queryTimeout;
 
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
@@ -84,18 +84,18 @@ public class ElasticsearchRecordHandler
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
                 .equalsIgnoreCase("true"));
-        this.queryTimeout = new Long(getEnv(QUERY_TIMEOUT_SEARCH));
+        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_SEARCH));
     }
 
     @VisibleForTesting
     protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         AwsRestHighLevelClientFactory clientFactory)
+                                         AwsRestHighLevelClientFactory clientFactory, long queryTimeout)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
-        this.queryTimeout = new Long(30);
+        this.queryTimeout = queryTimeout;
     }
 
     /**
@@ -136,6 +136,7 @@ public class ElasticsearchRecordHandler
 
         String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
+        String index = recordsRequest.getTableName().getTableName();
         String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
         long numRows = 0;
 
@@ -151,8 +152,7 @@ public class ElasticsearchRecordHandler
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
-                SearchRequest searchRequest = new SearchRequest(recordsRequest.getTableName().getTableName())
-                        .preference(shard);
+                SearchRequest searchRequest = new SearchRequest(index).preference(shard);
                 int hitsNum;
                 int currPosition = 0;
                 do {
@@ -163,7 +163,7 @@ public class ElasticsearchRecordHandler
 
                     // Throw on query timeout.
                     if (searchResponse.isTimedOut()) {
-                        throw new RuntimeException("Request for " + shard + " timed out.");
+                        throw new RuntimeException("Request for index (" + index + ") " + shard + " timed out.");
                     }
 
                     // Increment current position to next batch of results.
@@ -181,7 +181,7 @@ public class ElasticsearchRecordHandler
                 } while (hitsNum == QUERY_BATCH_SIZE && queryStatusChecker.isQueryRunning());
             }
             catch (IOException error) {
-                throw new RuntimeException("Error sending query: " + error.getMessage(), error);
+                throw new RuntimeException("Error sending search query: " + error.getMessage(), error);
             }
         }
 

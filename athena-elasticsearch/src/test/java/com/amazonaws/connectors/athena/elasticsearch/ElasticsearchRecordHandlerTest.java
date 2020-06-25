@@ -291,7 +291,7 @@ public class ElasticsearchRecordHandlerTest
         when(mockClient.getDocuments(any())).thenReturn(mockResponse);
         when(mockClient.getDocument(any())).thenReturn(document1, document2);
 
-        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory);
+        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory, 720);
 
         logger.info("setUpBefore - exit");
     }

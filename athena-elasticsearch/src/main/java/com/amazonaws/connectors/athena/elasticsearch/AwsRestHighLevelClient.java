@@ -118,10 +118,13 @@ public class AwsRestHighLevelClient
         ClusterHealthResponse response = cluster().health(request, RequestOptions.DEFAULT);
 
         if (response.isTimedOut()) {
-            throw new RuntimeException("Request timed out.");
+            throw new RuntimeException("Request timed out for index (" + index + ").");
         }
         else if (response.getActiveShards() == 0) {
-            throw new RuntimeException("There are no active shards.");
+            throw new RuntimeException("There are no active shards for index (" + index + ").");
+        }
+        else if (index == null || !response.getIndices().containsKey(index)) {
+            throw new RuntimeException("Request has an invalid index (" + (index == null ? "null" : index) + ").");
         }
 
         return response.getIndices().get(index).getShards().keySet();

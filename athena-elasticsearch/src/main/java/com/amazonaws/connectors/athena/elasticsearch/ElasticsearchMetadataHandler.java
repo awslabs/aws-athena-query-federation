@@ -88,7 +88,7 @@ public class ElasticsearchMetadataHandler
 
     // Env. variable that holds the query timeout period for the Cluster-Health queries.
     private static final String QUERY_TIMEOUT_CLUSTER = "query_timeout_cluster";
-    private Long queryTimeout;
+    private final long queryTimeout;
 
     /**
      * Key used to store shard information in the Split's properties map (later used by the Record Handler).
@@ -117,7 +117,7 @@ public class ElasticsearchMetadataHandler
         this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(getEnv(DOMAIN_MAPPING)));
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = new Long(getEnv(QUERY_TIMEOUT_CLUSTER));
+        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_CLUSTER));
     }
 
     @VisibleForTesting
@@ -128,7 +128,8 @@ public class ElasticsearchMetadataHandler
                                            String spillBucket,
                                            String spillPrefix,
                                            ElasticsearchDomainMapProvider domainMapProvider,
-                                           AwsRestHighLevelClientFactory clientFactory)
+                                           AwsRestHighLevelClientFactory clientFactory,
+                                           long queryTimeout)
     {
         super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
@@ -136,7 +137,7 @@ public class ElasticsearchMetadataHandler
         this.domainMap = this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = new Long(30);
+        this.queryTimeout = queryTimeout;
     }
 
     /**
