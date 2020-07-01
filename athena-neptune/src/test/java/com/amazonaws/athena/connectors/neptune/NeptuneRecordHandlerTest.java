@@ -178,14 +178,28 @@ public class NeptuneRecordHandlerTest {
 
             // 3: find all airports with runways greater than 2 and less than 7
 
-            Range greaterThan = Range.greaterThan(allocator, Types.MinorType.INT.getType(), 3);
-            Range lessThan = Range.lessThan(allocator, Types.MinorType.INT.getType(), 6);
-            Range lessThan1 = Range.lessThan(allocator, Types.MinorType.INT.getType(), 7);
-            Range greaterThan1 = Range.greaterThan(allocator, Types.MinorType.INT.getType(), 2);
-            constraintsMap.put("runways", SortedRangeSet.of(greaterThan,lessThan,lessThan1,greaterThan1));
+            // Range greaterThan = Range.greaterThan(allocator,
+            // Types.MinorType.INT.getType(), 3);
+            // Range lessThan = Range.lessThan(allocator, Types.MinorType.INT.getType(), 6);
+            // Range lessThan1 = Range.lessThan(allocator, Types.MinorType.INT.getType(),
+            // 7);
+            // Range greaterThan1 = Range.greaterThan(allocator,
+            // Types.MinorType.INT.getType(), 2);
+            // constraintsMap.put("runways",
+            // SortedRangeSet.of(greaterThan,lessThan,lessThan1,greaterThan1));
 
-            logger.info("testing constraint map: " + constraintsMap.toString());
+            // 4: find all airports with runways greate than equal to 4
 
+            Range greaterThanOrEqual = Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 3);
+            Range lessThanOrEqual = Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 6);
+            constraintsMap.put("runways", SortedRangeSet.of(greaterThanOrEqual, lessThanOrEqual));
+
+            // 5. find all airports with runways equal to 5
+
+            // Range equalTo = Range.equal(allocator, Types.MinorType.INT.getType(), 3);
+            // constraintsMap.put("runways", SortedRangeSet.of(equalTo));
+
+            // logger.info("testing constraint map: " + constraintsMap.toString());
 
             // read request for neptune request
             ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(), "catalog",

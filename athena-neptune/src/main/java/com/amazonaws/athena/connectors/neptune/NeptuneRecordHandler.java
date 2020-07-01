@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 
@@ -140,34 +141,37 @@ public class NeptuneRecordHandler extends RecordHandler {
         final Client client = neptuneConnection.getNeptunClientConnection();
         try {
             final GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
-            // final GraphTraversal<Vertex, Map<Object, Object>> result = graphTraversalSource.V().hasLabel(labelName).valueMap();
+            // final GraphTraversal<Vertex, Map<Object, Object>> result =
+            // graphTraversalSource.V().hasLabel(labelName).valueMap();
 
-            String traversal = "g.V().hasLabel('" + labelName + "')"; //add constraints for final evaluation
-        
+            String traversal = "g.V().hasLabel('" + labelName + "')"; // add constraints for final evaluation
 
-            logger.info("readWithContraint: Neptune Query Constraints Count: " + recordsRequest.getConstraints().getSummary().size());
+            logger.info("readWithContraint: Neptune Query Constraints Count: "
+                    + recordsRequest.getConstraints().getSummary().size());
 
             if (recordsRequest.getConstraints().getSummary().size() > 0) {
 
-                logger.info("readWithContraint: Neptune Query Constraints: " + recordsRequest.getConstraints().getSummary().toString());
+                logger.info("readWithContraint: Neptune Query Constraints: "
+                        + recordsRequest.getConstraints().getSummary().toString());
 
-                HashMap<String, ValueSet>  constraints =  (HashMap<String, ValueSet>)recordsRequest.getConstraints().getSummary();
+                HashMap<String, ValueSet> constraints = (HashMap<String, ValueSet>) recordsRequest.getConstraints()
+                        .getSummary();
                 traversal += flattenContraintsMap(constraints);
             }
 
-            final String finalTraversal = traversal + ".valueMap()"; //add valuemap construct for final evaluation
-
+            final String finalTraversal = traversal + ".valueMap()"; // add valuemap construct for final evaluation
 
             logger.info("readWithContraint: Neptune Query " + finalTraversal);
 
-            //Code to build gremlin query from string
+            // Code to build gremlin query from string
             final ConcurrentBindings b = new ConcurrentBindings();
             b.putIfAbsent("g", graphTraversalSource);
-            
+
             final GremlinExecutor ge = GremlinExecutor.build().evaluationTimeout(15000L).globalBindings(b).create();
 
             CompletableFuture<Object> evalResult = ge.eval(finalTraversal);
-            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult.get();
+            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult
+                    .get();
 
             while (result.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
@@ -211,8 +215,7 @@ public class NeptuneRecordHandler extends RecordHandler {
         }
     }
 
-
-    public String flattenContraintsMap(HashMap hashMap){
+    public String flattenContraintsMap(HashMap hashMap) {
 
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
         String flattenedString = "";
@@ -224,19 +227,35 @@ public class NeptuneRecordHandler extends RecordHandler {
             List<Range> ranges = value.getOrderedRanges();
 
             for (Range range : ranges) {
+    
+                if(!range.getLow().isNullValue() && !range.getHigh().isNullValue()){
+                    if(range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())){
+                        flattenedString += ".has('" + key + "',eq(" + range.getLow().getValue().toString() + "))";
+                        break;
+                    }
+                }
 
                 if (!range.getLow().isNullValue()) {
 
-                    logger.info("inside flattenConstraintMap: "+ range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
+                    logger.info("inside flattenConstraintMap: "
+                            + range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
 
                     if (range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString())) {
-                        flattenedString += ".has('" + key + "',gt(" + range.getLow().getValue().toString() + "))";
+                        if (range.getLow().getBound().equals(Bound.EXACTLY)) {
+                            flattenedString += ".has('" + key + "',gte(" + range.getLow().getValue().toString() + "))";
+                        } else {
+                            flattenedString += ".has('" + key + "',gt(" + range.getLow().getValue().toString() + "))";
+                        }
                     }
                 }
 
                 if (!range.getHigh().isNullValue()) {
                     if (range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString())) {
-                        flattenedString += ".has('" + key + "',lt(" + range.getHigh().getValue().toString() + "))";
+                        if (range.getHigh().getBound().equals(Bound.EXACTLY)) {
+                            flattenedString += ".has('" + key + "',lte(" + range.getHigh().getValue().toString() + "))";
+                        } else {
+                            flattenedString += ".has('" + key + "',lt(" + range.getHigh().getValue().toString() + "))";
+                        }
                     }
                 }
             }
