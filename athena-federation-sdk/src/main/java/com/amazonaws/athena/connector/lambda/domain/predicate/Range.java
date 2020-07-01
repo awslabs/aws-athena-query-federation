@@ -153,9 +153,9 @@ public class Range
 
     public Range span(Range other)
     {
-        Marker lowMarker = Marker.min(low, other.getLow());
-        Marker highMarker = Marker.max(high, other.getHigh());
-
+        Marker lowMarker = low.isNullValue() ? other.getLow() : Marker.min(low, other.getLow());
+        Marker highMarker = other.getHigh().isNullValue() ? high : Marker.max(high, other.getHigh());
+        
         return new Range(lowMarker, highMarker);
     }
 
