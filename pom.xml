@@ -55,6 +55,7 @@
         <module>athena-jdbc</module>
         <module>athena-federation-sdk-tools</module>
         <module>athena-udfs</module>
+        <module>athena-neptune</module>
     </modules>
 
     <dependencies>
