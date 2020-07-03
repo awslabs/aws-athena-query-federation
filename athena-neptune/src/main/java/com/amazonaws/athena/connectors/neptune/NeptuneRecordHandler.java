@@ -170,8 +170,7 @@ public class NeptuneRecordHandler extends RecordHandler {
             final GremlinExecutor ge = GremlinExecutor.build().evaluationTimeout(15000L).globalBindings(b).create();
 
             CompletableFuture<Object> evalResult = ge.eval(finalTraversal);
-            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult
-                    .get();
+            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult.get();
 
             while (result.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
@@ -215,6 +214,8 @@ public class NeptuneRecordHandler extends RecordHandler {
         }
     }
 
+
+    //Need to refactor this
     public String flattenContraintsMap(HashMap hashMap) {
 
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());

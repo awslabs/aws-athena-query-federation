@@ -102,14 +102,6 @@ public class NeptuneRecordHandlerTest {
                 .addIntField("longest").addStringField("city").addFloat8Field("lon").addStringField("type")
                 .addIntField("elev").addStringField("icao").addStringField("region").addIntField("runways")
                 .addFloat8Field("lat").addStringField("desc")
-                // .addIntField("month")
-                // .addIntField("day")
-                // .addStringField("account_id")
-                // .addStringField("encrypted_payload")
-                // .addStructField("transaction")
-                // .addChildField("transaction", "id", Types.MinorType.INT.getType())
-                // .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
-                // .addMetadata("partitionCols", "year,month,day")
                 .build();
 
         allocator = new BlockAllocatorImpl();
@@ -149,75 +141,61 @@ public class NeptuneRecordHandlerTest {
             return;
         }
 
-        for (int i = 0; i < 2; i++) {
+        //Sample constraints map code to test code locally
 
-            // Test contraints
+        HashMap<String, ValueSet> constraintsMap = new HashMap<>();
 
-            HashMap<String, ValueSet> constraintsMap = new HashMap<>();
+        // 1: GREATER THAN
+        // constraintsMap.put("runways",
+        // SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+        // ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(),
+        // 3)), false));
 
-            // 1: find all airports with runways greater than 3
-            // constraintsMap.put("runways",
-            // SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-            // ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(),
-            // 3)), false));
+        // constraintsMap.put("runways",
+        // SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(),
+        // 3)));
 
-            // constraintsMap.put("runways",
-            // SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(),
-            // 3)));
+        // 2: LESS THAN
+        // constraintsMap.put("runways",
+        // SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+        // ImmutableList.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
+        // 6)), false));
 
-            // 2: find all airports with runways less than 6
-            // constraintsMap.put("runways",
-            // SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-            // ImmutableList.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
-            // 6)), false));
+        // simpler one
+        // constraintsMap.put("runways",
+        // SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
+        // 6)));
 
-            // simpler one
-            // constraintsMap.put("runways",
-            // SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
-            // 6)));
+        // 3: COBINATION OF GREATER THAN AND LESS THAN
 
-            // 3: find all airports with runways greater than 2 and less than 7
+        SortedRangeSet sortedRangeSet = SortedRangeSet
+                .of(Range.range(allocator, Types.MinorType.INT.getType(), 3, true, 6, false));
 
-            // Range greaterThan = Range.greaterThan(allocator,
-            // Types.MinorType.INT.getType(), 3);
-            // Range lessThan = Range.lessThan(allocator, Types.MinorType.INT.getType(), 6);
-            // Range lessThan1 = Range.lessThan(allocator, Types.MinorType.INT.getType(),
-            // 7);
-            // Range greaterThan1 = Range.greaterThan(allocator,
-            // Types.MinorType.INT.getType(), 2);
-            // constraintsMap.put("runways",
-            // SortedRangeSet.of(greaterThan,lessThan,lessThan1,greaterThan1));
+        constraintsMap.put("runways", sortedRangeSet);
 
-            // 4: find all airports with runways greate than equal to 4
+        logger.info("testing constraint map: " + constraintsMap.toString());
 
-            Range greaterThanOrEqual = Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 3);
-            Range lessThanOrEqual = Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 6);
-            constraintsMap.put("runways", SortedRangeSet.of(greaterThanOrEqual, lessThanOrEqual));
+        // read request for neptune request
+        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(), "catalog",
+                "queryId-" + System.currentTimeMillis(), new TableName("graph-database", "airport"), schemaForRead,
+                Split.newBuilder(makeSpillLocation(), null).build(), new Constraints(constraintsMap), 100_000_000_000L, // 100GB
+                                                                                                                        // don't
+                                                                                                                        // expect
+                                                                                                                        // this
+                                                                                                                        // to
+                                                                                                                        // spill
+                100_000_000_000L);
 
-            // 5. find all airports with runways equal to 5
+        // internally calls readRecorsWithContrains
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
 
-            // Range equalTo = Range.equal(allocator, Types.MinorType.INT.getType(), 3);
-            // constraintsMap.put("runways", SortedRangeSet.of(equalTo));
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
 
-            // logger.info("testing constraint map: " + constraintsMap.toString());
+        assertTrue(response.getRecords().getRowCount() > 0);
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
 
-            // read request for neptune request
-            ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(), "catalog",
-                    "queryId-" + System.currentTimeMillis(), new TableName("graph-database", "airport"), schemaForRead,
-                    Split.newBuilder(makeSpillLocation(), null).build(), new Constraints(constraintsMap),
-                    100_000_000_000L, // 100GB don't expect this to spill
-                    100_000_000_000L);
-
-            // internally calls readRecorsWithContrains
-            RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-            assertTrue(rawResponse instanceof ReadRecordsResponse);
-
-            ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-            logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
-
-            assertTrue(response.getRecords().getRowCount() > 0);
-            logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        }
     }
 
     private byte[] getFakeObject() throws UnsupportedEncodingException {
