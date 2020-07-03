@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
@@ -34,6 +35,7 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
+import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -57,8 +59,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -66,10 +66,8 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.amazonaws.athena.connector.lambda.*;
-import com.amazonaws.athena.connector.lambda.data.*;
 
-public class NeptuneRecordHandlerTest {
+public class NeptuneRecordHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneRecordHandlerTest.class);
 
     private NeptuneRecordHandler handler;
@@ -101,8 +99,7 @@ public class NeptuneRecordHandlerTest {
         schemaForRead = SchemaBuilder.newBuilder().addIntField("year").addStringField("country").addStringField("code")
                 .addIntField("longest").addStringField("city").addFloat8Field("lon").addStringField("type")
                 .addIntField("elev").addStringField("icao").addStringField("region").addIntField("runways")
-                .addFloat8Field("lat").addStringField("desc")
-                .build();
+                .addFloat8Field("lat").addStringField("desc").build();
 
         allocator = new BlockAllocatorImpl();
 
@@ -116,7 +113,9 @@ public class NeptuneRecordHandlerTest {
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 S3Object mockObject = mock(S3Object.class);
                 when(mockObject.getObjectContent())
-                        .thenReturn(new S3ObjectInputStream(new ByteArrayInputStream(getFakeObject()), null));
+                        .thenReturn(new S3ObjectInputStream(
+                            new ByteArrayInputStream(getFakeObject()), null)
+                        );
                 return mockObject;
             }
         });
@@ -141,7 +140,7 @@ public class NeptuneRecordHandlerTest {
             return;
         }
 
-        //Sample constraints map code to test code locally
+        // Sample constraints map code to test code locally
 
         HashMap<String, ValueSet> constraintsMap = new HashMap<>();
 
@@ -166,7 +165,7 @@ public class NeptuneRecordHandlerTest {
         // SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
         // 6)));
 
-        // 3: COBINATION OF GREATER THAN AND LESS THAN
+        // 3: COMBINATION OF GREATER THAN AND LESS THAN
 
         SortedRangeSet sortedRangeSet = SortedRangeSet
                 .of(Range.range(allocator, Types.MinorType.INT.getType(), 3, true, 6, false));
@@ -175,16 +174,21 @@ public class NeptuneRecordHandlerTest {
 
         logger.info("testing constraint map: " + constraintsMap.toString());
 
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder().withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString()).withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true).build();
+
         // read request for neptune request
-        ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(), "catalog",
-                "queryId-" + System.currentTimeMillis(), new TableName("graph-database", "airport"), schemaForRead,
-                Split.newBuilder(makeSpillLocation(), null).build(), new Constraints(constraintsMap), 100_000_000_000L, // 100GB
-                                                                                                                        // don't
-                                                                                                                        // expect
-                                                                                                                        // this
-                                                                                                                        // to
-                                                                                                                        // spill
-                100_000_000_000L);
+        ReadRecordsRequest request = new ReadRecordsRequest(
+            IDENTITY, 
+            DEFAULT_CATALOG,
+            QUERY_ID, 
+            TABLE_NAME, 
+            schemaForRead,
+            Split.newBuilder(splitLoc, null).build(), new Constraints(constraintsMap), 
+            100_000_000_000L,
+            100_000_000_000L
+        );
 
         // internally calls readRecorsWithContrains
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
@@ -198,30 +202,100 @@ public class NeptuneRecordHandlerTest {
 
     }
 
+    @Test
+    public void doReadRecordsSpill() throws Exception {
+        if (!enableTests) {
+            // We do this because until you complete the tutorial these tests will fail.
+            // When you attempt to publis
+            // using ../toos/publish.sh ... it will set the publishing flag and force these
+            // tests. This is how we
+            // avoid breaking the build but still have a useful tutorial. We are also
+            // duplicateing this block
+            // on purpose since this is a somewhat odd pattern.
+            logger.info(": Tests are disabled, to enable them set the 'publishing' environment variable "
+                    + "using maven clean install -Dpublishing=true");
+            return;
+        }
+
+        // Sample constraints map code to test code locally
+
+        HashMap<String, ValueSet> constraintsMap = new HashMap<>();
+
+        // 1: GREATER THAN
+        // constraintsMap.put("runways",
+        // SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+        // ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(),
+        // 3)), false));
+
+        // constraintsMap.put("runways",
+        // SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(),
+        // 3)));
+
+        // 2: LESS THAN
+        // constraintsMap.put("runways",
+        // SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
+        // ImmutableList.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
+        // 6)), false));
+
+        // simpler one
+        // constraintsMap.put("runways",
+        // SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(),
+        // 6)));
+
+        // 3: COMBINATION OF GREATER THAN AND LESS THAN
+
+        SortedRangeSet sortedRangeSet = SortedRangeSet
+                .of(Range.range(allocator, Types.MinorType.INT.getType(), 3, true, 6, false));
+
+        constraintsMap.put("runways", sortedRangeSet);
+
+        logger.info("testing constraint map: " + constraintsMap.toString());
+
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder().withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString()).withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true).build();
+
+        // read request for neptune request
+        ReadRecordsRequest request = new ReadRecordsRequest(
+            IDENTITY, 
+            DEFAULT_CATALOG,
+            QUERY_ID, 
+            TABLE_NAME, 
+            schemaForRead,
+            Split.newBuilder(splitLoc, null).build(), new Constraints(constraintsMap), 
+            100_000_000_000L,
+            100_000_000_000L
+        );
+
+        // internally calls readRecorsWithContrains
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        try (RemoteReadRecordsResponse response = (RemoteReadRecordsResponse) rawResponse) {
+            logger.info("doReadRecordsSpill: remoteBlocks[{}]", response.getRemoteBlocks().size());
+
+            assertTrue(response.getNumberBlocks() > 1);
+
+            int blockNum = 0;
+            for (SpillLocation next : response.getRemoteBlocks()) {
+                S3SpillLocation spillLocation = (S3SpillLocation) next;
+                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(), response.getSchema())) {
+
+                    logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++, block.getRowCount());
+                    // assertTrue(++blockNum < response.getRemoteBlocks().size() && block.getRowCount() > 10_000);
+
+                    logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                    assertNotNull(BlockUtils.rowToString(block, 0));
+                }
+            }
+        }
+
+    }
+
+    //TODO: Clean up 
     private byte[] getFakeObject() throws UnsupportedEncodingException {
         StringBuilder sb = new StringBuilder();
         // sb.append("2017,11,1,2122792308,1755604178,false,0UTIXoWnKqtQe8y+BSHNmdEXmWfQalRQH60pobsgwws=\n");
-        // sb.append("2017,11,1,2030248245,747575690,false,i9AoMmLI6JidPjw/SFXduBB6HUmE8aXQLMhekhIfE1U=\n");
-        // sb.append("2017,11,1,23301515,1720603622,false,HWsLCXAnGFXnnjD8Nc1RbO0+5JzrhnCB/feJ/EzSxto=\n");
-        // sb.append("2017,11,1,1342018392,1167647466,false,lqL0mxeOeEesRY7EU95Fi6QEW92nj2mh8xyex69j+8A=\n");
-        // sb.append("2017,11,1,945994127,1854103174,true,C57VAyZ6Y0C+xKA2Lv6fOcIP0x6Px8BlEVBGSc74C4I=\n");
-        // sb.append("2017,11,1,1102797454,2117019257,true,oO0S69X+N2RSyEhlzHguZSLugO8F2cDVDpcAslg0hhQ=\n");
-        // sb.append("2017,11,1,862601609,392155621,true,L/Wpz4gHiRR7Sab1RCBrp4i1k+0IjUuJAV/Yn/7kZnc=\n");
-        // sb.append("2017,11,1,1858905353,1131234096,false,w4R3N+vN/EcwrWP7q/h2DwyhyraM1AwLbCbe26a+mQ0=\n");
-        // sb.append("2017,11,1,1300070253,247762646,false,cjbs6isGO0K7ib1D65VbN4lZEwQv2Y6Q/PoFZhyyacA=\n");
-        // sb.append("2017,11,1,843851309,1886346292,true,sb/xc+uoe/ZXRXTYIv9OTY33Rj+zSS96Mj/3LVPXvRM=\n");
-        // sb.append("2017,11,1,2013370128,1783091056,false,9MW9X3OUr40r4B/qeLz55yJIrvw7Gdk8RWUulNadIyw=\n");
         return sb.toString().getBytes("UTF-8");
-    }
-
-    private static FederatedIdentity fakeIdentity() {
-        return new FederatedIdentity("access_key_id", "principle", "account");
-    }
-
-    private SpillLocation makeSpillLocation() {
-        return S3SpillLocation.newBuilder().withBucket("temp-storage-04082020").withPrefix(
-                "athena-neptune-spill/2a23f9f0-d806-408b-8148-46047f25d03e/f24f5cdb-1cf2-4b32-b57f-c93b4a7e20ba")
-                .withQueryId(UUID.randomUUID().toString()).withSplitId(UUID.randomUUID().toString())
-                .withIsDirectory(true).build();
     }
 }
