@@ -65,7 +65,8 @@ import java.util.Set;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-public class NeptuneMetadataHandlerTest
+public class NeptuneMetadataHandlerTest 
+    extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandlerTest.class);
     private final AWSGlue glue = null;
@@ -108,7 +109,7 @@ public class NeptuneMetadataHandlerTest
         }
 
         logger.info("doListSchemas - enter");
-        ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "default");
+        ListSchemasRequest req = new ListSchemasRequest(IDENTITY, "queryId", "default");
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
         logger.info("doListSchemas - {}", res.getSchemas());
         assertFalse(res.getSchemas().isEmpty());
@@ -129,7 +130,7 @@ public class NeptuneMetadataHandlerTest
         }
 
         logger.info("doListTables - enter");
-        ListTablesRequest req = new ListTablesRequest(fakeIdentity(), "queryId", "default", "schema1");
+        ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default", "schema1");
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
         assertFalse(res.getTables().isEmpty());
@@ -150,7 +151,7 @@ public class NeptuneMetadataHandlerTest
         }
 
         logger.info("doGetTable - enter");
-        GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "default",
+        GetTableRequest req = new GetTableRequest(IDENTITY, "queryId", "default",
                 new TableName("schema1", "table1"));
         GetTableResponse res = handler.doGetTable(allocator, req);
         assertTrue(res.getSchema().getFields().size() > 0);
@@ -201,7 +202,7 @@ public class NeptuneMetadataHandlerTest
         GetTableLayoutResponse res = null;
         try {
 
-            req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
+            req = new GetTableLayoutRequest(IDENTITY, "queryId", "default",
                     new TableName("schema1", "table1"),
                     new Constraints(constraintsMap),
                     tableSchema,
@@ -275,7 +276,7 @@ public class NeptuneMetadataHandlerTest
         partitions.setRowCount(num_partitions);
 
         String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(), "queryId", "catalog_name",
+        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY, "queryId", "catalog_name",
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
@@ -311,10 +312,5 @@ public class NeptuneMetadataHandlerTest
         assertTrue(numContinuations == 0);
 
         logger.info("doGetSplits: exit");
-    }
-
-    private static FederatedIdentity fakeIdentity()
-    {
-        return new FederatedIdentity("access_key_id", "principle", "account");
     }
 }
