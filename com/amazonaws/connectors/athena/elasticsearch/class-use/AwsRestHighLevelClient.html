@@ -110,8 +110,36 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a></code></td>
-<td class="colLast"><span class="typeNameLabel">AwsRestHighLevelClientFactory.</span><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#getClient-java.lang.String-">getClient</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</code>
-<div class="block">Gets an Elasticsearch REST client injected with credentials.</div>
+<td class="colLast"><span class="typeNameLabel">CacheableAwsRestHighLevelClient.</span><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#get-java.lang.String-">get</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</code>
+<div class="block">Gets a client from the cache keyed on the endpoint.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a></code></td>
+<td class="colLast"><span class="typeNameLabel">AwsRestHighLevelClientFactory.</span><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#getOrCreateClient-java.lang.String-">getOrCreateClient</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</code>
+<div class="block">Attempts to get a REST client from the client cache synchronously using the endpoint as a key.</div>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a> with parameters of type <a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">CacheableAwsRestHighLevelClient.</span><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#addClientEntry-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClient-long-">addClientEntry</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint,
+              <a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a>&nbsp;client,
+              long&nbsp;createTime)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">CacheableAwsRestHighLevelClient.</span><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#put-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClient-">put</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint,
+   <a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a>&nbsp;client)</code>
+<div class="block">Sets a client in the cache keyed on the endpoint and process cache eviction based on cache capacity limit.</div>
 </td>
 </tr>
 </tbody>

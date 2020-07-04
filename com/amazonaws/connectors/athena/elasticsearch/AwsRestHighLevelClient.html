@@ -204,9 +204,10 @@ extends org.elasticsearch.client.RestHighLevelClient</pre>
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html#shutdown--">shutdown</a></span>()</code>
-<div class="block">Shuts down the client.</div>
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html#getShardIds-java.lang.String-long-">getShardIds</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;index,
+           long&nbsp;timeout)</code>
+<div class="block">Retrieves cluster-health information for shards associated with the specified index.</div>
 </td>
 </tr>
 </table>
@@ -296,6 +297,30 @@ extends org.elasticsearch.client.RestHighLevelClient</pre>
 </dl>
 </li>
 </ul>
+<a name="getShardIds-java.lang.String-long-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getShardIds</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;&nbsp;getShardIds(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;index,
+                                long&nbsp;timeout)
+                         throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a>,
+                                <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block">Retrieves cluster-health information for shards associated with the specified index. The request will time out
+ if no results are returned after a period of time indicated by timeout.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>index</code> - is used to restrict the request to a specified index.</dd>
+<dd><code>timeout</code> - is the command timeout period in seconds.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a set of shard ids for the specified index.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></code> - if an error occurs while sending the request to the Elasticsearch instance.</dd>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - if the request times out, or no active-primary shards are present.</dd>
+</dl>
+</li>
+</ul>
 <a name="getDocuments-org.elasticsearch.action.search.SearchRequest-">
 <!--   -->
 </a>
@@ -319,7 +344,7 @@ extends org.elasticsearch.client.RestHighLevelClient</pre>
 <a name="getDocument-org.elasticsearch.search.SearchHit-">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>getDocument</h4>
 <pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;getDocument(org.elasticsearch.search.SearchHit&nbsp;searchHit)</pre>
@@ -330,16 +355,6 @@ extends org.elasticsearch.client.RestHighLevelClient</pre>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the Document as a Map object.</dd>
 </dl>
-</li>
-</ul>
-<a name="shutdown--">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>shutdown</h4>
-<pre>public&nbsp;void&nbsp;shutdown()</pre>
-<div class="block">Shuts down the client.</div>
 </li>
 </ul>
 </li>

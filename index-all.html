@@ -120,6 +120,8 @@
 <dd>
 <div class="block">Adds a new Field as a child of the requested top-level parent field.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#addClientEntry-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClient-long-">addClientEntry(String, AwsRestHighLevelClient, long)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html#addConnection-java.lang.String-com.mongodb.client.MongoClient-">addConnection(String, MongoClient)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBConnectionFactory</a></dt>
 <dd>
 <div class="block">Injects a connection into the client cache.</div>
@@ -569,6 +571,10 @@
  cache in front of SecretsManager to avoid bottlenecking on SecretsManager.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html#CachableSecretsManager-com.amazonaws.services.secretsmanager.AWSSecretsManager-">CachableSecretsManager(AWSSecretsManager)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">CacheableAwsRestHighLevelClient</span></a> - Class in <a href="com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#CacheableAwsRestHighLevelClient--">CacheableAwsRestHighLevelClient()</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationService.html#call-com.amazonaws.athena.connector.lambda.request.FederationRequest-">call(FederationRequest)</a></span> - Method in interface com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationService.html" title="interface in com.amazonaws.athena.connector.validation">FederationService</a></dt>
 <dd>&nbsp;</dd>
@@ -1371,7 +1377,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchMetadataHandler</a></dt>
 <dd>
-<div class="block">Used to split-up the reads required to scan the requested index/indices.</div>
+<div class="block">Used to split-up the reads required to scan the requested index by shard.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/example/ExampleMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.connectors.athena.example.<a href="com/amazonaws/connectors/athena/example/ExampleMetadataHandler.html" title="class in com.amazonaws.connectors.athena.example">ExampleMetadataHandler</a></dt>
 <dd>
@@ -1705,7 +1711,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#ElasticsearchMetadataHandler--">ElasticsearchMetadataHandler()</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#ElasticsearchMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-">ElasticsearchMetadataHandler(AWSGlue, EncryptionKeyFactory, AWSSecretsManager, AmazonAthena, String, String, ElasticsearchDomainMapProvider, AwsRestHighLevelClientFactory)</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchMetadataHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#ElasticsearchMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-long-">ElasticsearchMetadataHandler(AWSGlue, EncryptionKeyFactory, AWSSecretsManager, AmazonAthena, String, String, ElasticsearchDomainMapProvider, AwsRestHighLevelClientFactory, long)</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">ElasticsearchRecordHandler</span></a> - Class in <a href="com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></dt>
 <dd>
@@ -1713,7 +1719,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html#ElasticsearchRecordHandler--">ElasticsearchRecordHandler()</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchRecordHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html#ElasticsearchRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-">ElasticsearchRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, AwsRestHighLevelClientFactory)</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchRecordHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html#ElasticsearchRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-long-">ElasticsearchRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, AwsRestHighLevelClientFactory, long)</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ConstraintEvaluator.html#emptyEvaluator--">emptyEvaluator()</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a></dt>
 <dd>
@@ -2189,6 +2195,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html#GenericJdbcConnectionFactory-com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig-java.util.Map-">GenericJdbcConnectionFactory(DatabaseConnectionConfig, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#get-java.lang.String-">get(String)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
+<dd>
+<div class="block">Gets a client from the cache keyed on the endpoint.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleUserDefinedFunctionHandler.html#get_default_value_if_null-java.lang.Long-">get_default_value_if_null(Long)</a></span> - Method in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleUserDefinedFunctionHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleUserDefinedFunctionHandler</a></dt>
 <dd>
 <div class="block">This UDF takes in a Long value, and returns a default value if the input value is not set.</div>
@@ -2275,10 +2285,6 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/FieldBuilder.html#getChild-java.lang.String-">getChild(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/FieldBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">FieldBuilder</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#getClient-java.lang.String-">getClient(String)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a></dt>
-<dd>
-<div class="block">Gets an Elasticsearch REST client injected with credentials.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html#getClientConfigs--">getClientConfigs()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a></dt>
 <dd>
 <div class="block">Provides access to the current HBase client config options used during connection construction.</div>
@@ -2599,6 +2605,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorRegistry.html#getOrCreateAllocator-java.lang.String-">getOrCreateAllocator(String)</a></span> - Method in interface com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorRegistry.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocatorRegistry</a></dt>
 <dd>
 <div class="block">Gets or creates a new Block Allocator for the given context (id).</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#getOrCreateClient-java.lang.String-">getOrCreateClient(String)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a></dt>
+<dd>
+<div class="block">Attempts to get a REST client from the client cache synchronously using the endpoint as a key.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html#getOrCreateConn-java.lang.String-">getOrCreateConn(String)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBConnectionFactory</a></dt>
 <dd>
@@ -2949,6 +2959,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html#getService-java.lang.String-com.amazonaws.athena.connector.lambda.security.FederatedIdentity-java.lang.String-">getService(String, FederatedIdentity, String)</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/FederationServiceProvider.html" title="class in com.amazonaws.athena.connector.validation">FederationServiceProvider</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html#getShardIds-java.lang.String-long-">getShardIds(String, long)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a></dt>
+<dd>
+<div class="block">Retrieves cluster-health information for shards associated with the specified index.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html#getSingleDatabaseConfigFromEnv-com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory.DatabaseEngine-">getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine)</a></span> - Static method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JDBCUtil</a></dt>
 <dd>
 <div class="block">Extracts default database configuration for a database.</div>
@@ -4031,8 +4045,16 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#max-com.amazonaws.athena.connector.lambda.domain.predicate.Marker-com.amazonaws.athena.connector.lambda.domain.predicate.Marker-">max(Marker, Marker)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#MAX_CACHE_AGE_MS">MAX_CACHE_AGE_MS</a></span> - Static variable in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
+<dd>
+<div class="block">The maximum age allowed for stored clients in milliseconds (15 minutes).</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html#MAX_CACHE_SIZE">MAX_CACHE_SIZE</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#MAX_CACHE_SIZE">MAX_CACHE_SIZE</a></span> - Static variable in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
+<dd>
+<div class="block">The maximum number of clients allowed in the cache.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html#MAX_SPLITS_PER_REQUEST">MAX_SPLITS_PER_REQUEST</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html#MAX_SPLITS_PER_REQUEST">MAX_SPLITS_PER_REQUEST</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchMetadataHandler</a></dt>
@@ -4473,6 +4495,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricUtils.html#pushDownPredicate-com.amazonaws.athena.connector.lambda.domain.predicate.Constraints-com.amazonaws.services.cloudwatch.model.ListMetricsRequest-">pushDownPredicate(Constraints, ListMetricsRequest)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricUtils</a></dt>
 <dd>
 <div class="block">Attempts to push the supplied predicate constraints onto the Cloudwatch Metrics request.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#put-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClient-">put(String, AwsRestHighLevelClient)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
+<dd>
+<div class="block">Sets a client in the cache keyed on the endpoint and process cache eviction based on cache capacity limit.</div>
 </dd>
 </dl>
 <a name="I:Q">
@@ -5017,12 +5043,12 @@
 <dd>
 <div class="block">Used to set values (Int, BigInt, Bit, etc...) on the provided FieldVector.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#SHARD_KEY">SHARD_KEY</a></span> - Static variable in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchMetadataHandler</a></dt>
+<dd>
+<div class="block">Key used to store shard information in the Split's properties map (later used by the Record Handler).</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.SharedBlockMarker.html#SharedBlockMarker-com.amazonaws.athena.connector.lambda.domain.predicate.MarkerFactory-com.amazonaws.athena.connector.lambda.data.Block-int-com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound-boolean-">SharedBlockMarker(MarkerFactory, Block, int, Marker.Bound, boolean)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/MarkerFactory.SharedBlockMarker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">MarkerFactory.SharedBlockMarker</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html#shutdown--">shutdown()</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a></dt>
-<dd>
-<div class="block">Shuts down the client.</div>
-</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/projectors/SimpleArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors"><span class="typeNameLink">SimpleArrowValueProjector</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/projectors/package-summary.html">com.amazonaws.athena.connector.lambda.data.projectors</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/SimpleArrowValueProjector.html#SimpleArrowValueProjector-org.apache.arrow.vector.complex.reader.FieldReader-">SimpleArrowValueProjector(FieldReader)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/SimpleArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">SimpleArrowValueProjector</a></dt>
@@ -5035,6 +5061,8 @@
 <dd>
 <div class="block">Basic constructor using a pre-allocated Block.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#size--">size()</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/SmallIntExtractor.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.extractors"><span class="typeNameLink">SmallIntExtractor</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/data/writers/extractors/package-summary.html">com.amazonaws.athena.connector.lambda.data.writers.extractors</a></dt>
 <dd>
 <div class="block">Used to extract a SmallInt value from the context object.</div>

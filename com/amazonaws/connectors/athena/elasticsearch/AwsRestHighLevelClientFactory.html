@@ -50,7 +50,7 @@ var activeTableTab = "activeTableTab";
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchCompositeHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" target="_top">Frames</a></li>
@@ -127,12 +127,10 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Constructor Summary table, listing constructors, and an explanation">
 <caption><span>Constructors</span><span class="tabEnd">&nbsp;</span></caption>
 <tr>
-<th class="colFirst" scope="col">Modifier</th>
-<th class="colLast" scope="col">Constructor and Description</th>
+<th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#AwsRestHighLevelClientFactory-boolean-">AwsRestHighLevelClientFactory</a></span>(boolean&nbsp;useAwsCredentials)</code>
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#AwsRestHighLevelClientFactory-boolean-">AwsRestHighLevelClientFactory</a></span>(boolean&nbsp;useAwsCredentials)</code>
 <div class="block">Constructs a new client factory (using a builder) that will create clients injected with credentials.</div>
 </td>
 </tr>
@@ -153,8 +151,8 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#getClient-java.lang.String-">getClient</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</code>
-<div class="block">Gets an Elasticsearch REST client injected with credentials.</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html#getOrCreateClient-java.lang.String-">getOrCreateClient</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</code>
+<div class="block">Attempts to get a REST client from the client cache synchronously using the endpoint as a key.</div>
 </td>
 </tr>
 </table>
@@ -185,12 +183,12 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <ul class="blockListLast">
 <li class="blockList">
 <h4>AwsRestHighLevelClientFactory</h4>
-<pre>protected&nbsp;AwsRestHighLevelClientFactory(boolean&nbsp;useAwsCredentials)</pre>
+<pre>public&nbsp;AwsRestHighLevelClientFactory(boolean&nbsp;useAwsCredentials)</pre>
 <div class="block">Constructs a new client factory (using a builder) that will create clients injected with credentials.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>useAwsCredentials</code> - if true the factory create clients injected with AWC credentials.
-                              If false, it will create clients injected with username/password credentials.</dd>
+                          If false, it will create clients injected with username/password credentials.</dd>
 </dl>
 </li>
 </ul>
@@ -202,26 +200,21 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="getClient-java.lang.String-">
+<a name="getOrCreateClient-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
-<h4>getClient</h4>
-<pre>public&nbsp;<a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a>&nbsp;getClient(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</pre>
-<div class="block">Gets an Elasticsearch REST client injected with credentials.</div>
+<h4>getOrCreateClient</h4>
+<pre>public&nbsp;<a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient</a>&nbsp;getOrCreateClient(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;endpoint)</pre>
+<div class="block">Attempts to get a REST client from the client cache synchronously using the endpoint as a key. If the client
+ does not exist in the cache, createClient() is called to create a new client. The newly created client is
+ then inserted into the cache and stored for later use.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>endpoint</code> - is the Elasticsearch instance endpoint. The latter may contain username/password credentials
-                 for Elasticsearch services that are external to Amazon.
-                 Examples:
-                 1) https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
-                 2) http://myusername@mypassword:www.google.com</dd>
+<dd><code>endpoint</code> - is the Elasticsearch instance endpoint.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>an Elasticsearch REST client. If useAwsCredentials = true, the client is injected
-          with AWS credentials. If useAwsCredentials = false and username/password are extracted using the
-          credentialsPattern, it is injected with username/password credentials. Otherwise a default client
-          with no credentials is returned.</dd>
+<dd>an Elasticsearch REST client.</dd>
 </dl>
 </li>
 </ul>
@@ -254,7 +247,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchCompositeHandler.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" target="_top">Frames</a></li>

@@ -75,13 +75,13 @@ var activeTableTab = "activeTableTab";
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
 <li><a href="#nested.classes.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler">Nested</a>&nbsp;|&nbsp;</li>
-<li><a href="#fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler">Field</a>&nbsp;|&nbsp;</li>
+<li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>
@@ -155,6 +155,19 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <!--   -->
 </a>
 <h3>Field Summary</h3>
+<table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Field Summary table, listing fields, and an explanation">
+<caption><span>Fields</span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Field and Description</th>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#SHARD_KEY">SHARD_KEY</a></span></code>
+<div class="block">Key used to store shard information in the Split's properties map (later used by the Record Handler).</div>
+</td>
+</tr>
+</table>
 <ul class="blockList">
 <li class="blockList"><a name="fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler">
 <!--   -->
@@ -189,14 +202,15 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#ElasticsearchMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-">ElasticsearchMetadataHandler</a></span>(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#ElasticsearchMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-long-">ElasticsearchMetadataHandler</a></span>(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
                             <a href="../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
                             com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;awsSecretsManager,
                             com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillBucket,
                             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillPrefix,
                             com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider&nbsp;domainMapProvider,
-                            <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory)</code>&nbsp;</td>
+                            <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory,
+                            long&nbsp;queryTimeout)</code>&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -224,7 +238,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <td class="colFirst"><code><a href="../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
            <a href="../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
-<div class="block">Used to split-up the reads required to scan the requested index/indices.</div>
+<div class="block">Used to split-up the reads required to scan the requested index by shard.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
@@ -292,6 +306,28 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
+<!-- ============ FIELD DETAIL =========== -->
+<ul class="blockList">
+<li class="blockList"><a name="field.detail">
+<!--   -->
+</a>
+<h3>Field Detail</h3>
+<a name="SHARD_KEY">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>SHARD_KEY</h4>
+<pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> SHARD_KEY</pre>
+<div class="block">Key used to store shard information in the Split's properties map (later used by the Record Handler).</div>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../constant-values.html#com.amazonaws.connectors.athena.elasticsearch.ElasticsearchMetadataHandler.SHARD_KEY">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+</li>
+</ul>
 <!-- ========= CONSTRUCTOR DETAIL ======== -->
 <ul class="blockList">
 <li class="blockList"><a name="constructor.detail">
@@ -307,7 +343,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <pre>public&nbsp;ElasticsearchMetadataHandler()</pre>
 </li>
 </ul>
-<a name="ElasticsearchMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-">
+<a name="ElasticsearchMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-long-">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -320,7 +356,8 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
                                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillBucket,
                                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillPrefix,
                                        com.amazonaws.connectors.athena.elasticsearch.ElasticsearchDomainMapProvider&nbsp;domainMapProvider,
-                                       <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory)</pre>
+                                       <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory,
+                                       long&nbsp;queryTimeout)</pre>
 </li>
 </ul>
 </li>
@@ -450,21 +487,22 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <pre>public&nbsp;<a href="../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a>&nbsp;doGetSplits(<a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
                                      <a href="../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)
                               throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></pre>
-<div class="block">Used to split-up the reads required to scan the requested index/indices. This initial implementation supports
- a single split solution.</div>
+<div class="block">Used to split-up the reads required to scan the requested index by shard. Cluster-health information is
+ retrieved for shards associated with the specified index. A split will then be generated for each shard that
+ is primary and active.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></code>&nbsp;in class&nbsp;<code><a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></code></dd>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>allocator</code> - Tool for creating and managing Apache Arrow Blocks.</dd>
-<dd><code>request</code> - Provides details of the catalog, database, table, andpartition(s) being queried as well as
- any filter predicate.</dd>
+<dd><code>request</code> - Provides details of the catalog, domain, and index being queried, as well as any filter predicate.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>A GetSplitsResponse which primarily contains:
- 1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
+ 1. A Set<Split> each containing a domain and endpoint, and the shard to be retrieved by the Record handler.
  2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - when the domain does not exist in the map.</dd>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - when the domain does not exist in the map, or an error occurs while processing the
+ cluster/shard health information.</dd>
 </dl>
 </li>
 </ul>
@@ -545,13 +583,13 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
 <li><a href="#nested.classes.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler">Nested</a>&nbsp;|&nbsp;</li>
-<li><a href="#fields.inherited.from.class.com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler">Field</a>&nbsp;|&nbsp;</li>
+<li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.summary">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method.detail">Method</a></li>
 </ul>

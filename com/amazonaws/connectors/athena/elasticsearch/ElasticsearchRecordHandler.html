@@ -146,10 +146,11 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html#ElasticsearchRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-">ElasticsearchRecordHandler</a></span>(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchRecordHandler.html#ElasticsearchRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-long-">ElasticsearchRecordHandler</a></span>(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
                           com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
                           com.amazonaws.services.athena.AmazonAthena&nbsp;amazonAthena,
-                          <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory)</code>&nbsp;</td>
+                          <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory,
+                          long&nbsp;queryTimeout)</code>&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -222,7 +223,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
 <pre>public&nbsp;ElasticsearchRecordHandler()</pre>
 </li>
 </ul>
-<a name="ElasticsearchRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-">
+<a name="ElasticsearchRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClientFactory-long-">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -231,7 +232,8 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
 <pre>protected&nbsp;ElasticsearchRecordHandler(com.amazonaws.services.s3.AmazonS3&nbsp;amazonS3,
                                      com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
                                      com.amazonaws.services.athena.AmazonAthena&nbsp;amazonAthena,
-                                     <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory)</pre>
+                                     <a href="../../../../../com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClientFactory.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClientFactory</a>&nbsp;clientFactory,
+                                     long&nbsp;queryTimeout)</pre>
 </li>
 </ul>
 </li>
@@ -282,7 +284,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
  4. The columns required for projection.</dd>
 <dd><code>queryStatusChecker</code> - A QueryStatusChecker that you can use to stop doing work for a query that has already terminated</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - when an error occurs while attempting to send the DB query.</dd>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - when an error occurs while attempting to send the query, or the query timed out.</dd>
 </dl>
 </li>
 </ul>
