@@ -70,7 +70,7 @@ public class NeptuneMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandlerTest.class);
     private final AWSGlue glue = null;
-    private NeptuneMetadataHandler handler = new NeptuneMetadataHandler(glue, new NeptuneConnection(), new LocalKeyFactory(),
+    private NeptuneMetadataHandler handler = new NeptuneMetadataHandler(glue, new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port")), new LocalKeyFactory(),
             mock(AWSSecretsManager.class),
             mock(AmazonAthena.class),
             "spill-bucket",

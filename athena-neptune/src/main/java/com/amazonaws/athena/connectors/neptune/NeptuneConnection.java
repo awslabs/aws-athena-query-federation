@@ -31,14 +31,15 @@ import org.apache.tinkerpop.gremlin.driver.Client;
 
 public class NeptuneConnection {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneConnection.class);
-    
-    private static Cluster cluster = Cluster.build()
-        .addContactPoint(System.getenv("neptune_endpoint"))
-        .port(Integer.parseInt(System.getenv("neptune_port")))
-        .enableSsl(true)
-        .create();
 
-    NeptuneConnection() {   
+    private Cluster cluster = null;
+
+    NeptuneConnection(String neptuneEndpoint, String neptunePort) {
+        cluster = Cluster.build()
+                        .addContactPoint(neptuneEndpoint)
+                        .port(Integer.parseInt(neptunePort))
+                        .enableSsl(true)
+                        .create();
     }
 
     Client getNeptunClientConnection() {

@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -93,7 +94,8 @@ public class NeptuneRecordHandler extends RecordHandler {
 
     public NeptuneRecordHandler() {
         this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), new NeptuneConnection());
+                AmazonAthenaClientBuilder.defaultClient(),
+                new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port")));
     }
 
     @VisibleForTesting
@@ -141,19 +143,9 @@ public class NeptuneRecordHandler extends RecordHandler {
         final Client client = neptuneConnection.getNeptunClientConnection();
         try {
             final GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
-            // final GraphTraversal<Vertex, Map<Object, Object>> result =
-            // graphTraversalSource.V().hasLabel(labelName).valueMap();
-
             String traversal = "g.V().hasLabel('" + labelName + "')"; // add constraints for final evaluation
 
-            logger.info("readWithContraint: Neptune Query Constraints Count: "
-                    + recordsRequest.getConstraints().getSummary().size());
-
             if (recordsRequest.getConstraints().getSummary().size() > 0) {
-
-                logger.info("readWithContraint: Neptune Query Constraints: "
-                        + recordsRequest.getConstraints().getSummary().toString());
-
                 HashMap<String, ValueSet> constraints = (HashMap<String, ValueSet>) recordsRequest.getConstraints()
                         .getSummary();
                 traversal += flattenContraintsMap(constraints);
@@ -214,8 +206,7 @@ public class NeptuneRecordHandler extends RecordHandler {
         }
     }
 
-
-    //Need to refactor this
+    // Need to refactor this
     public String flattenContraintsMap(HashMap hashMap) {
 
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
@@ -228,11 +219,14 @@ public class NeptuneRecordHandler extends RecordHandler {
             List<Range> ranges = value.getOrderedRanges();
 
             for (Range range : ranges) {
-    
-                if(!range.getLow().isNullValue() && !range.getHigh().isNullValue()){
-                    if(range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())){
-                        flattenedString += ".has('" + key + "',eq(" + range.getLow().getValue().toString() + "))";
-                        break;
+
+                if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
+                    if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
+
+                        if (range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString())) {
+                            flattenedString += ".has('" + key + "',eq(" + range.getLow().getValue().toString() + "))";
+                            break;
+                        }
                     }
                 }
 

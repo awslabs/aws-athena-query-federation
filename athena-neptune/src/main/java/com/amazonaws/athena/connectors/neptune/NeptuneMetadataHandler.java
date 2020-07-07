@@ -86,7 +86,7 @@ public class NeptuneMetadataHandler
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "neptune";
     
-    private final NeptuneConnection neptuneConnection;
+    private NeptuneConnection neptuneConnection;
     private GraphTraversalSource g;
     private final AWSGlue glue;
     private static final String glue_database_name = System.getenv("glue_database_name");
@@ -94,7 +94,7 @@ public class NeptuneMetadataHandler
     public NeptuneMetadataHandler()
     {
         super(false, SOURCE_TYPE);
-        neptuneConnection = new NeptuneConnection();
+        neptuneConnection = new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port"));
        // g = neptuneConnection.getTraversalSource();
         glue = getAwsGlue();
     }
