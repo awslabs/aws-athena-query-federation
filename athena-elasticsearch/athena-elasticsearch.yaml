@@ -51,6 +51,14 @@ Parameters:
     Description: "List of one or more domain-names and their respective endpoints (including secret credentials) in the format: domain1=endpoint1,domain2=endpoint2,... (e.g. movies=https://${secret-credentials}:www.mymovies.com)."
     Default: ""
     Type: String
+  QueryTimeoutCluster:
+    Description: "timeout period (in seconds) for Cluster-Health queries used in the generation of parallel scans (default is 10 seconds)."
+    Default: 10
+    Type: Number
+  QueryTimeoutSearch:
+    Description: "timeout period (in seconds) for Search queries used in the retrieval of documents from an index (default is 12 minutes)."
+    Default: 720
+    Type: Number
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -62,6 +70,8 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           auto_discover_endpoint: !Ref AutoDiscoverEndpoint
           domain_mapping: !Ref DomainMapping
+          query_timeout_cluster: !Ref QueryTimeoutCluster
+          query_timeout_search: !Ref QueryTimeoutSearch
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-1.0.jar"

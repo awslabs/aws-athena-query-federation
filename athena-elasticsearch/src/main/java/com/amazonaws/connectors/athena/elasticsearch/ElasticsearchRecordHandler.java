@@ -36,6 +36,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class is responsible for providing Athena with actual rows level data from your Elasticsearch instance. Athena
@@ -64,6 +66,10 @@ public class ElasticsearchRecordHandler
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
     private static final String AUTO_DISCOVER_ENDPOINT = "auto_discover_endpoint";
 
+    // Env. variable that holds the query timeout period for the Search queries.
+    private static final String QUERY_TIMEOUT_SEARCH = "query_timeout_search";
+    private final long queryTimeout;
+
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
 
@@ -78,16 +84,18 @@ public class ElasticsearchRecordHandler
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
                 .equalsIgnoreCase("true"));
+        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_SEARCH));
     }
 
     @VisibleForTesting
     protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         AwsRestHighLevelClientFactory clientFactory)
+                                         AwsRestHighLevelClientFactory clientFactory, long queryTimeout)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
+        this.queryTimeout = queryTimeout;
     }
 
     /**
@@ -113,7 +121,7 @@ public class ElasticsearchRecordHandler
      * 3. The filtering predicate (if any)
      * 4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws RuntimeException when an error occurs while attempting to send the DB query.
+     * @throws RuntimeException when an error occurs while attempting to send the query, or the query timed out.
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
@@ -128,20 +136,23 @@ public class ElasticsearchRecordHandler
 
         String domain = recordsRequest.getTableName().getSchemaName();
         String endpoint = recordsRequest.getSplit().getProperty(domain);
+        String index = recordsRequest.getTableName().getTableName();
+        String shard = recordsRequest.getSplit().getProperty(ElasticsearchMetadataHandler.SHARD_KEY);
         long numRows = 0;
 
         if (queryStatusChecker.isQueryRunning()) {
-            AwsRestHighLevelClient client = clientFactory.getClient(endpoint);
+            AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 // Create field extractors for all data types in the schema.
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);
 
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
                 SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
+                        .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
                 // Create a new search-request for the specified index.
-                SearchRequest searchRequest = new SearchRequest(recordsRequest.getTableName().getTableName());
+                SearchRequest searchRequest = new SearchRequest(index).preference(shard);
                 int hitsNum;
                 int currPosition = 0;
                 do {
@@ -149,6 +160,12 @@ public class ElasticsearchRecordHandler
                     // used for pagination of results.
                     SearchResponse searchResponse = client
                             .getDocuments(searchRequest.source(searchSource.from(currPosition)));
+
+                    // Throw on query timeout.
+                    if (searchResponse.isTimedOut()) {
+                        throw new RuntimeException("Request for index (" + index + ") " + shard + " timed out.");
+                    }
+
                     // Increment current position to next batch of results.
                     currPosition += QUERY_BATCH_SIZE;
                     // Process hits.
@@ -164,10 +181,7 @@ public class ElasticsearchRecordHandler
                 } while (hitsNum == QUERY_BATCH_SIZE && queryStatusChecker.isQueryRunning());
             }
             catch (IOException error) {
-                throw new RuntimeException("Error sending query: " + error.getMessage(), error);
-            }
-            finally {
-                client.shutdown();
+                throw new RuntimeException("Error sending search query: " + error.getMessage(), error);
             }
         }
 

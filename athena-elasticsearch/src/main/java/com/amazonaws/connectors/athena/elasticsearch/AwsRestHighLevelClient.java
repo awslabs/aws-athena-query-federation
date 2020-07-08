@@ -28,6 +28,8 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -38,6 +40,8 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.GetMappingsRequest;
 import org.elasticsearch.client.indices.GetMappingsResponse;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class is used to create a new REST client injected with either AWS credentials or username/password credentials.
@@ -95,6 +100,42 @@ public class AwsRestHighLevelClient
     }
 
     /**
+     * Retrieves cluster-health information for shards associated with the specified index. The request will time out
+     * if no results are returned after a period of time indicated by timeout.
+     * @param index is used to restrict the request to a specified index.
+     * @param timeout is the command timeout period in seconds.
+     * @return a set of shard ids for the specified index.
+     * @throws IOException if an error occurs while sending the request to the Elasticsearch instance.
+     * @throws RuntimeException if the request times out, or no active-primary shards are present.
+     */
+    public Set<Integer> getShardIds(String index, long timeout)
+            throws RuntimeException, IOException
+    {
+        ClusterHealthRequest request = new ClusterHealthRequest(index)
+                .timeout(new TimeValue(timeout, TimeUnit.SECONDS));
+        // Set request to shard-level details
+        request.level(ClusterHealthRequest.Level.SHARDS);
+
+        ClusterHealthResponse response = cluster().health(request, RequestOptions.DEFAULT);
+
+        if (response.isTimedOut()) {
+            throw new RuntimeException("Request timed out for index (" + index + ").");
+        }
+        else if (response.getActiveShards() == 0) {
+            throw new RuntimeException("There are no active shards for index (" + index + ").");
+        }
+        else if (response.getStatus() == ClusterHealthStatus.RED) {
+            throw new RuntimeException("Request aborted for index (" + index +
+                    ") due to cluster's status (RED) - One or more primary shards are unassigned.");
+        }
+        else if (!response.getIndices().containsKey(index)) {
+            throw new RuntimeException("Request has an invalid index (" + index + ").");
+        }
+
+        return response.getIndices().get(index).getShards().keySet();
+    }
+
+    /**
      * Gets the Documents for the specified index and predicate.
      * @param request is the search request that includes the projection, predicate, batch size, and from position
      *                used for pagination of results.
@@ -115,19 +156,6 @@ public class AwsRestHighLevelClient
     public Map<String, Object> getDocument(SearchHit searchHit)
     {
         return searchHit.getSourceAsMap();
-    }
-
-    /**
-     * Shuts down the client.
-     */
-    public void shutdown()
-    {
-        try {
-            close();
-        }
-        catch (IOException error) {
-            logger.error("Unable to shutdown client:", error);
-        }
     }
 
     /**

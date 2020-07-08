@@ -33,8 +33,6 @@ public class AwsRestHighLevelClientFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(AwsRestHighLevelClientFactory.class);
 
-    private final boolean useAwsCredentials;
-
     /**
      * credentialsPattern is used for parsing out the username/password credentials out of the endpoint with the
      * format: "username@password:" (e.g. if the endpoint is http://myusername@mypassword:www.google.com, then this
@@ -43,28 +41,62 @@ public class AwsRestHighLevelClientFactory
     private static final Pattern credentialsPattern = Pattern.compile("[^/@]+@[^:]+:");
 
     /**
+     * A flag indicating how the created clients will authenticate to an Elasticsearch instance.
+     * If useAwsCredentials = true, the client will be injected with AWS credentials.
+     * If useAwsCredentials = false and username/password are extracted using the credentialsPattern, the client
+     * will be injected with username/password credentials.
+     * If useAwsCredentials = false and username/password are not present, the client will be created with no
+     * credentials.
+     */
+    private final boolean useAwsCredentials;
+
+    /**
+     * Stored cache of clients accessible via the endpoint.
+     */
+    private final CacheableAwsRestHighLevelClient clientCache = new CacheableAwsRestHighLevelClient();
+
+    /**
      * Constructs a new client factory (using a builder) that will create clients injected with credentials.
      * @param useAwsCredentials if true the factory create clients injected with AWC credentials.
-     *                              If false, it will create clients injected with username/password credentials.
+     *                          If false, it will create clients injected with username/password credentials.
      */
-    protected AwsRestHighLevelClientFactory(boolean useAwsCredentials)
+    public AwsRestHighLevelClientFactory(boolean useAwsCredentials)
     {
         this.useAwsCredentials = useAwsCredentials;
     }
 
     /**
-     * Gets an Elasticsearch REST client injected with credentials.
+     * Attempts to get a REST client from the client cache synchronously using the endpoint as a key. If the client
+     * does not exist in the cache, createClient() is called to create a new client. The newly created client is
+     * then inserted into the cache and stored for later use.
+     * @param endpoint is the Elasticsearch instance endpoint.
+     * @return an Elasticsearch REST client.
+     */
+    public synchronized AwsRestHighLevelClient getOrCreateClient(String endpoint)
+    {
+        AwsRestHighLevelClient client = clientCache.get(endpoint);
+
+        if (client == null) {
+            client = createClient(endpoint);
+            clientCache.put(endpoint, client);
+        }
+
+        return client;
+    }
+
+    /**
+     * Creates a new Elasticsearch REST client. If useAwsCredentials = true, the client is injected with AWS
+     * credentials. If useAwsCredentials = false and username/password are extracted using the credentialsPattern,
+     * the client is injected with username/password credentials. Otherwise a default client with no credentials is
+     * returned.
      * @param endpoint is the Elasticsearch instance endpoint. The latter may contain username/password credentials
      *                 for Elasticsearch services that are external to Amazon.
      *                 Examples:
-     *                 1) https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com
+     *                 1) https://search-movies-ne3yqu.us-east-1.es.amazonaws.com
      *                 2) http://myusername@mypassword:www.google.com
-     * @return an Elasticsearch REST client. If useAwsCredentials = true, the client is injected
-     *          with AWS credentials. If useAwsCredentials = false and username/password are extracted using the
-     *          credentialsPattern, it is injected with username/password credentials. Otherwise a default client
-     *          with no credentials is returned.
+     * @return an Elasticsearch REST client.
      */
-    public AwsRestHighLevelClient getClient(String endpoint)
+    private AwsRestHighLevelClient createClient(String endpoint)
     {
         if (useAwsCredentials) {
             return new AwsRestHighLevelClient.Builder(endpoint)

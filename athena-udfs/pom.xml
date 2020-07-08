@@ -14,7 +14,7 @@
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
-        <log4j2Version>2.13.0</log4j2Version>
+        <log4j2Version>2.13.3</log4j2Version>
     </properties>
 
     <dependencies>
@@ -29,11 +29,6 @@
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>21.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

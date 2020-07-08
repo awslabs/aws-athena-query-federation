@@ -19,12 +19,11 @@
  */
 package com.amazonaws.connectors.athena.elasticsearch;
 
-import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
