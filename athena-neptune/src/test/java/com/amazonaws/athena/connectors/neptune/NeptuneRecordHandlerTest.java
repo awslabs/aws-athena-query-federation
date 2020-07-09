@@ -167,10 +167,15 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
         // 3: COMBINATION OF GREATER THAN AND LESS THAN
 
-        SortedRangeSet sortedRangeSet = SortedRangeSet
+        SortedRangeSet intFilter = SortedRangeSet
                 .of(Range.range(allocator, Types.MinorType.INT.getType(), 3, true, 6, false));
 
-        constraintsMap.put("runways", sortedRangeSet);
+        SortedRangeSet stringFilter = SortedRangeSet
+                .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "US"));
+
+        constraintsMap.put("runways", intFilter);
+        constraintsMap.put("country", stringFilter);
+
 
         logger.info("testing constraint map: " + constraintsMap.toString());
 
@@ -244,10 +249,14 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
         // 3: COMBINATION OF GREATER THAN AND LESS THAN
 
-        SortedRangeSet sortedRangeSet = SortedRangeSet
+        SortedRangeSet intFilter = SortedRangeSet
                 .of(Range.range(allocator, Types.MinorType.INT.getType(), 3, true, 6, false));
 
-        constraintsMap.put("runways", sortedRangeSet);
+        SortedRangeSet stringFilter = SortedRangeSet
+                .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "US"));
+
+        constraintsMap.put("runways", intFilter);
+        constraintsMap.put("code", stringFilter);
 
         logger.info("testing constraint map: " + constraintsMap.toString());
 

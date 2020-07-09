@@ -23,29 +23,23 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Graph;
+//import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
-import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
+//import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
 import org.apache.tinkerpop.gremlin.jsr223.ConcurrentBindings;
@@ -130,30 +124,24 @@ public class NeptuneRecordHandler extends RecordHandler {
     protected void readWithConstraint(final BlockSpiller spiller, final ReadRecordsRequest recordsRequest,
             final QueryStatusChecker queryStatusChecker) {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
-        /*
-         * TODO: This is a simplified version of graph traversal which is a select *
-         * equivalent
-         */
-        // Get the label name using which traversal can be done
         final TableName tableName = recordsRequest.getTableName();
         final String labelName = tableName.getTableName();
-
         long numRows = 0;
         final AtomicLong numResultRows = new AtomicLong(0);
         final Client client = neptuneConnection.getNeptunClientConnection();
+        
         try {
             final GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
-            String traversal = "g.V().hasLabel('" + labelName + "')"; // add constraints for final evaluation
 
+            String traversal = "g.V().hasLabel('" + labelName + "')"; 
             if (recordsRequest.getConstraints().getSummary().size() > 0) {
-                HashMap<String, ValueSet> constraints = (HashMap<String, ValueSet>) recordsRequest.getConstraints()
-                        .getSummary();
+                final HashMap<String, ValueSet> constraints = (HashMap<String, ValueSet>) recordsRequest
+                        .getConstraints().getSummary();
                 traversal += flattenContraintsMap(constraints);
             }
+            traversal += ".valueMap()";
 
-            final String finalTraversal = traversal + ".valueMap()"; // add valuemap construct for final evaluation
-
-            logger.info("readWithContraint: Neptune Query " + finalTraversal);
+            logger.info("readWithContraint: Neptune Query " + traversal);
 
             // Code to build gremlin query from string
             final ConcurrentBindings b = new ConcurrentBindings();
@@ -161,7 +149,7 @@ public class NeptuneRecordHandler extends RecordHandler {
 
             final GremlinExecutor ge = GremlinExecutor.build().evaluationTimeout(15000L).globalBindings(b).create();
 
-            CompletableFuture<Object> evalResult = ge.eval(finalTraversal);
+            final CompletableFuture<Object> evalResult = ge.eval(traversal);
             final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult.get();
 
             while (result.hasNext() && queryStatusChecker.isQueryRunning()) {
@@ -175,12 +163,7 @@ public class NeptuneRecordHandler extends RecordHandler {
                             final String fieldName = nextField.getName();
                             if (obj.get(fieldName) != null) {
                                 final ArrayList<Object> objs = (ArrayList) obj.get(fieldName);
-                                final Object value = TypeUtils.coerce(nextField, objs.get(0)); // TODO: This is assuming
-                                                                                               // that there's only
-                                                                                               // object in the objs
-                                                                                               // ArrayList.
-                                // This code has to be modified to cater to situations where there can be
-                                // multiple objects in the ArrayList
+                                final Object value = TypeUtils.coerce(nextField, objs.get(0));
                                 try {
                                     matched &= block.offerValue(fieldName, rowNum, value);
                                     if (!matched) {
@@ -206,27 +189,30 @@ public class NeptuneRecordHandler extends RecordHandler {
         }
     }
 
-    // Need to refactor this
-    public String flattenContraintsMap(HashMap hashMap) {
+    /**
+     * Used to generate Gremlin Query part for Constraint Map
+     *
+     * @param hasMap Constraint Hash Map
+     **/
+    public String flattenContraintsMap(final HashMap hashMap) {
 
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
         String flattenedString = "";
 
-        logger.info("inside flattenConstraintMap: ");
+        for (final String key : setOfkeys) {
+            final List<Range> ranges = ((SortedRangeSet) hashMap.get(key)).getOrderedRanges();
 
-        for (String key : setOfkeys) {
-            SortedRangeSet value = (SortedRangeSet) hashMap.get(key);
-            List<Range> ranges = value.getOrderedRanges();
-
-            for (Range range : ranges) {
+            for (final Range range : ranges) {
 
                 if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
-                    if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
-
-                        if (range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString())) {
-                            flattenedString += ".has('" + key + "',eq(" + range.getLow().getValue().toString() + "))";
-                            break;
-                        }
+                    if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {         
+                        flattenedString += GremlinQueryPreProcessor.pickTemplate(
+                                                                key, 
+                                                                range.getLow().getValue().toString(),
+                                                                range.getType().toString(), 
+                                                                range.getLow().getBound(),
+                                                                GremlinQueryPreProcessor.Operator.EQUALTO);
+                        break;                        
                     }
                 }
 
@@ -235,23 +221,21 @@ public class NeptuneRecordHandler extends RecordHandler {
                     logger.info("inside flattenConstraintMap: "
                             + range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
 
-                    if (range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString())) {
-                        if (range.getLow().getBound().equals(Bound.EXACTLY)) {
-                            flattenedString += ".has('" + key + "',gte(" + range.getLow().getValue().toString() + "))";
-                        } else {
-                            flattenedString += ".has('" + key + "',gt(" + range.getLow().getValue().toString() + "))";
-                        }
-                    }
+                    flattenedString += GremlinQueryPreProcessor.pickTemplate(
+                                                            key, 
+                                                            range.getLow().getValue().toString(),
+                                                            range.getType().toString(), 
+                                                            range.getLow().getBound(),
+                                                            GremlinQueryPreProcessor.Operator.GREATERTHAN);
                 }
 
                 if (!range.getHigh().isNullValue()) {
-                    if (range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString())) {
-                        if (range.getHigh().getBound().equals(Bound.EXACTLY)) {
-                            flattenedString += ".has('" + key + "',lte(" + range.getHigh().getValue().toString() + "))";
-                        } else {
-                            flattenedString += ".has('" + key + "',lt(" + range.getHigh().getValue().toString() + "))";
-                        }
-                    }
+                    flattenedString += GremlinQueryPreProcessor.pickTemplate(
+                                                            key, 
+                                                            range.getHigh().getValue().toString(),
+                                                            range.getType().toString(), 
+                                                            range.getLow().getBound(),
+                                                            GremlinQueryPreProcessor.Operator.LESSTHAN);
                 }
             }
         }

@@ -32,7 +32,7 @@ import org.apache.tinkerpop.gremlin.driver.Client;
 public class NeptuneConnection {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneConnection.class);
 
-    private Cluster cluster = null;
+    private static Cluster cluster = null;
 
     NeptuneConnection(String neptuneEndpoint, String neptunePort) {
         cluster = Cluster.build()
