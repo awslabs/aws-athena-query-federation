@@ -1,8 +1,7 @@
-## Example Athena Connector
+## Neptune Athena Connector
+**THIS README IS YET TO BE UPDATED WITH NEPTUNE CONNECTOR SPECIFIC INFORMATION**
 
 This module is meant to serve as a guided example for writing and deploying a connector to enable Amazon Athena to query a custom data source. The goal is to help you understand the development process and point out capabilities. In some examples we use of hard coded schemas to separate learning how to write a connector from learning how to interface with the target systems you ultimately want to federate to. 
-
-This tutorial also includes an an example of creating scalar User Defined Functions(UDFs) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as standalone Lambda functions completely independent of a connector.
 
 **To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
 

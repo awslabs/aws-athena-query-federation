@@ -17,7 +17,6 @@ Parameters:
   NeptuneClusterEndpoint:
     Description: 'The Neptune cluster endpoint'
     Type: String
-    Default: 'neptune-afc1-cluster.cluster-cccxf54xesdt.us-west-2.neptune.amazonaws.com'
   NeptunePort:
     Description: 'The Neptune port'
     Type: String
@@ -30,15 +29,11 @@ Parameters:
   AthenaCatalogName:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
-    Default: 'athena-catalog-1'
+    Default: 'athena-catalog'
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
-    Default: 'temp-storage-04082020'
-  # DataBucket:
-  #     Description: "The bucket where this tutorial's data lives."
-  #     Type: String
   SpillPrefix:
     Description: 'The prefix within SpillBucket where this function can spill data.'
     Type: String
@@ -58,11 +53,9 @@ Parameters:
   SecurityGroupIds:
     Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
     Type: 'List<AWS::EC2::SecurityGroup::Id>'
-    Default: 'sg-0e75938662bf6cd40'
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
-    Default: 'subnet-01778dbda342707ad,subnet-0e6ffd65f49944924,subnet-0c897f364881ebe20,subnet-02f916ad6a1bf3467'
 
 
 Resources:
