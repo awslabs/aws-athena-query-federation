@@ -71,7 +71,7 @@ public final class DDBTypeUtils
      */
     public static Field inferArrowField(String key, Object value)
     {
-        logger.debug("inferArrowField invoked for key {} with value {} of class {}", key, value,
+        logger.debug("inferArrowField invoked for key {} of class {}", key,
                 value != null ? value.getClass() : null);
         if (value == null) {
             return null;
