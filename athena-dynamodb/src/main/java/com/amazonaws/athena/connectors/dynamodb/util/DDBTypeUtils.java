@@ -71,6 +71,8 @@ public final class DDBTypeUtils
      */
     public static Field inferArrowField(String key, Object value)
     {
+        logger.debug("inferArrowField invoked for key {} of class {}", key,
+                value != null ? value.getClass() : null);
         if (value == null) {
             return null;
         }
@@ -90,14 +92,8 @@ public final class DDBTypeUtils
         else if (value instanceof List || value instanceof Set) {
             Field child = null;
             if (((Collection) value).isEmpty()) {
-                try {
-                    Object subVal = ((Collection) value).getClass()
-                            .getTypeParameters()[0].getGenericDeclaration().newInstance();
-                    child = inferArrowField(key + ".child", subVal);
-                }
-                catch (IllegalAccessException | InstantiationException ex) {
-                    throw new RuntimeException(ex);
-                }
+                logger.warn("Automatic schema inference encountered empty List or Set {}. Unable to determine element types. Falling back to VARCHAR representation", key);
+                child = inferArrowField("", "");
             }
             else {
                 Iterator iterator = ((Collection) value).iterator();
