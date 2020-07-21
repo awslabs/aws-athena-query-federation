@@ -76,8 +76,6 @@
 <dl>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#above-com.amazonaws.athena.connector.lambda.data.BlockAllocator-org.apache.arrow.vector.types.pojo.ArrowType-java.lang.Object-">above(BlockAllocator, ArrowType, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#account">account</a></span> - Variable in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.Builder.html#add-java.lang.Object-">add(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">EquatableValueSet.Builder</a></dt>
 <dd>
 <div class="block">Adds a value to the builder.</div>
@@ -127,6 +125,10 @@
 <div class="block">Injects a connection into the client cache.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html#addConnection-java.lang.String-com.amazonaws.athena.connectors.hbase.connection.HBaseConnection-">addConnection(String, HBaseConnection)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a></dt>
+<dd>
+<div class="block">Injects a connection into the client cache.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html#addConnection-java.lang.String-org.apache.hadoop.hbase.client.Connection-">addConnection(String, Connection)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a></dt>
 <dd>
 <div class="block">Injects a connection into the client cache.</div>
 </dd>
@@ -1851,6 +1853,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
@@ -2043,7 +2047,7 @@
 <dd>
 <div class="block">Defines the identity of the Athena caller.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#FederatedIdentity-java.lang.String-java.lang.String-java.lang.String-">FederatedIdentity(String, String, String)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#FederatedIdentity-java.lang.String-java.lang.String-java.util.Map-java.util.List-">FederatedIdentity(String, String, Map&lt;String, String&gt;, List&lt;String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.html" title="class in com.amazonaws.athena.connector.lambda.serde"><span class="typeNameLink">FederatedIdentitySerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/serde/package-summary.html">com.amazonaws.athena.connector.lambda.serde</a></dt>
 <dd>
@@ -2213,6 +2217,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getApproxTableSizeInBytes--">getApproxTableSizeInBytes()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getArn--">getArn()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowFieldFromDDBType-java.lang.String-java.lang.String-">getArrowFieldFromDDBType(String, String)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
 <dd>
 <div class="block">Converts from DynamoDB Attribute Type to Arrow type.</div>
@@ -2286,6 +2292,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/FieldBuilder.html#getChild-java.lang.String-">getChild(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/FieldBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data">FieldBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html#getClientConfigs--">getClientConfigs()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a></dt>
+<dd>
+<div class="block">Provides access to the current HBase client config options used during connection construction.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html#getClientConfigs--">getClientConfigs()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a></dt>
 <dd>
 <div class="block">Provides access to the current HBase client config options used during connection construction.</div>
 </dd>
@@ -2464,11 +2474,11 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html#getHigh--">getHigh()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitRange.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitRange</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getIamGroups--">getIamGroups()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html#getId--">getId()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data">TimeZoneKey</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html#getId--">getId()</a></span> - Method in enum com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/SplitProperties.html" title="enum in com.amazonaws.athena.connector.lambda.examples">SplitProperties</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getId--">getId()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/KeyType.html#getId--">getId()</a></span> - Method in enum com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/KeyType.html" title="enum in com.amazonaws.athena.connectors.redis">KeyType</a></dt>
 <dd>&nbsp;</dd>
@@ -2578,6 +2588,10 @@
 <dd>
 <div class="block">Helper used to extract named String fields from the json parser in a streaming fashion.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextStringMap-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextStringMap(JsonParser, String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to read a Map of strings to strings.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html#getNonce--">getNonce()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html#getNonComparableColumns--">getNonComparableColumns()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a></dt>
@@ -2616,6 +2630,10 @@
  for the given connection string.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html#getOrCreateConn-java.lang.String-">getOrCreateConn(String)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a></dt>
+<dd>
+<div class="block">Gets or Creates an HBase connection for the given connection string.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html#getOrCreateConn-java.lang.String-">getOrCreateConn(String)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a></dt>
 <dd>
 <div class="block">Gets or Creates an HBase connection for the given connection string.</div>
 </dd>
@@ -2752,7 +2770,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#getPos--">getPos()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getPrincipal--">getPrincipal()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getPrincipalTags--">getPrincipalTags()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/Split.html#getProperties--">getProperties()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a></dt>
 <dd>
@@ -3444,6 +3462,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
@@ -3498,6 +3518,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html#HbaseConnectionFactory--">HbaseConnectionFactory()</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HbaseConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseConnectionFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
+<dd>
+<div class="block">Creates and Caches HBase Connection Instances, using the connection string as the cache key.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html#HbaseConnectionFactory--">HbaseConnectionFactory()</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseFieldResolver</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
 <dd>
 <div class="block">Used to resolve and convert complex types from HBase to Apache Arrow's type system
@@ -3531,8 +3557,6 @@
 </a>
 <h2 class="title">I</h2>
 <dl>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#id">id</a></span> - Variable in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#ignoreRestOfObject-com.fasterxml.jackson.core.JsonParser-">ignoreRestOfObject(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
 <dd>
 <div class="block">Helper used to skip to the end of the current object.</div>
@@ -4469,8 +4493,6 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html#PreparedStatementBuilder--">PreparedStatementBuilder()</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">PreparedStatementBuilder</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#principal">principal</a></span> - Variable in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AWSRequestSigningApacheInterceptor.html#process-org.apache.http.HttpRequest-org.apache.http.protocol.HttpContext-">process(HttpRequest, HttpContext)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AWSRequestSigningApacheInterceptor.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AWSRequestSigningApacheInterceptor</a></dt>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.html#processRows-com.amazonaws.athena.connector.lambda.data.BlockAllocator-java.lang.reflect.Method-com.amazonaws.athena.connector.lambda.data.Block-org.apache.arrow.vector.types.pojo.Schema-">processRows(BlockAllocator, Method, Block, Schema)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">UserDefinedFunctionHandler</a></dt>
 <dd>
@@ -5011,6 +5033,10 @@
 <dd>
 <div class="block">Used to set HBase client config options that should be applied to all future connections.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html#setClientConfig-java.lang.String-java.lang.String-">setClientConfig(String, String)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseConnectionFactory.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseConnectionFactory</a></dt>
+<dd>
+<div class="block">Used to set HBase client config options that should be applied to all future connections.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#setComplexValue-java.lang.String-int-com.amazonaws.athena.connector.lambda.data.FieldResolver-java.lang.Object-">setComplexValue(String, int, FieldResolver, Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
 <div class="block">Attempts to set the provided value for the given field name and row.</div>
@@ -5467,6 +5493,10 @@
 <dd>
 <div class="block">Helper used to validate that an object is starting (open brace) at the provided <code>JsonToken</code>.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectStart-com.fasterxml.jackson.core.JsonParser-">validateObjectStart(JsonParser)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a></dt>
+<dd>
+<div class="block">Helper used to validate that an object is starting (open brace) at the next token.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableResolver.html#validateSchema-java.lang.String-">validateSchema(String)</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableResolver.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableResolver</a></dt>
 <dd>
 <div class="block">Used to validate and convert the given schema name to a properly cased and qualified CloudwatchTableName.</div>
@@ -5807,6 +5837,10 @@ the order they are declared.</div>
 <div class="block">Helper used to help serialize a list of strings.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#writeStringArray-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Collection-">writeStringArray(JsonGenerator, String, Collection&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
+<dd>
+<div class="block">Helper used to help serialize a list of strings.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#writeStringMap-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Map-">writeStringMap(JsonGenerator, String, Map&lt;String, String&gt;)</a></span> - Method in class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a></dt>
 <dd>
 <div class="block">Helper used to help serialize a list of strings.</div>
 </dd>

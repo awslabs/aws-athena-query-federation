@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":10,"i2":10,"i3":10};
+var methods = {"i0":6,"i1":10,"i2":10,"i3":10,"i4":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -222,8 +222,16 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;T&gt;</pre>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#writeStringArray-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Collection-">writeStringArray</a></span>(com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
-                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldname,
+                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldName,
                 <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html?is-external=true" title="class or interface in java.util">Collection</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;values)</code>
+<div class="block">Helper used to help serialize a list of strings.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#writeStringMap-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Map-">writeStringMap</a></span>(com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+              <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldName,
+              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;values)</code>
 <div class="block">Helper used to help serialize a list of strings.</div>
 </td>
 </tr>
@@ -342,18 +350,39 @@ extends com.fasterxml.jackson.databind.ser.std.StdSerializer&lt;T&gt;</pre>
 <a name="writeStringArray-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Collection-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>writeStringArray</h4>
 <pre>protected&nbsp;void&nbsp;writeStringArray(com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
-                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldname,
+                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldName,
                                 <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Collection.html?is-external=true" title="class or interface in java.util">Collection</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;values)
                          throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
 <div class="block">Helper used to help serialize a list of strings.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>jgen</code> - The json generator to use.</dd>
-<dd><code>fieldname</code> - The name to associated to the resulting json array.</dd>
+<dd><code>fieldName</code> - The name to associated to the resulting json array.</dd>
+<dd><code>values</code> - The values to populate the array with.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></code> - If an error occurs while writing to the generator.</dd>
+</dl>
+</li>
+</ul>
+<a name="writeStringMap-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Map-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>writeStringMap</h4>
+<pre>protected&nbsp;void&nbsp;writeStringMap(com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                              <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldName,
+                              <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;values)
+                       throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block">Helper used to help serialize a list of strings.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>jgen</code> - The json generator to use.</dd>
+<dd><code>fieldName</code> - The name to associated to the resulting json array.</dd>
 <dd><code>values</code> - The values to populate the array with.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></code> - If an error occurs while writing to the generator.</dd>

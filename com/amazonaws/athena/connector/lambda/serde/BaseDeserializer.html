@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":6,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":6,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -259,36 +259,49 @@ extends com.fasterxml.jackson.databind.deser.std.StdDeserializer&lt;T&gt;</pre>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
+<td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getNextStringMap-com.fasterxml.jackson.core.JsonParser-java.lang.String-">getNextStringMap</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;expectedFieldName)</code>
+<div class="block">Helper used to read a Map of strings to strings.</div>
+</td>
+</tr>
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#getType-com.fasterxml.jackson.core.JsonParser-">getType</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)</code>
 <div class="block">Helper used to parse the type of the object (usually the class name).</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#ignoreRestOfObject-com.fasterxml.jackson.core.JsonParser-">ignoreRestOfObject</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)</code>
 <div class="block">Helper used to skip to the end of the current object.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateArrayStart-com.fasterxml.jackson.core.JsonParser-">validateArrayStart</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)</code>
 <div class="block">Helper used to validate that an array is starting (open bracket) at the next token.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectEnd-com.fasterxml.jackson.core.JsonParser-">validateObjectEnd</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)</code>
 <div class="block">Helper used to validate that an object is ending (close brace) at the next token.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectStart-com.fasterxml.jackson.core.JsonParser-">validateObjectStart</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)</code>
+<div class="block">Helper used to validate that an object is starting (open brace) at the next token.</div>
+</td>
+</tr>
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#validateObjectStart-com.fasterxml.jackson.core.JsonToken-">validateObjectStart</a></span>(com.fasterxml.jackson.core.JsonToken&nbsp;token)</code>
 <div class="block">Helper used to validate that an object is starting (open brace) at the provided <code>JsonToken</code>.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html#writeStringArray-com.fasterxml.jackson.core.JsonGenerator-java.lang.String-java.util.Collection-">writeStringArray</a></span>(com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;fieldname,
@@ -525,6 +538,27 @@ extends com.fasterxml.jackson.databind.deser.std.StdDeserializer&lt;T&gt;</pre>
 </dl>
 </li>
 </ul>
+<a name="getNextStringMap-com.fasterxml.jackson.core.JsonParser-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getNextStringMap</h4>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;getNextStringMap(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                                              <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;expectedFieldName)
+                                       throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block">Helper used to read a Map of strings to strings.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>jparser</code> - The parser to read from.</dd>
+<dd><code>expectedFieldName</code> - The expected name of the field containing the string map.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The contents of the array as a map.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></code> - If an error occurs while reading from the parser.</dd>
+</dl>
+</li>
+</ul>
 <a name="assertFieldName-com.fasterxml.jackson.core.JsonParser-java.lang.String-">
 <!--   -->
 </a>
@@ -587,6 +621,23 @@ extends com.fasterxml.jackson.databind.deser.std.StdDeserializer&lt;T&gt;</pre>
 <pre>protected&nbsp;void&nbsp;validateArrayStart(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)
                            throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
 <div class="block">Helper used to validate that an array is starting (open bracket) at the next token.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>jparser</code> - The parser to read from.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></code> - If an error occurs while reading from the parser.</dd>
+</dl>
+</li>
+</ul>
+<a name="validateObjectStart-com.fasterxml.jackson.core.JsonParser-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>validateObjectStart</h4>
+<pre>protected&nbsp;void&nbsp;validateObjectStart(com.fasterxml.jackson.core.JsonParser&nbsp;jparser)
+                            throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<div class="block">Helper used to validate that an object is starting (open brace) at the next token.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>jparser</code> - The parser to read from.</dd>
