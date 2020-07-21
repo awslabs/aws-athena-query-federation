@@ -52,7 +52,7 @@ Parameters:
   VerticaConnectionString:
     Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
-    Default: "jdbc:vertica://3.231.159.188:5433/VerticaDB?user=dbadmin&password=Akanksha123$"
+    Default: "jdbc:vertica://<HOST_NAME>:<PORT_NAME>/<DB_NAME>?user=<USER>&password=<PASSWORD>"
   AWSSecretsManagerSecretName:
     Description: "Secret Name of AWS Access Keys in AWS Secrets Manager"
     Type: String
