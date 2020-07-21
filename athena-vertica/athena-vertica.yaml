@@ -1,0 +1,102 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: VerticaAthenaConnector
+    Description: verticaAthenaConnector Description
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2021.3.3
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+# Parameters are CloudFormation features to pass input
+# to your template when you create a stack
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+    Default: "v223"
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+    Default: "test-connector-west"
+  DataBucket:
+    Description: "The bucket where this tutorial's data lives."
+    Type: String
+    Default: "test-connector-west"
+  ExportBucket:
+    Description: "The bucket where the Vertica Query results will be exported."
+    Type: String
+    Default: "test-connector-west"
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: "false"
+    Type: String
+  VerticaConnectionString:
+    Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
+    Type: String
+    Default: "jdbc:vertica://3.231.159.188:5433/VerticaDB?user=dbadmin&password=Akanksha123$"
+  AWSSecretsManagerSecretName:
+    Description: "Secret Name of AWS Access Keys in AWS Secrets Manager"
+    Type: String
+    Default: "MyAwsCreds"
+  AWSRegion:
+    Description: "Region Name"
+    Type: String
+    Default: "US-WEST-2"
+
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          data_bucket: !Ref DataBucket
+          export_bucket: !Ref ExportBucket
+          default_vertica: !Ref VerticaConnectionString
+          aws_secret_name: !Ref AWSSecretsManagerSecretName
+          aws_region: !Ref AWSRegion
+
+      FunctionName: !Sub "${AthenaCatalogName}"
+      Handler: "com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler"
+      CodeUri: "./target/athena-vertica-1.0.jar"
+      Description: "A guided example for writing and deploying your own federated Amazon Athena connector for a custom source."
+      Runtime: java8
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
+                - lambda:InvokeFunction
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        - S3CrudPolicy:
+            BucketName: !Ref DataBucket
