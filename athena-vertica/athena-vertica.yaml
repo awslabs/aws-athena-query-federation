@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2021.3.3
+    SemanticVersion: 2021.5.2
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -20,7 +20,7 @@ Parameters:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-    Default: "v223"
+    Default: "v2"
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
@@ -49,14 +49,20 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  SecretNameOrPrefix:
+    Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. vertica-*).'
+    Type: String
+    Default: "vertica-*"
   VerticaConnectionString:
     Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
-    Default: "jdbc:vertica://<HOST_NAME>:<PORT_NAME>/<DB_NAME>?user=<USER>&password=<PASSWORD>"
-  AWSSecretsManagerSecretName:
-    Description: "Secret Name of AWS Access Keys in AWS Secrets Manager"
-    Type: String
-    Default: "MyAwsCreds"
+    Default: "jdbc:vertica://<hostname>/<database_name>>?user=${vertica-username}&password=${vertica-password}"
   AWSRegion:
     Description: "Region Name"
     Type: String
@@ -74,7 +80,6 @@ Resources:
           data_bucket: !Ref DataBucket
           export_bucket: !Ref ExportBucket
           default_vertica: !Ref VerticaConnectionString
-          aws_secret_name: !Ref AWSSecretsManagerSecretName
           aws_region: !Ref AWSRegion
 
       FunctionName: !Sub "${AthenaCatalogName}"
@@ -89,14 +94,25 @@ Resources:
             - Action:
                 - athena:GetQueryExecution
                 - s3:ListAllMyBuckets
-                - lambda:InvokeFunction
                 - secretsmanager:GetSecretValue
+                - ec2:CreateNetworkInterfaces
+                - sts:GetSessionToken
+                - iam:CreateUser
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+          #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+          #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
+            BucketName:
+              Ref: SpillBucket
+          #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+          #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
-            BucketName: !Ref DataBucket
+            BucketName:
+              Ref: ExportBucket
+        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds

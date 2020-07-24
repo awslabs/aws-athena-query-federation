@@ -40,6 +40,7 @@ public class VerticaConnectionFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(VerticaConnectionFactory.class);
     private final Map<String, Connection> clientCache = new HashMap<>();
+    private final int CONNECTION_TIMEOUT_TIME_IN_SECONDS = 5;
 
     /**
      * Used to get an existing, pooled, connection or to create a new connection
@@ -49,18 +50,21 @@ public class VerticaConnectionFactory
      * @return A JDBC connection if the connection succeeded, else the function will throw.
      */
 
-    public synchronized Connection getOrCreateConn(String connStr) throws SQLException
-    {
-        try { Class.forName("com.vertica.jdbc.Driver").newInstance();} catch
-        (ClassNotFoundException e){System.out.println("not found");} catch (IllegalAccessException | InstantiationException e) {
-            e.printStackTrace();
-        }
-        Connection result = clientCache.get(connStr);
+    public synchronized Connection getOrCreateConn(String connStr) {
+        Connection result = null;
+        try {
+            Class.forName("com.vertica.jdbc.Driver").newInstance();
+            result = clientCache.get(connStr);
 
         if (result == null || !connectionTest(result)) {
-            logger.info("conn: enter");
+            logger.info("Unable to reuse an existing connection, creating a new one.");
             result = DriverManager.getConnection(connStr);
             clientCache.put(connStr, result);
+            }
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException("Error in initializing Vertica JDBC Driver: " + e.getMessage(), e);
         }
 
         return result;
@@ -73,15 +77,13 @@ public class VerticaConnectionFactory
     private boolean connectionTest(Connection conn)
     {
         try {
-
-            conn.isValid(5);
-            logger.info("connectionTest: Testing connection completed - success.");
+            conn.isValid(CONNECTION_TIMEOUT_TIME_IN_SECONDS);
             return true;
         }
         catch (RuntimeException | SQLException ex) {
             logger.warn("getOrCreateConn: Exception while testing existing connection.", ex);
         }
-        logger.info("connectionTest: Testing connection completed - fail.");
+
         return false;
     }
 

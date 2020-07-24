@@ -20,6 +20,7 @@
 
 package com.amazonaws.connectors.athena.vertica;
 
+import com.amazonaws.SdkClientException;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -44,7 +45,6 @@ import org.apache.arrow.vector.holders.*;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -56,6 +56,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -70,14 +71,16 @@ public class VerticaRecordHandler
   //  private final VerticaConnectionFactory verticaConnectionFactory;
     private AmazonS3 amazonS3;
 
-    public VerticaRecordHandler() {
+    public VerticaRecordHandler()
+    {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient());
     }
 
     @VisibleForTesting
-    protected VerticaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena) {
+    protected VerticaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         this.amazonS3 = amazonS3;
     }
@@ -93,23 +96,24 @@ public class VerticaRecordHandler
      *                           3. The filtering predicate (if any)
      *                           4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws IOException
+     * @throws IOException       Throws an IOException
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException {
+            throws IOException
+    {
         logger.info("readWithConstraint: schema[{}] tableName[{}]", recordsRequest.getSchema(), recordsRequest.getTableName());
 
         Schema schemaName = recordsRequest.getSchema();
-
         Split split = recordsRequest.getSplit();
-        String id = split.getProperty("query_id").replace("-","");
-        String fileLocation = split.getProperty("fileLocation");
+        String id = split.getProperty("query_id");
         String exportBucket = split.getProperty("exportBucket");
+        String s3ObjectKey = split.getProperty("s3ObjectKey");
 
         //get column name and type from the Schema
         HashMap<String, Types.MinorType> mapOfNamesAndTypes = new HashMap<>();
-        for(Field field : schemaName.getFields()){
+        for(Field field : schemaName.getFields())
+        {
             Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
             mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
         }
@@ -119,74 +123,74 @@ public class VerticaRecordHandler
 
         //Generating the RowWriter and Extractor
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-        for (Field next : recordsRequest.getSchema().getFields()) {
-            Extractor extractor = makeExtractor(next, rowContext, mapOfNamesAndTypes);
+        for (Field next : recordsRequest.getSchema().getFields())
+        {
+            Extractor extractor = makeExtractor(next, mapOfNamesAndTypes);
             builder.withExtractor(next.getName(), extractor);
         }
         GeneratedRowWriter rowWriter = builder.build();
 
         /*
-         Using S3 Select to read the S3 Parquet files generated in the split
+         Using S3 Select to read the S3 Parquet file generated in the split
          */
+        //Creating the read Request
+        SelectObjectContentRequest request = generateBaseParquetRequest(exportBucket, s3ObjectKey);
+        try (SelectObjectContentResult result = amazonS3.selectObjectContent(request))
+        {
+            InputStream resultInputStream = result.getPayload().getRecordsInputStream();
+            JSONParser jsonParser = new JSONParser();
 
-        //List all the parquet files generated in the split
-        ObjectListing objectListing = amazonS3.listObjects(new ListObjectsRequest().withBucketName(exportBucket).withPrefix(id));
-        for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
-            if(objectSummary.getSize() > 0){
-                logger.info("Object Key is : " + objectSummary.getKey() + " Object Summary is: " + objectSummary.getSize());
+            BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, StandardCharsets.UTF_8));
+            String inputStr;
 
-                //Creating the read Request
-                SelectObjectContentRequest request = generateBaseParquetRequest(exportBucket, objectSummary.getKey());
-                try (SelectObjectContentResult result = amazonS3.selectObjectContent(request)) {
-                    InputStream resultInputStream = result.getPayload().getRecordsInputStream();
-                    JSONParser jsonParser = new JSONParser();
+            //map to contain the column name and value pair.
+            HashMap<String, Object> map = new HashMap<>();
 
-                    BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, "UTF-8"));
-                    JSONArray jsonArray = new JSONArray();
-                    String inputStr;
+            while ((inputStr = streamReader.readLine()) != null)
+            {
+                //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerialization
+                JSONObject data = (JSONObject) jsonParser.parse(inputStr);
+                for (Object o : data.keySet())
+                {
+                    String key = (String) o;
+                    map.put(key, data.get(key));
+                    //setting the RowContext
+                    rowContext.setNameValue(map);
 
-                    //map to contain the column name and value pair.
-                    HashMap<String, Object> map = new HashMap<>();
-
-                    while ((inputStr = streamReader.readLine()) != null) {
-                        JSONObject data = (JSONObject) jsonParser.parse(inputStr);
-                        jsonArray.add(data);
-
-                        for (Object o : data.keySet()) {
-                            String key = (String) o;
-                            Types.MinorType type = mapOfNamesAndTypes.get(key);
-                            logger.info("Key : " + key + " Value : " + data.get(key) + " Type: " + type);
-                            map.put(key, data.get(key));
-                            //setting the RowContext
-                            rowContext.setNameValue(map);
-
-                        }
-                        //Passing the RowContext to BlockWriter
-                        spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
-                    }
-
-                } catch (ParseException e) {
-                    logger.info("Could not read parquet file from S3" + e.getMessage());
                 }
+                //Passing the RowContext to BlockWriter
+                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
             }
+
         }
+        catch (ParseException e)
+        {
+            throw new RuntimeException("Error in reading Parquet files from S3: " + e.getMessage(), e);
+        }
+        catch (SdkClientException e)
+        {
+            throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
+        }
+
+
     }
 
 
     /**
      * Creates an Extractor for the given field.
      */
-    private Extractor makeExtractor(Field field, RowContext rowContext, HashMap<String, Types.MinorType> mapOfNamesAndTypes){
+    private Extractor makeExtractor(Field field, HashMap<String, Types.MinorType> mapOfNamesAndTypes)
+    {
         String fieldName = field.getName();
         Types.MinorType fieldType = mapOfNamesAndTypes.get(fieldName);
-        switch (fieldType) {
+        switch (fieldType)
+        {
             case BIT:
                 return (BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
                     dst.isSet = 1;
                     dst.value = ((boolean) value) ? 1 : 0;
-
                 };
             case TINYINT:
                 return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
@@ -245,11 +249,11 @@ public class VerticaRecordHandler
                     dst.value =   (int) LocalDate.parse(value.toString()).toEpochDay();
 
                 };
+
             case DATEMILLI:
                 return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName).toString();
-                    logger.info(String.valueOf(value));
                     dst.value = LocalDateTime.parse(value.toString()).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli();
                     dst.isSet = 1;
                 };
@@ -270,10 +274,10 @@ public class VerticaRecordHandler
             default:
                 throw new RuntimeException("Unhandled type " + fieldType);
         }
-
     }
 
-    private static class RowContext{
+    private static class RowContext
+    {
 
         private final String queryId;
         private HashMap<String, Object> nameValue;
@@ -281,7 +285,6 @@ public class VerticaRecordHandler
         public RowContext(String queryId){
             this.queryId = queryId;
         }
-        public String getQueryId() {return queryId;}
 
         public void setNameValue(HashMap<String, Object> map){
             this.nameValue = map;
@@ -295,7 +298,8 @@ public class VerticaRecordHandler
     /*
     Method to create the Parquet read request
      */
-    private static SelectObjectContentRequest generateBaseParquetRequest(String bucket, String key) {
+    private static SelectObjectContentRequest generateBaseParquetRequest(String bucket, String key)
+    {
         SelectObjectContentRequest request = new SelectObjectContentRequest();
         request.setBucketName(bucket);
         request.setKey(key);
@@ -313,6 +317,4 @@ public class VerticaRecordHandler
 
         return request;
     }
-
-
 }

@@ -19,6 +19,7 @@
  */
 package com.amazonaws.connectors.athena.vertica;
 
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -36,9 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 /**
@@ -46,7 +47,6 @@ import java.util.stream.Collectors;
  */
 public class VerticaJdbcSplitQueryBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(VerticaJdbcSplitQueryBuilder.class);
-    private static final String EXPORT_BUCKET = "export_bucket";
     private final String quoteCharacters;
 
     /**
@@ -59,36 +59,32 @@ public class VerticaJdbcSplitQueryBuilder {
     /**
      * Common logic to build Split SQL including constraints translated in where clause.
      *
-     * @param jdbcConnection JDBC connection. See {@link Connection}.
-     * @param catalog        Athena provided catalog name.
+     * @param s3ExportBucket S3 bucket where results of the query will be exported
      * @param schema         table schema name.
      * @param table          table name.
      * @param tableSchema    table schema (column and type information).
      * @param constraints    constraints passed by Athena to push down.
      * @param split          table split.
-     * @return prepated statement with SQL. See {@link PreparedStatement}.
-     * @throws SQLException JDBC database exception.
+     * @return sqlStatement  SQL statement
      */
     public String buildSql(
+            final String s3ExportBucket,
             final String schema,
             final String table,
             final Schema tableSchema,
             final Constraints constraints,
             final String queryID)
-            throws SQLException {
 
-        //get the bucket where export results wll be uploaded
-        String s3ExportBucket = System.getenv(EXPORT_BUCKET);
+    {
+        ST exportSqlST = new ST("EXPORT TO PARQUET(" +
+                "directory = 's3://<s3ExportBucket>/<queryID>'," +
+                " Compression='snappy', fileSizeMB=1000) AS ");
+
+        exportSqlST.add("s3ExportBucket", s3ExportBucket);
+        exportSqlST.add("queryID", queryID.replace("-",""));
+
+
         StringBuilder sql = new StringBuilder();
-
-        String exportSqL = "EXPORT TO PARQUET(" +
-                "directory = 's3://"+ s3ExportBucket + "/"+queryID.replace("-","")+ "'" +
-                ", Compression='snappy'\n" +
-                ", fileSizeMB=1000) \n" +
-                "AS \n";
-
-        sql.append(exportSqL);
-
         //get the column names to be queried
         String columnNames = tableSchema.getFields().stream()
                 .map(Field::getName)
@@ -97,68 +93,104 @@ public class VerticaJdbcSplitQueryBuilder {
 
         sql.append("SELECT ");
         sql.append(columnNames);
-
         if (columnNames.isEmpty()) {
             sql.append("null");
         }
-
         sql.append(getFromClauseWithSplit(schema, table));
 
         HashMap<String,TypeAndValue> accumulator = new HashMap<>();
-
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator);
 
-        if (!clauses.isEmpty()) {
+        if (!clauses.isEmpty())
+        {
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
 
-        //wrap the export around the generated sql
-        LOGGER.info("Generated SQL without the constraints : {}", sql.toString());
-
         //Using StringTemplates to fill in the values of constraints
         ST sqlTemplate = new ST(sql.toString());
 
-        for (Map.Entry<String,TypeAndValue> entry : accumulator.entrySet()){
-
+        for (Map.Entry<String,TypeAndValue> entry : accumulator.entrySet())
+        {
             TypeAndValue typeAndValue = entry.getValue();
             Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(typeAndValue.getType());
             String colName = entry.getKey();
-            //TODO: Need to review this and add other data types here!!
-            switch (minorTypeForArrowType) {
-                case INT:
-                    sqlTemplate.add(colName, typeAndValue.getValue());
-                    break;
 
+            switch (minorTypeForArrowType)
+            {
+                case BIT:
+                    int value = ((boolean) typeAndValue.getValue()) ? 1 : 0;
+                    sqlTemplate.add(colName, value);
+                    break;
+                case TINYINT:
+                    sqlTemplate.add(colName, Byte.parseByte(typeAndValue.getValue().toString()));
+                    break;
+                case SMALLINT:
+                    sqlTemplate.add(colName,Short.parseShort(typeAndValue.getValue().toString()));
+                    break;
+                case INT:
+                    sqlTemplate.add(colName, Integer.parseInt(typeAndValue.getValue().toString()));
+                    break;
+                case BIGINT:
+                    sqlTemplate.add(colName,Long.parseLong(typeAndValue.getValue().toString()));
+                    break;
+                case FLOAT4:
+                    sqlTemplate.add(colName,Float.parseFloat(typeAndValue.getValue().toString()));
+                    break;
+                case FLOAT8:
+                    sqlTemplate.add(colName,Double.parseDouble(typeAndValue.getValue().toString()));
+                    break;
+                case DECIMAL:
+                    sqlTemplate.add(colName, new BigDecimal(typeAndValue.getValue().toString()));
+                    break;
+                case DATEDAY:
+                    sqlTemplate.add(colName, (int) LocalDate.parse(typeAndValue.getValue().toString()).toEpochDay());
+                    break;
+                case DATEMILLI:
+                    sqlTemplate.add(colName, LocalDateTime.parse(typeAndValue.getValue().toString()).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
+                    break;
                 case VARCHAR:
                     String val = "'" + typeAndValue.getValue() + "'";
                     sqlTemplate.add(colName, val);
                     break;
-
-                case DECIMAL:
-                    ArrowType.Decimal decimalType = (ArrowType.Decimal) typeAndValue.getType();
-                    sqlTemplate.add(colName, typeAndValue.getValue());
+                case VARBINARY:
+                    sqlTemplate.add(colName, typeAndValue.toString().getBytes());
                     break;
 
                 default:
                     throw new UnsupportedOperationException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType));
             }
-
-
         }
 
-        String sqlStatement = sqlTemplate.render();
-        LOGGER.info(sqlStatement);
 
-        return sqlStatement;
+        ST completeSqlST = new ST("<exportSqlST> <userSqlST>");
+        completeSqlST.add("exportSqlST", exportSqlST.render());
+        completeSqlST.add("userSqlST", sqlTemplate.render());
+        LOGGER.info(completeSqlST.render());
+
+        return completeSqlST.render();
     }
 
-   // protected abstract String getFromClauseWithSplit(final String schema, final String table);
+    protected String buildSetSessionSql(String awsAccessId, String awsSecretKey)
+    {
+        ST authST = new ST("ALTER SESSION SET AWSAuth='<access_key>:<secret_key>'");
+        authST.add("access_key", awsAccessId);
+        authST.add("secret_key", awsSecretKey);
+        return authST.render();
+    }
+
+    protected String buildSetSessionSql(String awsRegion)
+    {
+        ST regionST=  new ST("ALTER SESSION SET AWSRegion='<defaultRegion>'") ;
+        regionST.add("defaultRegion", awsRegion);
+        return regionST.render();
+    }
 
     protected String getFromClauseWithSplit(String schema, String table)
     {
         StringBuilder tableName = new StringBuilder();
-        if (!Strings.isNullOrEmpty(schema)) {
+        if (!Strings.isNullOrEmpty(schema))
+        {
             tableName.append(quote(schema)).append('.');
         }
         tableName.append(quote(table));
@@ -167,13 +199,17 @@ public class VerticaJdbcSplitQueryBuilder {
     }
 
 
-    private List<String> toConjuncts(List<Field> columns, Constraints constraints, HashMap<String, TypeAndValue> accumulator) {
+    private List<String> toConjuncts(List<Field> columns, Constraints constraints, HashMap<String, TypeAndValue> accumulator)
+    {
         List<String> conjuncts = new ArrayList<>();
-        for (Field column : columns) {
+        for (Field column : columns)
+        {
             ArrowType type = column.getType();
-            if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
+            if (constraints.getSummary() != null && !constraints.getSummary().isEmpty())
+            {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
-                if (valueSet != null) {
+                if (valueSet != null)
+                {
                     conjuncts.add(toPredicate(column.getName(), valueSet, type, accumulator));
                 }
             }
@@ -181,14 +217,14 @@ public class VerticaJdbcSplitQueryBuilder {
         return conjuncts;
     }
 
-    private String toPredicate(String columnName, ValueSet valueSet, ArrowType type, HashMap<String, TypeAndValue> accumulator) {
-        LOGGER.info("in to Predicate: " + columnName + " " + valueSet + " " + type);
+    private String toPredicate(String columnName, ValueSet valueSet, ArrowType type, HashMap<String, TypeAndValue> accumulator)
+    {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
 
         // TODO Add isNone and isAll checks once we have data on nullability.
 
-        if (valueSet instanceof SortedRangeSet) {
+        if (valueSet instanceof SortedRangeSet){
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
                 return String.format("(%s IS NULL)", columnName);
             }
@@ -257,36 +293,42 @@ public class VerticaJdbcSplitQueryBuilder {
     }
 
     private String toPredicate(String columnName, String operator, Object value, ArrowType type,
-                               HashMap<String, TypeAndValue> accumulator) {
-
+                               HashMap<String, TypeAndValue> accumulator)
+    {
         accumulator.put(columnName, new TypeAndValue(type, value));
         return quote(columnName) + " "+ operator + " <"+columnName+"> ";
     }
 
-    protected String quote(String name) {
+    protected String quote(String name)
+    {
         name = name.replace(quoteCharacters, quoteCharacters + quoteCharacters);
         return quoteCharacters + name + quoteCharacters;
     }
 
-    static class TypeAndValue {
+    static class TypeAndValue
+    {
         private final ArrowType type;
         private final Object value;
 
-        TypeAndValue(ArrowType type, Object value) {
+        TypeAndValue(ArrowType type, Object value)
+        {
             this.type = Validate.notNull(type, "type is null");
             this.value = Validate.notNull(value, "value is null");
         }
 
-        ArrowType getType() {
+        ArrowType getType()
+        {
             return type;
         }
 
-        Object getValue() {
+        Object getValue()
+        {
             return value;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "TypeAndValue{" +
                     "type=" + type +
                     ", value=" + value +
