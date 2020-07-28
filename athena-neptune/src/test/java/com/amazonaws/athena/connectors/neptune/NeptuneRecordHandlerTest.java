@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -167,14 +168,17 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
         // 3: COMBINATION OF GREATER THAN AND LESS THAN
 
+
         SortedRangeSet intFilter = SortedRangeSet
                 .of(Range.range(allocator, Types.MinorType.INT.getType(), 3, true, 6, false));
 
-        SortedRangeSet stringFilter = SortedRangeSet
-                .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "US"));
+        //SortedRangeSet stringFilter = SortedRangeSet
+        //       .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "US"));
+
+        //EquatableValueSet stringFiler = EquatableValueSet.none(allocatorm)
 
         constraintsMap.put("runways", intFilter);
-        constraintsMap.put("country", stringFilter);
+        //constraintsMap.put("country", stringFilter);
 
 
         logger.info("testing constraint map: " + constraintsMap.toString());

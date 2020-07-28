@@ -19,9 +19,12 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -29,6 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -45,13 +49,22 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Column;
+import com.amazonaws.services.glue.model.GetTableResult;
+import com.amazonaws.services.glue.model.GetTablesRequest;
+import com.amazonaws.services.glue.model.GetTablesResult;
+import com.amazonaws.services.glue.model.StorageDescriptor;
+import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.collections.CursorableLinkedList.Cursor;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,53 +76,74 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.*;
+
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-public class NeptuneMetadataHandlerTest 
-    extends TestBase
-{
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.runners.MockitoJUnitRunner;
+
+@RunWith(MockitoJUnitRunner.class)
+public class NeptuneMetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandlerTest.class);
-    private final AWSGlue glue = null;
-    private NeptuneMetadataHandler handler = new NeptuneMetadataHandler(glue, new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port")), new LocalKeyFactory(),
-            mock(AWSSecretsManager.class),
-            mock(AmazonAthena.class),
-            "spill-bucket",
-            "spill-prefix");
 
-    private boolean enableTests = System.getenv("publishing") != null &&
-            System.getenv("publishing").equalsIgnoreCase("true");
+    @Mock
+    private AWSGlue glue;
+
+    @Mock
+    private GetTablesRequest glueReq = null;
+
+    private NeptuneMetadataHandler handler = null;
+
+    private boolean enableTests = System.getenv("publishing") != null
+            && System.getenv("publishing").equalsIgnoreCase("true");
 
     private BlockAllocatorImpl allocator;
 
     @Before
-    public void setUp()
-    {
+    public void setUp() throws Exception {
+        // glue = mock(AWSGlue.class);
+
+        // glueReq = mock(GetTablesRequest.class);
+
+        // glueReq.setDatabaseName("TestDB");
+
         logger.info("setUpBefore - enter");
         allocator = new BlockAllocatorImpl();
+        handler = new NeptuneMetadataHandler(glue,
+                new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port")),
+                new LocalKeyFactory(), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "spill-bucket",
+                "spill-prefix");
         logger.info("setUpBefore - exit");
     }
 
     @After
-    public void after()
-    {
+    public void after() {
         allocator.close();
     }
 
     @Test
-    public void doListSchemaNames()
-    {
+    public void doListSchemaNames() {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doListSchemaNames: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
+            // We do this because until you complete the tutorial these tests will fail.
+            // When you attempt to publis
+            // using ../toos/publish.sh ... it will set the publishing flag and force these
+            // tests. This is how we
+            // avoid breaking the build but still have a useful tutorial. We are also
+            // duplicateing this block
+            // on purpose since this is a somewhat odd pattern.
+            logger.info(
+                    "doListSchemaNames: Tests are disabled, to enable them set the 'publishing' environment variable "
+                            + "using maven clean install -Dpublishing=true");
             return;
         }
 
         logger.info("doListSchemas - enter");
         ListSchemasRequest req = new ListSchemasRequest(IDENTITY, "queryId", "default");
+        
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
         logger.info("doListSchemas - {}", res.getSchemas());
         assertFalse(res.getSchemas().isEmpty());
@@ -117,200 +151,101 @@ public class NeptuneMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
-    {
+    public void doListTables() {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doListTables: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
+            // We do this because until you complete the tutorial these tests will fail.
+            // When you attempt to publis
+            // using ../toos/publish.sh ... it will set the publishing flag and force these
+            // tests. This is how we
+            // avoid breaking the build but still have a useful tutorial. We are also
+            // duplicateing this block
+            // on purpose since this is a somewhat odd pattern.
+            logger.info("doListTables: Tests are disabled, to enable them set the 'publishing' environment variable "
+                    + "using maven clean install -Dpublishing=true");
             return;
         }
 
         logger.info("doListTables - enter");
-        ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default", "schema1");
+
+        List<Table> tables = new ArrayList<Table>();
+        Table table1 = new Table();
+        table1.setName("table1");
+        Table table2 = new Table();
+        table2.setName("table2");
+        Table table3 = new Table();
+        table3.setName("table3");
+
+        tables.add(table1);
+        tables.add(table2);
+        tables.add(table3);
+
+        GetTablesResult tableResult = new GetTablesResult();
+        tableResult.setTableList(tables);
+
+        ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default", "default");
+        when(glue.getTables(any(GetTablesRequest.class))).thenReturn(tableResult);
+
         ListTablesResponse res = handler.doListTables(allocator, req);
+
         logger.info("doListTables - {}", res.getTables());
         assertFalse(res.getTables().isEmpty());
         logger.info("doListTables - exit");
     }
 
     @Test
-    public void doGetTable() throws Exception
-    {
+    public void doGetTable() throws Exception {
         if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doGetTable: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
+            // We do this because until you complete the tutorial these tests will fail.
+            // When you attempt to publis
+            // using ../toos/publish.sh ... it will set the publishing flag and force these
+            // tests. This is how we
+            // avoid breaking the build but still have a useful tutorial. We are also
+            // duplicateing this block
+            // on purpose since this is a somewhat odd pattern.
+            logger.info("doGetTable: Tests are disabled, to enable them set the 'publishing' environment variable "
+                    + "using maven clean install -Dpublishing=true");
             return;
         }
 
         logger.info("doGetTable - enter");
-        GetTableRequest req = new GetTableRequest(IDENTITY, "queryId", "default",
-                new TableName("schema1", "table1"));
+
+        Table table = new Table();
+        table.setName("table1");
+
+        Map<String, String> expectedParams = new HashMap<>();
+        expectedParams.put("sourceTable", table.getName());
+        expectedParams.put("columnMapping", "col2=Col2,col3=Col3, col4=Col4");
+        expectedParams.put("datetimeFormatMapping", "col2=someformat2, col1=someformat1 ");
+
+        table.setParameters(expectedParams);
+        
+        List<Column> columns = new ArrayList<>();
+        columns.add(new Column().withName("col1").withType("int").withComment("comment"));
+        columns.add(new Column().withName("col2").withType("bigint").withComment("comment"));
+        columns.add(new Column().withName("col3").withType("string").withComment("comment"));
+        columns.add(new Column().withName("col4").withType("timestamp").withComment("comment"));
+        columns.add(new Column().withName("col5").withType("date").withComment("comment"));
+        columns.add(new Column().withName("col6").withType("timestamptz").withComment("comment"));
+        columns.add(new Column().withName("col7").withType("timestamptz").withComment("comment"));
+
+        
+        StorageDescriptor storageDescriptor = new StorageDescriptor();
+        storageDescriptor.setColumns(columns); 
+        table.setStorageDescriptor(storageDescriptor);
+
+        GetTableRequest req = new GetTableRequest(IDENTITY, "queryId", "default", new TableName("schema1", "table1"));
+
+        GetTableResult getTableResult = new GetTableResult();
+        getTableResult.setTable(table);
+
+        when(glue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class))).thenReturn(getTableResult);
+
         GetTableResponse res = handler.doGetTable(allocator, req);
+
         assertTrue(res.getSchema().getFields().size() > 0);
-        assertTrue(res.getSchema().getCustomMetadata().size() > 0);
+        
         logger.info("doGetTable - {}", res);
         logger.info("doGetTable - exit");
     }
 
-    @Test
-    public void getPartitions()
-            throws Exception
-    {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("getPartitions: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
-
-        logger.info("doGetTableLayout - enter");
-
-        Schema tableSchema = SchemaBuilder.newBuilder()
-                .addIntField("day")
-                .addIntField("month")
-                .addIntField("year")
-                .build();
-
-        Set<String> partitionCols = new HashSet<>();
-        partitionCols.add("day");
-        partitionCols.add("month");
-        partitionCols.add("year");
-
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
-
-        constraintsMap.put("day", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 0)), false));
-
-        constraintsMap.put("month", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 0)), false));
-
-        constraintsMap.put("year", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 2000)), false));
-
-        GetTableLayoutRequest req = null;
-        GetTableLayoutResponse res = null;
-        try {
-
-            req = new GetTableLayoutRequest(IDENTITY, "queryId", "default",
-                    new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap),
-                    tableSchema,
-                    partitionCols);
-
-            res = handler.doGetTableLayout(allocator, req);
-
-            logger.info("doGetTableLayout - {}", res);
-            Block partitions = res.getPartitions();
-            for (int row = 0; row < partitions.getRowCount() && row < 10; row++) {
-                logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
-            }
-            assertTrue(partitions.getRowCount() > 0);
-            logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
-        }
-        finally {
-            try {
-                req.close();
-                res.close();
-            }
-            catch (Exception ex) {
-                logger.error("doGetTableLayout: ", ex);
-            }
-        }
-
-        logger.info("doGetTableLayout - exit");
-    }
-
-    @Test
-    public void doGetSplits()
-    {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doGetSplits: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
-
-        logger.info("doGetSplits: enter");
-
-        String yearCol = "year";
-        String monthCol = "month";
-        String dayCol = "day";
-
-        //This is the schema that NeptuneMetadataHandler has layed out for a 'Partition' so we need to populate this
-        //minimal set of info here.
-        Schema schema = SchemaBuilder.newBuilder()
-                .addIntField(yearCol)
-                .addIntField(monthCol)
-                .addIntField(dayCol)
-                .build();
-
-        List<String> partitionCols = new ArrayList<>();
-        partitionCols.add(yearCol);
-        partitionCols.add(monthCol);
-        partitionCols.add(dayCol);
-
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
-
-        Block partitions = allocator.createBlock(schema);
-
-        int num_partitions = 10;
-        for (int i = 0; i < num_partitions; i++) {
-            BlockUtils.setValue(partitions.getFieldVector(yearCol), i, 2016 + i);
-            BlockUtils.setValue(partitions.getFieldVector(monthCol), i, (i % 12) + 1);
-            BlockUtils.setValue(partitions.getFieldVector(dayCol), i, (i % 28) + 1);
-        }
-        partitions.setRowCount(num_partitions);
-
-        String continuationToken = null;
-        GetSplitsRequest originalReq = new GetSplitsRequest(IDENTITY, "queryId", "catalog_name",
-                new TableName("schema", "table_name"),
-                partitions,
-                partitionCols,
-                new Constraints(constraintsMap),
-                continuationToken);
-        int numContinuations = 0;
-        do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
-
-            logger.info("doGetSplits: req[{}]", req);
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-            continuationToken = response.getContinuationToken();
-
-            logger.info("doGetSplits: continuationToken[{}] - splits[{}]", continuationToken, response.getSplits());
-
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty("year"));
-                assertNotNull(nextSplit.getProperty("month"));
-                assertNotNull(nextSplit.getProperty("day"));
-            }
-
-            assertTrue(!response.getSplits().isEmpty());
-
-            if (continuationToken != null) {
-                numContinuations++;
-            }
-        }
-        while (continuationToken != null);
-
-        assertTrue(numContinuations == 0);
-
-        logger.info("doGetSplits: exit");
-    }
 }

@@ -129,16 +129,25 @@ public class NeptuneRecordHandler extends RecordHandler {
         long numRows = 0;
         final AtomicLong numResultRows = new AtomicLong(0);
         final Client client = neptuneConnection.getNeptunClientConnection();
-        
+
         try {
             final GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
 
-            String traversal = "g.V().hasLabel('" + labelName + "')"; 
+            String traversal = "g.V().hasLabel('" + labelName + "')";
+
             if (recordsRequest.getConstraints().getSummary().size() > 0) {
-                final HashMap<String, ValueSet> constraints = (HashMap<String, ValueSet>) recordsRequest
-                        .getConstraints().getSummary();
-                traversal += flattenContraintsMap(constraints);
+
+                try {
+                    logger.info("readWithContraint: Constaints Map "
+                            + recordsRequest.getConstraints().getSummary().toString());
+
+                    final Map<String, ValueSet> constraints = recordsRequest.getConstraints().getSummary();
+                    traversal += flattenContraintsMap(constraints);
+                } catch (final Exception e) {
+                    logger.info("readWithContraint: Exception occured at typecasting " + e.getStackTrace());
+                }
             }
+
             traversal += ".valueMap()";
 
             logger.info("readWithContraint: Neptune Query " + traversal);
@@ -150,7 +159,8 @@ public class NeptuneRecordHandler extends RecordHandler {
             final GremlinExecutor ge = GremlinExecutor.build().evaluationTimeout(15000L).globalBindings(b).create();
 
             final CompletableFuture<Object> evalResult = ge.eval(traversal);
-            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult.get();
+            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult
+                    .get();
 
             while (result.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
@@ -194,7 +204,7 @@ public class NeptuneRecordHandler extends RecordHandler {
      *
      * @param hasMap Constraint Hash Map
      **/
-    public String flattenContraintsMap(final HashMap hashMap) {
+    public String flattenContraintsMap(final Map hashMap) {
 
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
         String flattenedString = "";
@@ -205,14 +215,11 @@ public class NeptuneRecordHandler extends RecordHandler {
             for (final Range range : ranges) {
 
                 if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
-                    if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {         
-                        flattenedString += GremlinQueryPreProcessor.pickTemplate(
-                                                                key, 
-                                                                range.getLow().getValue().toString(),
-                                                                range.getType().toString(), 
-                                                                range.getLow().getBound(),
-                                                                GremlinQueryPreProcessor.Operator.EQUALTO);
-                        break;                        
+                    if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
+                        flattenedString += GremlinQueryPreProcessor.pickTemplate(key,
+                                range.getLow().getValue().toString(), range.getType().toString(),
+                                range.getLow().getBound(), GremlinQueryPreProcessor.Operator.EQUALTO);
+                        break;
                     }
                 }
 
@@ -221,21 +228,15 @@ public class NeptuneRecordHandler extends RecordHandler {
                     logger.info("inside flattenConstraintMap: "
                             + range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
 
-                    flattenedString += GremlinQueryPreProcessor.pickTemplate(
-                                                            key, 
-                                                            range.getLow().getValue().toString(),
-                                                            range.getType().toString(), 
-                                                            range.getLow().getBound(),
-                                                            GremlinQueryPreProcessor.Operator.GREATERTHAN);
+                    flattenedString += GremlinQueryPreProcessor.pickTemplate(key, range.getLow().getValue().toString(),
+                            range.getType().toString(), range.getLow().getBound(),
+                            GremlinQueryPreProcessor.Operator.GREATERTHAN);
                 }
 
                 if (!range.getHigh().isNullValue()) {
-                    flattenedString += GremlinQueryPreProcessor.pickTemplate(
-                                                            key, 
-                                                            range.getHigh().getValue().toString(),
-                                                            range.getType().toString(), 
-                                                            range.getLow().getBound(),
-                                                            GremlinQueryPreProcessor.Operator.LESSTHAN);
+                    flattenedString += GremlinQueryPreProcessor.pickTemplate(key, range.getHigh().getValue().toString(),
+                            range.getType().toString(), range.getLow().getBound(),
+                            GremlinQueryPreProcessor.Operator.LESSTHAN);
                 }
             }
         }
