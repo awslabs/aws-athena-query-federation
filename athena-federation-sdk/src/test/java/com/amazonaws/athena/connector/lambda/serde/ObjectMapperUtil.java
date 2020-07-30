@@ -25,6 +25,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +39,18 @@ import static org.junit.Assert.assertEquals;
 
 public class ObjectMapperUtil
 {
+    private static final Logger logger = LoggerFactory.getLogger(ObjectMapperUtil.class);
+
+    private static JsonFactory jsonFactory = new JsonFactory();
+
     private ObjectMapperUtil() {}
 
     public static <T> void assertSerialization(Object object)
+    {
+        assertSerialization(object, false);
+    }
+
+    public static <T> void assertSerialization(Object object, boolean failOnCompatibilityChecks)
     {
         Class<?> clazz = object.getClass();
         if (object instanceof FederationRequest)
@@ -50,10 +61,40 @@ public class ObjectMapperUtil
         try (BlockAllocator allocator = new BlockAllocatorImpl()){
             // check SerDe write, SerDe read
             ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
+            JsonGenerator jgen = jsonFactory.createGenerator(serDeOut);
             ObjectMapper serDe = VersionedObjectMapperFactory.create(allocator);
-            serDe.writeValue(serDeOut, object);
+            serDe.writeValue(jgen, object);
+            jgen.close();
             byte[] serDeOutput = serDeOut.toByteArray();
-            assertEquals(object, serDe.readValue(new ByteArrayInputStream(serDeOutput), clazz));
+            JsonParser jparser = jsonFactory.createParser(new ByteArrayInputStream(serDeOutput));
+            assertEquals(object, serDe.readValue(jparser, clazz));
+
+            // TODO remove when ObjectMapper is deprecated
+            ObjectMapper mapper = ObjectMapperFactory.create(allocator);
+            ByteArrayOutputStream mapperOut = new ByteArrayOutputStream();
+            mapper.writeValue(mapperOut, object);
+            byte[] mapperOutput = mapperOut.toByteArray();
+            // also check ObjectMapper write, SerDe read compatibility
+            jparser = jsonFactory.createParser(mapperOutput);
+            try {
+                assertEquals(object, serDe.readValue(jparser, clazz));
+            }
+            catch (Exception e) {
+                if (failOnCompatibilityChecks) {
+                    throw e;
+                }
+                logger.warn("Object serialized with ObjectMapper not deserializable with SerDe", e);
+            }
+            // also check SerDe write, ObjectMapper read compatibility
+            try {
+                assertEquals(object, mapper.readValue(serDeOutput, object.getClass()));
+            }
+            catch (Exception e) {
+                if (failOnCompatibilityChecks) {
+                    throw e;
+                }
+                logger.warn("Object serialized with SerDe not deserializable with ObjectMapper", e);
+            }
         }
         catch (IOException | AssertionError ex) {
             throw new RuntimeException(ex);

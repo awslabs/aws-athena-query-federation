@@ -52,7 +52,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -191,7 +190,7 @@ public class ExampleRecordHandlerTest
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        return new FederatedIdentity("access_key_id", "principle", "account");
     }
 
     private SpillLocation makeSpillLocation()

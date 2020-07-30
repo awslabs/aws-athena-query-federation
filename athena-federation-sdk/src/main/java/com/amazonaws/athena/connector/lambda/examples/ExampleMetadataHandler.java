@@ -159,7 +159,7 @@ public class ExampleMetadataHandler
     private void logCaller(FederationRequest request)
     {
         FederatedIdentity identity = request.getIdentity();
-        logger.info("logCaller: account[" + identity.getAccount() + "] arn[" + identity.getArn() + "]");
+        logger.info("logCaller: account[" + identity.getAccount() + "] id[" + identity.getId() + "]  principal[" + identity.getPrincipal() + "]");
     }
 
     /**

@@ -442,10 +442,7 @@ public class ElasticsearchMetadataHandlerTest
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("access_key_id",
-            "principle",
-            Collections.emptyMap(),
-            Collections.emptyList());
+        return new FederatedIdentity("access_key_id", "principle", "account");
     }
 
     @Test

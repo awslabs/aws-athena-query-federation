@@ -23,78 +23,41 @@ package com.amazonaws.athena.connector.lambda.security;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 /**
  * Defines the identity of the Athena caller. This is used in many of the SDK's request objects to convey to your
  * connector or UDF the identity of the caller that triggered the subsequent Lambda invocation.
  */
 public class FederatedIdentity
 {
-    private final String arn;
-    private final String account;
-    private final Map<String, String> principalTags;
-    private final List<String> iamGroups;
+    public final String id;
+    public final String principal;
+    public final String account;
 
     @JsonCreator
-    public FederatedIdentity(@JsonProperty("arn") String arn,
-                             @JsonProperty("account") String account,
-                             @JsonProperty("principalTags") Map<String, String> principalTags,
-                             @JsonProperty("iamGroups") List<String> iamGroups)
+    public FederatedIdentity(@JsonProperty("id") String id,
+            @JsonProperty("principal") String principal,
+            @JsonProperty("account") String account)
     {
-        this.arn = arn;
+        this.id = id;
+        this.principal = principal;
         this.account = account;
-        this.principalTags = principalTags;
-        this.iamGroups = iamGroups;
     }
 
-    @JsonProperty("arn")
-    public String getArn()
+    @JsonProperty("id")
+    public String getId()
     {
-        return arn;
+        return id;
+    }
+
+    @JsonProperty("principal")
+    public String getPrincipal()
+    {
+        return principal;
     }
 
     @JsonProperty("account")
     public String getAccount()
     {
         return account;
-    }
-
-    @JsonProperty("principalTags")
-    public Map<String, String> getPrincipalTags()
-    {
-        return principalTags;
-    }
-
-    @JsonProperty("iamGroups")
-    public List<String> getIamGroups()
-    {
-        return iamGroups;
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-        if (this == o) {
-            return true;
-        }
-
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        FederatedIdentity that = (FederatedIdentity) o;
-        return arn.equals(that.arn) &&
-                       account.equals(that.account) &&
-                       principalTags.equals(that.principalTags) &&
-                       iamGroups.equals(that.iamGroups);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(arn, account, principalTags, iamGroups);
     }
 }

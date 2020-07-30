@@ -1,12 +1,9 @@
 {
   "@type" : "PingRequest",
   "identity" : {
-    "id" : "UNKNOWN",
-    "principal" : "UNKNOWN",
+    "id" : "test-id",
+    "principal" : "test-principal",
     "account" : "0123456789",
-    "arn" : "testArn",
-    "tags" : { },
-    "groups" : [ ],
     "newIdField" : "newIdFieldValue"
   },
   "catalogName" : "test-catalog",
