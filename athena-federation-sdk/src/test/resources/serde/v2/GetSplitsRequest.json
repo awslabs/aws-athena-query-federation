@@ -1,12 +1,9 @@
 {
   "@type" : "GetSplitsRequest",
   "identity" : {
-    "id" : "UNKNOWN",
-    "principal" : "UNKNOWN",
-    "account" : "0123456789",
-    "arn" : "testArn",
-    "tags" : { },
-    "groups" : [ ]
+    "id" : "test-id",
+    "principal" : "test-principal",
+    "account" : "0123456789"
   },
   "queryId" : "test-query-id",
   "catalogName" : "test-catalog",

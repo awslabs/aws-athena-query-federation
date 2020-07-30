@@ -84,7 +84,7 @@ public class CloudwatchMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudwatchMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
     private CloudwatchMetadataHandler handler;
     private BlockAllocator allocator;
 

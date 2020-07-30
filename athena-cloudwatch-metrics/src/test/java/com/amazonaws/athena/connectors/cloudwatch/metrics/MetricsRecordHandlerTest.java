@@ -102,7 +102,7 @@ public class MetricsRecordHandlerTest
     private static final TableName METRICS_TABLE_NAME = new TableName("default", METRIC_TABLE.getName());
     private static final TableName METRIC_SAMPLES_TABLE_NAME = new TableName("default", METRIC_DATA_TABLE.getName());
 
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
     private List<ByteHolder> mockS3Storage;
     private MetricsRecordHandler handler;
     private S3BlockSpillReader spillReader;

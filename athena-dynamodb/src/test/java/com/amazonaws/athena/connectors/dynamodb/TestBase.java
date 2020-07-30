@@ -50,7 +50,6 @@ import org.junit.BeforeClass;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -61,7 +60,7 @@ import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toItem;
 
 public class TestBase
 {
-    protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("id", "principal", "account");
     protected static final String TEST_QUERY_ID = "queryId";
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";

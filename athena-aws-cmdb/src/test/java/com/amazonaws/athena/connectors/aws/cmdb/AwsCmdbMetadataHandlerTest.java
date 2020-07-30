@@ -72,7 +72,7 @@ public class AwsCmdbMetadataHandlerTest
     private String bucket = "bucket";
     private String prefix = "prefix";
     private String queryId = "queryId";
-    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
 
     @Mock
     private AmazonS3 mockS3;

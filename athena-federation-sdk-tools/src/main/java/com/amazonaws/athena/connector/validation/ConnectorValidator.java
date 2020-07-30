@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -401,10 +400,9 @@ public class ConnectorValidator
       this.tableId = tableId;
       this.constraints = constraints;
       this.planningOnly = planningOnly;
-      this.identity = new FederatedIdentity("VALIDATION_ARN",
-                                            "VALIDATION_ACCOUNT",
-                                            Collections.emptyMap(),
-                                            Collections.emptyList());
+      this.identity = new FederatedIdentity("VALIDATION_ACCESS_KEY",
+                                            "VALIDATION_PRINCIPAL",
+                                            "VALIDATION_ACCOUNT");
     }
 
     public FederatedIdentity getIdentity()
