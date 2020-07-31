@@ -86,6 +86,7 @@ public class SAPHANARecordHandler
     {
         PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName().toUpperCase(), tableName.getTableName().toUpperCase(), schema, constraints, split);
 
+
         return preparedStatement;
     }
 }
