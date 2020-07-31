@@ -138,12 +138,20 @@ public abstract class JdbcMetadataHandler
     private Set<String> listDatabaseNames(final Connection jdbcConnection)
             throws SQLException
     {
-        try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
+        DatabaseMetaData metadata = jdbcConnection.getMetaData();
+        String databaseproductname = metadata.getDatabaseProductName();
+        try (ResultSet resultSet = metadata.getSchemas()) {
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
             while (resultSet.next()) {
                 String schemaName = resultSet.getString("TABLE_SCHEM");
-                // skip internal schemas
-                if (!schemaName.equals("information_schema")) {
+                
+                //skip internal schemas for SAP HANA Database
+                if (databaseproductname != null && !databaseproductname.isEmpty() && databaseproductname.equals("HDB")) {
+                    if (!schemaName.startsWith("_") && !schemaName.contains("SYS") && !schemaName.contains("XS") && !schemaName.equals("SAPDBCTRL") && !schemaName.contains("SAP_") && !schemaName.contains("UIS")) {
+                        schemaNames.add(schemaName);
+                    }
+                }
+                else if (!schemaName.equals("information_schema")) { // skip internal schemas
                     schemaNames.add(schemaName);
                 }
             }
@@ -258,11 +266,16 @@ public abstract class JdbcMetadataHandler
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
-        return metadata.getColumns(
-                catalogName,
-                escapeNamePattern(tableHandle.getSchemaName(), escape),
-                escapeNamePattern(tableHandle.getTableName(), escape),
-                null);
+        String schema = escapeNamePattern(tableHandle.getSchemaName(), escape);
+        String table = escapeNamePattern(tableHandle.getTableName(), escape);
+        String databaseproductname = metadata.getDatabaseProductName();
+        
+        if (databaseproductname != null && !databaseproductname.isEmpty() && databaseproductname.equals("HDB")) {
+                   schema = schema.toUpperCase();
+                   table = table.toUpperCase();
+        }
+  
+        return metadata.getColumns(catalogName, schema, table, null);
     }
 
     /**
