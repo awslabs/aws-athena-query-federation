@@ -64,7 +64,7 @@ public class SAPHANAMetadataHandler
 {
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String GET_PARTITIONS_QUERY = "SELECT DISTINCT part_id FROM SYS.TABLE_PARTITIONS WHERE TABLE_NAME = ? AND SCHEMA_NAME = ? ";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "parti_id";
+    static final String BLOCK_PARTITION_COLUMN_NAME = "part_id";
     static final String ALL_PARTITIONS = "*";
     static final String PARTITION_COLUMN_NAME = "part_id";
     private static final Logger LOGGER = LoggerFactory.getLogger(SAPHANAMetadataHandler.class);
