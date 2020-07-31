@@ -91,6 +91,12 @@
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.sap.cloud.db.jdbc/ngdbc -->
+        <dependency>
+            <groupId>com.sap.cloud.db.jdbc</groupId>
+            <artifactId>ngdbc</artifactId>
+            <version>2.5.49</version>
+        </dependency>
     </dependencies>
 
     <build>

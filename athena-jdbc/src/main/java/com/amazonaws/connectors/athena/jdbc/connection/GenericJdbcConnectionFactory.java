@@ -56,14 +56,18 @@ public class GenericJdbcConnectionFactory
     private static final String REDSHIFT_DRIVER_CLASS = "com.amazon.redshift.jdbc.Driver";
     private static final int REDSHIFT_DEFAULT_PORT = 5439;
 
+    private static final String SAPHANA_DRIVER_CLASS = "com.sap.db.jdbc.Driver";
+    private static final int SAPHANA_DEFAULT_PORT = 30013;
+    
     private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9/_+=.@-]+})";
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private static final ImmutableMap<DatabaseEngine, DatabaseConnectionInfo> CONNECTION_INFO = ImmutableMap.of(
             DatabaseEngine.MYSQL, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT),
             DatabaseEngine.POSTGRES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT),
-            DatabaseEngine.REDSHIFT, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT));
-
+            DatabaseEngine.REDSHIFT, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT),
+            DatabaseEngine.SAPHANA, new DatabaseConnectionInfo(SAPHANA_DRIVER_CLASS, SAPHANA_DEFAULT_PORT));
+            
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
 
