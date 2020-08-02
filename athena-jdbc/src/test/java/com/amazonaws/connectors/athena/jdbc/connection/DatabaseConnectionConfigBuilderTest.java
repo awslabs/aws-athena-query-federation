@@ -31,6 +31,8 @@ public class DatabaseConnectionConfigBuilderTest
 {
     private static final String CONNECTION_STRING1 = "mysql://jdbc:mysql://hostname/${testSecret}";
     private static final String CONNECTION_STRING2 = "postgres://jdbc:postgresql://hostname/user=testUser&password=testPassword";
+    private static final String CONNECTION_STRING3 = "saphana://jdbc:sap://hostname/user=testUser&password=testPassword";
+
 
     @Test
     public void build()
@@ -39,6 +41,8 @@ public class DatabaseConnectionConfigBuilderTest
                 "jdbc:mysql://hostname/${testSecret}", "testSecret");
         DatabaseConnectionConfig expectedDatabase2 = new DatabaseConnectionConfig("testCatalog2", JdbcConnectionFactory.DatabaseEngine.POSTGRES,
                 "jdbc:postgresql://hostname/user=testUser&password=testPassword");
+        DatabaseConnectionConfig expectedDatabase3 = new DatabaseConnectionConfig("testCatalog3", JdbcConnectionFactory.DatabaseEngine.SAPHANA,
+                "jdbc:sap://hostname/user=testUser&password=testPassword");
         DatabaseConnectionConfig defaultConnection = new DatabaseConnectionConfig("default", JdbcConnectionFactory.DatabaseEngine.POSTGRES,
                 "jdbc:postgresql://hostname/user=testUser&password=testPassword");
 
@@ -46,10 +50,11 @@ public class DatabaseConnectionConfigBuilderTest
                 .properties(ImmutableMap.of(
                         "default", CONNECTION_STRING2,
                         "testCatalog1_connection_string", CONNECTION_STRING1,
-                        "testCatalog2_connection_string", CONNECTION_STRING2))
+                        "testCatalog2_connection_string", CONNECTION_STRING2,
+                        "testCatalog3_connection_string", CONNECTION_STRING3))
                 .build();
 
-        Assert.assertEquals(Arrays.asList(defaultConnection, expectedDatabase1, expectedDatabase2), databaseConnectionConfigs);
+        Assert.assertEquals(Arrays.asList(defaultConnection, expectedDatabase1, expectedDatabase2, expectedDatabase3), databaseConnectionConfigs);
     }
 
     @Test(expected = RuntimeException.class)

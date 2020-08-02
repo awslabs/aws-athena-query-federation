@@ -63,6 +63,9 @@ public class SAPHANARecordHandlerTest
     @Before
     public void setup()
     {
+        System.out.println("===================================================");
+        System.out.println("Performing SAP HANA Tests - RecordHandler");
+        System.out.println("===================================================");
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
@@ -70,7 +73,7 @@ public class SAPHANARecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new SAPHANAQueryStringBuilder("`");
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", JdbcConnectionFactory.DatabaseEngine.SAPHANA,
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog3", JdbcConnectionFactory.DatabaseEngine.SAPHANA,
                 "saphana://jdbc:saphana://hostname/user=A&password=B");
 
         this.sapHanaRecordHandler = new SAPHANARecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
