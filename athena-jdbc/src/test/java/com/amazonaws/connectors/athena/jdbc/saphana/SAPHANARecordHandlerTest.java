@@ -63,6 +63,9 @@ public class SAPHANARecordHandlerTest
     @Before
     public void setup()
     {
+        System.out.println("===================================================");
+        System.out.println("Performing SAP HANA Tests - RecordHandler");
+        System.out.println("===================================================");
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
