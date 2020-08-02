@@ -66,7 +66,7 @@ public class SAPHANAMetadataHandlerTest
         extends TestBase
 {
 
-    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", JdbcConnectionFactory.DatabaseEngine.SAPHANA,
+    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog3", JdbcConnectionFactory.DatabaseEngine.SAPHANA,
             "saphana://jdbc:saphana://hostname/user=A&password=B");
     private SAPHANAMetadataHandler sapHanaMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
@@ -79,7 +79,7 @@ public class SAPHANAMetadataHandlerTest
     public void setup()
     {
         System.out.println("===================================================");
-        System.out.println("Performing SAP HANA Tests");
+        System.out.println("Performing SAP HANA Tests - MetadataHandler");
         System.out.println("===================================================");
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
