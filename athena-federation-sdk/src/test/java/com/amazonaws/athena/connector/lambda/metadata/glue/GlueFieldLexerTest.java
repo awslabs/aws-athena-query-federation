@@ -40,6 +40,8 @@ public class GlueFieldLexerTest
 
     private static final String INPUT3 = "INT";
 
+    private static final String INPUT4 = "ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING>>";
+
     @Test
     public void basicLexTest()
     {
@@ -104,5 +106,28 @@ public class GlueFieldLexerTest
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level1.get(2).getChildren().get(0).getType()));
 
         logger.info("lexTest: exit");
+    }
+
+    @Test
+    public void arrayOfStructLexComplexTest() {
+        logger.info("arrayOfStructLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("namelist", INPUT4);
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals("namelist", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+        Field child = field.getChildren().get(0);
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(child.getType()));
+        assertEquals(3, child.getChildren().size());
+        assertEquals("last", child.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(0).getType()));
+        assertEquals("mi", child.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(1).getType()));
+        assertEquals("first", child.getChildren().get(2).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(2).getType()));
+
+        logger.info("arrayOfStructLexComplexTest: exit");
     }
 }
