@@ -95,7 +95,8 @@ public class GlueFieldLexer
         else if (startToken.getValue().toLowerCase().equals(LIST)) {
             GlueTypeParser.Token arrayType = parser.next();
             Field child;
-            if (arrayType.getValue().toLowerCase().equals(STRUCT)) {
+            String type = arrayType.getValue().toLowerCase();
+            if (type.equals(STRUCT) || type.equals(LIST)) {
                 child = lexComplex(name, arrayType, parser, mapper);
             }
             else {
