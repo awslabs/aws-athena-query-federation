@@ -94,8 +94,15 @@ public class GlueFieldLexer
         }
         else if (startToken.getValue().toLowerCase().equals(LIST)) {
             GlueTypeParser.Token arrayType = parser.next();
-            return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType())
-                    .addField(mapper.getField(name, arrayType.getValue())).build();
+            Field child;
+            String type = arrayType.getValue().toLowerCase();
+            if (type.equals(STRUCT) || type.equals(LIST)) {
+                child = lexComplex(name, arrayType, parser, mapper);
+            }
+            else {
+                child = mapper.getField(name, arrayType.getValue());
+            }
+            return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType()).addField(child).build();
         }
         else {
             throw new RuntimeException("Unexpected start type " + startToken.getValue());
