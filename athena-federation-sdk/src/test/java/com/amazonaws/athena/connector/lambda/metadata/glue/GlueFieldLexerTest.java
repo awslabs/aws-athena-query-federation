@@ -113,7 +113,8 @@ public class GlueFieldLexerTest
     }
 
     @Test
-    public void arrayOfStructLexComplexTest() {
+    public void arrayOfStructLexComplexTest()
+    {
         logger.info("arrayOfStructLexComplexTest: enter");
 
         Field field = GlueFieldLexer.lex("namelist", INPUT4);
@@ -136,7 +137,8 @@ public class GlueFieldLexerTest
     }
 
     @Test
-    public void nestedArrayLexComplexTest() {
+    public void nestedArrayLexComplexTest()
+    {
         logger.info("nestedArrayLexComplexTest: enter");
 
         Field field = GlueFieldLexer.lex("namelist", INPUT5);
@@ -169,8 +171,9 @@ public class GlueFieldLexerTest
     }
 
     @Test
-    public void multiArrayStructLexComplexTest() {
-        logger.info("nestedArrayLexComplexTest: enter");
+    public void multiArrayStructLexComplexTest()
+    {
+        logger.info("multiArrayStructLexComplexTest: enter");
 
         Field field = GlueFieldLexer.lex("movie_info", INPUT6);
 
@@ -187,5 +190,7 @@ public class GlueFieldLexerTest
         Field array2 = field.getChildren().get(1);
         assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array2.getType()));
         assertEquals("genre", array2.getChildren().get(0).getName());
+
+        logger.info("multiArrayStructLexComplexTest: exit");
     }
 }
