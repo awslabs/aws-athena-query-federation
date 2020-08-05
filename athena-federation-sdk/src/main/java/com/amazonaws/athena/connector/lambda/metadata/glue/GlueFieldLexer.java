@@ -111,6 +111,9 @@ public class GlueFieldLexer
         while (parser.hasNext() && parser.currentToken().getMarker() != GlueTypeParser.FIELD_END) {
             Field child = lex(parser.next(), parser, mapper);
             fieldBuilder.addField(child);
+            if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.LIST) {
+                parser.next();
+            }
         }
         parser.next();
 
