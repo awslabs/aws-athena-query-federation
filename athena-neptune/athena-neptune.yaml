@@ -98,8 +98,6 @@ Resources:
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
             BucketName: !Ref SpillBucket
-        # - S3CrudPolicy:
-        #     BucketName: !Ref DataBucket
         #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
         - VPCAccessPolicy: {}
       VpcConfig:

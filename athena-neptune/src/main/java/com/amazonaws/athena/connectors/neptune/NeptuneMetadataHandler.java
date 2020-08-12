@@ -25,14 +25,11 @@ import java.util.List;
 import java.util.Set;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
@@ -43,10 +40,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
-import com.amazonaws.services.glue.AWSGlue;
 
+import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.Table;
@@ -55,14 +51,8 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.complex.reader.FieldReader;
-
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,33 +73,24 @@ import org.slf4j.LoggerFactory;
  * athena-cloudwatch, athena-docdb, etc...)
  */
 public class NeptuneMetadataHandler extends GlueMetadataHandler {
-    private static final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandler.class);
-
-    // Used to denote the 'type' of this connector for diagnostic purposes.
-    private static final String SOURCE_TYPE = "neptune";
-
-    private NeptuneConnection neptuneConnection;
-    private GraphTraversalSource g;
-    private AWSGlue glue;
-    // private GetTablesRequest glueReq;
-    private static final String glue_database_name = System.getenv("glue_database_name");
+    private final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandler.class);
+    private static final String SOURCE_TYPE = "neptune";// Used to denote the 'type' of this connector for diagnostic
+                                                        // purposes.
+    private final AWSGlue glue;
+    private final String glue_database_name;
 
     public NeptuneMetadataHandler() {
         super(false, SOURCE_TYPE);
-        neptuneConnection = new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port"));
-        // g = neptuneConnection.getTraversalSource();
-        glue = getAwsGlue();
+        this.glue = getAwsGlue();
+        this.glue_database_name = System.getenv("glue_database_name");
     }
 
     @VisibleForTesting
-    protected NeptuneMetadataHandler(AWSGlue glue,
-            // GetTablesRequest glueReq,
-            NeptuneConnection neptuneConnection, EncryptionKeyFactory keyFactory, AWSSecretsManager awsSecretsManager,
-            AmazonAthena athena, String spillBucket, String spillPrefix) {
+    protected NeptuneMetadataHandler(AWSGlue glue, NeptuneConnection neptuneConnection, EncryptionKeyFactory keyFactory,
+            AWSSecretsManager awsSecretsManager, AmazonAthena athena, String spillBucket, String spillPrefix) {
         super(glue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.glue = glue;
-        // this.glueReq = glueReq;
-        this.neptuneConnection = neptuneConnection;
+        this.glue_database_name = System.getenv("glue_database_name");
     }
 
     /**
@@ -153,10 +134,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
 
         List<TableName> tables = new ArrayList<>();
         GetTablesRequest getTablesRequest = new GetTablesRequest();
-
-        if (glue_database_name != null) {
-            getTablesRequest.setDatabaseName(glue_database_name);
-        }
+        getTablesRequest.setDatabaseName(request.getSchemaName());
 
         GetTablesResult getTablesResult = glue.getTables(getTablesRequest);
         List<Table> glueTableList = getTablesResult.getTableList();
@@ -195,6 +173,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
             logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(), request.getTableName().getTableName(), ex);
         }
+
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), tableSchema);
     }
 

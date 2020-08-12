@@ -19,20 +19,14 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.tinkerpop.gremlin.driver.Cluster;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-//import static org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource.traversal;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.driver.Client;
 
 public class NeptuneConnection {
-    private static final Logger logger = LoggerFactory.getLogger(NeptuneConnection.class);
-
-    private static Cluster cluster = null;
+     private static Cluster cluster = null;
 
     NeptuneConnection(String neptuneEndpoint, String neptunePort) {
         cluster = Cluster.build()
@@ -42,7 +36,7 @@ public class NeptuneConnection {
                         .create();
     }
 
-    Client getNeptunClientConnection() {
+    Client getNeptuneClientConnection() {
         return cluster.connect();
     }
 

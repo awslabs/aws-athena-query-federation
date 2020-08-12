@@ -3,3 +3,9 @@
 .idea/
 /target/
 */*.iml
+.classpath
+.factorypath
+.project
+*/.settings/
+*/.DS_Store
+

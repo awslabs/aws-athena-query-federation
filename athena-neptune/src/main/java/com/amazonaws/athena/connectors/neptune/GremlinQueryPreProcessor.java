@@ -22,22 +22,38 @@ package com.amazonaws.athena.connectors.neptune;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 
+/**
+ * This class is a Utility class to general gremlin query equivalents of
+ * Contraints being passed via AWS Lambda Handler
+ */
 public class GremlinQueryPreProcessor {
-    public static String STRINGEQUALS = ".has('<key>',eq('<value>'))";
+    final static String STRINGEQUALS = ".has('<key>',eq('<value>'))";
+    final static String STRINGNOTEQUALS = ".has('<key>',neq('<value>'))";
 
     final static String INTEQUALS = ".has('<key>',eq(<value>))";
     final static String INTGREATERTHAN = ".has('<key>',gt(<value>))";
     final static String INTGREATERTHANEQUALTO = ".has('<key>',gte(<value>))";
     final static String INTLESSTHAN = ".has('<key>',lt(<value>))";
     final static String INTLESSTHANEQUALTO = ".has('<key>',lte(<value>))";
+    final static String INTNOTEQUALS = ".has('<key>',neq(<value>))";
 
-    public static class Operator {
-        public static String LESSTHAN = "LESSTHAN";
-        public static String GREATERTHAN = "GREATERTHAN";
-        public static String EQUALTO = "EQUALTO";
+    public enum Operator {
+        LESSTHAN, GREATERTHAN, EQUALTO, NOTEQUALTO
     }
 
-    public static String pickTemplate(String key, String value, String type, Bound bound, String operator) {
+    /**
+     * Pick and Process pre-defined templates based on parameters to generate
+     * gremlin query
+     * 
+     * @param key      Query Condition Key
+     * @param value    Query Condition Value
+     * @param bound    Query Condition Value Range
+     * @param operator Query Operator representing conditional operators e.g < , <=, >, >= , =
+     * 
+     * @return A Gremlin Query Part equivalent to Contraint.
+     */
+    public static String generateGremlinQueryPart(String key, String value, String type, Bound bound,
+            Operator operator) {
 
         String gremlinQueryPart = "";
 
@@ -61,6 +77,10 @@ public class GremlinQueryPreProcessor {
                     gremlinQueryPart = INTEQUALS.replace("<key>", key).replace("<value>", value);
                 }
 
+                if (operator.equals(Operator.NOTEQUALTO)) {
+                    gremlinQueryPart = INTNOTEQUALS.replace("<key>", key).replace("<value>", value);
+                }
+
                 break;
 
             case "Utf8":
@@ -69,11 +89,11 @@ public class GremlinQueryPreProcessor {
                     gremlinQueryPart = STRINGEQUALS.replace("<key>", key).replace("<value>", value);
                 }
 
+                if (operator.equals(Operator.NOTEQUALTO)) {
+                    gremlinQueryPart = STRINGNOTEQUALS.replace("<key>", key).replace("<value>", value);
+                }
+
                 break;
-
-            default:
-
-                gremlinQueryPart = "";
 
         }
 
