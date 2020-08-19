@@ -39,8 +39,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.driver.Client;
-import org.apache.tinkerpop.gremlin.groovy.engine.GremlinExecutor;
-import org.apache.tinkerpop.gremlin.jsr223.ConcurrentBindings;
+import org.apache.tinkerpop.gremlin.groovy.jsr223.GroovyTranslator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -129,34 +128,29 @@ public class NeptuneRecordHandler extends RecordHandler {
             client = neptuneConnection.getNeptuneClientConnection();
             graphTraversalSource = neptuneConnection.getTraversalSource(client);
 
-            String traversal = "g.V().hasLabel('" + labelName + "')";
+            GraphTraversal<Vertex, Vertex> graphTraversal = graphTraversalSource.V().hasLabel(labelName);
 
             if (recordsRequest.getConstraints().getSummary().size() > 0) {
                 logger.info(
                         "readWithContraint: Constaints Map " + recordsRequest.getConstraints().getSummary().toString());
 
                 final Map<String, ValueSet> constraints = recordsRequest.getConstraints().getSummary();
-                traversal += getQueryPartForContraintsMap(constraints);
+                graphTraversal = getQueryPartForContraintsMap(graphTraversal, constraints);
             }
 
-            traversal += ".valueMap()";
+            GraphTraversal<Vertex, Map<Object, Object>> graphTraversalFinal = graphTraversal.valueMap();
 
-            logger.info("readWithContraint: Neptune Query " + traversal);
+            //log string equivalend of gremlin query
+            logger.info("readWithConstraint: enter - " + 
+             GroovyTranslator.of("g").translate(graphTraversalFinal.asAdmin().getBytecode()));
 
-            // Code to build gremlin query from string
-            final ConcurrentBindings b = new ConcurrentBindings();
-            b.putIfAbsent("g", graphTraversalSource);
-
-            final GremlinExecutor ge = GremlinExecutor.build().evaluationTimeout(15000L).globalBindings(b).create();
-            final CompletableFuture<Object> evalResult = ge.eval(traversal);
-            final GraphTraversal<Vertex, Map<Object, Object>> result = (GraphTraversal<Vertex, Map<Object, Object>>) evalResult
-                    .get();
-
-            while (result.hasNext() && queryStatusChecker.isQueryRunning()) {
+            while (graphTraversalFinal.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
                 try {
                     spiller.writeRows((final Block block, final int rowNum) -> {
-                        final Map<Object, Object> obj = result.next();
+
+                        // final Map<Object, Object> obj = result.next();
+                        final Map<Object, Object> obj = graphTraversalFinal.next();
                         boolean matched = true;
 
                         for (final Field nextField : recordsRequest.getSchema().getFields()) {
@@ -195,10 +189,10 @@ public class NeptuneRecordHandler extends RecordHandler {
      *
      * @param hasMap Constraint Hash Map
      **/
-    public String getQueryPartForContraintsMap(final Map hashMap) {
+    public GraphTraversal<Vertex, Vertex> getQueryPartForContraintsMap(GraphTraversal<Vertex, Vertex> traversal,
+            final Map hashMap) {
 
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
-        String flattenedString = "";
 
         for (final String key : setOfkeys) {
             final List<Range> ranges = ((SortedRangeSet) hashMap.get(key)).getOrderedRanges();
@@ -207,7 +201,8 @@ public class NeptuneRecordHandler extends RecordHandler {
 
                 if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
                     if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
-                        flattenedString += GremlinQueryPreProcessor.generateGremlinQueryPart(key,
+
+                        traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
                                 range.getLow().getValue().toString(), range.getType().toString(),
                                 range.getLow().getBound(), GremlinQueryPreProcessor.Operator.EQUALTO);
                         break;
@@ -219,21 +214,20 @@ public class NeptuneRecordHandler extends RecordHandler {
                     logger.info("inside flattenConstraintMap: "
                             + range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
 
-                    flattenedString += GremlinQueryPreProcessor.generateGremlinQueryPart(key,
+                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
                             range.getLow().getValue().toString(), range.getType().toString(), range.getLow().getBound(),
                             GremlinQueryPreProcessor.Operator.GREATERTHAN);
                 }
 
                 if (!range.getHigh().isNullValue()) {
-                    flattenedString += GremlinQueryPreProcessor.generateGremlinQueryPart(key,
+
+                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
                             range.getHigh().getValue().toString(), range.getType().toString(),
                             range.getLow().getBound(), GremlinQueryPreProcessor.Operator.LESSTHAN);
                 }
             }
         }
 
-        logger.info("inside flattenConstraintMap: " + flattenedString);
-
-        return flattenedString;
+        return traversal;
     }
 }

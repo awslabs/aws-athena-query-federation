@@ -22,6 +22,11 @@ package com.amazonaws.athena.connectors.neptune;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 
+import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
+import org.apache.tinkerpop.gremlin.process.traversal.lambda.PredicateTraversal;
+import org.apache.tinkerpop.gremlin.structure.Vertex;
+
 /**
  * This class is a Utility class to general gremlin query equivalents of
  * Contraints being passed via AWS Lambda Handler
@@ -48,37 +53,42 @@ public class GremlinQueryPreProcessor {
      * @param key      Query Condition Key
      * @param value    Query Condition Value
      * @param bound    Query Condition Value Range
-     * @param operator Query Operator representing conditional operators e.g < , <=, >, >= , =
+     * @param operator Query Operator representing conditional operators e.g < ,
+     *                 <=, >, >= , =
      * 
      * @return A Gremlin Query Part equivalent to Contraint.
      */
-    public static String generateGremlinQueryPart(String key, String value, String type, Bound bound,
-            Operator operator) {
+    // public static String generateGremlinQueryPart(String key, String value,
+    // String type, Bound bound,
+    // Operator operator) {
 
-        String gremlinQueryPart = "";
+    public static GraphTraversal<Vertex, Vertex> generateGremlinQueryPart(GraphTraversal<Vertex, Vertex> traversal,
+            String key, String value, String type, Bound bound, Operator operator) {
 
         switch (type) {
 
             case "Int(32, true)":
 
                 if (operator.equals(Operator.GREATERTHAN)) {
-                    gremlinQueryPart = bound.equals(Bound.EXACTLY)
-                            ? INTGREATERTHANEQUALTO.replace("<key>", key).replace("<value>", value)
-                            : INTGREATERTHAN.replace("<key>", key).replace("<value>", value);
+
+                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Integer.parseInt(value)))
+                            : traversal.has(key, P.gt(Integer.parseInt(value)));
                 }
 
                 if (operator.equals(Operator.LESSTHAN)) {
-                    gremlinQueryPart = bound.equals(Bound.EXACTLY)
-                            ? INTLESSTHAN.replace("<key>", key).replace("<value>", value)
-                            : INTLESSTHANEQUALTO.replace("<key>", key).replace("<value>", value);
+
+                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(Integer.parseInt(value)))
+                            : traversal.has(key, P.lt(Integer.parseInt(value)));
                 }
 
                 if (operator.equals(Operator.EQUALTO)) {
-                    gremlinQueryPart = INTEQUALS.replace("<key>", key).replace("<value>", value);
+
+                    traversal = traversal.has(key, P.eq(Integer.parseInt(value)));
                 }
 
                 if (operator.equals(Operator.NOTEQUALTO)) {
-                    gremlinQueryPart = INTNOTEQUALS.replace("<key>", key).replace("<value>", value);
+
+                    traversal = traversal.has(key, P.neq(Integer.parseInt(value)));
                 }
 
                 break;
@@ -86,17 +96,19 @@ public class GremlinQueryPreProcessor {
             case "Utf8":
 
                 if (operator.equals(Operator.EQUALTO)) {
-                    gremlinQueryPart = STRINGEQUALS.replace("<key>", key).replace("<value>", value);
+
+                    traversal = traversal.has(key, P.eq(value));
                 }
 
                 if (operator.equals(Operator.NOTEQUALTO)) {
-                    gremlinQueryPart = STRINGNOTEQUALS.replace("<key>", key).replace("<value>", value);
+
+                    traversal = traversal.has(key, P.neq(value));
                 }
 
                 break;
 
         }
 
-        return gremlinQueryPart;
+        return traversal;
     }
 }

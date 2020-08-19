@@ -103,18 +103,14 @@ public class NeptuneMetadataHandlerTest extends TestBase {
 
     private BlockAllocatorImpl allocator;
 
+    @Mock
+    private NeptuneConnection neptuneConnection;
+
     @Before
     public void setUp() throws Exception {
-        // glue = mock(AWSGlue.class);
-
-        // glueReq = mock(GetTablesRequest.class);
-
-        // glueReq.setDatabaseName("TestDB");
-
         logger.info("setUpBefore - enter");
         allocator = new BlockAllocatorImpl();
-        handler = new NeptuneMetadataHandler(glue,
-                new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port")),
+        handler = new NeptuneMetadataHandler(glue,neptuneConnection,
                 new LocalKeyFactory(), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "spill-bucket",
                 "spill-prefix");
         logger.info("setUpBefore - exit");
@@ -127,23 +123,9 @@ public class NeptuneMetadataHandlerTest extends TestBase {
 
     @Test
     public void doListSchemaNames() {
-        if (!enableTests) {
-            // We do this because until you complete the tutorial these tests will fail.
-            // When you attempt to publis
-            // using ../toos/publish.sh ... it will set the publishing flag and force these
-            // tests. This is how we
-            // avoid breaking the build but still have a useful tutorial. We are also
-            // duplicateing this block
-            // on purpose since this is a somewhat odd pattern.
-            logger.info(
-                    "doListSchemaNames: Tests are disabled, to enable them set the 'publishing' environment variable "
-                            + "using maven clean install -Dpublishing=true");
-            return;
-        }
-
         logger.info("doListSchemas - enter");
         ListSchemasRequest req = new ListSchemasRequest(IDENTITY, "queryId", "default");
-        
+
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
         logger.info("doListSchemas - {}", res.getSchemas());
         assertFalse(res.getSchemas().isEmpty());
@@ -152,18 +134,6 @@ public class NeptuneMetadataHandlerTest extends TestBase {
 
     @Test
     public void doListTables() {
-        if (!enableTests) {
-            // We do this because until you complete the tutorial these tests will fail.
-            // When you attempt to publis
-            // using ../toos/publish.sh ... it will set the publishing flag and force these
-            // tests. This is how we
-            // avoid breaking the build but still have a useful tutorial. We are also
-            // duplicateing this block
-            // on purpose since this is a somewhat odd pattern.
-            logger.info("doListTables: Tests are disabled, to enable them set the 'publishing' environment variable "
-                    + "using maven clean install -Dpublishing=true");
-            return;
-        }
 
         logger.info("doListTables - enter");
 
@@ -218,7 +188,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         expectedParams.put("datetimeFormatMapping", "col2=someformat2, col1=someformat1 ");
 
         table.setParameters(expectedParams);
-        
+
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col1").withType("int").withComment("comment"));
         columns.add(new Column().withName("col2").withType("bigint").withComment("comment"));
@@ -228,9 +198,8 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         columns.add(new Column().withName("col6").withType("timestamptz").withComment("comment"));
         columns.add(new Column().withName("col7").withType("timestamptz").withComment("comment"));
 
-        
         StorageDescriptor storageDescriptor = new StorageDescriptor();
-        storageDescriptor.setColumns(columns); 
+        storageDescriptor.setColumns(columns);
         table.setStorageDescriptor(storageDescriptor);
 
         GetTableRequest req = new GetTableRequest(IDENTITY, "queryId", "default", new TableName("schema1", "table1"));
@@ -243,7 +212,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         assertTrue(res.getSchema().getFields().size() > 0);
-        
+
         logger.info("doGetTable - {}", res);
         logger.info("doGetTable - exit");
     }
