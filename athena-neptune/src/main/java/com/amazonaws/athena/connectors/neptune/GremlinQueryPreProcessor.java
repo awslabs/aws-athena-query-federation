@@ -32,16 +32,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  * Contraints being passed via AWS Lambda Handler
  */
 public class GremlinQueryPreProcessor {
-    final static String STRINGEQUALS = ".has('<key>',eq('<value>'))";
-    final static String STRINGNOTEQUALS = ".has('<key>',neq('<value>'))";
-
-    final static String INTEQUALS = ".has('<key>',eq(<value>))";
-    final static String INTGREATERTHAN = ".has('<key>',gt(<value>))";
-    final static String INTGREATERTHANEQUALTO = ".has('<key>',gte(<value>))";
-    final static String INTLESSTHAN = ".has('<key>',lt(<value>))";
-    final static String INTLESSTHANEQUALTO = ".has('<key>',lte(<value>))";
-    final static String INTNOTEQUALS = ".has('<key>',neq(<value>))";
-
+    
     public enum Operator {
         LESSTHAN, GREATERTHAN, EQUALTO, NOTEQUALTO
     }
