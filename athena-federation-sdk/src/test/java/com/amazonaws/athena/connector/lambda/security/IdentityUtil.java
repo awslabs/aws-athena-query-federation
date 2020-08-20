@@ -20,12 +20,14 @@ package com.amazonaws.athena.connector.lambda.security;
  * #L%
  */
 
+import java.util.Collections;
+
 public class IdentityUtil
 {
     private IdentityUtil() {}
 
     public static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("access_key_id", "principle", "account");
+        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     }
 }
