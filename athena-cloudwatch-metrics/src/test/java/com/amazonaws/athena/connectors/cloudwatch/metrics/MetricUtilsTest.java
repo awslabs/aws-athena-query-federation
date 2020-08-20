@@ -63,7 +63,7 @@ import static org.junit.Assert.*;
 
 public class MetricUtilsTest
 {
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     private String catalog = "default";
     private BlockAllocator allocator;
 

@@ -83,7 +83,7 @@ public class MetricsMetadataHandlerTest
     private static final Logger logger = LoggerFactory.getLogger(MetricsMetadataHandlerTest.class);
 
     private final String defaultSchema = "default";
-    private final FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
+    private final FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
 
     private MetricsMetadataHandler handler;
     private BlockAllocator allocator;

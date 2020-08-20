@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2020.34.1
+    SemanticVersion: 2020.35.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
