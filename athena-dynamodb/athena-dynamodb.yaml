@@ -60,30 +60,86 @@ Resources:
       Runtime: java8
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Policies:
-        - Statement:
-            - Action:
-                - dynamodb:DescribeTable
-                - dynamodb:ListSchemas
-                - dynamodb:ListTables
-                - dynamodb:Query
-                - dynamodb:Scan
-                - glue:GetTableVersions
-                - glue:GetPartitions
-                - glue:GetTables
-                - glue:GetTableVersion
-                - glue:GetDatabases
-                - glue:GetTable
-                - glue:GetPartition
-                - glue:GetDatabase
-                - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
-                - kms:GenerateDataKey
-                - kms:GenerateRandom
-              Effect: Allow
-              Resource: '*'
-          Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
-        - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
+      Role: !GetAtt FunctionRole.Arn
+
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+
+  FunctionExecutionPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+             - dynamodb:DescribeTable
+             - dynamodb:ListSchemas
+             - dynamodb:ListTables
+             - dynamodb:Query
+             - dynamodb:Scan
+             - glue:GetTableVersions
+             - glue:GetPartitions
+             - glue:GetTables
+             - glue:GetTableVersion
+             - glue:GetDatabases
+             - glue:GetTable
+             - glue:GetPartition
+             - glue:GetDatabase
+             - athena:GetQueryExecution
+             - s3:ListAllMyBuckets
+            Effect: Allow
+            Resource: '*'
+          - Action:
+             - s3:GetObject
+             - s3:ListBucket
+             - s3:GetBucketLocation
+             - s3:GetObjectVersion
+             - s3:PutObject
+             - s3:PutObjectAcl
+             - s3:GetLifecycleConfiguration
+             - s3:PutLifecycleConfiguration
+             - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}
+                - bucketName:
+                    Ref: SpillBucket
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}/*
+                - bucketName:
+                    Ref: SpillBucket
+      Roles:
+        - !Ref FunctionRole
+
+  FunctionKMSPolicy:
+    Condition: HasKMSKeyId
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionKMSPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+             - kms:GenerateRandom
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - kms:GenerateDataKey
+            Effect: Allow
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSKeyId}"
+      Roles:
+        - !Ref FunctionRole
