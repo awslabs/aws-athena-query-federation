@@ -29,7 +29,9 @@ import com.fasterxml.jackson.databind.jsontype.TypeDeserializer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.serde.BaseSerializer.TYPE_FIELD;
 
@@ -182,6 +184,29 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
     }
 
     /**
+     * Helper used to read a Map of strings to strings.
+     *
+     * @param jparser The parser to read from.
+     * @param expectedFieldName The expected name of the field containing the string map.
+     * @return The contents of the array as a map.
+     * @throws IOException If an error occurs while reading from the parser.
+     */
+    protected Map<String, String> getNextStringMap(JsonParser jparser, String expectedFieldName)
+            throws IOException
+    {
+        assertFieldName(jparser, expectedFieldName);
+
+        validateObjectStart(jparser);
+
+        Map<String, String> result = new HashMap<>();
+        while (jparser.nextToken() != JsonToken.END_OBJECT) {
+            result.put(jparser.getCurrentName(), jparser.getValueAsString());
+        }
+
+        return result;
+    }
+
+    /**
      * Helper used to validate an expected field name.
      *
      * @param jparser The parser to read from.
@@ -244,6 +269,20 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
     }
 
     /**
+     * Helper used to validate that an object is starting (open brace) at the next token.
+     *
+     * @param jparser The parser to read from.
+     * @throws IOException If an error occurs while reading from the parser.
+     */
+    protected void validateObjectStart(JsonParser jparser)
+            throws IOException
+    {
+        if (!JsonToken.START_OBJECT.equals(jparser.nextToken())) {
+            throw new IllegalStateException("Expected " + JsonToken.START_OBJECT + " found " + jparser.getText());
+        }
+    }
+
+    /**
      * Helper used to parse the type of the object (usually the class name).
      *
      * @param jparser The parser to use for extraction.
@@ -267,7 +306,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
     protected void ignoreRestOfObject(JsonParser jparser)
             throws IOException
     {
-        if (jparser.getCurrentToken().isStructEnd()) {
+        if (jparser.getCurrentToken() == JsonToken.END_OBJECT) {
             return;
         }
 
@@ -283,7 +322,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
             if (t.isStructStart()) {
                 ++open;
             }
-            else if (t.isStructEnd()) {
+            else if (t == JsonToken.END_OBJECT) {
                 if (--open == 0) {
                     return;
                 }
