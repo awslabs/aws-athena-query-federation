@@ -78,9 +78,6 @@ public class SAPHANAMetadataHandlerTest
     @Before
     public void setup()
     {
-        System.out.println("===================================================");
-        System.out.println("Performing SAP HANA Tests - MetadataHandler");
-        System.out.println("===================================================");
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
