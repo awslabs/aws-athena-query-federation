@@ -144,14 +144,7 @@ public abstract class JdbcMetadataHandler
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
             while (resultSet.next()) {
                 String schemaName = resultSet.getString("TABLE_SCHEM");
-                
-                //skip internal schemas for SAP HANA Database
-                if (databaseproductname != null && !databaseproductname.isEmpty() && databaseproductname.equals("HDB")) {
-                    if (!schemaName.startsWith("_") && !schemaName.contains("SYS") && !schemaName.contains("XS") && !schemaName.equals("SAPDBCTRL") && !schemaName.contains("SAP_") && !schemaName.contains("UIS")) {
-                        schemaNames.add(schemaName);
-                    }
-                }
-                else if (!schemaName.equals("information_schema")) { // skip internal schemas
+                if (!schemaName.equals("information_schema")) { // skip internal schemas
                     schemaNames.add(schemaName);
                 }
             }
