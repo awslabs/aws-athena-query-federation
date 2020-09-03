@@ -44,6 +44,8 @@ public class GlueFieldLexerTest
 
     private static final String INPUT5 = "ARRAY<ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING, aliases:ARRAY<STRING>>>>";
 
+    private static final String INPUT6 = "STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>";
+
     @Test
     public void basicLexTest()
     {
@@ -111,7 +113,8 @@ public class GlueFieldLexerTest
     }
 
     @Test
-    public void arrayOfStructLexComplexTest() {
+    public void arrayOfStructLexComplexTest()
+    {
         logger.info("arrayOfStructLexComplexTest: enter");
 
         Field field = GlueFieldLexer.lex("namelist", INPUT4);
@@ -134,7 +137,8 @@ public class GlueFieldLexerTest
     }
 
     @Test
-    public void nestedArrayLexComplexTest() {
+    public void nestedArrayLexComplexTest()
+    {
         logger.info("nestedArrayLexComplexTest: enter");
 
         Field field = GlueFieldLexer.lex("namelist", INPUT5);
@@ -164,5 +168,29 @@ public class GlueFieldLexerTest
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level3.getChildren().get(0).getType()));
 
         logger.info("nestedArrayLexComplexTest: exit");
+    }
+
+    @Test
+    public void multiArrayStructLexComplexTest()
+    {
+        logger.info("multiArrayStructLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("movie_info", INPUT6);
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(field.getType()));
+        assertEquals("movie_info", field.getName());
+        assertEquals(2, field.getChildren().size());
+
+        Field array1 = field.getChildren().get(0);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array1.getType()));
+        assertEquals("actors", array1.getChildren().get(0).getName());
+
+        Field array2 = field.getChildren().get(1);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array2.getType()));
+        assertEquals("genre", array2.getChildren().get(0).getName());
+
+        logger.info("multiArrayStructLexComplexTest: exit");
     }
 }
