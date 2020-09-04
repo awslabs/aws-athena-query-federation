@@ -297,18 +297,18 @@ public class DynamoDBRecordHandler
                 try {
                     if (request instanceof QueryRequest) {
                         QueryRequest paginatedRequest = ((QueryRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
-//                        if (logger.isDebugEnabled()) {
-                            logger.info("Invoking DDB with Query request: {}", request);
-//                        }
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Invoking DDB with Query request: {}", request);
+                        }
                         QueryResult queryResult = invokerCache.get(tableName).invoke(() -> ddbClient.query(paginatedRequest));
                         lastKeyEvaluated.set(queryResult.getLastEvaluatedKey());
                         iterator = queryResult.getItems().iterator();
                     }
                     else {
                         ScanRequest paginatedRequest = ((ScanRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
-//                        if (logger.isDebugEnabled()) {
-                            logger.info("Invoking DDB with Scan request: {}", request);
-//                        }
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Invoking DDB with Scan request: {}", request);
+                        }
                         ScanResult scanResult = invokerCache.get(tableName).invoke(() -> ddbClient.scan(paginatedRequest));
                         lastKeyEvaluated.set(scanResult.getLastEvaluatedKey());
                         iterator = scanResult.getItems().iterator();
