@@ -148,6 +148,7 @@ public final class QueryUtils
             FieldReader fieldReader = block.getFieldReaders().get(0);
             for (int i = 0; i < block.getRowCount(); i++) {
                 Document nextEqVal = new Document();
+                fieldReader.setPosition(i);
                 Object value = fieldReader.readObject();
                 nextEqVal.put(EQ_OP, convert(value));
                 singleValues.add(singleValues);
