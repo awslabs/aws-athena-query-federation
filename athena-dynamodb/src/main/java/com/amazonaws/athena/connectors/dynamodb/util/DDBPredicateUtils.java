@@ -136,7 +136,9 @@ public class DDBPredicateUtils
     }
 
     /**
-     * Generates a simple alias for a column to satisfy filter expressions.
+     * Generates a simple alias for a column to satisfy filter expressions. Uses a regex to convert illegal characters
+     * (any character or combination of characters that are NOT included in [a-zA-Z_0-9]) to underscore.
+     * Example: "column-$1`~!@#$%^&*()-=+[]{}\\|;:'\",.<>/?f3" -> "#column_1_f3"
      *
      * @see <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ExpressionAttributeNames.html">
      *     https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ExpressionAttributeNames.html</a>
@@ -145,7 +147,7 @@ public class DDBPredicateUtils
      */
     public static String aliasColumn(String columnName)
     {
-        return "#" + columnName;
+        return "#" + columnName.replaceAll("\\W+", "_");
     }
 
     /*

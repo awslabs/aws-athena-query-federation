@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -314,6 +315,6 @@ public class ExampleMetadataHandlerTest
 
     private static FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("access_key_id", "principle", "account");
+        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     }
 }

@@ -66,11 +66,17 @@ endpoint.
     `=` are used by this connector as separators for the domain-endpoint pairs. Therefor, they 
     should **NOT** be used anywhere inside the stored secret.
 
-5. **spill_bucket** - When the data returned by your Lambda function exceeds Lambda’s limits, 
+4. **query_timeout_cluster** - timeout period (in seconds) for Cluster-Health queries used in the
+generation of parallel scans.
+
+5. **query_timeout_search** - timeout period (in seconds) for Search queries used in the retrieval
+of documents from an index.
+
+6. **spill_bucket** - When the data returned by your Lambda function exceeds Lambda’s limits,
 this is the bucket that the data will be written to for Athena to read the excess from (e.g. 
 my_bucket).
 
-6. **spill_prefix** - (Optional) Defaults to sub-folder in your bucket called 
+7. **spill_prefix** - (Optional) Defaults to sub-folder in your bucket called
 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the 
 above bucket where large responses spill. You should configure an S3 lifecycle on this 
 location to delete old spills after X days/hours.
@@ -175,11 +181,12 @@ will allow users with permission the ability to deploy instances of the connecto
 
 ## Performance
 
-The Athena Elasticsearch Connector does not currently support parallel scans but will attempt 
-to push down predicates as part of its document search queries (parallel scans will be supported 
-in the next development phase).
+The Athena Elasticsearch Connector supports shard-based parallel scans. Using cluster health information
+retrieved from the Elasticsearch instance, the connector generates multiple requests (for a document
+search query) that are split per shard and run concurrently.
 
-The following example demonstrates this connector's ability to utilize predicate push-down.
+Additionally, the connector will push down predicates as part of its document search queries. The following
+example demonstrates this connector's ability to utilize predicate push-down.
 
 **Query:**
 ```sql

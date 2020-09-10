@@ -40,6 +40,12 @@ public class GlueFieldLexerTest
 
     private static final String INPUT3 = "INT";
 
+    private static final String INPUT4 = "ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING>>";
+
+    private static final String INPUT5 = "ARRAY<ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING, aliases:ARRAY<STRING>>>>";
+
+    private static final String INPUT6 = "STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>";
+
     @Test
     public void basicLexTest()
     {
@@ -104,5 +110,87 @@ public class GlueFieldLexerTest
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level1.get(2).getChildren().get(0).getType()));
 
         logger.info("lexTest: exit");
+    }
+
+    @Test
+    public void arrayOfStructLexComplexTest()
+    {
+        logger.info("arrayOfStructLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("namelist", INPUT4);
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals("namelist", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+        Field child = field.getChildren().get(0);
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(child.getType()));
+        assertEquals(3, child.getChildren().size());
+        assertEquals("last", child.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(0).getType()));
+        assertEquals("mi", child.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(1).getType()));
+        assertEquals("first", child.getChildren().get(2).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(2).getType()));
+
+        logger.info("arrayOfStructLexComplexTest: exit");
+    }
+
+    @Test
+    public void nestedArrayLexComplexTest()
+    {
+        logger.info("nestedArrayLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("namelist", INPUT5);
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals("namelist", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+
+        Field level1 = field.getChildren().get(0);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(level1.getType()));
+
+        Field level2 = level1.getChildren().get(0);
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(level2.getType()));
+        assertEquals(4, level2.getChildren().size());
+        assertEquals("last", level2.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level2.getChildren().get(0).getType()));
+        assertEquals("mi", level2.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level2.getChildren().get(1).getType()));
+        assertEquals("first", level2.getChildren().get(2).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level2.getChildren().get(2).getType()));
+        assertEquals("aliases", level2.getChildren().get(3).getName());
+
+        Field level3 = level2.getChildren().get(3);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(level3.getType()));
+        assertEquals("aliases", level3.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level3.getChildren().get(0).getType()));
+
+        logger.info("nestedArrayLexComplexTest: exit");
+    }
+
+    @Test
+    public void multiArrayStructLexComplexTest()
+    {
+        logger.info("multiArrayStructLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("movie_info", INPUT6);
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(field.getType()));
+        assertEquals("movie_info", field.getName());
+        assertEquals(2, field.getChildren().size());
+
+        Field array1 = field.getChildren().get(0);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array1.getType()));
+        assertEquals("actors", array1.getChildren().get(0).getName());
+
+        Field array2 = field.getChildren().get(1);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array2.getType()));
+        assertEquals("genre", array2.getChildren().get(0).getName());
+
+        logger.info("multiArrayStructLexComplexTest: exit");
     }
 }

@@ -69,7 +69,7 @@ public class TPCDSMetadataHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSMetadataHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     private TPCDSMetadataHandler handler;
     private BlockAllocator allocator;
 
