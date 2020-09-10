@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: VerticaAthenaConnector
+    Name: VerticaAthenaConnectorTrial
     Description: verticaAthenaConnector Description
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2021.5.2
+    SemanticVersion: 2021.22.2
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -20,7 +20,7 @@ Parameters:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-    Default: "v2"
+    Default: "v328"
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
@@ -52,9 +52,11 @@ Parameters:
   SecurityGroupIds:
     Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
     Type: 'List<AWS::EC2::SecurityGroup::Id>'
+    Default: 'sg-0c36c83ed0b5b509d'
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
+    Default: 'subnet-72e59e39'
   SecretNameOrPrefix:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. vertica-*).'
     Type: String
@@ -62,11 +64,7 @@ Parameters:
   VerticaConnectionString:
     Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
-    Default: "jdbc:vertica://<hostname>/<database_name>>?user=${vertica-username}&password=${vertica-password}"
-  AWSRegion:
-    Description: "Region Name"
-    Type: String
-    Default: "US-WEST-2"
+    Default: "jdbc:vertica://3.231.159.188:5433/VerticaDB?user=${vertica-username}&password=${vertica-password}"
 
 Resources:
   ConnectorConfig:
@@ -80,7 +78,6 @@ Resources:
           data_bucket: !Ref DataBucket
           export_bucket: !Ref ExportBucket
           default_vertica: !Ref VerticaConnectionString
-          aws_region: !Ref AWSRegion
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler"
@@ -112,7 +109,3 @@ Resources:
             BucketName:
               Ref: ExportBucket
         #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
-        - VPCAccessPolicy: {}
-      VpcConfig:
-        SecurityGroupIds: !Ref SecurityGroupIds
-        SubnetIds: !Ref SubnetIds

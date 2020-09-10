@@ -80,6 +80,7 @@ public class VerticaJdbcSplitQueryBuilder {
                 "directory = 's3://<s3ExportBucket>/<queryID>'," +
                 " Compression='snappy', fileSizeMB=1000) AS ");
 
+
         exportSqlST.add("s3ExportBucket", s3ExportBucket);
         exportSqlST.add("queryID", queryID.replace("-",""));
 
@@ -98,6 +99,7 @@ public class VerticaJdbcSplitQueryBuilder {
         }
         sql.append(getFromClauseWithSplit(schema, table));
 
+
         HashMap<String,TypeAndValue> accumulator = new HashMap<>();
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator);
 
@@ -106,6 +108,7 @@ public class VerticaJdbcSplitQueryBuilder {
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
+
 
         //Using StringTemplates to fill in the values of constraints
         ST sqlTemplate = new ST(sql.toString());
@@ -168,7 +171,10 @@ public class VerticaJdbcSplitQueryBuilder {
         completeSqlST.add("userSqlST", sqlTemplate.render());
         LOGGER.info(completeSqlST.render());
 
+        //return the stat
+
         return completeSqlST.render();
+
     }
 
     protected String buildSetSessionSql(String awsAccessId, String awsSecretKey)

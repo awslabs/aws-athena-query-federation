@@ -74,10 +74,17 @@
             <version>4.3.1</version>
         </dependency>
         <dependency>
-            <groupId>com.googlecode.json-simple</groupId>
-            <artifactId>json-simple</artifactId>
-            <version>1.1.1</version>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-iam</artifactId>
+            <version>1.11.834</version>
         </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-sts</artifactId>
+            <version>1.11.834</version>
+        </dependency>
+
+
     </dependencies>
 
     <build>
@@ -101,6 +108,28 @@
                         <filter>
                             <artifact>*:*</artifact>
                             <excludes>
+                                <exclude>org/apache/hadoop/yarn/webapp/**</exclude>
+                                <exclude>org/apache/hadoop/yarn/**</exclude>
+                                <exclude>org/apache/curator/**</exclude>
+                                <exclude>org/apache/directory/**</exclude>
+                                <exclude>org/apache/zookeeper/**</exclude>
+                                <exclude>com/sun/xml/bind/v2/runtime</exclude>
+                                <exclude>/com/sun/xml/bind/v2</exclude>
+                                <exclude>/com/sun/xml/bind</exclude>
+                                <exclude>/com/sun</exclude>
+                                <exclude>/it/unimi/dsi/fastutil/doubles/**</exclude>
+                                <exclude>/it/unimi/dsi/fastutil/bytes/**</exclude>
+                                <exclude>/it/unimi/dsi/fastutil/floats/**</exclude>
+                                <exclude>/it/unimi/dsi/fastutil/ints/**</exclude>
+                                <exclude>/it/unimi/dsi/fastutil/longs/**</exclude>
+                                <exclude>/com/carrotsearch/**</exclude>
+                                <exclude>/org/xerial/snappy/native/**</exclude>
+                                <exclude>shaded/parquet/it/unimi/dsi/fastutil/doubles/**</exclude>
+                                <exclude>shaded/parquet/it/unimi/dsi/fastutil/bytes/**</exclude>
+                                <exclude>shaded/parquet/it/unimi/dsi/fastutil/floats/**</exclude>
+                                <exclude>shaded/parquet/it/unimi/dsi/fastutil/ints/**</exclude>
+                                <exclude>shaded/parquet/it/unimi/dsi/fastutil/longs/**</exclude>
+                                <exclude>/org/bouncycastle/**</exclude>
                                 <exclude>META-INF/*.SF</exclude>
                                 <exclude>META-INF/*.DSA</exclude>
                                 <exclude>META-INF/*.RSA</exclude>

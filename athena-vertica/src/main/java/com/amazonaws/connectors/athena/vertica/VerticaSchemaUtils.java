@@ -39,12 +39,15 @@ public class VerticaSchemaUtils
     {
         try
         {
-            logger.info("Building the schema for table {} ",name);
+            logger.info("Building the schema for table {} ", name);
             SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
+
             DatabaseMetaData dbMetadata = connection.getMetaData();
             ResultSet definition = dbMetadata.getColumns(null, name.getSchemaName(), name.getTableName(), null);
             while(definition.next())
             {
+                logger.info("col Type" + definition.getString("TYPE_NAME"));
+
                 //todo: review this again and add the Vertica data types missed
                 //If Bit
                 if (definition.getString("TYPE_NAME").equalsIgnoreCase("BIT"))
@@ -64,7 +67,7 @@ public class VerticaSchemaUtils
                 //If Int
                 if (definition.getString("TYPE_NAME").equalsIgnoreCase("INTEGER"))
                 {
-                    tableSchemaBuilder.addIntField(definition.getString("COLUMN_NAME"));
+                    tableSchemaBuilder.addBigIntField(definition.getString("COLUMN_NAME"));
                 }
                 //If BIGINT
                 if (definition.getString("TYPE_NAME").equalsIgnoreCase("BIGINT"))
@@ -96,6 +99,14 @@ public class VerticaSchemaUtils
                 {
                     tableSchemaBuilder.addDateDayField(definition.getString("COLUMN_NAME"));
                 }
+                //If TIMESTAMP
+                if (definition.getString("TYPE_NAME").equalsIgnoreCase("TIMESTAMP"))
+                {
+                    tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
+                }
+
+
+
             }
             return tableSchemaBuilder.build();
 

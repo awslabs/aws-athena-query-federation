@@ -19,6 +19,8 @@
  */
 package com.amazonaws.connectors.athena.vertica;
 
+import com.amazonaws.services.identitymanagement.AmazonIdentityManagement;
+import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +62,11 @@ public class VerticaConnectionFactory
             logger.info("Unable to reuse an existing connection, creating a new one.");
             result = DriverManager.getConnection(connStr);
             clientCache.put(connStr, result);
+
+            AmazonIdentityManagement client = AmazonIdentityManagementClientBuilder.standard().build();
+
+
+
             }
         }
         catch (Exception e)

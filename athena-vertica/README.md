@@ -1,4 +1,5 @@
 ## Vertica Athena Connector
-A custom connector that connects to Vertica database
+A custom connector that connects to Vertica database.
 
+TODO: Add more details here.
 

@@ -32,6 +32,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -47,10 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 public class VerticaMetadataHandler
@@ -70,7 +68,6 @@ public class VerticaMetadataHandler
     private static  final String TABLE_SCHEMA = "TABLE_SCHEM";
     private static final String[] TABLE_TYPES = {"TABLE"};
     private static final String VERTICA_QUOTE_CHARACTER = "\"";
-    private static final String DEFAULT_REGION = "aws_region";
     private static final String EXPORT_BUCKET_KEY = "export_bucket";
     private final VerticaConnectionFactory connectionFactory;
     private final VerticaJdbcSplitQueryBuilder verticaJdbcSplitQueryBuilder;
@@ -114,9 +111,9 @@ public class VerticaMetadataHandler
         return connectionFactory.getOrCreateConn(endpoint);
 
     }
-
     private String getConnStr(MetadataRequest request)
     {
+        FederatedIdentity identity = request.getIdentity();
         String conStr = System.getenv(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
@@ -145,8 +142,10 @@ public class VerticaMetadataHandler
             Connection client = getConnection(request);
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
+
             while (rs.next())
             {
+                logger.info(rs.getString(TABLE_SCHEMA));
                 if(!schemas.contains(rs.getString(TABLE_SCHEMA)))
                 {
                     schemas.add(rs.getString(TABLE_SCHEMA));
@@ -180,9 +179,9 @@ public class VerticaMetadataHandler
         try {
             Connection client = getConnection(request);
             DatabaseMetaData dbMetadata = client.getMetaData();
-            ResultSet table = dbMetadata.getTables(null,request.getSchemaName(),null,TABLE_TYPES);
+            ResultSet table = dbMetadata.getTables(null, request.getSchemaName(),null, TABLE_TYPES);
             while (table.next()){
-                tables.add(new TableName(table.getString(TABLE_SCHEMA),table.getString(TABLE_NAME)));
+                tables.add(new TableName(table.getString(TABLE_SCHEMA), table.getString(TABLE_NAME)));
             }
         }
         catch (SQLException e)
@@ -233,6 +232,8 @@ public class VerticaMetadataHandler
 
         logger.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName());
         partitionSchemaBuilder.addField("preparedStmt", new ArrowType.Utf8());
+        partitionSchemaBuilder.addField("queryId", new ArrowType.Utf8());
+
     }
 
     /**
@@ -254,18 +255,24 @@ public class VerticaMetadataHandler
         //get the bucket where export results wll be uploaded
         String s3ExportBucket = System.getenv(EXPORT_BUCKET_KEY);
         //build the SQL query
-
+        Random r = new Random();
+        int randomInt = r.nextInt(100) + 1;
+        String queryID = request.getQueryId().replace("-","").concat(String.valueOf(randomInt));
         String preparedSQLStmt = verticaJdbcSplitQueryBuilder.buildSql(s3ExportBucket,
                                                                     tableName.getSchemaName(),
                                                                     tableName.getTableName(),
                                                                     schemaName,
                                                                     constraints,
-                                                                    request.getQueryId());
-        // write the prepared SQL statement to the partition column created in enhancePartitionSchema
-        blockWriter.writeRows((Block block, int rowNum) ->
-            block.setValue("preparedStmt", rowNum, preparedSQLStmt) ? 1:0
-        );
+                                                                    queryID);
 
+        // write the prepared SQL statement to the partition column cresated in enhancePartitionSchema
+        blockWriter.writeRows((Block block, int rowNum) ->{
+            boolean matched = true;
+            matched &= block.setValue("preparedStmt", rowNum, preparedSQLStmt);
+            matched &= block.setValue("queryId", rowNum, queryID);
+            //If all fields matches then we wrote 1 row during this call so we return 1
+            return matched ? 1 : 0;
+        });
 
     }
 
@@ -291,10 +298,17 @@ public class VerticaMetadataHandler
         String exportBucket = System.getenv("export_bucket");
         String queryId = request.getQueryId().replace("-","");
 
+
+
         //get the SQL statement which was created in getPartitions
         FieldReader fieldReader = request.getPartitions().getFieldReader("preparedStmt");
         String sqlStatement  = fieldReader.readText().toString();
         String catalogName = request.getCatalogName();
+
+        FieldReader fieldReader1 = request.getPartitions().getFieldReader("queryId");
+        String queryID  = fieldReader1.readText().toString();
+
+
 
         //execute the queries on Vertica
         executeQueriesOnVertica(connection, sqlStatement);
@@ -307,7 +321,7 @@ public class VerticaMetadataHandler
         for (S3ObjectSummary objectSummary : s3ObjectSummaries)
         {
             split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                    .add("query_id", queryId)
+                    .add("query_id", queryID)
                     .add(VERTICA_CONN_STR, getConnStr(request))
                     .add("exportBucket", exportBucket)
                     .add("s3ObjectKey", objectSummary.getKey())
@@ -332,14 +346,13 @@ public class VerticaMetadataHandler
             String awsAccessId = resolveSecrets("${access_key}");
             String awsSecretKey = resolveSecrets("${secret_key}");
 
+
             //Generating the SQL to set the AWS Session Config on Vertica
             String awsCredsSql = verticaJdbcSplitQueryBuilder.buildSetSessionSql(awsAccessId, awsSecretKey);
 
             // Generating the SQL to set the AWS Session Region on Vertica
-            // todo: autodetect region
-            String defaultRegion = System.getenv(DEFAULT_REGION).toLowerCase();
+            String defaultRegion = amazonS3.getRegion().toString();
             String awsRegionSql = verticaJdbcSplitQueryBuilder.buildSetSessionSql(defaultRegion);
-
 
             // Generate the Prepared Statements
             PreparedStatement credPS = connection.prepareStatement(awsCredsSql);

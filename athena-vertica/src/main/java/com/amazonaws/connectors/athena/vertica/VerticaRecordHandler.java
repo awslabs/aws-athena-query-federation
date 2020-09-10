@@ -40,14 +40,12 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.*;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.holders.*;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,11 +110,16 @@ public class VerticaRecordHandler
 
         //get column name and type from the Schema
         HashMap<String, Types.MinorType> mapOfNamesAndTypes = new HashMap<>();
+        HashMap<String, Object> mapOfCols = new HashMap<>();
+
         for(Field field : schemaName.getFields())
         {
+
             Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
             mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
+            mapOfCols.put(field.getName(), null);
         }
+
 
         // creating a RowContext class to hold the column name and value.
         final RowContext rowContext = new RowContext(id);
@@ -125,7 +128,7 @@ public class VerticaRecordHandler
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         for (Field next : recordsRequest.getSchema().getFields())
         {
-            Extractor extractor = makeExtractor(next, mapOfNamesAndTypes);
+            Extractor extractor = makeExtractor(next,  mapOfNamesAndTypes, mapOfCols);
             builder.withExtractor(next.getName(), extractor);
         }
         GeneratedRowWriter rowWriter = builder.build();
@@ -135,68 +138,58 @@ public class VerticaRecordHandler
          */
         //Creating the read Request
         SelectObjectContentRequest request = generateBaseParquetRequest(exportBucket, s3ObjectKey);
-        try (SelectObjectContentResult result = amazonS3.selectObjectContent(request))
-        {
+        try (SelectObjectContentResult result = amazonS3.selectObjectContent(request)) {
             InputStream resultInputStream = result.getPayload().getRecordsInputStream();
-            JSONParser jsonParser = new JSONParser();
-
             BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, StandardCharsets.UTF_8));
             String inputStr;
+            logger.info(streamReader.lines().toString());
+            while ((inputStr = streamReader.readLine()) != null) {
+                HashMap<String, Object> map = new HashMap<>();
+                logger.info(inputStr);
+                //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
 
-            //map to contain the column name and value pair.
-            HashMap<String, Object> map = new HashMap<>();
+                ObjectMapper objectMapper = new ObjectMapper();
+                map = objectMapper.readValue(inputStr, HashMap.class);
+                rowContext.setNameValue(map);
 
-            while ((inputStr = streamReader.readLine()) != null)
-            {
-                //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerialization
-                JSONObject data = (JSONObject) jsonParser.parse(inputStr);
-                for (Object o : data.keySet())
-                {
-                    String key = (String) o;
-                    map.put(key, data.get(key));
-                    //setting the RowContext
-                    rowContext.setNameValue(map);
 
-                }
-                //Passing the RowContext to BlockWriter
+                //Passing the RowContext to BlockWriter;
                 spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
             }
-
         }
-        catch (ParseException e)
-        {
-            throw new RuntimeException("Error in reading Parquet files from S3: " + e.getMessage(), e);
-        }
-        catch (SdkClientException e)
+        
+         catch (SdkClientException e)
         {
             throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
         }
 
-
     }
+
 
 
     /**
      * Creates an Extractor for the given field.
      */
-    private Extractor makeExtractor(Field field, HashMap<String, Types.MinorType> mapOfNamesAndTypes)
+    private Extractor makeExtractor(Field field, HashMap<String, Types.MinorType> mapOfNamesAndTypes, HashMap<String, Object> mapOfcols)
     {
         String fieldName = field.getName();
+        logger.info("FIELD: "+ fieldName);
         Types.MinorType fieldType = mapOfNamesAndTypes.get(fieldName);
+        logger.info(String.valueOf(fieldType));
         switch (fieldType)
         {
             case BIT:
                 return (BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.isSet = 1;
+                    dst.isSet = 0;
                     dst.value = ((boolean) value) ? 1 : 0;
                 };
             case TINYINT:
                 return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.isSet = 1;
+                    dst.isSet = 0;
                     dst.value = Byte.parseByte(value.toString());
                 };
             case SMALLINT:
@@ -204,21 +197,20 @@ public class VerticaRecordHandler
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
                     dst.value = Short.parseShort(value.toString());
-                    dst.isSet = 1;
+                    dst.isSet = 0;
                 };
             case INT:
-                return (IntExtractor) (Object context, NullableIntHolder dst) ->
-                {
-                    Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = Integer.parseInt(value.toString());
-                    dst.isSet = 1;
-                };
             case BIGINT:
                 return (BigIntExtractor) (Object context, NullableBigIntHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = Long.parseLong(value.toString());
-                    dst.isSet = 1;
+                    if(value == null){
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = Long.parseLong(value.toString());
+                        dst.isSet = 1;
+                    }
                 };
             case FLOAT4:
                 return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
@@ -238,15 +230,22 @@ public class VerticaRecordHandler
                 return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = new BigDecimal(value.toString());
-                    dst.isSet = 1;
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = new BigDecimal(value.toString());
+                        dst.isSet = 1;
+                    }
+
                 };
             case DATEDAY:
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
                     dst.isSet = 1;
-                    dst.value =   (int) LocalDate.parse(value.toString()).toEpochDay();
+                    dst.value = (int) LocalDate.parse(value.toString()).toEpochDay();
 
                 };
 
@@ -261,8 +260,14 @@ public class VerticaRecordHandler
                 return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = value.toString();
-                    dst.isSet = 1;
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else{
+                        dst.value = value.toString();
+                        dst.isSet = 1;
+                    }
                 };
             case VARBINARY:
                 return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
