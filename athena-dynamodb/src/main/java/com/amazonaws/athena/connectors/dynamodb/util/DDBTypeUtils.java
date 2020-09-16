@@ -245,19 +245,29 @@ public final class DDBTypeUtils
             }
             value = coerceDateTimeToExpectedType(value, fieldType, dateTimeFormat, recordMetadata.getDefaultTimeZone());
         }
-        else if (!fieldType.equals(Types.MinorType.DECIMAL) && value instanceof BigDecimal) {
-            value = DDBTypeUtils.coerceDecimalToExpectedType((BigDecimal) value, fieldType);
+        else if (value instanceof Number) {
+            // Number conversion from any DDB Numeric type to the correct field numeric type (as specified in schema)
+            value = DDBTypeUtils.coerceNumberToExpectedType((Number) value, fieldType);
         }
         return value;
     }
 
-    private static Object coerceDecimalToExpectedType(BigDecimal value, Types.MinorType fieldType)
+    /**
+     * Converts a numeric value extracted from the DDB record to the correct type (Integer, Long, etc..) expected
+     * by Arrow for the field type.
+     * @param value is the number extracted from the DDB record.
+     * @param fieldType is the Arrow MinorType.
+     * @return the converted value.
+     */
+    private static Object coerceNumberToExpectedType(Number value, Types.MinorType fieldType)
     {
         switch (fieldType) {
             case INT:
-            case TINYINT:
-            case SMALLINT:
                 return value.intValue();
+            case TINYINT:
+                return value.byteValue();
+            case SMALLINT:
+                return value.shortValue();
             case BIGINT:
                 return value.longValue();
             case FLOAT4:
@@ -301,5 +311,38 @@ public final class DDBTypeUtils
             ex.printStackTrace();
             return value;
         }
+    }
+
+    /**
+     * Converts a Set to a List, and coerces all list items into the correct type. If value is not a Collection, this
+     * method will return a List containing a single item.
+     * @param value is the Set/List of items.
+     * @param field is the LIST field containing a list type in the child field.
+     * @param recordMetadata contains metadata information.
+     * @return a List of coerced values.
+     */
+    public static List coerceListToExpectedType(Object value, Field field, DDBRecordMetadata recordMetadata)
+    {
+        Field childField = field.getChildren().get(0);
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(childField.getType());
+
+        if (!(value instanceof Collection)) {
+            if (value instanceof Map) {
+                throw new RuntimeException("Unexpected type (Map) encountered for: " + childField.getName());
+            }
+            return Collections.singletonList(coerceValueToExpectedType(value, childField, fieldType, recordMetadata));
+        }
+
+        List<Object> coercedList = new ArrayList<>();
+        if (fieldType == Types.MinorType.LIST) {
+            // Nested lists: array<array<...>, array<...>, ...>
+            ((Collection<?>) value).forEach(list -> coercedList
+                    .add(coerceListToExpectedType(list, childField, recordMetadata)));
+        }
+        else {
+            ((Collection<?>) value).forEach(item -> coercedList
+                    .add(coerceValueToExpectedType(item, childField, fieldType, recordMetadata)));
+        }
+        return coercedList;
     }
 }
