@@ -235,20 +235,20 @@ public class NeptuneRecordHandlerTest extends TestBase {
         TinkerGraph tinkerGraph = TinkerGraph.open();
         // Create new Vertex objects to add to traversal for mock
         Vertex vertex1 = tinkerGraph.addVertex(T.label, "default");
-        vertex1.property("property1", 10);
+        vertex1.property("property1", 15);
         vertex1.property("property2", "string1");
         vertex1.property("property3", 20.4f);
         vertex1.property("property4", "false");
 
         Vertex vertex2 = tinkerGraph.addVertex(T.label, "default");
         vertex2.property("property1", 5);
-        vertex2.property("property2", "string1");
+        vertex2.property("property2", "string2");
         vertex2.property("property3", 20.4f);
         vertex2.property("property4", "false");
 
         Vertex vertex3 = tinkerGraph.addVertex(T.label, "default");
         vertex3.property("property1", 9);
-        vertex3.property("property2", "string1");
+        vertex3.property("property2", "string3");
         vertex3.property("property3", 20.4f);
         vertex3.property("property4", "false");
 

@@ -164,18 +164,6 @@ public class NeptuneMetadataHandlerTest extends TestBase {
 
     @Test
     public void doGetTable() throws Exception {
-        if (!enableTests) {
-            // We do this because until you complete the tutorial these tests will fail.
-            // When you attempt to publis
-            // using ../toos/publish.sh ... it will set the publishing flag and force these
-            // tests. This is how we
-            // avoid breaking the build but still have a useful tutorial. We are also
-            // duplicateing this block
-            // on purpose since this is a somewhat odd pattern.
-            logger.info("doGetTable: Tests are disabled, to enable them set the 'publishing' environment variable "
-                    + "using maven clean install -Dpublishing=true");
-            return;
-        }
 
         logger.info("doGetTable - enter");
 

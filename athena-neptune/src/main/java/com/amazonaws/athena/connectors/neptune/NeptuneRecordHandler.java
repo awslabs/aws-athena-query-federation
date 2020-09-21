@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -49,10 +50,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -140,36 +139,24 @@ public class NeptuneRecordHandler extends RecordHandler {
 
             GraphTraversal<Vertex, Map<Object, Object>> graphTraversalFinal = graphTraversal.valueMap();
 
-            //log string equivalend of gremlin query
-            logger.info("readWithConstraint: enter - " + 
-             GroovyTranslator.of("g").translate(graphTraversalFinal.asAdmin().getBytecode()));
+            // log string equivalent of gremlin query
+            logger.info("readWithConstraint: enter - "
+                    + GroovyTranslator.of("g").translate(graphTraversalFinal.asAdmin().getBytecode()));
+
+            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+
+            for (final Field nextField : recordsRequest.getSchema().getFields()) {
+                builder = TypeRowWriter.writeRowTemplate(builder, nextField);
+            }
+
+            GeneratedRowWriter rowWriter = builder.build();
 
             while (graphTraversalFinal.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
                 try {
                     spiller.writeRows((final Block block, final int rowNum) -> {
-
-                        // final Map<Object, Object> obj = result.next();
                         final Map<Object, Object> obj = graphTraversalFinal.next();
-                        boolean matched = true;
-
-                        for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                            final String fieldName = nextField.getName();
-                            if (obj.get(fieldName) != null) {
-                                final ArrayList<Object> objs = (ArrayList) obj.get(fieldName);
-                                final Object value = TypeUtils.coerce(nextField, objs.get(0));
-                                try {
-                                    matched &= block.offerValue(fieldName, rowNum, value);
-                                    if (!matched) {
-                                        return 0;
-                                    }
-                                } catch (final Exception ex) {
-                                    throw new RuntimeException("Error while processing field " + fieldName, ex);
-                                }
-                            }
-                        }
-                        numResultRows.getAndIncrement();
-                        return 1;
+                        return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
                     });
                 } catch (final Exception e) {
                     logger.info("readWithContraint: Exception occured " + e);
