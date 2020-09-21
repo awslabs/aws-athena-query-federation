@@ -114,6 +114,7 @@ public class VerticaMetadataHandler
     private String getConnStr(MetadataRequest request)
     {
         FederatedIdentity identity = request.getIdentity();
+
         String conStr = System.getenv(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
@@ -245,8 +246,7 @@ public class VerticaMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-        public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
-    {
+        public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws SQLException {
         logger.info("in getPartitions: "+ request);
 
         Schema schemaName = request.getSchema();
@@ -254,18 +254,26 @@ public class VerticaMetadataHandler
         Constraints constraints  = request.getConstraints();
         //get the bucket where export results wll be uploaded
         String s3ExportBucket = System.getenv(EXPORT_BUCKET_KEY);
-        //build the SQL query
+
+        //Appending a random int to the query id to support multiple federated queries within a single query
         Random r = new Random();
         int randomInt = r.nextInt(100) + 1;
         String queryID = request.getQueryId().replace("-","").concat(String.valueOf(randomInt));
-        String preparedSQLStmt = verticaJdbcSplitQueryBuilder.buildSql(s3ExportBucket,
-                                                                    tableName.getSchemaName(),
-                                                                    tableName.getTableName(),
-                                                                    schemaName,
-                                                                    constraints,
-                                                                    queryID);
 
-        // write the prepared SQL statement to the partition column cresated in enhancePartitionSchema
+        //Build the SQL query
+        Connection connection = getConnection(request);
+        DatabaseMetaData dbMetadata = connection.getMetaData();
+        ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
+
+        String preparedSQLStmt = verticaJdbcSplitQueryBuilder.buildSql(s3ExportBucket,
+                tableName.getSchemaName(),
+                tableName.getTableName(),
+                schemaName,
+                constraints,
+                queryID,
+                definition);
+
+        // write the prepared SQL statement to the partition column created in enhancePartitionSchema
         blockWriter.writeRows((Block block, int rowNum) ->{
             boolean matched = true;
             matched &= block.setValue("preparedStmt", rowNum, preparedSQLStmt);
@@ -308,8 +316,6 @@ public class VerticaMetadataHandler
         FieldReader fieldReader1 = request.getPartitions().getFieldReader("queryId");
         String queryID  = fieldReader1.readText().toString();
 
-
-
         //execute the queries on Vertica
         executeQueriesOnVertica(connection, sqlStatement);
 
@@ -341,35 +347,23 @@ public class VerticaMetadataHandler
     {
         try
         {
-            //todo: find a way to work with STS credentials
-            //get the AWS Keys from Secrets Manager
-            String awsAccessId = resolveSecrets("${access_key}");
-            String awsSecretKey = resolveSecrets("${secret_key}");
-
-
-            //Generating the SQL to set the AWS Session Config on Vertica
-            String awsCredsSql = verticaJdbcSplitQueryBuilder.buildSetSessionSql(awsAccessId, awsSecretKey);
-
             // Generating the SQL to set the AWS Session Region on Vertica
             String defaultRegion = amazonS3.getRegion().toString();
-            String awsRegionSql = verticaJdbcSplitQueryBuilder.buildSetSessionSql(defaultRegion);
+            String awsRegionSql = verticaJdbcSplitQueryBuilder.buildSetAwsRegionSql(defaultRegion);
 
-            // Generate the Prepared Statements
-            PreparedStatement credPS = connection.prepareStatement(awsCredsSql);
             PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
             PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
 
-            //execute the query to set credentials
-            credPS.execute();
             //execute the query to set region
             setAwsRegion.execute();
+
             //execute the query to export the data to S3
             exportSQL.execute();
 
         }
         catch(SQLException e)
         {
-            throw new RuntimeException("Error in executing queries on Vertica: "+e.getMessage(), e);
+            throw new RuntimeException("Error in executing queries on Vertica: " + e.getMessage(), e);
         }
 
     }
@@ -385,7 +379,7 @@ public class VerticaMetadataHandler
             if(objectListing.getObjectSummaries().size() == 0)
             {
                 logger.error("Export to S3 from Vertica was not successful");
-                //need to stop the flow here!
+                throw new RuntimeException("Export to S3 from Vertica was not successful");
             }
         }
         catch (SdkClientException e)

@@ -46,67 +46,70 @@ public class VerticaSchemaUtils
             ResultSet definition = dbMetadata.getColumns(null, name.getSchemaName(), name.getTableName(), null);
             while(definition.next())
             {
-                logger.info("col Type" + definition.getString("TYPE_NAME"));
+                String colType = definition.getString("TYPE_NAME").toUpperCase();
 
-                //todo: review this again and add the Vertica data types missed
-                //If Bit
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("BIT"))
+                switch (colType)
                 {
-                    tableSchemaBuilder.addBitField(definition.getString("COLUMN_NAME"));
-                }
-                //If TinyInt
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("TINYINT"))
-                {
-                    tableSchemaBuilder.addTinyIntField(definition.getString("COLUMN_NAME"));
-                }
-                //If SmallInt
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("SMALLINT"))
-                {
-                    tableSchemaBuilder.addSmallIntField(definition.getString("COLUMN_NAME"));
-                }
-                //If Int
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("INTEGER"))
-                {
-                    tableSchemaBuilder.addBigIntField(definition.getString("COLUMN_NAME"));
-                }
-                //If BIGINT
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("BIGINT"))
-                {
-                    tableSchemaBuilder.addBigIntField(definition.getString("COLUMN_NAME"));
-                }
-                //If FLOAT4
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("FLOAT4"))
-                {
-                    tableSchemaBuilder.addFloat4Field(definition.getString("COLUMN_NAME"));
-                }
-                //If FLOAT8
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("FLOAT8"))
-                {
-                    tableSchemaBuilder.addFloat8Field(definition.getString("COLUMN_NAME"));
-                }
-                //If DECIMAL/NUMERIC
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("NUMERIC"))
-                {
-                    tableSchemaBuilder.addDecimalField(definition.getString("COLUMN_NAME"), 10, 2);
-                }
-                //If VARCHAR
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("Varchar"))
-                {
-                    tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
-                }
-                //If DATETIME
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("DATETIME"))
-                {
-                    tableSchemaBuilder.addDateDayField(definition.getString("COLUMN_NAME"));
-                }
-                //If TIMESTAMP
-                if (definition.getString("TYPE_NAME").equalsIgnoreCase("TIMESTAMP"))
-                {
-                    tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
-                }
+                    //If Bit
+                    case "BIT":
+                    {
+                        tableSchemaBuilder.addBitField(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If TinyInt
+                    case "TINYINT":
+                    {
+                        tableSchemaBuilder.addTinyIntField(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If SmallInt
+                    case "SMALLINT":
+                    {
+                        tableSchemaBuilder.addSmallIntField(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If Int
+                    case "INTEGER":
+                        //If BIGINT
+                    case "BIGINT": {
+                        tableSchemaBuilder.addBigIntField(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If FLOAT4
+                    case "FLOAT4":
+                    {
+                        tableSchemaBuilder.addFloat4Field(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If FLOAT8
+                    case "FLOAT8":
+                    {
+                        tableSchemaBuilder.addFloat8Field(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If DECIMAL/NUMERIC
+                    case "NUMERIC":
+                    {
+                        tableSchemaBuilder.addDecimalField(definition.getString("COLUMN_NAME"), 10, 2);
+                        break;
+                    }
+                    //If VARCHAR
+                    case "VARCHAR":
+                        //If TIMESTAMP
+                    case "TIMESTAMP": {
+                        tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
+                    //If DATETIME
+                    case "DATETIME":
+                    {
+                        tableSchemaBuilder.addDateDayField(definition.getString("COLUMN_NAME"));
+                        break;
+                    }
 
-
-
+                    default:
+                        tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
+                }
             }
             return tableSchemaBuilder.build();
 

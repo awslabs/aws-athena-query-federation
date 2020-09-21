@@ -145,7 +145,6 @@ public class VerticaRecordHandler
             logger.info(streamReader.lines().toString());
             while ((inputStr = streamReader.readLine()) != null) {
                 HashMap<String, Object> map = new HashMap<>();
-                logger.info(inputStr);
                 //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
 
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -173,9 +172,7 @@ public class VerticaRecordHandler
     private Extractor makeExtractor(Field field, HashMap<String, Types.MinorType> mapOfNamesAndTypes, HashMap<String, Object> mapOfcols)
     {
         String fieldName = field.getName();
-        logger.info("FIELD: "+ fieldName);
         Types.MinorType fieldType = mapOfNamesAndTypes.get(fieldName);
-        logger.info(String.valueOf(fieldType));
         switch (fieldType)
         {
             case BIT:

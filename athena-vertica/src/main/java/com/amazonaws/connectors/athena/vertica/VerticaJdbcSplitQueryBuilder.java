@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -73,17 +75,44 @@ public class VerticaJdbcSplitQueryBuilder {
             final String table,
             final Schema tableSchema,
             final Constraints constraints,
-            final String queryID)
+            final String queryID,
+            final ResultSet definition) throws SQLException {
+        //get column name and type from the Schema
+        HashMap<String, String> mapOfNamesAndTypes = new HashMap<>();
+        while(definition.next())
+        {
+            String colName = definition.getString("COLUMN_NAME").toLowerCase();
+            String colType = definition.getString("TYPE_NAME").toLowerCase();
+            mapOfNamesAndTypes.put(colName, colType);
+        }
 
-    {
         ST exportSqlST = new ST("EXPORT TO PARQUET(" +
                 "directory = 's3://<s3ExportBucket>/<queryID>'," +
-                " Compression='snappy', fileSizeMB=1000) AS ");
-
+                " Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS ");
 
         exportSqlST.add("s3ExportBucket", s3ExportBucket);
         exportSqlST.add("queryID", queryID.replace("-",""));
 
+
+        StringBuilder colN = new StringBuilder();
+        List<Field> fields = tableSchema.getFields();
+        for(Field f : fields)
+        {
+            //cast timestamp as varchar
+            /*
+            Vertica exports timestamp field as a 26 digit number. The solution implemented here adds a 'cast as varchar' statement
+            to the timestamp column to export the field as a VARCHAR.
+             */
+            if(mapOfNamesAndTypes.get(f.getName().toLowerCase()).equalsIgnoreCase("timestamp"))
+            {
+                String castedField = castTimestamp(f.getName());
+                colN.append(castedField).append(",");
+            }
+            else {
+                colN.append(f.getName()).append(",");
+            }
+        }
+        String result = colN.deleteCharAt(colN.length() - 1).toString();
 
         StringBuilder sql = new StringBuilder();
         //get the column names to be queried
@@ -92,13 +121,13 @@ public class VerticaJdbcSplitQueryBuilder {
                 .map(this::quote)
                 .collect(Collectors.joining(", "));
 
+
         sql.append("SELECT ");
-        sql.append(columnNames);
+        sql.append(result);
         if (columnNames.isEmpty()) {
             sql.append("null");
         }
         sql.append(getFromClauseWithSplit(schema, table));
-
 
         HashMap<String,TypeAndValue> accumulator = new HashMap<>();
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator);
@@ -176,16 +205,16 @@ public class VerticaJdbcSplitQueryBuilder {
         return completeSqlST.render();
 
     }
-
-    protected String buildSetSessionSql(String awsAccessId, String awsSecretKey)
+    protected String castTimestamp(String name)
     {
-        ST authST = new ST("ALTER SESSION SET AWSAuth='<access_key>:<secret_key>'");
-        authST.add("access_key", awsAccessId);
-        authST.add("secret_key", awsSecretKey);
-        return authST.render();
+        ST castFieldST = new ST("CAST(<name> AS VARCHAR AS <name>)");
+        castFieldST.add("name", name);
+        return castFieldST.render();
     }
 
-    protected String buildSetSessionSql(String awsRegion)
+
+
+    protected String buildSetAwsRegionSql(String awsRegion)
     {
         ST regionST=  new ST("ALTER SESSION SET AWSRegion='<defaultRegion>'") ;
         regionST.add("defaultRegion", awsRegion);
