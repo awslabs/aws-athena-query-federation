@@ -28,18 +28,17 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 
+/**
+ * This class is a Utility class to create Extractors for each fields as per Schema
+ */
 public class TypeRowWriter {
 
     public static RowWriterBuilder writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) {
-
-        Logger logger = LoggerFactory.getLogger(TypeRowWriter.class);
 
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
@@ -50,11 +49,10 @@ public class TypeRowWriter {
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
                             value.isSet = 1;
-
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
 
-                            value.value = Float.parseFloat(objValues.get(0).toString());
+                            value.value = Double.parseDouble(objValues.get(0).toString());
                         });
 
                 break;
@@ -76,7 +74,6 @@ public class TypeRowWriter {
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
                             value.isSet = 1;
-
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
 
@@ -88,7 +85,6 @@ public class TypeRowWriter {
                 rowWriterBuilder.withExtractor(field.getName(),
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
                             value.isSet = 1;
-
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
                             value.value = Integer.parseInt(objValues.get(0).toString());

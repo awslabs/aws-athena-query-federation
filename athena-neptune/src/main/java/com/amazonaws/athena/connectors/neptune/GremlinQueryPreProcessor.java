@@ -22,9 +22,10 @@ package com.amazonaws.athena.connectors.neptune;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
-import org.apache.tinkerpop.gremlin.process.traversal.lambda.PredicateTraversal;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 
 /**
@@ -32,7 +33,7 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
  * Contraints being passed via AWS Lambda Handler
  */
 public class GremlinQueryPreProcessor {
-    
+
     public enum Operator {
         LESSTHAN, GREATERTHAN, EQUALTO, NOTEQUALTO
     }
@@ -49,17 +50,13 @@ public class GremlinQueryPreProcessor {
      * 
      * @return A Gremlin Query Part equivalent to Contraint.
      */
-    // public static String generateGremlinQueryPart(String key, String value,
-    // String type, Bound bound,
-    // Operator operator) {
-
     public static GraphTraversal<Vertex, Vertex> generateGremlinQueryPart(GraphTraversal<Vertex, Vertex> traversal,
-            String key, String value, String type, Bound bound, Operator operator) {
+            String key, String value, ArrowType type, Bound bound, Operator operator) {
 
-        switch (type) {
+        Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
 
-            case "Int(32, true)":
-
+        switch (minorType) {
+            case INT:
                 if (operator.equals(Operator.GREATERTHAN)) {
 
                     traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Integer.parseInt(value)))
@@ -84,7 +81,59 @@ public class GremlinQueryPreProcessor {
 
                 break;
 
-            case "Utf8":
+            case FLOAT4:
+
+                if (operator.equals(Operator.GREATERTHAN)) {
+
+                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Float.parseFloat(value)))
+                            : traversal.has(key, P.gt(Float.parseFloat(value)));
+                }
+
+                if (operator.equals(Operator.LESSTHAN)) {
+
+                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(Float.parseFloat(value)))
+                            : traversal.has(key, P.lt(Float.parseFloat(value)));
+                }
+
+                if (operator.equals(Operator.EQUALTO)) {
+
+                    traversal = traversal.has(key, P.eq(Float.parseFloat(value)));
+                }
+
+                if (operator.equals(Operator.NOTEQUALTO)) {
+
+                    traversal = traversal.has(key, P.neq(Float.parseFloat(value)));
+                }
+
+                break;
+
+            case FLOAT8:
+
+                if (operator.equals(Operator.GREATERTHAN)) {
+
+                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Double.parseDouble(value)))
+                            : traversal.has(key, P.gt(Double.parseDouble(value)));
+                }
+
+                if (operator.equals(Operator.LESSTHAN)) {
+
+                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(Double.parseDouble(value)))
+                            : traversal.has(key, P.lt(Double.parseDouble(value)));
+                }
+
+                if (operator.equals(Operator.EQUALTO)) {
+
+                    traversal = traversal.has(key, P.eq(Double.parseDouble(value)));
+                }
+
+                if (operator.equals(Operator.NOTEQUALTO)) {
+
+                    traversal = traversal.has(key, P.neq(Integer.parseInt(value)));
+                }
+
+                break;
+
+            case VARCHAR:
 
                 if (operator.equals(Operator.EQUALTO)) {
 

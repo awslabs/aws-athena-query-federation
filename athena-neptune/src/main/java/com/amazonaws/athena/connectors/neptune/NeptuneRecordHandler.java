@@ -173,9 +173,12 @@ public class NeptuneRecordHandler extends RecordHandler {
 
     /**
      * Used to generate Gremlin Query part for Constraint Map
-     *
+     * 
+     * @param traversal Gremlin Traversal, traversal is updated based on constraints map
      * @param hasMap Constraint Hash Map
-     **/
+     * 
+     * @return A Gremlin Query Part equivalent to Contraint.
+     */
     public GraphTraversal<Vertex, Vertex> getQueryPartForContraintsMap(GraphTraversal<Vertex, Vertex> traversal,
             final Map hashMap) {
 
@@ -190,7 +193,7 @@ public class NeptuneRecordHandler extends RecordHandler {
                     if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
 
                         traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                                range.getLow().getValue().toString(), range.getType().toString(),
+                                range.getLow().getValue().toString(), range.getType(),
                                 range.getLow().getBound(), GremlinQueryPreProcessor.Operator.EQUALTO);
                         break;
                     }
@@ -202,14 +205,14 @@ public class NeptuneRecordHandler extends RecordHandler {
                             + range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
 
                     traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                            range.getLow().getValue().toString(), range.getType().toString(), range.getLow().getBound(),
+                            range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
                             GremlinQueryPreProcessor.Operator.GREATERTHAN);
                 }
 
                 if (!range.getHigh().isNullValue()) {
 
                     traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                            range.getHigh().getValue().toString(), range.getType().toString(),
+                            range.getHigh().getValue().toString(), range.getType(),
                             range.getLow().getBound(), GremlinQueryPreProcessor.Operator.LESSTHAN);
                 }
             }

@@ -22,6 +22,9 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 
+/**
+ * This class is a Base class for other Test classes
+ */
 public class TestBase {
     protected static final FederatedIdentity IDENTITY = new FederatedIdentity("id", "principal", "account");
     protected static final String QUERY_ID = "query_id-" + System.currentTimeMillis();
