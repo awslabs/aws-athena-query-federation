@@ -320,8 +320,10 @@ public final class DDBTypeUtils
      * @param field is the LIST field containing a list type in the child field.
      * @param recordMetadata contains metadata information.
      * @return a List of coerced values.
+     * @throws RuntimeException when value is instance of Map since a List is expected.
      */
-    public static List coerceListToExpectedType(Object value, Field field, DDBRecordMetadata recordMetadata)
+    public static List<Object> coerceListToExpectedType(Object value, Field field, DDBRecordMetadata recordMetadata)
+            throws RuntimeException
     {
         Field childField = field.getChildren().get(0);
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(childField.getType());
