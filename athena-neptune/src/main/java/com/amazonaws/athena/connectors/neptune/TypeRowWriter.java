@@ -34,7 +34,8 @@ import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 
 /**
- * This class is a Utility class to create Extractors for each fields as per Schema
+ * This class is a Utility class to create Extractors for each field type as per
+ * Schema
  */
 public class TypeRowWriter {
 
@@ -45,39 +46,14 @@ public class TypeRowWriter {
 
         switch (minorType) {
 
-            case FLOAT8:
-                rowWriterBuilder.withExtractor(field.getName(),
-                        (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                            value.isSet = 1;
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
-
-                            value.value = Double.parseDouble(objValues.get(0).toString());
-                        });
-
-                break;
-
             case VARCHAR:
-
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
                             value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
                             value.value = objValues.get(0).toString();
-                        });
-                break;
-
-            case FLOAT4:
-
-                rowWriterBuilder.withExtractor(field.getName(),
-                        (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
-                            value.isSet = 1;
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
-
-                            value.value = Float.parseFloat(objValues.get(0).toString());
                         });
                 break;
 
@@ -86,12 +62,30 @@ public class TypeRowWriter {
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
                             value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList)obj.get(field.getName());
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
                             value.value = Integer.parseInt(objValues.get(0).toString());
                         });
                 break;
 
-            default:
+            case FLOAT4:
+                rowWriterBuilder.withExtractor(field.getName(),
+                        (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
+                            value.isSet = 1;
+                            Map<Object, Object> obj = (Map<Object, Object>) context;
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                            value.value = Float.parseFloat(objValues.get(0).toString());
+                        });
+                break;
+
+            case FLOAT8:
+                rowWriterBuilder.withExtractor(field.getName(),
+                        (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
+                            value.isSet = 1;
+                            Map<Object, Object> obj = (Map<Object, Object>) context;
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                            value.value = Double.parseDouble(objValues.get(0).toString());
+                        });
+
                 break;
         }
 
