@@ -34,7 +34,7 @@ public class DynamoDBFieldResolver
 {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBFieldResolver.class);
 
-    final DDBRecordMetadata metadata;
+    private final DDBRecordMetadata metadata;
 
     public DynamoDBFieldResolver(DDBRecordMetadata recordMetadata)
     {
