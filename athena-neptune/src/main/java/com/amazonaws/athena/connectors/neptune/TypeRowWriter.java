@@ -19,10 +19,11 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
-import java.util.ArrayList;
-import java.util.Map;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
@@ -31,6 +32,8 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import java.util.ArrayList;
+import java.util.Map;
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
