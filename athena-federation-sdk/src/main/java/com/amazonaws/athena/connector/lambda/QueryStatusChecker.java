@@ -122,7 +122,7 @@ public class QueryStatusChecker
                 isRunning.set(false);
             }
         }
-        catch (RuntimeException | TimeoutException e) {
+        catch (Exception e) {
             logger.warn("Exception {} thrown when calling Athena for query status: {}", e.getClass().getSimpleName(), e.getMessage());
             if (e instanceof InvalidRequestException) {
                 // query does not exist, so no need to keep calling Athena
