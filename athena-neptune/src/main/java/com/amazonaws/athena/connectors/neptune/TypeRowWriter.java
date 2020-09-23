@@ -21,31 +21,33 @@ package com.amazonaws.athena.connectors.neptune;
 
 import java.util.ArrayList;
 import java.util.Map;
-
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
-
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.holders.NullableFloat4Holder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import org.apache.arrow.vector.holders.NullableIntHolder;
-import org.apache.arrow.vector.holders.NullableFloat4Holder;
-import org.apache.arrow.vector.holders.NullableFloat8Holder;
 
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public class TypeRowWriter {
+public final class TypeRowWriter
+{
+    private TypeRowWriter() 
+    {
+        //Empty private constructor
+    }
 
-    public static RowWriterBuilder writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) {
-
+    public static RowWriterBuilder writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field)
+    {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
 
         switch (minorType) {
-
             case VARCHAR:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {

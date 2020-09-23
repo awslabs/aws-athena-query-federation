@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
@@ -41,15 +40,13 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
-
+import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -72,25 +69,28 @@ import org.slf4j.LoggerFactory;
  * For more examples, please see the other connectors in this repository (e.g.
  * athena-cloudwatch, athena-docdb, etc...)
  */
-public class NeptuneMetadataHandler extends GlueMetadataHandler {
+public class NeptuneMetadataHandler extends GlueMetadataHandler
+{
     private final Logger logger = LoggerFactory.getLogger(NeptuneMetadataHandler.class);
-    private static final String SOURCE_TYPE = "neptune";// Used to denote the 'type' of this connector for diagnostic
-                                                        // purposes.
+    private static final String SOURCE_TYPE = "neptune"; // Used to denote the 'type' of this connector for diagnostic
+                                                         // purposes.
     private final AWSGlue glue;
-    private final String glue_database_name;
+    private final String glueDBName;
 
-    public NeptuneMetadataHandler() {
+    public NeptuneMetadataHandler()
+    {
         super(false, SOURCE_TYPE);
         this.glue = getAwsGlue();
-        this.glue_database_name = System.getenv("glue_database_name");
+        this.glueDBName = System.getenv("glue_database_name");
     }
 
     @VisibleForTesting
     protected NeptuneMetadataHandler(AWSGlue glue, NeptuneConnection neptuneConnection, EncryptionKeyFactory keyFactory,
-            AWSSecretsManager awsSecretsManager, AmazonAthena athena, String spillBucket, String spillPrefix) {
+            AWSSecretsManager awsSecretsManager, AmazonAthena athena, String spillBucket, String spillPrefix)
+            {
         super(glue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.glue = glue;
-        this.glue_database_name = System.getenv("glue_database_name");
+        this.glueDBName = System.getenv("glue_database_name");
     }
 
     /**
@@ -107,11 +107,12 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
      * @see GlueMetadataHandler
      */
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request) {
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+    {
         logger.info("doListSchemaNames: enter - " + request);
 
         Set<String> schemas = new HashSet<>();
-        schemas.add(glue_database_name);
+        schemas.add(glueDBName);
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
@@ -129,7 +130,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
      * @see GlueMetadataHandler
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request) {
+    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
+    {
         logger.info("doListTables: enter - " + request);
 
         List<TableName> tables = new ArrayList<>();
@@ -161,7 +163,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
      * @throws Exception
      */
     @Override
-    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception {
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
+    {
         logger.info("doGetTable: enter - " + request.getTableName());
         Schema tableSchema = null;
         try {
@@ -169,11 +172,11 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
                 tableSchema = super.doGetTable(blockAllocator, request).getSchema();
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
-        } catch (RuntimeException ex) {
+        } 
+        catch (RuntimeException ex) {
             logger.warn("doGetTable: Unable to retrieve table[{}:{}] from AWS Glue.",
                     request.getTableName().getSchemaName(), request.getTableName().getTableName(), ex);
         }
-
         return new GetTableResponse(request.getCatalogName(), request.getTableName(), tableSchema);
     }
 
@@ -183,8 +186,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request,
-            QueryStatusChecker queryStatusChecker) throws Exception {
-
+            QueryStatusChecker queryStatusChecker) throws Exception 
+    {
         // No implemenation as connector doesn't support partitioning
     }
 
@@ -212,7 +215,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
      * the RecordHandler has easy access to it.
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request) {
+    public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest request) 
+    {
         // Every split must have a unique location if we wish to spill to avoid failures
         SpillLocation spillLocation = makeSpillLocation(request);
 
@@ -222,7 +226,8 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler {
     }
 
     @Override
-    protected Field convertField(String name, String glueType) {
+    protected Field convertField(String name, String glueType) 
+    {
         return GlueFieldLexer.lex(name, glueType);
     }
 }

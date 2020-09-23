@@ -19,16 +19,18 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
-import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
-import org.apache.tinkerpop.gremlin.driver.Client;
 
-public class NeptuneConnection {
+public class NeptuneConnection
+{
      private static Cluster cluster = null;
 
-    NeptuneConnection(String neptuneEndpoint, String neptunePort) {
+    NeptuneConnection(String neptuneEndpoint, String neptunePort)
+    {
         cluster = Cluster.build()
                         .addContactPoint(neptuneEndpoint)
                         .port(Integer.parseInt(neptunePort))
@@ -36,16 +38,19 @@ public class NeptuneConnection {
                         .create();
     }
 
-    Client getNeptuneClientConnection() {
+    Client getNeptuneClientConnection()
+    {
         return cluster.connect();
     }
 
-    GraphTraversalSource getTraversalSource(Client client) {
+    GraphTraversalSource getTraversalSource(Client client)
+    {
         DriverRemoteConnection connection = DriverRemoteConnection.using(client);
         return AnonymousTraversalSource.traversal().withRemote(connection);
     }
 
-    void closeCluster() {
+    void closeCluster()
+    {
         cluster.close();
     }
 }

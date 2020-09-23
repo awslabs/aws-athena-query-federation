@@ -21,7 +21,10 @@ Parameters:
     Description: 'The Neptune port'
     Type: String
     Default: '8182'
-#    AllowedPattern: ^[a-z0-9-_]{1,64}$    
+#    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  NeptuneClusterResourceID:
+    Description: 'To find a cluster resource ID in the AWS Management Console for Amazon Neptune, choose the DB cluster that you want. The Resource ID is shown in the Details section.'
+    Type: String
   GlueDatabaseName:
     Description: 'Name of the Neptune cluster specific Glue Database that contains schemas of graph vertices'
     Type: String
@@ -90,9 +93,15 @@ Resources:
                 - glue:GetPartition
                 - glue:GetDatabase              
                 - athena:GetQueryExecution
-                - neptune-db:*
               Effect: Allow
               Resource: '*'
+            - Action:
+                - neptune-db:*
+              Effect: Allow
+              #Resource: '*'
+              Resource: !Sub
+                - arn:aws:neptune-db:${AWS::Region}:${AWS::AccountId}:${NCR}/*
+                - { NCR: !Ref NeptuneClusterResourceID }
           Version: '2012-10-17'
         #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
