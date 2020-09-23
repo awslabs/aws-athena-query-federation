@@ -743,6 +743,10 @@
 <dd>
 <div class="block">Allows for coercion of a list of values where the returned types do not match the schema.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceListToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">coerceListToExpectedType(Object, Field, DDBRecordMetadata)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
+<dd>
+<div class="block">Converts a Set to a List, and coerces all list items into the correct type.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html#coerceType-boolean-org.apache.arrow.vector.types.pojo.ArrowType-byte:A-">coerceType(boolean, ArrowType, byte[])</a></span> - Static method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseSchemaUtils</a></dt>
 <dd>
 <div class="block">Helper that can coerce the given HBase value to the requested Apache Arrow type.</div>
@@ -1645,6 +1649,10 @@
 <dd>
 <div class="block">Used by <a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda"><code>ThrottlingInvoker</code></a> to determine which DynamoDB exceptions are thrown for throttling.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html" title="class in com.amazonaws.athena.connectors.dynamodb.resolver"><span class="typeNameLink">DynamoDBFieldResolver</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/resolver/package-summary.html">com.amazonaws.athena.connectors.dynamodb.resolver</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html#DynamoDBFieldResolver-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">DynamoDBFieldResolver(DDBRecordMetadata)</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.resolver.<a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html" title="class in com.amazonaws.athena.connectors.dynamodb.resolver">DynamoDBFieldResolver</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.dynamodb"><span class="typeNameLink">DynamoDBMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/package-summary.html">com.amazonaws.athena.connectors.dynamodb</a></dt>
 <dd>
 <div class="block">Handles metadata requests for the Athena DynamoDB Connector.</div>
@@ -2440,6 +2448,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBFieldResolver.html#getFieldValue-org.apache.arrow.vector.types.pojo.Field-java.lang.Object-">getFieldValue(Field, Object)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBFieldResolver.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBFieldResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html#getFieldValue-org.apache.arrow.vector.types.pojo.Field-java.lang.Object-">getFieldValue(Field, Object)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.resolver.<a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html" title="class in com.amazonaws.athena.connectors.dynamodb.resolver">DynamoDBFieldResolver</a></dt>
+<dd>
+<div class="block">Return the field value from a complex structure or list.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html#getFieldValue-org.apache.arrow.vector.types.pojo.Field-java.lang.Object-">getFieldValue(Field, Object)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseFieldResolver</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchFieldResolver.html#getFieldValue-org.apache.arrow.vector.types.pojo.Field-java.lang.Object-">getFieldValue(Field, Object)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/ElasticsearchFieldResolver.html" title="class in com.amazonaws.connectors.athena.elasticsearch">ElasticsearchFieldResolver</a></dt>

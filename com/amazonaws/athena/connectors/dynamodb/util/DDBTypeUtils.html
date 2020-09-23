@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9};
+var methods = {"i0":9,"i1":9,"i2":9,"i3":9,"i4":9,"i5":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -131,6 +131,14 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceListToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">coerceListToExpectedType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value,
+                        org.apache.arrow.vector.types.pojo.Field&nbsp;field,
+                        <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)</code>
+<div class="block">Converts a Set to a List, and coerces all list items into the correct type.</div>
+</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#coerceValueToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-org.apache.arrow.vector.types.Types.MinorType-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">coerceValueToExpectedType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value,
                          org.apache.arrow.vector.types.pojo.Field&nbsp;field,
@@ -139,14 +147,14 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <div class="block">Coerces the raw value from DynamoDB to normalized type</div>
 </td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;columnName,
                            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object)</code>
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#convertArrowTypeIfNecessary-java.lang.String-java.lang.Object-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">convertArrowTypeIfNecessary</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;columnName,
                            <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;object,
@@ -154,14 +162,14 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <div class="block">Converts certain Arrow POJOs to Java POJOs to make downstream conversion easier.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#getArrowFieldFromDDBType-java.lang.String-java.lang.String-">getArrowFieldFromDDBType</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeName,
                         <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;attributeType)</code>
 <div class="block">Converts from DynamoDB Attribute Type to Arrow type.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>static org.apache.arrow.vector.types.pojo.Field</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#inferArrowField-java.lang.String-java.lang.Object-">inferArrowField</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;key,
                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value)</code>
@@ -271,7 +279,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <a name="coerceValueToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-org.apache.arrow.vector.types.Types.MinorType-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>coerceValueToExpectedType</h4>
 <pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;coerceValueToExpectedType(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value,
@@ -287,6 +295,30 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <dd><code>recordMetadata</code> - DDBRecordMetadata object containing any metadata that is passed from schema metadata</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>coerced value to normalized type</dd>
+</dl>
+</li>
+</ul>
+<a name="coerceListToExpectedType-java.lang.Object-org.apache.arrow.vector.types.pojo.Field-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>coerceListToExpectedType</h4>
+<pre>public static&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&gt;&nbsp;coerceListToExpectedType(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html?is-external=true" title="class or interface in java.lang">Object</a>&nbsp;value,
+                                                    org.apache.arrow.vector.types.pojo.Field&nbsp;field,
+                                                    <a href="../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a>&nbsp;recordMetadata)
+                                             throws <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></pre>
+<div class="block">Converts a Set to a List, and coerces all list items into the correct type. If value is not a Collection, this
+ method will return a List containing a single item.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>value</code> - is the Set/List of items.</dd>
+<dd><code>field</code> - is the LIST field containing a list type in the child field.</dd>
+<dd><code>recordMetadata</code> - contains metadata information.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a List of coerced values.</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - when value is instance of Map since a List is expected.</dd>
 </dl>
 </li>
 </ul>
