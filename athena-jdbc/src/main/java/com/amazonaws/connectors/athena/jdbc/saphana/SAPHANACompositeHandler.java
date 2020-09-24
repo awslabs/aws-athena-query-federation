@@ -20,8 +20,6 @@
 package com.amazonaws.connectors.athena.jdbc.saphana;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -32,7 +30,7 @@ import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 public class SAPHANACompositeHandler
         extends CompositeHandler
 {
-    public SAPHANACompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler)
+    public SAPHANACompositeHandler()
     {
         super(new SAPHANAMetadataHandler(), new SAPHANARecordHandler());
     }

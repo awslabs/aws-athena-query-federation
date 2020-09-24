@@ -101,7 +101,6 @@ public class SAPHANAMetadataHandler
         
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
                .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
-                
         return schemaBuilder.build();
     }
 
