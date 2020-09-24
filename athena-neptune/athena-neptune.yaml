@@ -23,7 +23,7 @@ Parameters:
     Default: '8182'
 #    AllowedPattern: ^[a-z0-9-_]{1,64}$
   NeptuneClusterResourceID:
-    Description: 'To find a cluster resource ID in the AWS Management Console for Amazon Neptune, choose the DB cluster that you want. The Resource ID is shown in the Details section.'
+    Description: 'To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.'
     Type: String
   GlueDatabaseName:
     Description: 'Name of the Neptune cluster specific Glue Database that contains schemas of graph vertices'
