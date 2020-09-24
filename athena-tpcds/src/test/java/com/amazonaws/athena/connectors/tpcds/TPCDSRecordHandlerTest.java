@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +85,7 @@ public class TPCDSRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(TPCDSRecordHandlerTest.class);
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     private List<ByteHolder> mockS3Storage;
     private TPCDSRecordHandler handler;
     private S3BlockSpillReader spillReader;

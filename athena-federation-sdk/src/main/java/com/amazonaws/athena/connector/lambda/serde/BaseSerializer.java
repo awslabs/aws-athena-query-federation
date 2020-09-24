@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
 
 public abstract class BaseSerializer<T> extends StdSerializer<T>
 {
@@ -65,20 +66,39 @@ public abstract class BaseSerializer<T> extends StdSerializer<T>
      * Helper used to help serialize a list of strings.
      *
      * @param jgen The json generator to use.
-     * @param fieldname The name to associated to the resulting json array.
+     * @param fieldName The name to associated to the resulting json array.
      * @param values The values to populate the array with.
      * @throws IOException If an error occurs while writing to the generator.
      */
-    protected void writeStringArray(JsonGenerator jgen, String fieldname, Collection<String> values)
+    protected void writeStringArray(JsonGenerator jgen, String fieldName, Collection<String> values)
             throws IOException
     {
-        jgen.writeArrayFieldStart(fieldname);
+        jgen.writeArrayFieldStart(fieldName);
 
         for (String nextElement : values) {
             jgen.writeString(nextElement);
         }
 
         jgen.writeEndArray();
+    }
+
+    /**
+     * Helper used to help serialize a list of strings.
+     *
+     * @param jgen The json generator to use.
+     * @param fieldName The name to associated to the resulting json array.
+     * @param values The values to populate the array with.
+     * @throws IOException If an error occurs while writing to the generator.
+     */
+    protected void writeStringMap(JsonGenerator jgen, String fieldName, Map<String, String> values) throws IOException
+    {
+        jgen.writeObjectFieldStart(fieldName);
+
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            jgen.writeStringField(entry.getKey(), entry.getValue());
+        }
+
+        jgen.writeEndObject();
     }
 
     /**

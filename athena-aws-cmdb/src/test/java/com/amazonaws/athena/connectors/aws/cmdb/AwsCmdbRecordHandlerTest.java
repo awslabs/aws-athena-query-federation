@@ -57,7 +57,7 @@ public class AwsCmdbRecordHandlerTest
     private String bucket = "bucket";
     private String prefix = "prefix";
     private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
 
     @Mock
     private AmazonS3 mockS3;

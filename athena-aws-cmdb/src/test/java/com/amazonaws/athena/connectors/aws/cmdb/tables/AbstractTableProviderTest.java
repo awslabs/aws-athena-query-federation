@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +82,7 @@ public abstract class AbstractTableProviderTest
 
     private BlockAllocator allocator;
 
-    private FederatedIdentity identity = new FederatedIdentity("id", "principal", "account");
+    private FederatedIdentity identity = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     private String idField = getIdField();
     private String idValue = getIdValue();
     private String expectedQuery = "queryId";
