@@ -74,6 +74,7 @@ Resources:
           glue_database_name: !Ref GlueDatabaseName
           neptune_endpoint: !Ref NeptuneClusterEndpoint
           neptune_port: !Ref NeptunePort
+          neptune_cluster_res_id: !Ref NeptuneClusterResourceID
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.neptune.NeptuneCompositeHandler"
       CodeUri: "./target/athena-neptune-1.0.jar"
@@ -93,15 +94,14 @@ Resources:
                 - glue:GetPartition
                 - glue:GetDatabase              
                 - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
               Effect: Allow
               Resource: '*'
             - Action:
                 - neptune-db:*
               Effect: Allow
-              #Resource: '*'
-              Resource: !Sub
-                - arn:aws:neptune-db:${AWS::Region}:${AWS::AccountId}:${NCR}/*
-                - { NCR: !Ref NeptuneClusterResourceID }
+              #Dynamically construct Neptune Cluster Resource ARN to limit permissions to the specific cluster provided
+              Resource: !Sub 'arn:aws:neptune-db:${AWS::Region}:${AWS::AccountId}:${NeptuneClusterResourceID}/*'
           Version: '2012-10-17'
         #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
