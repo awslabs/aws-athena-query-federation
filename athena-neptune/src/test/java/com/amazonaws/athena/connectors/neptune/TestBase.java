@@ -22,11 +22,12 @@ package com.amazonaws.athena.connectors.neptune;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 
+import java.util.Collections;
 /**
  * This class is a Base class for other Test classes
  */
 public class TestBase {
-    protected static final FederatedIdentity IDENTITY = new FederatedIdentity("id", "principal", "account");
+    protected static final FederatedIdentity IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     protected static final String QUERY_ID = "query_id-" + System.currentTimeMillis();
     protected static final String PARTITION_ID = "partition_id";
     protected static final String DEFAULT_CATALOG = "default";
