@@ -71,7 +71,8 @@ public class ElasticsearchFieldResolver
                 fieldValue = ((Map) originalValue).get(fieldName);
             }
             else {
-                throw new RuntimeException("Field not found in Document: " + fieldName);
+                // Ignore columns that do not exist in the document.
+                return null;
             }
         }
         else {

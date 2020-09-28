@@ -64,7 +64,8 @@ public class DynamoDBFieldResolver
                 fieldValue = ((Map) originalValue).get(fieldName);
             }
             else {
-                throw new RuntimeException("Field not found in DB record: " + fieldName);
+                // Ignore columns that do not exist in the DB record.
+                return null;
             }
         }
         else {
