@@ -322,7 +322,7 @@ public class ElasticsearchRecordHandlerTest
 
         List<String> expectedProjection = new ArrayList<>();
         mapping.getFields().forEach(field -> expectedProjection.add(field.getName()));
-        String expectedPredicate = "(_exists_:myshort) AND myshort:((>1955 AND <=1972))";
+        String expectedPredicate = "(_exists_:myshort) AND myshort:({1955 TO 1972])";
 
         ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
                 "elasticsearch",
