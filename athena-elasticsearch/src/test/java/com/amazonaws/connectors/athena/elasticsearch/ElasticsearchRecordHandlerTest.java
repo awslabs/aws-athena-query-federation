@@ -61,6 +61,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -81,8 +82,10 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
@@ -249,36 +252,31 @@ public class ElasticsearchRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.putObject(any(), any(), any(), any()))
-                .thenAnswer(new Answer<Object>()
-                {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock)
-                            throws Throwable
-                    {
-                        InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
-                        ElasticsearchRecordHandlerTest.ByteHolder byteHolder = new ByteHolder();
-                        byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
+        when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
+                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                    InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                    ByteHolder byteHolder = new ByteHolder();
+                    byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
+                    synchronized (mockS3Storage) {
                         mockS3Storage.add(byteHolder);
-                        return putObjectResult;
+                        logger.info("puObject: total size " + mockS3Storage.size());
                     }
+                    return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(anyString(), anyString()))
-                .thenAnswer(new Answer<Object>()
-                {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock)
-                            throws Throwable
-                    {
-                        S3Object mockObject = s3Object;
-                        ByteHolder byteHolder = mockS3Storage.get(0);
+        when(amazonS3.getObject(Matchers.anyString(), Matchers.anyString()))
+                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                    S3Object mockObject = mock(S3Object.class);
+                    ByteHolder byteHolder;
+                    synchronized (mockS3Storage) {
+                        byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
-                        when(mockObject.getObjectContent()).thenReturn(
-                                new S3ObjectInputStream(
-                                        new ByteArrayInputStream(byteHolder.getBytes()), null));
-                        return mockObject;
+                        logger.info("getObject: total size " + mockS3Storage.size());
                     }
+                    when(mockObject.getObjectContent()).thenReturn(
+                            new S3ObjectInputStream(
+                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
+                    return mockObject;
                 });
 
         spillReader = new S3BlockSpillReader(amazonS3, allocator);

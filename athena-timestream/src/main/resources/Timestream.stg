@@ -1,0 +1,30 @@
+test_template() ::= <%
+    test template for validating file is accessible.
+%>
+
+/**
+ *@UsedBy: DescribeTableQueryBuilder.java
+ *@Description: This template is used to obtain basic column and type information about tables.
+ *@param builder An Instance of DescribeTableQueryBuilder.
+ *@return A query that be used to describe a TimeStream table.
+ */
+describe_table(builder) ::= <%
+    DESCRIBE "<builder.databaseName>"."<builder.tableName>"
+%>
+
+select_query(builder) ::= <%
+    <if(builder.viewText)>
+        WITH<\ ><\n>
+         t1 AS ( <builder.viewText> ) <\ ><\n>
+    <endif>
+    SELECT<\ ><\n>
+        <first(builder.projection): {next_col | <next_col>}>
+        <rest(builder.projection): {next_col | , <next_col>}><\ >
+    <\n>FROM<\ ><\n>
+        <if(builder.viewText)>t1<else>"<builder.databaseName>"."<builder.tableName>"<endif><\ ><\n>
+    <if(builder.conjucts)>
+    WHERE<\ >
+        <first(builder.conjucts): {next_conjuct | <next_conjuct>}>
+        <rest(builder.conjucts): {next_conjuct | <\ >AND <next_conjuct>}><\ >
+    <endif>
+%>
