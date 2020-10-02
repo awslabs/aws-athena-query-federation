@@ -537,6 +537,12 @@
 <dd>
 <div class="block">Builds prepared statement from query string and string parameters.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html#build--">build()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#build--">build()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/PredicateBuilder.html#buildConjucts-com.amazonaws.athena.connector.lambda.domain.predicate.Constraints-">buildConjucts(Constraints)</a></span> - Static method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/PredicateBuilder.html" title="class in com.amazonaws.connectors.timestream.query">PredicateBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html#Builder--">Builder()</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html#Builder-java.lang.String-">Builder(String)</a></span> - Constructor for class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient.Builder</a></dt>
@@ -863,6 +869,10 @@
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a> - package com.amazonaws.connectors.athena.jdbc.splits</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a> - package com.amazonaws.connectors.timestream</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/query/package-summary.html">com.amazonaws.connectors.timestream.query</a> - package com.amazonaws.connectors.timestream.query</dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html#compare-org.apache.arrow.vector.complex.reader.FieldReader-java.lang.Object-java.lang.Object-">compare(FieldReader, Object, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html" title="class in com.amazonaws.athena.connector.lambda.data">ArrowTypeComparator</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html#compare-org.apache.arrow.vector.types.pojo.ArrowType-java.lang.Object-java.lang.Object-">compare(ArrowType, Object, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/ArrowTypeComparator.html" title="class in com.amazonaws.athena.connector.lambda.data">ArrowTypeComparator</a></dt>
@@ -1069,6 +1079,8 @@
 <dd>
 <div class="block">Creates an ArrowBuf and registers it for later clean up if the ArrowBuff isn't explicitly closed by the caller.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/QueryFactory.html#createDescribeTableQueryBuilder--">createDescribeTableQueryBuilder()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.connectors.timestream.query">QueryFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html#createJdbcMetadataHandlerMap-java.util.Map-">createJdbcMetadataHandlerMap(Map&lt;String, String&gt;)</a></span> - Static method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JDBCUtil</a></dt>
 <dd>
 <div class="block">Creates a map of Catalog to respective metadata handler to be used by Multiplexer.</div>
@@ -1081,6 +1093,8 @@
 <dd>
 <div class="block">Creates a nullable Marker.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/QueryFactory.html#createSelectQueryBuilder-java.lang.String-">createSelectQueryBuilder(String)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.connectors.timestream.query">QueryFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html#createValueProjection-org.apache.arrow.vector.types.Types.MinorType-">createValueProjection(Types.MinorType)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ArrowValueProjectorImpl</a></dt>
 <dd>
 <div class="block">Concrete implementation of ArrowValueProjectorImpl should invoke thie method to get the Projection instance.</div>
@@ -1246,6 +1260,12 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html#DelegatingSerializer-java.lang.Class-java.util.Set-">DelegatingSerializer(Class&lt;T&gt;, Set&lt;TypedSerializer&lt;T&gt;&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query"><span class="typeNameLink">DescribeTableQueryBuilder</span></a> - Class in <a href="com/amazonaws/connectors/timestream/query/package-summary.html">com.amazonaws.connectors.timestream.query</a></dt>
+<dd>
+<div class="block">Used to build a Timestream query which can describe a table in a specific database.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html#DescribeTableQueryBuilder-org.stringtemplate.v4.ST-">DescribeTableQueryBuilder(ST)</a></span> - Constructor for class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html#deserialize-byte:A-">deserialize(byte[])</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">RecordBatchSerDe</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -1397,6 +1417,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.postgresql.<a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits(BlockAllocator, GetSplitsRequest)</a></span> - Method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler</a></dt>
 <dd>
 <div class="block">Retrieves a static Table schema for the example table.</div>
@@ -1464,6 +1486,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.<a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable(BlockAllocator, GetTableRequest)</a></span> - Method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#doGetTableLayout-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-">doGetTableLayout(BlockAllocator, GetTableLayoutRequest)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></dt>
 <dd>
@@ -1536,6 +1560,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html#doListSchemaNames-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest-">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.<a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doListSchemaNames-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest-">doListSchemaNames(BlockAllocator, ListSchemasRequest)</a></span> - Method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler</a></dt>
 <dd>
 <div class="block">Returns a static list of TableNames.</div>
@@ -1595,6 +1621,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.<a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc">MultiplexingJdbcMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables(BlockAllocator, ListTablesRequest)</a></span> - Method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#doPing-com.amazonaws.athena.connector.lambda.request.PingRequest-">doPing(PingRequest)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></dt>
 <dd>
@@ -1895,6 +1923,8 @@
 </dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/domain/predicate/EquatableValueSet.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">EquatableValueSet.Builder</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/domain/predicate/package-summary.html">com.amazonaws.athena.connector.lambda.domain.predicate</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.html#ESCAPE_CHAR">ESCAPE_CHAR</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#escapeNamePattern-java.lang.String-java.lang.String-">escapeNamePattern(String, String)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html#exactly-com.amazonaws.athena.connector.lambda.data.BlockAllocator-org.apache.arrow.vector.types.pojo.ArrowType-java.lang.Object-">exactly(BlockAllocator, ArrowType, Object)</a></span> - Static method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a></dt>
@@ -2175,6 +2205,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/ValueType.html#fromId-java.lang.String-">fromId(String)</a></span> - Static method in enum com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/ValueType.html" title="enum in com.amazonaws.athena.connectors.redis">ValueType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamType.html#fromId-java.lang.String-">fromId(String)</a></span> - Static method in enum com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.connectors.timestream">TimestreamType</a></dt>
+<dd>&nbsp;</dd>
 </dl>
 <a name="I:G">
 <!--   -->
@@ -2316,6 +2348,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html#getColumnType--">getColumnType()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/SplitInfo.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">SplitInfo</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#getConjucts--">getConjucts()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html#getConnection-com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider-">getConnection(JdbcCredentialProvider)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.html#getConnection-com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider-">getConnection(JdbcCredentialProvider)</a></span> - Method in interface com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.connectors.athena.jdbc.connection">JdbcConnectionFactory</a></dt>
@@ -2371,6 +2405,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/StaticJdbcCredentialProvider.html#getCredential--">getCredential()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/StaticJdbcCredentialProvider.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">StaticJdbcCredentialProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider--">getCredentialProvider()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html#getDatabaseName--">getDatabaseName()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#getDatabaseName--">getDatabaseName()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html#getDateTimeFormat-java.lang.String-">getDateTimeFormat(String)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBRecordMetadata.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBRecordMetadata</a></dt>
 <dd>
@@ -2496,6 +2534,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/ValueType.html#getId--">getId()</a></span> - Method in enum com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/ValueType.html" title="enum in com.amazonaws.athena.connectors.redis">ValueType</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamType.html#getId--">getId()</a></span> - Method in enum com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.connectors.timestream">TimestreamType</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html#getIdentity--">getIdentity()</a></span> - Method in class com.amazonaws.athena.connector.lambda.request.<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a></dt>
 <dd>
 <div class="block">Returns the identity of the caller.</div>
@@ -2565,6 +2605,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#getMethodName--">getMethodName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#getMethodName--">getMethodName()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamType.html#getMinorType--">getMinorType()</a></span> - Method in enum com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.connectors.timestream">TimestreamType</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricSamplesTable.html#getName--">getName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricSamplesTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">MetricSamplesTable</a></dt>
 <dd>&nbsp;</dd>
@@ -2762,6 +2804,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.postgresql.<a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions(BlockWriter, GetTableLayoutRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
+<dd>
+<div class="block">Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getPartitionSchema-java.lang.String-">getPartitionSchema(String)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcMetadataHandler</a></dt>
 <dd>
 <div class="block">Delegates creation of partition schema to database type implementation.</div>
@@ -2783,6 +2829,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html#getPos--">getPos()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.glue.<a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueTypeParser.Token.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue">GlueTypeParser.Token</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html#getPrincipalTags--">getPrincipalTags()</a></span> - Method in class com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#getProjection--">getProjection()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/Split.html#getProperties--">getProperties()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a></dt>
 <dd>
@@ -3222,6 +3270,10 @@
 <dd>
 <div class="block">The fully qualified name of the table represented by this TableProvider.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html#getTableName--">getTableName()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#getTableName--">getTableName()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/aws/cmdb/TableProviderFactory.html#getTableProviders--">getTableProviders()</a></span> - Method in class com.amazonaws.athena.connectors.aws.cmdb.<a href="com/amazonaws/athena/connectors/aws/cmdb/TableProviderFactory.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">TableProviderFactory</a></dt>
 <dd>
 <div class="block">Provides access to the mapping of loaded TableProviders by their fully qualified table names.</div>
@@ -3346,6 +3398,8 @@
 <dd>
 <div class="block">Provides access to the Apache Arrow Vector Schema when direct access to Apache Arrow is required.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#getViewText--">getViewText()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/metadata/glue/GlueFieldLexer.html" title="class in com.amazonaws.athena.connector.lambda.metadata.glue"><span class="typeNameLink">GlueFieldLexer</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/metadata/glue/package-summary.html">com.amazonaws.athena.connector.lambda.metadata.glue</a></dt>
 <dd>
 <div class="block">Extracts field definitions, including complex types like List and STRUCT, from AWS Glue Data Catalog's
@@ -4034,6 +4088,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#makeEncryptionKey--">makeEncryptionKey()</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">MetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamSchemaUtils.html#makeField-java.lang.String-java.lang.String-">makeField(String, String)</a></span> - Static method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamSchemaUtils.html" title="class in com.amazonaws.connectors.timestream">TimestreamSchemaUtils</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricUtils.html#makeGetMetricDataRequest-com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest-">makeGetMetricDataRequest(ReadRecordsRequest)</a></span> - Static method in class com.amazonaws.athena.connectors.cloudwatch.metrics.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/MetricUtils.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics">MetricUtils</a></dt>
 <dd>
 <div class="block">Creates a Cloudwatch Metrics sample data request from the provided inputs</div>
@@ -4499,6 +4555,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlRecordHandler.html#PostGreSqlRecordHandler-com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig-">PostGreSqlRecordHandler(DatabaseConnectionConfig)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.postgresql.<a href="com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlRecordHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlRecordHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/query/PredicateBuilder.html" title="class in com.amazonaws.connectors.timestream.query"><span class="typeNameLink">PredicateBuilder</span></a> - Class in <a href="com/amazonaws/connectors/timestream/query/package-summary.html">com.amazonaws.connectors.timestream.query</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.manager"><span class="typeNameLink">PreparedStatementBuilder</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/manager/package-summary.html">com.amazonaws.connectors.athena.jdbc.manager</a></dt>
 <dd>
 <div class="block">Encapsulates prepared statement string and parameters.</div>
@@ -4541,6 +4599,10 @@
 <h2 class="title">Q</h2>
 <dl>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#QUERY_PARTITION_TYPE">QUERY_PARTITION_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.connectors.timestream.query"><span class="typeNameLink">QueryFactory</span></a> - Class in <a href="com/amazonaws/connectors/timestream/query/package-summary.html">com.amazonaws.connectors.timestream.query</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/QueryFactory.html#QueryFactory--">QueryFactory()</a></span> - Constructor for class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.connectors.timestream.query">QueryFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda"><span class="typeNameLink">QueryStatusChecker</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a></dt>
 <dd>
@@ -4734,6 +4796,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcRecordHandler.html#readWithConstraint-com.amazonaws.athena.connector.lambda.data.BlockSpiller-com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.<a href="com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcRecordHandler.html" title="class in com.amazonaws.connectors.athena.jdbc">MultiplexingJdbcRecordHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html#readWithConstraint-com.amazonaws.athena.connector.lambda.data.BlockSpiller-com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)</a></span> - Method in class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamRecordHandler</a></dt>
+<dd>
+<div class="block">Scans TimeStream.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/RecordBatchSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">RecordBatchSerDe</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>
@@ -4991,6 +5057,13 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#SEGMENT_COUNT_METADATA">SEGMENT_COUNT_METADATA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#SEGMENT_ID_PROPERTY">SEGMENT_ID_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query"><span class="typeNameLink">SelectQueryBuilder</span></a> - Class in <a href="com/amazonaws/connectors/timestream/query/package-summary.html">com.amazonaws.connectors.timestream.query</a></dt>
+<dd>
+<div class="block">Used to build a Timestream query which can select data from a table in a specific database directly or via a
+ simplified view.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#SelectQueryBuilder-org.stringtemplate.v4.ST-java.lang.String-">SelectQueryBuilder(ST, String)</a></span> - Constructor for class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html#SERDE">SERDE</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.examples.<a href="com/amazonaws/athena/connector/lambda/examples/ExampleMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.examples">ExampleMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -5294,6 +5367,26 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#TIMESTAMP_FIELD">TIMESTAMP_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/TimestreamCompositeHandler.html" title="class in com.amazonaws.connectors.timestream"><span class="typeNameLink">TimestreamCompositeHandler</span></a> - Class in <a href="com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamCompositeHandler.html#TimestreamCompositeHandler--">TimestreamCompositeHandler()</a></span> - Constructor for class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamCompositeHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamCompositeHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream"><span class="typeNameLink">TimestreamMetadataHandler</span></a> - Class in <a href="com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#TimestreamMetadataHandler--">TimestreamMetadataHandler()</a></span> - Constructor for class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#TimestreamMetadataHandler-com.amazonaws.services.timestreamquery.AmazonTimestreamQuery-com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-java.lang.String-java.lang.String-">TimestreamMetadataHandler(AmazonTimestreamQuery, AmazonTimestreamWrite, AWSGlue, EncryptionKeyFactory, AWSSecretsManager, AmazonAthena, String, String)</a></span> - Constructor for class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html" title="class in com.amazonaws.connectors.timestream"><span class="typeNameLink">TimestreamRecordHandler</span></a> - Class in <a href="com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html#TimestreamRecordHandler--">TimestreamRecordHandler()</a></span> - Constructor for class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamRecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html#TimestreamRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.services.timestreamquery.AmazonTimestreamQuery-">TimestreamRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, AmazonTimestreamQuery)</a></span> - Constructor for class com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamRecordHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamRecordHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/TimestreamSchemaUtils.html" title="class in com.amazonaws.connectors.timestream"><span class="typeNameLink">TimestreamSchemaUtils</span></a> - Class in <a href="com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.connectors.timestream"><span class="typeNameLink">TimestreamType</span></a> - Enum in <a href="com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/TimeZoneKey.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">TimeZoneKey</span></a> - Class in <a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a></dt>
 <dd>
 <div class="block">Class for representing timezone to be used in encoding datetime value and timezone value to a single long
@@ -5586,6 +5679,10 @@
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamType.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.connectors.timestream">TimestreamType</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this type with the specified name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SupportedTypes.html#values--">values()</a></span> - Static method in enum com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SupportedTypes.html" title="enum in com.amazonaws.athena.connector.lambda.data">SupportedTypes</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
@@ -5641,6 +5738,11 @@ the order they are declared.</div>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/TimestreamType.html#values--">values()</a></span> - Static method in enum com.amazonaws.connectors.timestream.<a href="com/amazonaws/connectors/timestream/TimestreamType.html" title="enum in com.amazonaws.connectors.timestream">TimestreamType</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum type, in
+the order they are declared.</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">ValueSet</span></a> - Interface in <a href="com/amazonaws/athena/connector/lambda/domain/predicate/package-summary.html">com.amazonaws.athena.connector.lambda.domain.predicate</a></dt>
 <dd>
 <div class="block">Defines a construct that can be used to describe a set of values without containing all the individual
@@ -5682,6 +5784,8 @@ the order they are declared.</div>
 <dd>
 <div class="block">Vends <code>ObjectMapper</code> instances that correspond to SerDe versions.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html#VIEW_METADATA_FIELD">VIEW_METADATA_FIELD</a></span> - Static variable in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/GlueMetadataHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">GlueMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/VpcTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2"><span class="typeNameLink">VpcTableProvider</span></a> - Class in <a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/package-summary.html">com.amazonaws.athena.connectors.aws.cmdb.tables.ec2</a></dt>
 <dd>
 <div class="block">Maps your VPCs to a table.</div>
@@ -5696,6 +5800,8 @@ the order they are declared.</div>
 <dl>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html#withBucket-java.lang.String-">withBucket(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation.Builder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#withConjucts-com.amazonaws.athena.connector.lambda.domain.predicate.Constraints-">withConjucts(Constraints)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html#withConnection-java.sql.Connection-">withConnection(Connection)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">PreparedStatementBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html#withCredentials-com.amazonaws.auth.AWSCredentialsProvider-">withCredentials(AWSCredentialsProvider)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient.Builder</a></dt>
@@ -5706,6 +5812,10 @@ the order they are declared.</div>
 <dd>
 <div class="block">Injects the client builder with username/password credentials.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html#withDatabaseName-java.lang.String-">withDatabaseName(String)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#withDatabaseName-java.lang.String-">withDatabaseName(String)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html#withDecrease-double-">withDecrease(double)</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.Builder.html#withEncryptionKey-com.amazonaws.athena.connector.lambda.security.EncryptionKey-">withEncryptionKey(EncryptionKey)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SpillConfig.Builder.html" title="class in com.amazonaws.athena.connector.lambda.data">SpillConfig.Builder</a></dt>
@@ -5740,6 +5850,8 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html#withPrefix-java.lang.String-">withPrefix(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation.Builder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#withProjection-org.apache.arrow.vector.types.pojo.Schema-">withProjection(Schema)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html#withQuery-java.lang.String-">withQuery(String)</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/PreparedStatementBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">PreparedStatementBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html#withQueryId-java.lang.String-">withQueryId(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation.Builder</a></dt>
@@ -5755,6 +5867,10 @@ the order they are declared.</div>
 <div class="block">Sets the optional SpillLocation this Split can write to.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html#withSplitId-java.lang.String-">withSplitId(String)</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.spill.<a href="com/amazonaws/athena/connector/lambda/domain/spill/S3SpillLocation.Builder.html" title="class in com.amazonaws.athena.connector.lambda.domain.spill">S3SpillLocation.Builder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html#withTablename-java.lang.String-">withTablename(String)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">DescribeTableQueryBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#withTableName-java.lang.String-">withTableName(String)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/S3BlockSpiller.html#write-com.amazonaws.athena.connector.lambda.data.Block-">write(Block)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/S3BlockSpiller.html" title="class in com.amazonaws.athena.connector.lambda.data">S3BlockSpiller</a></dt>
 <dd>

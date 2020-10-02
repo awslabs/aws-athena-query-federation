@@ -154,6 +154,10 @@
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.postgresql">com.amazonaws.connectors.athena.jdbc.postgresql</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.connectors.timestream">com.amazonaws.connectors.timestream</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
 </tbody>
 </table>
 </li>
@@ -570,6 +574,28 @@
 <td class="colLast"><span class="typeNameLabel">PostGreSqlMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;getTableLayoutRequest,
              <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.connectors.timestream">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a> in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
+             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
+             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>
+<div class="block">Our table doesn't support complex layouts or partitioning so we simply make this method a NoOp.</div>
+</td>
 </tr>
 </tbody>
 </table>

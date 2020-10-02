@@ -47,3 +47,5 @@ com.amazonaws.connectors.athena.jdbc.postgresql
 com.amazonaws.connectors.athena.jdbc.splits
 com.amazonaws.athena.connector.validation
 com.amazonaws.athena.connectors.udfs
+com.amazonaws.connectors.timestream
+com.amazonaws.connectors.timestream.query

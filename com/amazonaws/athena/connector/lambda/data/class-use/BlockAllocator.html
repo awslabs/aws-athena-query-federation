@@ -178,6 +178,10 @@
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.postgresql">com.amazonaws.connectors.athena.jdbc.postgresql</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.connectors.timestream">com.amazonaws.connectors.timestream</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
 </tbody>
 </table>
 </li>
@@ -1393,6 +1397,40 @@
 <td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
 <td class="colLast"><span class="typeNameLabel">PostGreSqlMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;getSplitsRequest)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.connectors.timestream">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a> in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doListSchemaNames-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest-">doListSchemaNames</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
+                 <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListTablesResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doListTables-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest-">doListTables</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListTablesRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListTablesRequest</a>&nbsp;request)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
