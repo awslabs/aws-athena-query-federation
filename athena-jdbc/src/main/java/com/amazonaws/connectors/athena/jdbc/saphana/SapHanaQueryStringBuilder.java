@@ -31,10 +31,10 @@ import java.util.List;
  *
  * SAPHANA provides named partitions which can be used in a FROM clause.
  */
-public class SAPHANAQueryStringBuilder
+public class SapHanaQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    SAPHANAQueryStringBuilder(final String quoteCharacters)
+    SapHanaQueryStringBuilder(final String quoteCharacters)
     {
         super(quoteCharacters);
     }
@@ -51,9 +51,9 @@ public class SAPHANAQueryStringBuilder
         }
         tableName.append(quote(table));
 
-        String partitionName = split.getProperty(SAPHANAMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
+        String partitionName = split.getProperty(SapHanaMetadataHandler.BLOCK_PARTITION_COLUMN_NAME);
 
-        if (SAPHANAMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
+        if (SapHanaMetadataHandler.ALL_PARTITIONS.equals(partitionName)) {
             // No partitions
             return String.format(" FROM %s ", tableName);
         }

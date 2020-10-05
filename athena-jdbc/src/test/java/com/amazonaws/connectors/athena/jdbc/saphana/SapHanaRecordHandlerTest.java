@@ -50,9 +50,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
-public class SAPHANARecordHandlerTest
+public class SapHanaRecordHandlerTest
 {
-    private SAPHANARecordHandler sapHanaRecordHandler;
+    private SapHanaRecordHandler sapHanaRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
@@ -69,11 +69,11 @@ public class SAPHANARecordHandlerTest
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new SAPHANAQueryStringBuilder("`");
+        jdbcSplitQueryBuilder = new SapHanaQueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog3", JdbcConnectionFactory.DatabaseEngine.SAPHANA,
                 "saphana://jdbc:saphana://hostname/user=A&password=B");
 
-        this.sapHanaRecordHandler = new SAPHANARecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.sapHanaRecordHandler = new SapHanaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
     }
 
     @Test

@@ -56,10 +56,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Handles metadata for SAPHANA. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
+ * Handles metadata for SapHana. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
  * information_schema.
  */
-public class SAPHANAMetadataHandler
+public class SapHanaMetadataHandler
         extends JdbcMetadataHandler
 {
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
@@ -67,7 +67,7 @@ public class SAPHANAMetadataHandler
     static final String BLOCK_PARTITION_COLUMN_NAME = "part_id";
     static final String ALL_PARTITIONS = "*";
     static final String PARTITION_COLUMN_NAME = "part_id";
-    private static final Logger LOGGER = LoggerFactory.getLogger(SAPHANAMetadataHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SapHanaMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000;
 
     /**
@@ -75,7 +75,7 @@ public class SAPHANAMetadataHandler
      *
      * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
      */
-    public SAPHANAMetadataHandler()
+    public SapHanaMetadataHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.SAPHANA));
     }
@@ -83,13 +83,13 @@ public class SAPHANAMetadataHandler
     /**
      * Used by Mux.
      */
-    public SAPHANAMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SapHanaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
     }
 
     @VisibleForTesting
-    protected SAPHANAMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
+    protected SapHanaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
             AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);

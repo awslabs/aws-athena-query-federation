@@ -23,8 +23,8 @@ import com.amazonaws.connectors.athena.jdbc.mysql.MySqlMetadataHandler;
 import com.amazonaws.connectors.athena.jdbc.mysql.MySqlRecordHandler;
 import com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler;
-import com.amazonaws.connectors.athena.jdbc.saphana.SAPHANAMetadataHandler;
-import com.amazonaws.connectors.athena.jdbc.saphana.SAPHANARecordHandler;
+import com.amazonaws.connectors.athena.jdbc.saphana.SapHanaMetadataHandler;
+import com.amazonaws.connectors.athena.jdbc.saphana.SapHanaRecordHandler;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,7 +53,7 @@ public class JDBCUtilTest
         Assert.assertEquals(5, catalogs.size());
         Assert.assertEquals(catalogs.get("testCatalog1").getClass(), MySqlMetadataHandler.class);
         Assert.assertEquals(catalogs.get("testCatalog2").getClass(), PostGreSqlMetadataHandler.class);
-        Assert.assertEquals(catalogs.get("testCatalog3").getClass(), SAPHANAMetadataHandler.class);
+        Assert.assertEquals(catalogs.get("testCatalog3").getClass(), SapHanaMetadataHandler.class);
         Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), PostGreSqlMetadataHandler.class);
     }
 
@@ -87,7 +87,7 @@ public class JDBCUtilTest
 
         Assert.assertEquals(catalogs.get("testCatalog1").getClass(), MySqlRecordHandler.class);
         Assert.assertEquals(catalogs.get("testCatalog2").getClass(), PostGreSqlRecordHandler.class);
-        Assert.assertEquals(catalogs.get("testCatalog3").getClass(), SAPHANARecordHandler.class);
+        Assert.assertEquals(catalogs.get("testCatalog3").getClass(), SapHanaRecordHandler.class);
         Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), PostGreSqlRecordHandler.class);
     }
 
