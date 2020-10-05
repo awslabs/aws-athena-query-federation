@@ -40,6 +40,9 @@ public class SapHanaQueryStringBuilder
     }
 
     @Override
+    /**
+    * Build from clause of SQL Query based on partition name 
+    */
     protected String getFromClauseWithSplit(String catalog, String schema, String table, Split split)
     {
         StringBuilder tableName = new StringBuilder();
