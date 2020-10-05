@@ -24,15 +24,15 @@ import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
- * Metadata and Data. In this case we just compose {@link SAPHANAMetadataHandler} and {@link SAPHANARecordHandler}.
+ * Metadata and Data. In this case we just compose {@link SapHanaMetadataHandler} and {@link SapHanaRecordHandler}.
  *
  * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
  */
-public class SAPHANACompositeHandler
+public class SapHanaCompositeHandler
         extends CompositeHandler
 {
-    public SAPHANACompositeHandler()
+    public SapHanaCompositeHandler()
     {
-        super(new SAPHANAMetadataHandler(), new SAPHANARecordHandler());
+        super(new SapHanaMetadataHandler(), new SapHanaRecordHandler());
     }
 }

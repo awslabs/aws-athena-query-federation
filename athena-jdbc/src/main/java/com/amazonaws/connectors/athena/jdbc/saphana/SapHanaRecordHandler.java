@@ -47,10 +47,10 @@ import java.sql.SQLException;
 /**
  * Data handler, user must have necessary permissions to read from necessary tables.
  */
-public class SAPHANARecordHandler
+public class SapHanaRecordHandler
         extends JdbcRecordHandler
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SAPHANARecordHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SapHanaRecordHandler.class);
 
     private static final String SAPHANA_QUOTE_CHARACTER = "\"";
 
@@ -61,19 +61,19 @@ public class SAPHANARecordHandler
      *
      * Recommend using {@link com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler} instead.
      */
-    public SAPHANARecordHandler()
+    public SapHanaRecordHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.SAPHANA));
     }
 
-    public SAPHANARecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SapHanaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, SAPHANAMetadataHandler.JDBC_PROPERTIES), new SAPHANAQueryStringBuilder(SAPHANA_QUOTE_CHARACTER));
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, SapHanaMetadataHandler.JDBC_PROPERTIES), new SapHanaQueryStringBuilder(SAPHANA_QUOTE_CHARACTER));
     }
 
     @VisibleForTesting
-    SAPHANARecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
+    SapHanaRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
             final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
     {
         super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
