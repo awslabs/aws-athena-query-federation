@@ -189,8 +189,9 @@ public class ElasticsearchMetadataHandler
             AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 for (String index : client.getAliases()) {
-                    // Add all Indices except for kibana.
-                    if (index.contains("kibana")) {
+                    // Ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
+                    if (index.startsWith(".")) {
+                        logger.info("Ignoring system index: {}", index);
                         continue;
                     }
 
