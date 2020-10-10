@@ -79,6 +79,7 @@ public abstract class JdbcMetadataHandler
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final SplitterFactory splitterFactory = new SplitterFactory();
+    private static final String HanaDatabaseProductName = "HDB";
 
     /**
      * Used only by Multiplexing handler. All calls will be delegated to respective database handler.
@@ -274,7 +275,9 @@ public abstract class JdbcMetadataHandler
         String table = escapeNamePattern(tableHandle.getTableName(), escape);
         String databaseproductname = metadata.getDatabaseProductName();
         
-        if (databaseproductname != null && !databaseproductname.isEmpty() && databaseproductname.equals("HDB")) {
+        /* HANA Database expects tablename and schemaname in uppercase */
+        
+        if (databaseproductname != null && !databaseproductname.isEmpty() && databaseproductname.equals(HanaDatabaseProductName)) {
                    schema = schema.toUpperCase();
                    table = table.toUpperCase();
         }
