@@ -46,7 +46,6 @@ import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -105,7 +104,6 @@ public class NeptuneRecordHandler extends RecordHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing
      *                           work for a query that has already terminated
      * @throws Exception
-     * @throws IOException
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because
      *       this will limit the BlockSpiller's ability to control Block size. The
      *       resulting increase in Block size may cause failures and reduced
@@ -163,13 +161,15 @@ public class NeptuneRecordHandler extends RecordHandler
         }
         catch (final ClassCastException e) {
             logger.info("readWithContraint: Exception occured " + e);
-
-            throw new Exception("Error occurred while fetching records, please refer to cloudwatch logs for more details");
+            throw new RuntimeException("Error occurred while fetching records, please refer to cloudwatch logs for more details");
         }
-        catch (final Exception e) {
+        catch (final IllegalArgumentException e) { 
             logger.info("readWithContraint: Exception occured " + e);
-
-            throw new Exception("Error occurred while fetching records, please refer to cloudwatch logs for more details");
+            throw new RuntimeException("Error occurred while fetching records, please refer to cloudwatch logs for more details");
+        }
+        catch (final RuntimeException e) {
+            logger.info("readWithContraint: Exception occured " + e);
+            throw e;
         } 
         finally {
             if (client != null) {
