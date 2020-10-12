@@ -21,14 +21,12 @@ Parameters:
     Description: 'The Neptune port'
     Type: String
     Default: '8182'
-#    AllowedPattern: ^[a-z0-9-_]{1,64}$
   NeptuneClusterResourceID:
     Description: 'To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.'
     Type: String
   GlueDatabaseName:
     Description: 'Name of the Neptune cluster specific Glue Database that contains schemas of graph vertices'
     Type: String
-    Default: 'graph-database'
   AthenaCatalogName:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
@@ -54,10 +52,10 @@ Parameters:
     Default: 'false'
     Type: String
   SecurityGroupIds:
-    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup(s) that should be applied to the Lambda function to allow connectivity to Neptune cluster. (e.g. sg1,sg2,sg3)'
     Type: 'List<AWS::EC2::SecurityGroup::Id>'
   SubnetIds:
-    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Description: 'One or more Subnet IDs corresponding to the Subnet(s) that the Lambda function can use to access the Neptune cluster. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
 
 
@@ -70,7 +68,6 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
-#          data_bucket: !Ref DataBucket
           glue_database_name: !Ref GlueDatabaseName
           neptune_endpoint: !Ref NeptuneClusterEndpoint
           neptune_port: !Ref NeptunePort
