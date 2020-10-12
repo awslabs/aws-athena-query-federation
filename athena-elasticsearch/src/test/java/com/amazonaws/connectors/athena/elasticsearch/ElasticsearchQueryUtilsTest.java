@@ -124,7 +124,7 @@ public class ElasticsearchQueryUtilsTest
                         Range.equal(allocator, Types.MinorType.INT.getType(), 1996),
                         Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 2010)),
                 false));
-        String expectedPredicate = "(_exists_:year) AND year:((<1950) OR (>1955 AND <=1972) OR (>=2010) OR 1952 OR 1996)";
+        String expectedPredicate = "(_exists_:year) AND year:([* TO 1950} OR {1955 TO 1972] OR [2010 TO *] OR 1952 OR 1996)";
 
         // Get the actual predicate and compare to the expected one.
         QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraintsMap);
