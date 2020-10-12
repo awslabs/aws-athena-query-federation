@@ -45,7 +45,7 @@ public final class TypeRowWriter
         //Empty private constructor
     }
 
-    public static RowWriterBuilder writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field)
+    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field)
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
@@ -78,7 +78,7 @@ public final class TypeRowWriter
                             value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                            value.value = Float.parseFloat(objValues.get(0).toString());
+                            value.value = (Float) (objValues.get(0));
                         });
                 break;
 
@@ -88,12 +88,10 @@ public final class TypeRowWriter
                             value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                            value.value = Double.parseDouble(objValues.get(0).toString());
+                            value.value = (Double) (objValues.get(0));
                         });
 
                 break;
         }
-
-        return rowWriterBuilder;
     }
 }

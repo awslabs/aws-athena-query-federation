@@ -50,7 +50,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a
@@ -105,6 +104,7 @@ public class NeptuneRecordHandler extends RecordHandler
      *                           4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing
      *                           work for a query that has already terminated
+     * @throws Exception
      * @throws IOException
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because
      *       this will limit the BlockSpiller's ability to control Block size. The
@@ -113,13 +113,12 @@ public class NeptuneRecordHandler extends RecordHandler
      */
     @Override
     protected void readWithConstraint(final BlockSpiller spiller, final ReadRecordsRequest recordsRequest,
-            final QueryStatusChecker queryStatusChecker)
+            final QueryStatusChecker queryStatusChecker) throws Exception
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
         TableName tableName = recordsRequest.getTableName();
         String labelName = tableName.getTableName();
         long numRows = 0;
-        AtomicLong numResultRows = new AtomicLong(0);
         Client client = null;
         GraphTraversalSource graphTraversalSource = null;
 
@@ -146,27 +145,31 @@ public class NeptuneRecordHandler extends RecordHandler
             GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
 
             for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                builder = TypeRowWriter.writeRowTemplate(builder, nextField);
+                TypeRowWriter.writeRowTemplate(builder, nextField);
             }
 
             GeneratedRowWriter rowWriter = builder.build();
 
             while (graphTraversalFinal.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
-                try {
-                    spiller.writeRows((final Block block, final int rowNum) -> {
-                        final Map<Object, Object> obj = graphTraversalFinal.next();
-                        return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
-                    });
-                } 
-                catch (final Exception e) {
-                    logger.info("readWithContraint: Exception occured " + e);
-                }
+               
+                spiller.writeRows((final Block block, final int rowNum) -> {
+                    final Map<Object, Object> obj = graphTraversalFinal.next();
+                    return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
+                });
             }
-            logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
-        } 
+            
+            logger.info("readWithConstraint: numRows[{}]", numRows);
+        }
+        catch (final ClassCastException e) {
+            logger.info("readWithContraint: Exception occured " + e);
+
+            throw new Exception("Error occurred while fetching records, please refer to cloudwatch logs for more details");
+        }
         catch (final Exception e) {
             logger.info("readWithContraint: Exception occured " + e);
+
+            throw new Exception("Error occurred while fetching records, please refer to cloudwatch logs for more details");
         } 
         finally {
             if (client != null) {
