@@ -45,97 +45,87 @@ public final class GremlinQueryPreProcessor
     /**
      * Pick and Process pre-defined templates based on parameters to generate
      * gremlin query
-     * 
+     *
      * @param key      Query Condition Key
      * @param value    Query Condition Value
      * @param bound    Query Condition Value Range
      * @param operator Query Operator representing conditional operators e.g < ,
      *                 <=, >, >= , =
-     * 
      * @return A Gremlin Query Part equivalent to Contraint.
      */
-    public static GraphTraversal<Vertex, Vertex> generateGremlinQueryPart(GraphTraversal<Vertex, Vertex> traversal,
-            String key, String value, ArrowType type, Bound bound, Operator operator) 
-            {
+    public static GraphTraversal<Vertex, Vertex> generateGremlinQueryPart(GraphTraversal<Vertex, Vertex> traversal, String key, String value, ArrowType type, Bound bound, Operator operator) 
+    {
         Types.MinorType minorType = Types.getMinorTypeForArrowType(type);
 
         switch (minorType) {
+            case BIT:
+
+                traversal = updateTraversal(traversal, bound, operator, key, Boolean.parseBoolean(value));
+
             case INT:
-                if (operator.equals(Operator.GREATERTHAN)) {
-                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Integer.parseInt(value)))
-                            : traversal.has(key, P.gt(Integer.parseInt(value)));
-                }
 
-                if (operator.equals(Operator.LESSTHAN)) {
-                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(Integer.parseInt(value)))
-                            : traversal.has(key, P.lt(Integer.parseInt(value)));
-                }
+                traversal = updateTraversal(traversal, bound, operator, key, Integer.parseInt(value));
 
-                if (operator.equals(Operator.EQUALTO)) {
-                    traversal = traversal.has(key, P.eq(Integer.parseInt(value)));
-                }
+                break;
 
-                if (operator.equals(Operator.NOTEQUALTO)) {
-                    traversal = traversal.has(key, P.neq(Integer.parseInt(value)));
-                }
+            case BIGINT:
+
+                traversal = updateTraversal(traversal, bound, operator, key, Long.parseLong(value));
 
                 break;
 
             case FLOAT4:
 
-                if (operator.equals(Operator.GREATERTHAN)) {
-                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Float.parseFloat(value)))
-                            : traversal.has(key, P.gt(Float.parseFloat(value)));
-                }
-
-                if (operator.equals(Operator.LESSTHAN)) {
-                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(Float.parseFloat(value)))
-                            : traversal.has(key, P.lt(Float.parseFloat(value)));
-                }
-
-                if (operator.equals(Operator.EQUALTO)) {
-                    traversal = traversal.has(key, P.eq(Float.parseFloat(value)));
-                }
-
-                if (operator.equals(Operator.NOTEQUALTO)) {
-                    traversal = traversal.has(key, P.neq(Float.parseFloat(value)));
-                }
+                traversal = updateTraversal(traversal, bound, operator, key, Float.parseFloat(value));
 
                 break;
 
             case FLOAT8:
 
-                if (operator.equals(Operator.GREATERTHAN)) {
-                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(Double.parseDouble(value)))
-                            : traversal.has(key, P.gt(Double.parseDouble(value)));
-                }
-
-                if (operator.equals(Operator.LESSTHAN)) {
-                    traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(Double.parseDouble(value)))
-                            : traversal.has(key, P.lt(Double.parseDouble(value)));
-                }
-
-                if (operator.equals(Operator.EQUALTO)) {
-                    traversal = traversal.has(key, P.eq(Double.parseDouble(value)));
-                }
-
-                if (operator.equals(Operator.NOTEQUALTO)) {
-                    traversal = traversal.has(key, P.neq(Integer.parseInt(value)));
-                }
+                traversal = updateTraversal(traversal, bound, operator, key, Double.parseDouble(value));
 
                 break;
 
             case VARCHAR:
 
-                if (operator.equals(Operator.EQUALTO)) {
-                    traversal = traversal.has(key, P.eq(value));
-                }
-                if (operator.equals(Operator.NOTEQUALTO)) {
-                    traversal = traversal.has(key, P.neq(value));
-                }
+                traversal = updateTraversal(traversal, bound, operator, key, value);
 
                 break;
         }
+        return traversal;
+    }
+
+    /**
+     * Pick and Process pre-defined templates based on parameters to generate
+     * gremlin query for all Number Types
+     *
+     * @param key      Query Condition Key
+     * @param value    Query Condition Value
+     * @param bound    Query Condition Value Range
+     * @param operator Query Operator representing conditional operators e.g < ,
+     *                 <=, >, >= , =
+     * @return A Gremlin Query Part equivalent for all Types
+     */
+    private static GraphTraversal<Vertex, Vertex> updateTraversal(GraphTraversal<Vertex, Vertex> traversal, Bound bound, Operator operator, String key, Object value) 
+    {
+        if (operator.equals(Operator.GREATERTHAN)) {
+            traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, value)
+                    : traversal.has(key, P.gt(value));
+        }
+
+        if (operator.equals(Operator.LESSTHAN)) {
+            traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.lte(value))
+                    : traversal.has(key, P.lt(value));
+        }
+
+        if (operator.equals(Operator.EQUALTO)) {
+            traversal = traversal.has(key, P.eq(value));
+        }
+
+        if (operator.equals(Operator.NOTEQUALTO)) {
+            traversal = traversal.has(key, P.neq(value));
+        }
+
         return traversal;
     }
 }

@@ -19,28 +19,32 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import java.util.ArrayList;
+import java.util.Map;
+
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-
-import java.util.ArrayList;
-import java.util.Map;
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
 public final class TypeRowWriter
 {
-    private TypeRowWriter() 
+    private TypeRowWriter()
     {
         //Empty private constructor
     }
@@ -51,6 +55,18 @@ public final class TypeRowWriter
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
 
         switch (minorType) {
+            case BIT:
+                rowWriterBuilder.withExtractor(field.getName(),
+                        (BitExtractor) (Object context, NullableBitHolder value) -> {
+                            value.isSet = 1;
+                            Map<Object, Object> obj = (Map<Object, Object>) context;
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+
+                            Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
+                            value.value = booleanValue ? 1 : 0;
+                        });
+                break;
+
             case VARCHAR:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
@@ -71,6 +87,17 @@ public final class TypeRowWriter
                             value.value = Integer.parseInt(objValues.get(0).toString());
                         });
                 break;
+
+            case BIGINT:
+                rowWriterBuilder.withExtractor(field.getName(),
+                    (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
+                        value.isSet = 1;
+                        Map<Object, Object> obj = (Map<Object, Object>) context;
+                        ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+
+                        value.value = Long.parseLong(objValues.get(0).toString());
+                    });
+            break;
 
             case FLOAT4:
                 rowWriterBuilder.withExtractor(field.getName(),

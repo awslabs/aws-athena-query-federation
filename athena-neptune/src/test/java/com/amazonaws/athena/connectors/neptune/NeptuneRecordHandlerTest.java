@@ -104,7 +104,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 logger.info("{}: enter", testName.getMethodName());
 
                 schemaForRead = SchemaBuilder.newBuilder().addIntField("property1").addStringField("property2")
-                                .addFloat8Field("property3").addStringField("property4").build();
+                                .addFloat8Field("property3").addBitField("property4").addBigIntField("property5").build();
 
                 allocator = new BlockAllocatorImpl();
                 amazonS3 = mock(AmazonS3.class);
@@ -144,19 +144,22 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex1.property("property1", 10);
                 vertex1.property("property2", "string1");
                 vertex1.property("property3", 12.4);
-                vertex1.property("property4", "false");
+                vertex1.property("property4", true);
+                vertex1.property("property5", 12379878123l);
 
                 Vertex vertex2 = tinkerGraph.addVertex(T.label, "default");
                 vertex2.property("property1", 5);
                 vertex2.property("property2", "string2");
                 vertex2.property("property3", 20.4);
-                vertex2.property("property4", "false");
+                vertex2.property("property4", true);
+                vertex2.property("property5", 12379878123l);
 
                 Vertex vertex3 = tinkerGraph.addVertex(T.label, "default");
                 vertex3.property("property1", 9);
                 vertex3.property("property2", "string3");
                 vertex3.property("property3", 15.4);
-                vertex3.property("property4", "false");
+                vertex3.property("property4", true);
+                vertex3.property("property5", 12379878123l);
 
                 GraphTraversal<Vertex, Vertex> traversal = (GraphTraversal<Vertex, Vertex>) tinkerGraph.traversal().V();
                 when(graphTraversalSource.V()).thenReturn(traversal);
