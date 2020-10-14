@@ -62,6 +62,8 @@ public final class GremlinQueryPreProcessor
 
                 traversal = updateTraversal(traversal, bound, operator, key, Boolean.parseBoolean(value));
 
+                break;
+
             case INT:
 
                 traversal = updateTraversal(traversal, bound, operator, key, Integer.parseInt(value));
