@@ -19,6 +19,15 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
@@ -29,17 +38,20 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
-
+import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-
+import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
@@ -48,32 +60,25 @@ import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSo
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
-
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
-
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.any;
 
 @RunWith(MockitoJUnitRunner.class)
 public class NeptuneRecordHandlerTest extends TestBase {
@@ -86,6 +91,8 @@ public class NeptuneRecordHandlerTest extends TestBase {
         private AWSSecretsManager awsSecretsManager;
         private AmazonAthena athena;
         private S3BlockSpillReader spillReader;
+        private EncryptionKeyFactory keyFactory = new LocalKeyFactory();
+        private List<ByteHolder> mockS3Storage = new ArrayList<>();
 
         @Mock
         private NeptuneConnection neptuneConnection;
@@ -104,7 +111,8 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 logger.info("{}: enter", testName.getMethodName());
 
                 schemaForRead = SchemaBuilder.newBuilder().addIntField("property1").addStringField("property2")
-                                .addFloat8Field("property3").addBitField("property4").addBigIntField("property5").build();
+                                .addFloat8Field("property3").addBitField("property4").addBigIntField("property5")
+                                .build();
 
                 allocator = new BlockAllocatorImpl();
                 amazonS3 = mock(AmazonS3.class);
@@ -112,14 +120,30 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 athena = mock(AmazonAthena.class);
 
                 when(amazonS3.doesObjectExist(anyString(), anyString())).thenReturn(true);
-                when(amazonS3.getObject(anyString(), anyString())).thenAnswer(new Answer<Object>() {
-                        @Override
-                        public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                                S3Object mockObject = mock(S3Object.class);
-                                when(mockObject.getObjectContent()).thenReturn(new S3ObjectInputStream(
-                                                new ByteArrayInputStream(getFakeObject()), null));
-                                return mockObject;
+
+                when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
+                                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                                        InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                                        ByteHolder byteHolder = new ByteHolder();
+                                        byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
+                                        synchronized (mockS3Storage) {
+                                                mockS3Storage.add(byteHolder);
+                                                logger.info("puObject: total size " + mockS3Storage.size());
+                                        }
+                                        return mock(PutObjectResult.class);
+                                });
+
+                when(amazonS3.getObject(anyString(), anyString())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+                        S3Object mockObject = mock(S3Object.class);
+                        ByteHolder byteHolder;
+                        synchronized (mockS3Storage) {
+                                byteHolder = mockS3Storage.get(0);
+                                mockS3Storage.remove(0);
+                                logger.info("getObject: total size " + mockS3Storage.size());
                         }
+                        when(mockObject.getObjectContent()).thenReturn(
+                                        new S3ObjectInputStream(new ByteArrayInputStream(byteHolder.getBytes()), null));
+                        return mockObject;
                 });
 
                 handler = new NeptuneRecordHandler(amazonS3, awsSecretsManager, athena, neptuneConnection);
@@ -186,6 +210,11 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
                 constraintsMap2.put("property3", SortedRangeSet
                                 .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
+                constraintsMap2.put("property4",
+                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.BIT.getType(), 1)));
+                constraintsMap2.put("property5",
+                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
+
                 invokeAndAssert(constraintsMap2, 2);
 
                 // String comparision
@@ -245,8 +274,9 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 buildGraphTraversal();
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
-                                schemaForRead, Split.newBuilder(splitLoc, null).build(),
-                                new Constraints(constraintsMap), 1L, 0L);
+                                schemaForRead, Split.newBuilder(splitLoc, keyFactory.create()).build(),
+                                new Constraints(constraintsMap), 1_500_000L, // ~1.5MB so we should see some spill
+                                0L);
 
                 RecordResponse rawResponse = handler.doReadRecords(allocator, request);
                 assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
@@ -257,25 +287,29 @@ public class NeptuneRecordHandlerTest extends TestBase {
                         assertTrue(response.getNumberBlocks() == 1);
 
                         int blockNum = 0;
-                        // for (SpillLocation next : response.getRemoteBlocks()) {
-                        // S3SpillLocation spillLocation = (S3SpillLocation) next;
-                        // try (Block block = spillReader.read(spillLocation,
-                        // response.getEncryptionKey(),
-                        // response.getSchema())) {
-                        // logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]",
-                        // blockNum++,
-                        // block.getRowCount());
+                        for (SpillLocation next : response.getRemoteBlocks()) {
+                                S3SpillLocation spillLocation = (S3SpillLocation) next;
+                                try (Block block = spillReader.read(spillLocation, response.getEncryptionKey(),
+                                                response.getSchema())) {
+                                        logger.info("doReadRecordsSpill: blockNum[{}] and recordCount[{}]", blockNum++,
+                                                        block.getRowCount());
 
-                        // logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
-                        // assertNotNull(BlockUtils.rowToString(block, 0));
-                        // }
-                        // }
+                                        logger.info("doReadRecordsSpill: {}", BlockUtils.rowToString(block, 0));
+                                        assertNotNull(BlockUtils.rowToString(block, 0));
+                                }
+                        }
                 }
-
         }
 
-        private byte[] getFakeObject() throws UnsupportedEncodingException {
-                StringBuilder sb = new StringBuilder();
-                return sb.toString().getBytes("UTF-8");
+        private class ByteHolder {
+                private byte[] bytes;
+
+                public void setBytes(byte[] bytes) {
+                        this.bytes = bytes;
+                }
+
+                public byte[] getBytes() {
+                        return bytes;
+                }
         }
 }
