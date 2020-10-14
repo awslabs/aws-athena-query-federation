@@ -244,7 +244,7 @@ public class DynamoDBMetadataHandlerTest
 
         assertThat(res.getTableName().getSchemaName(), equalTo(DEFAULT_SCHEMA));
         assertThat(res.getTableName().getTableName(), equalTo(TEST_TABLE));
-        assertThat(res.getSchema().getFields().size(), equalTo(10));
+        assertThat(res.getSchema().getFields().size(), equalTo(11));
     }
 
     @Test

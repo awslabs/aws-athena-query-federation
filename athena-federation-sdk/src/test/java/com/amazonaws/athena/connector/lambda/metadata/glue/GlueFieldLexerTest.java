@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,24 +34,12 @@ public class GlueFieldLexerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(GlueFieldLexerTest.class);
 
-    private static final String INPUT1 = "STRUCT <  street_address: STRUCT <    street_number: INT,    street_name: STRING,    street_type: STRING  >,  country: STRING,  postal_code: ARRAY<STRING>>";
-
-    private static final String INPUT2 = "ARRAY<STRING>";
-
-    private static final String INPUT3 = "INT";
-
-    private static final String INPUT4 = "ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING>>";
-
-    private static final String INPUT5 = "ARRAY<ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING, aliases:ARRAY<STRING>>>>";
-
-    private static final String INPUT6 = "STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>";
-
     @Test
     public void basicLexTest()
     {
         logger.info("basicLexTest: enter");
-
-        Field field = GlueFieldLexer.lex("testField", INPUT2);
+        String input = "ARRAY<STRING>";
+        Field field = GlueFieldLexer.lex("testField", input);
         assertEquals("testField", field.getName());
         assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(field.getChildren().get(0).getType()));
@@ -63,8 +51,8 @@ public class GlueFieldLexerTest
     public void baseLexTest()
     {
         logger.info("baseLexTest: enter");
-
-        Field field = GlueFieldLexer.lex("testField", INPUT3);
+        String input = "INT";
+        Field field = GlueFieldLexer.lex("testField", input);
         assertEquals("testField", field.getName());
         assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(field.getType()));
         assertEquals(0, field.getChildren().size());
@@ -77,7 +65,9 @@ public class GlueFieldLexerTest
     {
         logger.info("lexTest: enter");
 
-        Field field = GlueFieldLexer.lex("testField", INPUT1);
+        String input = "STRUCT <  street_address: STRUCT <    street_number: INT,    street_name: STRING,    street_type: STRING  >,  country: STRING,  postal_code: ARRAY<STRING>>";
+
+        Field field = GlueFieldLexer.lex("testField", input);
 
         logger.info("lexTest: {}", field);
         assertEquals("testField", field.getName());
@@ -117,7 +107,7 @@ public class GlueFieldLexerTest
     {
         logger.info("arrayOfStructLexComplexTest: enter");
 
-        Field field = GlueFieldLexer.lex("namelist", INPUT4);
+        Field field = GlueFieldLexer.lex("namelist", "ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING>>");
 
         logger.info("lexTest: {}", field);
 
@@ -141,7 +131,7 @@ public class GlueFieldLexerTest
     {
         logger.info("nestedArrayLexComplexTest: enter");
 
-        Field field = GlueFieldLexer.lex("namelist", INPUT5);
+        Field field = GlueFieldLexer.lex("namelist", "ARRAY<ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING, aliases:ARRAY<STRING>>>>");
 
         logger.info("lexTest: {}", field);
 
@@ -175,7 +165,7 @@ public class GlueFieldLexerTest
     {
         logger.info("multiArrayStructLexComplexTest: enter");
 
-        Field field = GlueFieldLexer.lex("movie_info", INPUT6);
+        Field field = GlueFieldLexer.lex("movie_info", "STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>");
 
         logger.info("lexTest: {}", field);
 
@@ -192,5 +182,34 @@ public class GlueFieldLexerTest
         assertEquals("genre", array2.getChildren().get(0).getName());
 
         logger.info("multiArrayStructLexComplexTest: exit");
+    }
+
+    @Test
+    public void lexListOfStructTest()
+    {
+        logger.info("lexListOfStructTest: enter");
+
+        String input = "ARRAY<STRUCT<time:timestamp, measure_value\\:\\:double:double>>";
+
+        Field field = GlueFieldLexer.lex("testField", input);
+
+        logger.info("lexListOfStructTest: {}", field);
+        assertEquals("testField", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+        assertEquals(1, field.getChildren().size());
+
+        List<Field> level1 = field.getChildren();
+        assertEquals("testField", level1.get(0).getName());
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(level1.get(0).getType()));
+        assertEquals(2, level1.get(0).getChildren().size());
+
+        List<Field> level2 = level1.get(0).getChildren();
+        assertEquals("time", level2.get(0).getName());
+        assertEquals(Types.MinorType.DATEMILLI, Types.getMinorTypeForArrowType(level2.get(0).getType()));
+        assertEquals(0, level2.get(0).getChildren().size());
+        assertEquals("measure_value::double", level2.get(1).getName());
+        assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(level2.get(1).getType()));
+
+        logger.info("lexListOfStructTest: exit");
     }
 }

@@ -1,16 +1,16 @@
 Transform: AWS::Serverless-2016-10-31
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: VerticaAthenaConnector
+    Name: VerticaAthenaConnectorTest1
     Description: verticaAthenaConnector Description
     Author: default author
     SpdxLicenseId: Apache-2.0
-    LicenseUrl: s3://test-connector-west/79f6450d70768ae78237927184a16088
-    ReadmeUrl: s3://test-connector-west/533939444769601206788a18708cf135
+    LicenseUrl: s3://test-connector-west/f2192c03aa492ef2104991bb8be53aba
+    ReadmeUrl: s3://test-connector-west/e2a58254d669a0583916d6f5fa17aa61
     Labels:
     - athena-federation
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2021.3.3
+    SemanticVersion: 2021.24.30
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 Parameters:
   AthenaCatalogName:
@@ -18,19 +18,12 @@ Parameters:
       used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-    Default: v223
   SpillBucket:
     Description: The name of the bucket where this function can spill data.
     Type: String
-    Default: test-connector-west
-  DataBucket:
-    Description: The bucket where this tutorial's data lives.
-    Type: String
-    Default: test-connector-west
-  ExportBucket:
+  VerticaExportBucket:
     Description: The bucket where the Vertica Query results will be exported.
     Type: String
-    Default: test-connector-west
   SpillPrefix:
     Description: The prefix within SpillBucket where this function can spill data.
     Type: String
@@ -47,19 +40,16 @@ Parameters:
     Description: 'WARNING: If set to ''true'' encryption for spilled data is disabled.'
     Default: 'false'
     Type: String
+  SecretNameOrPrefix:
+    Description: The name or prefix of a set of names within Secrets Manager that
+      this function should have access to. (e.g. vertica-*).
+    Type: String
+    Default: vertica-*
   VerticaConnectionString:
     Description: The Vertica connection details to use by default if not catalog specific
       connection is defined and optionally using SecretsManager (e.g. ${secret_name}).
     Type: String
-    Default: jdbc:vertica://3.231.159.188:5433/VerticaDB?user=dbadmin&password=Akanksha123$
-  AWSSecretsManagerSecretName:
-    Description: Secret Name of AWS Access Keys in AWS Secrets Manager
-    Type: String
-    Default: MyAwsCreds
-  AWSRegion:
-    Description: Region Name
-    Type: String
-    Default: US-WEST-2
+    Default: jdbc:vertica://<host_name>:<port>/<database>?user=${vertica-username}&password=${vertica-password}
 Resources:
   ConnectorConfig:
     Type: AWS::Serverless::Function
@@ -72,22 +62,15 @@ Resources:
             Ref: SpillBucket
           spill_prefix:
             Ref: SpillPrefix
-          data_bucket:
-            Ref: DataBucket
           export_bucket:
-            Ref: ExportBucket
+            Ref: VerticaExportBucket
           default_vertica:
             Ref: VerticaConnectionString
-          aws_secret_name:
-            Ref: AWSSecretsManagerSecretName
-          aws_region:
-            Ref: AWSRegion
       FunctionName:
         Fn::Sub: ${AthenaCatalogName}
       Handler: com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler
-      CodeUri: s3://test-connector-west/496d996a421967398d17bafaf95f405a
-      Description: A guided example for writing and deploying your own federated Amazon
-        Athena connector for a custom source.
+      CodeUri: s3://test-connector-west/5a2e0bba3a18a7e1c5243a5c3736087a
+      Description: Amazon Athena Vertica Connector
       Runtime: java8
       Timeout:
         Ref: LambdaTimeout
@@ -98,14 +81,32 @@ Resources:
         - Action:
           - athena:GetQueryExecution
           - s3:ListAllMyBuckets
-          - lambda:InvokeFunction
-          - secretsmanager:GetSecretValue
           Effect: Allow
           Resource: '*'
         Version: '2012-10-17'
-      - S3CrudPolicy:
+      - Statement:
+        - Action:
+          - s3:ListBucket
+          Effect: Allow
+          Resource:
+          - Fn::Sub: arn:aws:s3:::${VerticaExportBucket}
+          - Fn::Sub: arn:aws:s3:::${SpillBucket}
+        Version: '2012-10-17'
+      - Statement:
+        - Action:
+          - secretsmanager:GetSecretValue
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}
+      - S3ReadPolicy:
           BucketName:
             Ref: SpillBucket
-      - S3CrudPolicy:
+      - S3WritePolicy:
           BucketName:
-            Ref: DataBucket
+            Ref: SpillBucket
+      - S3ReadPolicy:
+          BucketName:
+            Ref: VerticaExportBucket
+      - S3WritePolicy:
+          BucketName:
+            Ref: VerticaExportBucket

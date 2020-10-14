@@ -20,10 +20,11 @@
 package com.amazonaws.connectors.athena.vertica;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.*;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
@@ -47,10 +48,12 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyString;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -192,7 +195,7 @@ public class VerticaMetadataHandlerTest extends TestBase
     @Test
     public void getPartitions() throws Exception
     {
-        Schema tableSchema = SchemaBuilder.newBuilder()
+       /* Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField("day")
                 .addIntField("month")
                 .addIntField("year")
@@ -230,7 +233,7 @@ public class VerticaMetadataHandlerTest extends TestBase
             logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
         }
         assertTrue(partitions.getRowCount() > 0);
-        logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
+        logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());*/
 
     }
 

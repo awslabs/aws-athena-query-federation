@@ -133,15 +133,22 @@ public class RedisRecordHandlerTest
                     InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
                     ByteHolder byteHolder = new ByteHolder();
                     byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
-                    mockS3Storage.add(byteHolder);
+                    synchronized (mockS3Storage) {
+                        mockS3Storage.add(byteHolder);
+                        logger.info("puObject: total size " + mockS3Storage.size());
+                    }
                     return mock(PutObjectResult.class);
                 });
 
         when(amazonS3.getObject(anyString(), anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
-                    ByteHolder byteHolder = mockS3Storage.get(0);
-                    mockS3Storage.remove(0);
+                    ByteHolder byteHolder;
+                    synchronized (mockS3Storage) {
+                        byteHolder = mockS3Storage.get(0);
+                        mockS3Storage.remove(0);
+                        logger.info("getObject: total size " + mockS3Storage.size());
+                    }
                     when(mockObject.getObjectContent()).thenReturn(
                             new S3ObjectInputStream(
                                     new ByteArrayInputStream(byteHolder.getBytes()), null));

@@ -25,7 +25,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-logs</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>

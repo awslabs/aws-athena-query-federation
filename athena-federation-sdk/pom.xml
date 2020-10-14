@@ -22,6 +22,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <slf4jVersion>1.7.30</slf4jVersion>
         <log4j2Version>2.13.3</log4j2Version>
+        <aws-sdk.version>1.11.769</aws-sdk.version>
     </properties>
 
     <organization>
@@ -43,7 +44,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-secretsmanager</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
@@ -55,12 +56,12 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-glue</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-athena</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
@@ -80,17 +81,17 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-lambda</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-kms</artifactId>
-            <version>1.11.490</version>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -139,7 +140,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>4.13.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
