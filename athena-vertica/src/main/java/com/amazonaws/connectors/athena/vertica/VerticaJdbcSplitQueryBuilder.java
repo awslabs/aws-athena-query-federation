@@ -36,6 +36,8 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
+import org.stringtemplate.v4.STGroup;
+import org.stringtemplate.v4.STGroupFile;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -43,7 +45,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 /**
  * Query builder for database table split.
  */
@@ -85,13 +86,10 @@ public class VerticaJdbcSplitQueryBuilder {
             String colType = definition.getString("TYPE_NAME").toLowerCase();
             mapOfNamesAndTypes.put(colName, colType);
         }
-
-        ST exportSqlST = new ST("EXPORT TO PARQUET(" +
-                "directory = 's3://<s3ExportBucket>/<queryID>'," +
-                " Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS ");
-
-        exportSqlST.add("s3ExportBucket", s3ExportBucket);
-        exportSqlST.add("queryID", queryID.replace("-",""));
+        final STGroup stGroup = new STGroupFile("/resources/Vertica.stg");
+        final ST templateVerticaExportQuery = stGroup.getInstanceOf("templateVerticaExportQuery");
+        templateVerticaExportQuery.add("s3ExportBucket", s3ExportBucket);
+        templateVerticaExportQuery.add("queryID", queryID.replace("-",""));
 
 
         StringBuilder colN = new StringBuilder();
@@ -112,35 +110,26 @@ public class VerticaJdbcSplitQueryBuilder {
                 colN.append(f.getName()).append(",");
             }
         }
-        String result = colN.deleteCharAt(colN.length() - 1).toString();
 
-        StringBuilder sql = new StringBuilder();
-        //get the column names to be queried
-        String columnNames = tableSchema.getFields().stream()
-                .map(Field::getName)
-                .map(this::quote)
-                .collect(Collectors.joining(", "));
+        String colNames = colN.deleteCharAt(colN.length() - 1).toString();
+        String fromClause = getFromClauseWithSplit(schema, table);
 
+        templateVerticaExportQuery.add("colNames", colNames);
+        templateVerticaExportQuery.add("table", fromClause);
 
-        sql.append("SELECT ");
-        sql.append(result);
-        if (columnNames.isEmpty()) {
-            sql.append("null");
-        }
-        sql.append(getFromClauseWithSplit(schema, table));
 
         HashMap<String,TypeAndValue> accumulator = new HashMap<>();
         List<String> clauses = toConjuncts(tableSchema.getFields(), constraints, accumulator);
 
+        final ST templateWhereClause = stGroup.getInstanceOf("templateWhereClause");
+
         if (!clauses.isEmpty())
         {
-            sql.append(" WHERE ")
-                    .append(Joiner.on(" AND ").join(clauses));
+            templateWhereClause.add("constraints", Joiner.on(" AND ").join(clauses));
         }
 
-
         //Using StringTemplates to fill in the values of constraints
-        ST sqlTemplate = new ST(sql.toString());
+        ST sqlTemplate = new ST(templateWhereClause.render());
 
         for (Map.Entry<String,TypeAndValue> entry : accumulator.entrySet())
         {
@@ -195,14 +184,11 @@ public class VerticaJdbcSplitQueryBuilder {
         }
 
 
-        ST completeSqlST = new ST("<exportSqlST> <userSqlST>");
-        completeSqlST.add("exportSqlST", exportSqlST.render());
-        completeSqlST.add("userSqlST", sqlTemplate.render());
-        LOGGER.info(completeSqlST.render());
+        LOGGER.info(sqlTemplate.render());
 
-        //return the stat
+        //return the statement
 
-        return completeSqlST.render();
+        return sqlTemplate.render();
 
     }
     protected String castTimestamp(String name)
@@ -221,6 +207,8 @@ public class VerticaJdbcSplitQueryBuilder {
         return regionST.render();
     }
 
+
+
     protected String getFromClauseWithSplit(String schema, String table)
     {
         StringBuilder tableName = new StringBuilder();
@@ -230,7 +218,7 @@ public class VerticaJdbcSplitQueryBuilder {
         }
         tableName.append(quote(table));
 
-        return String.format(" FROM %s ", tableName);
+        return tableName.toString();
     }
 
 
@@ -331,7 +319,7 @@ public class VerticaJdbcSplitQueryBuilder {
                                HashMap<String, TypeAndValue> accumulator)
     {
         accumulator.put(columnName, new TypeAndValue(type, value));
-        return quote(columnName) + " "+ operator + " <"+columnName+"> ";
+        return quote(columnName) + " " + operator + " <"+columnName+"> ";
     }
 
     protected String quote(String name)

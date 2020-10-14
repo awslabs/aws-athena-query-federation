@@ -66,7 +66,6 @@ public class VerticaRecordHandler
     private static final String SOURCE_TYPE = "vertica";
     private static final String VERTICA_QUOTE_CHARACTER = "\"";
     private static final String QUERY = "select * from S3Object s";
-  //  private final VerticaConnectionFactory verticaConnectionFactory;
     private AmazonS3 amazonS3;
 
     public VerticaRecordHandler()
@@ -142,7 +141,6 @@ public class VerticaRecordHandler
             InputStream resultInputStream = result.getPayload().getRecordsInputStream();
             BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, StandardCharsets.UTF_8));
             String inputStr;
-            logger.info(streamReader.lines().toString());
             while ((inputStr = streamReader.readLine()) != null) {
                 HashMap<String, Object> map = new HashMap<>();
                 //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
@@ -179,22 +177,40 @@ public class VerticaRecordHandler
                 return (BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.isSet = 0;
-                    dst.value = ((boolean) value) ? 1 : 0;
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = ((boolean) value) ? 1 : 0;
+                        dst.isSet = 1;
+                        }
                 };
             case TINYINT:
                 return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.isSet = 0;
-                    dst.value = Byte.parseByte(value.toString());
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = Byte.parseByte(value.toString());
+                        dst.isSet = 1;
+                    }
                 };
             case SMALLINT:
                 return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = Short.parseShort(value.toString());
-                    dst.isSet = 0;
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else{
+                        dst.value = Short.parseShort(value.toString());
+                        dst.isSet = 1;
+                    }
                 };
             case INT:
             case BIGINT:
@@ -213,15 +229,25 @@ public class VerticaRecordHandler
                 return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = Float.parseFloat(value.toString());
-                    dst.isSet = 1;
+                    if(value == null){
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = Float.parseFloat(value.toString());
+                        dst.isSet = 1;
+                    }
                 };
             case FLOAT8:
                 return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.value = Double.parseDouble(value.toString());
-                    dst.isSet = 1;
+                    if(value == null){
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = Double.parseDouble(value.toString());
+                        dst.isSet = 1;
+                    }
                 };
             case DECIMAL:
                 return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
@@ -241,8 +267,13 @@ public class VerticaRecordHandler
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName);
-                    dst.isSet = 1;
-                    dst.value = (int) LocalDate.parse(value.toString()).toEpochDay();
+                    if(value == null){
+                        dst.isSet = 0;
+                    }
+                    else{
+                        dst.isSet = 1;
+                        dst.value = (int) LocalDate.parse(value.toString()).toEpochDay();
+                    }
 
                 };
 
@@ -250,8 +281,14 @@ public class VerticaRecordHandler
                 return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName).toString();
-                    dst.value = LocalDateTime.parse(value.toString()).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli();
-                    dst.isSet = 1;
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = LocalDateTime.parse(value.toString()).atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli();
+                        dst.isSet = 1;
+                    }
                 };
             case VARCHAR:
                 return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
@@ -270,8 +307,14 @@ public class VerticaRecordHandler
                 return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
                     Object value = ((RowContext) context).getNameValue().get(fieldName).toString();
-                    dst.value =  value.toString().getBytes();
-                    dst.isSet = 1;
+                    if(value == null)
+                    {
+                        dst.isSet = 0;
+                    }
+                    else {
+                        dst.value = value.toString().getBytes();
+                        dst.isSet = 1;
+                    }
                 };
             default:
                 throw new RuntimeException("Unhandled type " + fieldType);
