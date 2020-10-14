@@ -19,9 +19,6 @@
  */
 package com.amazonaws.athena.connectors.neptune;
 
-import java.util.ArrayList;
-import java.util.Map;
-
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
@@ -38,6 +35,9 @@ import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+
+import java.util.ArrayList;
+import java.util.Map;
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
