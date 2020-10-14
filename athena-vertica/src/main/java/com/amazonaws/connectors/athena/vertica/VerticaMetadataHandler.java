@@ -33,6 +33,8 @@ import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.connectors.athena.vertica.query.QueryFactory;
+import com.amazonaws.connectors.athena.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -71,6 +73,7 @@ public class VerticaMetadataHandler
     private static final String EXPORT_BUCKET_KEY = "export_bucket";
     private final VerticaConnectionFactory connectionFactory;
     private final VerticaJdbcSplitQueryBuilder verticaJdbcSplitQueryBuilder;
+    private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
 
@@ -146,7 +149,6 @@ public class VerticaMetadataHandler
 
             while (rs.next())
             {
-                logger.info(rs.getString(TABLE_SCHEMA));
                 if(!schemas.contains(rs.getString(TABLE_SCHEMA)))
                 {
                     schemas.add(rs.getString(TABLE_SCHEMA));
@@ -256,22 +258,32 @@ public class VerticaMetadataHandler
         String s3ExportBucket = System.getenv(EXPORT_BUCKET_KEY);
 
         //Appending a random int to the query id to support multiple federated queries within a single query
-        Random r = new Random();
-        int randomInt = r.nextInt(100) + 1;
-        String queryID = request.getQueryId().replace("-","").concat(String.valueOf(randomInt));
+
+        String randomStr = UUID.randomUUID().toString();
+        String queryID = request.getQueryId().replace("-","").concat(randomStr);
 
         //Build the SQL query
         Connection connection = getConnection(request);
         DatabaseMetaData dbMetadata = connection.getMetaData();
         ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
 
-        String preparedSQLStmt = verticaJdbcSplitQueryBuilder.buildSql(s3ExportBucket,
+        /*String preparedSQLStmt = verticaJdbcSplitQueryBuilder.buildSql(s3ExportBucket,
                 tableName.getSchemaName(),
                 tableName.getTableName(),
                 schemaName,
                 constraints,
                 queryID,
-                definition);
+                definition);*/
+
+        VerticaExportQueryBuilder queryBuilder = queryFactory.createVerticaExportQueryBuilder();
+
+        String preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
+                .withQueryID(queryID)
+                .withColumns(definition, schemaName)
+                .withConstraints(constraints, schemaName)
+                .build();
+
+        logger.info("PREP STMT: {}", preparedSQLStmt);
 
         // write the prepared SQL statement to the partition column created in enhancePartitionSchema
         blockWriter.writeRows((Block block, int rowNum) ->{

@@ -104,7 +104,7 @@ public class QueryFactory {
         return createGroupFile().getInstanceOf(templateName);
     }
 
-    public VerticaExportQueryBuilder createSelectQueryBuilder()
+    public VerticaExportQueryBuilder createVerticaExportQueryBuilder()
     {
         return new VerticaExportQueryBuilder(getQueryTemplate(VerticaExportQueryBuilder.getTemplateName()));
     }

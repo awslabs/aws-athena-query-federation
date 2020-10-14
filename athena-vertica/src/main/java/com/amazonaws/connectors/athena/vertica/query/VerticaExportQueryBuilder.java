@@ -115,7 +115,6 @@ public class VerticaExportQueryBuilder {
             stringBuilder.append(Joiner.on(" AND ").join(clauses));
         }
 
-        LOGGER.info(stringBuilder.toString());
         ST sqlTemplate = new ST(stringBuilder.toString());
 
         for (Map.Entry<String, PredicateBuilder.TypeAndValue> entry : accumulator.entrySet())
@@ -170,7 +169,6 @@ public class VerticaExportQueryBuilder {
             }
         }
         this.constraintValues =  sqlTemplate.render();
-        LOGGER.info(this.constraintValues);
         return this;
 
     }
