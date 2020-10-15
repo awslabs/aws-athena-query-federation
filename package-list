@@ -36,6 +36,7 @@ com.amazonaws.athena.connectors.dynamodb.throttling
 com.amazonaws.athena.connectors.dynamodb.util
 com.amazonaws.athena.connectors.hbase
 com.amazonaws.athena.connectors.hbase.connection
+com.amazonaws.athena.connectors.neptune
 com.amazonaws.athena.connectors.redis
 com.amazonaws.athena.connectors.tpcds
 com.amazonaws.athena.connectors.udfs

@@ -49,3 +49,4 @@ com.amazonaws.athena.connector.validation
 com.amazonaws.athena.connectors.udfs
 com.amazonaws.connectors.timestream
 com.amazonaws.connectors.timestream.query
+com.amazonaws.athena.connectors.neptune

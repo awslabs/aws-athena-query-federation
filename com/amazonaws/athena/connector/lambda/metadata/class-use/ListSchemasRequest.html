@@ -115,30 +115,34 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.neptune">com.amazonaws.athena.connectors.neptune</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.redis">com.amazonaws.athena.connectors.redis</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.tpcds">com.amazonaws.athena.connectors.tpcds</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc">com.amazonaws.connectors.athena.jdbc</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.manager">com.amazonaws.connectors.athena.jdbc.manager</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.timestream">com.amazonaws.connectors.timestream</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -326,6 +330,29 @@
 <td class="colLast"><span class="typeNameLabel">HbaseMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#doListSchemaNames-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest-">doListSchemaNames</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
                  <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code>
 <div class="block">List namespaces in your HBase instance treating each as a 'schema' (aka database)</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.neptune">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/neptune/package-summary.html">com.amazonaws.athena.connectors.neptune</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/neptune/package-summary.html">com.amazonaws.athena.connectors.neptune</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">NeptuneMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/neptune/NeptuneMetadataHandler.html#doListSchemaNames-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest-">doListSchemaNames</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+                 <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/ListSchemasRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">ListSchemasRequest</a>&nbsp;request)</code>
+<div class="block">Since the entire Neptune cluster is considered as a single graph database,
+ just return the glue database name provided as a single database (schema)
+ name.</div>
 </td>
 </tr>
 </tbody>
