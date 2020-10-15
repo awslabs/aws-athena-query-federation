@@ -506,10 +506,13 @@ public class Block
         for (Field next : this.schema.getFields()) {
             FieldReader thisReader = vectorSchema.getVector(next.getName()).getReader();
             List<String> values = new ArrayList<>();
+            int originalReaderPosition = thisReader.getPosition();
             for (int i = 0; i < rowsToPrint; i++) {
                 thisReader.setPosition(i);
                 values.add(fieldToString(thisReader));
             }
+            // reset the position for other reads
+            thisReader.setPosition(originalReaderPosition);
             helper.add(next.getName(), values);
         }
 

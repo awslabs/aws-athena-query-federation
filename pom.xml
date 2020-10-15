@@ -12,11 +12,11 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <aws-sdk.version>1.11.490</aws-sdk.version>
-        <aws-athena-federation-sdk.version>2020.20.1</aws-athena-federation-sdk.version>
+        <aws-athena-federation-sdk.version>2020.35.1</aws-athena-federation-sdk.version>
         <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
         <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
         <mockito.version>1.10.19</mockito.version>
-        <junit.version>4.11</junit.version>
+        <junit.version>4.13.1</junit.version>
     </properties>
 
     <organization>
@@ -55,6 +55,8 @@
         <module>athena-jdbc</module>
         <module>athena-federation-sdk-tools</module>
         <module>athena-udfs</module>
+        <module>athena-timestream</module>
+        <module>athena-neptune</module>
     </modules>
 
     <dependencies>

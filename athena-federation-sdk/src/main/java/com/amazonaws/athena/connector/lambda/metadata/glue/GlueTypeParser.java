@@ -38,6 +38,7 @@ public class GlueTypeParser
     protected static final Character FIELD_END = '>';
     protected static final Character FIELD_DIV = ':';
     protected static final Character FIELD_SEP = ',';
+    protected static final Character ESCAPE_CHAR = '\\';
     private static final Set<Character> TOKENS = new HashSet<>();
 
     static {
@@ -81,12 +82,17 @@ public class GlueTypeParser
     {
         StringBuilder sb = new StringBuilder();
         int readPos = pos;
+        int lastEscapeChar = -1;
         while (input.length() > readPos) {
             Character last = input.charAt(readPos++);
-            if (last.equals(' ')) {
+            if (last.equals(ESCAPE_CHAR)) {
+                lastEscapeChar = readPos - 1;
+            }
+            else if (last.equals(' ')) {
                 //NoOp
             }
-            else if (!TOKENS.contains(last)) {
+            else if (!TOKENS.contains(last) || lastEscapeChar == readPos - 2) {
+                //accumulate if the char is not a TOKEN or is escaped
                 sb.append(last);
             }
             else {
@@ -151,10 +157,17 @@ public class GlueTypeParser
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
+
             Token token = (Token) o;
+
+            if (getMarker() == null && token.getMarker() != null) {
+                return false;
+            }
+
             return getPos() == token.getPos() &&
                     getValue().equals(token.getValue()) &&
-                    getMarker().equals(token.getMarker());
+                    (getMarker() == null ||
+                            getMarker().equals(token.getMarker()));
         }
 
         @Override

@@ -24,10 +24,10 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
@@ -55,8 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -139,6 +137,7 @@ public class DynamoDBRecordHandler
         invokerCache.get(tableName).setBlockSpiller(spiller);
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema());
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
+        DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
         long numRows = 0;
         AtomicLong numResultRows = new AtomicLong(0);
         while (itemIterator.hasNext()) {
@@ -167,17 +166,18 @@ public class DynamoDBRecordHandler
                     try {
                         switch (fieldType) {
                             case LIST:
-                                // DDB may return Set so coerce to List
-                                List valueAsList = value != null ? new ArrayList((Collection) value) : null;
+                                // DDB may return Set so coerce to List. Also coerce each List item to the correct type.
+                                List valueAsList = value != null
+                                        ? DDBTypeUtils.coerceListToExpectedType(value, nextField, recordMetadata) : null;
                                 matched &= block.offerComplexValue(nextField.getName(),
                                         rowNum,
-                                        FieldResolver.DEFAULT,
+                                        resolver,
                                         valueAsList);
                                 break;
                             case STRUCT:
                                 matched &= block.offerComplexValue(nextField.getName(),
                                         rowNum,
-                                        (Field field, Object val) -> ((Map) val).get(field.getName()),
+                                        resolver,
                                         value);
                                 break;
                             default:

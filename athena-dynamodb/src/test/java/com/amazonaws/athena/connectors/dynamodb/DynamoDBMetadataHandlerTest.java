@@ -244,7 +244,7 @@ public class DynamoDBMetadataHandlerTest
 
         assertThat(res.getTableName().getSchemaName(), equalTo(DEFAULT_SCHEMA));
         assertThat(res.getTableName().getTableName(), equalTo(TEST_TABLE));
-        assertThat(res.getSchema().getFields().size(), equalTo(10));
+        assertThat(res.getSchema().getFields().size(), equalTo(11));
     }
 
     @Test
@@ -433,6 +433,7 @@ public class DynamoDBMetadataHandlerTest
 
         assertThat(continuationToken, equalTo(String.valueOf(MAX_SPLITS_PER_REQUEST - 1)));
         assertThat(response.getSplits().size(), equalTo(MAX_SPLITS_PER_REQUEST));
+        assertThat(response.getSplits().stream().map(split -> split.getProperty("col_0")).distinct().count(), equalTo((long) MAX_SPLITS_PER_REQUEST));
 
         response = handler.doGetSplits(allocator, new GetSplitsRequest(req, continuationToken));
 
@@ -440,6 +441,7 @@ public class DynamoDBMetadataHandlerTest
 
         assertThat(response.getContinuationToken(), equalTo(null));
         assertThat(response.getSplits().size(), equalTo(MAX_SPLITS_PER_REQUEST));
+        assertThat(response.getSplits().stream().map(split -> split.getProperty("col_0")).distinct().count(), equalTo((long) MAX_SPLITS_PER_REQUEST));
     }
 
     @Test

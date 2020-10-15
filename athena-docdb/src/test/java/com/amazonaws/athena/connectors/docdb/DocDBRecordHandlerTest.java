@@ -74,6 +74,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,35 +179,30 @@ public class DocDBRecordHandlerTest
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
 
         when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
-                .thenAnswer(new Answer<Object>()
-                {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock)
-                            throws Throwable
-                    {
-                        InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
-                        DocDBRecordHandlerTest.ByteHolder byteHolder = new ByteHolder();
-                        byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
+                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                    InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                    ByteHolder byteHolder = new ByteHolder();
+                    byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
+                    synchronized (mockS3Storage) {
                         mockS3Storage.add(byteHolder);
-                        return mock(PutObjectResult.class);
+                        logger.info("puObject: total size " + mockS3Storage.size());
                     }
+                    return mock(PutObjectResult.class);
                 });
 
         when(amazonS3.getObject(anyString(), anyString()))
-                .thenAnswer(new Answer<Object>()
-                {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock)
-                            throws Throwable
-                    {
-                        S3Object mockObject = mock(S3Object.class);
-                        ByteHolder byteHolder = mockS3Storage.get(0);
+                .thenAnswer((InvocationOnMock invocationOnMock) -> {
+                    S3Object mockObject = mock(S3Object.class);
+                    ByteHolder byteHolder;
+                    synchronized (mockS3Storage) {
+                        byteHolder = mockS3Storage.get(0);
                         mockS3Storage.remove(0);
-                        when(mockObject.getObjectContent()).thenReturn(
-                                new S3ObjectInputStream(
-                                        new ByteArrayInputStream(byteHolder.getBytes()), null));
-                        return mockObject;
+                        logger.info("getObject: total size " + mockS3Storage.size());
                     }
+                    when(mockObject.getObjectContent()).thenReturn(
+                            new S3ObjectInputStream(
+                                    new ByteArrayInputStream(byteHolder.getBytes()), null));
+                    return mockObject;
                 });
 
         handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory);
