@@ -34,6 +34,7 @@ import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -74,7 +75,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -192,37 +192,85 @@ public class NeptuneRecordHandlerTest extends TestBase {
         @Test
         public void doReadRecordsNoSpill() throws Exception {
 
-                // Greater Than filter
-                HashMap<String, ValueSet> constraintsMap = new HashMap<>();
-                constraintsMap.put("property1",
-                                SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(constraintsMap, 1);
+                // Equal to filter
+                HashMap<String, ValueSet> constraintsMap0 = new HashMap<>();
+                constraintsMap0.put("property1",
+                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.INT.getType(), 9)));
+                invokeAndAssert(constraintsMap0, 1);
 
-                // Less Than filter
+                // Greater Than Equal to filter
+                HashMap<String, ValueSet> constraintsMap = new HashMap<>();
+                constraintsMap.put("property1", SortedRangeSet
+                                .of(Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 9)));
+                invokeAndAssert(constraintsMap, 2);
+
+                // Greater Than filter
                 HashMap<String, ValueSet> constraintsMap1 = new HashMap<>();
                 constraintsMap1.put("property1",
-                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
-                invokeAndAssert(constraintsMap1, 2);
+                                SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 9)));
+                invokeAndAssert(constraintsMap1, 1);
 
-                // Multiple filters
+                // Less Than Equal to filter
                 HashMap<String, ValueSet> constraintsMap2 = new HashMap<>();
                 constraintsMap2.put("property1",
-                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
-                constraintsMap2.put("property3", SortedRangeSet
-                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
-                constraintsMap2.put("property4",
-                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.BIT.getType(), 1)));
-                constraintsMap2.put("property5",
-                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
+                                SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 10)));
+                invokeAndAssert(constraintsMap2, 3);
 
-                invokeAndAssert(constraintsMap2, 2);
+                // Less Than filter
+                HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
+                constraintsMap3.put("property1",
+                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
+                invokeAndAssert(constraintsMap3, 2);
+
+                // Multiple filters
+                HashMap<String, ValueSet> constraintsMap4 = new HashMap<>();
+                constraintsMap4.put("property1",
+                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
+                constraintsMap4.put("property3", SortedRangeSet
+                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
+                constraintsMap4.put("property4",
+                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.BIT.getType(), 1)));
+                constraintsMap4.put("property5", SortedRangeSet
+                                .of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
+
+                invokeAndAssert(constraintsMap4, 2);
 
                 // String comparision
-                HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
-                constraintsMap3.put("property2", SortedRangeSet
-                                .of(Range.lessThan(allocator, Types.MinorType.VARCHAR.getType(), "string2")));
+                HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
+                constraintsMap5.put("property2", SortedRangeSet
+                                .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "string2")));
 
-                invokeAndAssert(constraintsMap3, 1);
+                invokeAndAssert(constraintsMap5, 1);
+
+                // String comparision Equalsto
+                HashMap<String, ValueSet> constraintsMap6 = new HashMap<>();
+                constraintsMap6.put("property2",
+                                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
+                                                .add("string2").build());
+
+                invokeAndAssert(constraintsMap6, 1);
+
+                // String comparision Not Equalsto
+                HashMap<String, ValueSet> constraintsMap7 = new HashMap<>();
+                constraintsMap7.put("property2",
+                                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), false, true)
+                                                .add("string2").build());
+
+                invokeAndAssert(constraintsMap7, 2);
+
+                // Int comparision Equalsto
+                HashMap<String, ValueSet> constraintsMap8 = new HashMap<>();
+                constraintsMap8.put("property1", EquatableValueSet
+                                .newBuilder(allocator, Types.MinorType.INT.getType(), true, true).add(10).build());
+
+                invokeAndAssert(constraintsMap8, 1);
+
+                // Int comparision Not Equalsto
+                HashMap<String, ValueSet> constraintsMap9 = new HashMap<>();
+                constraintsMap9.put("property1", EquatableValueSet
+                                .newBuilder(allocator, Types.MinorType.INT.getType(), false, true).add(10).build());
+
+                invokeAndAssert(constraintsMap9, 2);
         }
 
         /**
