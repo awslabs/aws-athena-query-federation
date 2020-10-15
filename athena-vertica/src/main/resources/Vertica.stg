@@ -3,6 +3,6 @@ test_template() ::= <%
 %>
 
 templateVerticaExportQuery(builder) ::= <%
-EXPORT TO PARQUET(directory = "s3://<builder.s3ExportBucket>/<builder.queryID>", Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS SELECT "<builder.colNames>" FROM "<builder.table>" <if(builder.constraintValues)> WHERE "<builder.constraintValues>" <endif>
+EXPORT TO PARQUET(directory = 's3://<builder.s3ExportBucket>/<builder.queryID>', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS SELECT <builder.colNames> FROM <builder.table> <if(builder.constraintValues)> WHERE <builder.constraintValues> <endif>
 %>
 

@@ -142,6 +142,12 @@ public class PredicateBuilder {
     protected static String toPredicate(String columnName, String operator, Object value, ArrowType type,
                                HashMap<String, PredicateBuilder.TypeAndValue> accumulator)
     {
+        //escape the StringTemplate special characters
+        if(operator.equals("<") || operator.equals("<="))
+        {
+            operator = "\\" + operator;
+        }
+
         accumulator.put(columnName, new PredicateBuilder.TypeAndValue(type, value));
         return quote(columnName) + " " + operator + " <" + columnName + "> ";
     }

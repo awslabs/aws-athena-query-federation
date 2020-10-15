@@ -280,6 +280,7 @@ public class VerticaMetadataHandler
         String preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
                 .withQueryID(queryID)
                 .withColumns(definition, schemaName)
+                .fromTable(tableName.getSchemaName(), tableName.getTableName())
                 .withConstraints(constraints, schemaName)
                 .build();
 
