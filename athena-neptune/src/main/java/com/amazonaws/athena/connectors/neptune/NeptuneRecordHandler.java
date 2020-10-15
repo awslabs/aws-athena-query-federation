@@ -152,7 +152,6 @@ public class NeptuneRecordHandler extends RecordHandler
 
             while (graphTraversalFinal.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
-
                 spiller.writeRows((final Block block, final int rowNum) -> {
                     final Map<Object, Object> obj = graphTraversalFinal.next();
                     return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);

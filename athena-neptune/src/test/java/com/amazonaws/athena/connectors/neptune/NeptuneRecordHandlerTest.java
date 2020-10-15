@@ -83,7 +83,6 @@ import java.util.UUID;
 @RunWith(MockitoJUnitRunner.class)
 public class NeptuneRecordHandlerTest extends TestBase {
         private static final Logger logger = LoggerFactory.getLogger(NeptuneRecordHandlerTest.class);
-
         private NeptuneRecordHandler handler;
         private BlockAllocatorImpl allocator;
         private Schema schemaForRead;

@@ -43,8 +43,7 @@ public final class GremlinQueryPreProcessor
     }
 
     /**
-     * Pick and Process pre-defined templates based on parameters to generate
-     * gremlin query
+     * Pick and Process pre-defined templates based on parameters to generate gremlin query
      * @param traversal Gremlin Traversal
      * @param key       Query Condition Key
      * @param value     Query Condition Value
@@ -97,8 +96,7 @@ public final class GremlinQueryPreProcessor
     }
 
     /**
-     * Pick and Process pre-defined templates based on parameters to generate
-     * gremlin query
+     * Pick and Process pre-defined templates based on parameters to generate gremlin query
      * @param traversal Gremlin Traversal
      * @param key       Query Condition Key
      * @param value     Query Condition Value
