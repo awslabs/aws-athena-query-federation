@@ -195,7 +195,7 @@ where year >= 1955 and year <= 1962 or year = 1996;
 ```
 **Predicate:**
 ```
-(_exists_:year) AND year:((>=1955 AND <=1962) OR 1996)
+(_exists_:year) AND year:([1955 TO 1962] OR 1996)
 ```
 
 ## Executing SQL Queries
