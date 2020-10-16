@@ -9,6 +9,7 @@ Following databases are supported:
 1. MySql
 2. PostGreSql
 3. Redshift
+4. SAP HANA
 
 # Terms
 
@@ -68,6 +69,8 @@ Example properties for a Mux Lambda function that supports four database instanc
 |mysql_catalog2_connection_string|mysql://jdbc:mysql://mysql2.host:3333/default?user=sample2&password=sample2|
 |	|	|
 |postgres_catalog3_connection_string|postgres://jdbc:postgresql://postgres1.host:5432/default?${Test/RDS/PostGres1}|
+|	|	|
+|saphana_catalog4_connection_string|saphana://jdbc:sap://saphana1.host:30013/databaseName=hanadbname?${Test/SAP/HANA1}|
 
 JDBC Connector supports substitution of any string enclosed like *${SecretName}* with *username* and *password* retrieved from AWS Secrets Manager. Example: 
 
@@ -102,7 +105,10 @@ Database specific metadata and record handlers can also be used to connect to a 
 | |Composite Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
 |Redshift|Metadata Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|
 | |Record Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
-
+|	|	|
+| |Composite Handler|com.amazonaws.connectors.athena.jdbc.saphana.SapHanaRecordHandler|
+|SAP HANA|Metadata Handler|com.amazonaws.connectors.athena.jdbc.saphana.SapHanaMetadataHandler|
+| |Record Handler|com.amazonaws.connectors.athena.jdbc.saphana.SapHanaRecordHandler|
 **Parameters:**
 
 ```
@@ -168,6 +174,13 @@ A partition is represented by two partition columns of type varchar. We leverage
 |partition_schema|Varchar|Child table schema name|
 |partition_name|Varchar|Child table name|
 
+### SAP HANA
+A partition is represented by a single partition column of type varchar. We leverage partitions defined on a SAP HANA table, and this column contains partition ids. For a table that does not have partitions, * is returned which is equivalent to a single partition. A partition is equivalent to a split.
+
+|Name|Type|Description
+|---|---|---|
+|partition_id|Varchar|Named partition in SAP HANA. E.g. p0|
+
 **Note:** In case of Redshift partition_schema and partition_name will always be '*'. It does not support external partitions. Performance with huge datasets is slow.
 
 ### Deploying The Connector
@@ -190,4 +203,4 @@ For latest version information see [pom.xml](./pom.xml).
 
 # Performance tuning
 
-MySql and PostGreSql support native partitions. Athena's lambda connector can retrieve data from these partitions in parallel. We highly recommend native partitioning for retrieving huge datasets with uniform partition distribution.
+MySql, PostGreSql and SAP HANA support native partitions. Athena's lambda connector can retrieve data from these partitions in parallel. We highly recommend native partitioning for retrieving huge datasets with uniform partition distribution.
