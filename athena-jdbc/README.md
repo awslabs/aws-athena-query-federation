@@ -187,7 +187,7 @@ A partition is represented by a single partition column of type varchar. We leve
 
 |Name|Type|Description
 |---|---|---|
-|partition_id|Varchar|Named partition in SAP HANA. E.g. p0|
+|part_id|Varchar|Named partition in SAP HANA. E.g. p0|
 
 **Note:** In case of Redshift partition_schema and partition_name will always be '*'. It does not support external partitions. Performance with huge datasets is slow.
 
