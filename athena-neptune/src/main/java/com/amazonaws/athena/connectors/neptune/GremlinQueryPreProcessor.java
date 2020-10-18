@@ -45,12 +45,11 @@ public final class GremlinQueryPreProcessor
     /**
      * Pick and Process pre-defined templates based on parameters to generate
      * gremlin query
-     *
-     * @param key      Query Condition Key
-     * @param value    Query Condition Value
-     * @param bound    Query Condition Value Range
-     * @param operator Query Operator representing conditional operators e.g < ,
-     *                 <=, >, >= , =
+     * @param traversal Gremlin Traversal
+     * @param key       Query Condition Key
+     * @param value     Query Condition Value
+     * @param bound     Query Condition Value Range
+     * @param operator  Query Operator representing conditional operators e.g < , <=, >, >= , =
      * @return A Gremlin Query Part equivalent to Contraint.
      */
     public static GraphTraversal<Vertex, Vertex> generateGremlinQueryPart(GraphTraversal<Vertex, Vertex> traversal, String key, String value, ArrowType type, Bound bound, Operator operator) 
@@ -99,19 +98,18 @@ public final class GremlinQueryPreProcessor
 
     /**
      * Pick and Process pre-defined templates based on parameters to generate
-     * gremlin query for all Number Types
-     *
-     * @param key      Query Condition Key
-     * @param value    Query Condition Value
-     * @param bound    Query Condition Value Range
-     * @param operator Query Operator representing conditional operators e.g < ,
-     *                 <=, >, >= , =
+     * gremlin query
+     * @param traversal Gremlin Traversal
+     * @param key       Query Condition Key
+     * @param value     Query Condition Value
+     * @param bound     Query Condition Value Range
+     * @param operator  Query Operator representing conditional operators e.g < , <=, >, >= , =
      * @return A Gremlin Query Part equivalent for all Types
      */
     private static GraphTraversal<Vertex, Vertex> updateTraversal(GraphTraversal<Vertex, Vertex> traversal, Bound bound, Operator operator, String key, Object value) 
     {
         if (operator.equals(Operator.GREATERTHAN)) {
-            traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, value)
+            traversal = bound.equals(Bound.EXACTLY) ? traversal.has(key, P.gte(value))
                     : traversal.has(key, P.gt(value));
         }
 
