@@ -20,51 +20,61 @@
 package com.amazonaws.connectors.athena.vertica;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.*;
+import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.connectors.athena.vertica.query.QueryFactory;
+import com.amazonaws.connectors.athena.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.Region;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.stringtemplate.v4.ST;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 
 @RunWith(MockitoJUnitRunner.class)
+
 public class VerticaMetadataHandlerTest extends TestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(VerticaMetadataHandlerTest.class);
     private static final String[] TABLE_TYPES = {"TABLE"};
+    private QueryFactory queryFactory;
 
     private VerticaMetadataHandler verticaMetadataHandler;
     private VerticaConnectionFactory verticaConnectionFactory;
-    private VerticaJdbcSplitQueryBuilder verticaJdbcSplitQueryBuilder;
+    private VerticaExportQueryBuilder verticaExportQueryBuilder;
     private VerticaSchemaUtils verticaSchemaUtils;
     private Connection connection;
     private AWSSecretsManager secretsManager;
@@ -79,14 +89,23 @@ public class VerticaMetadataHandlerTest extends TestBase
     private SchemaBuilder schemaBuilder;
     private BlockWriter blockWriter;
     private QueryStatusChecker queryStatusChecker;
+    private VerticaMetadataHandler verticaMetadataHandlerMocked;
+    @Mock
+    private AmazonS3 s3clientMock;
+    @Mock
+    private ListObjectsRequest listObjectsRequest;
+    @Mock
+    private ObjectListing objectListing;
+
 
     @Before
     public void setUp() throws SQLException
     {
 
         this.verticaConnectionFactory = Mockito.mock(VerticaConnectionFactory.class);
-        this.verticaJdbcSplitQueryBuilder = Mockito.mock(VerticaJdbcSplitQueryBuilder.class);
         this.verticaSchemaUtils = Mockito.mock(VerticaSchemaUtils.class);
+        this.queryFactory = Mockito.mock(QueryFactory.class);
+        this.verticaExportQueryBuilder = Mockito.mock(VerticaExportQueryBuilder.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
@@ -98,12 +117,12 @@ public class VerticaMetadataHandlerTest extends TestBase
         this.schemaBuilder = Mockito.mock(SchemaBuilder.class);
         this.blockWriter = Mockito.mock(BlockWriter.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
-
-
+        this.amazonS3 = Mockito.mock(AmazonS3.class);
 
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
         Mockito.when(this.verticaConnectionFactory.getOrCreateConn(anyString())).thenReturn(connection);
         Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);
+        Mockito.when(amazonS3.getRegion()).thenReturn(Region.US_West_2);
 
         this.verticaMetadataHandler = new VerticaMetadataHandler(new LocalKeyFactory(),
                 verticaConnectionFactory,
@@ -111,14 +130,15 @@ public class VerticaMetadataHandlerTest extends TestBase
                 athena,
                 "spill-bucket",
                 "spill-prefix",
-                verticaJdbcSplitQueryBuilder,
                 verticaSchemaUtils,
                 amazonS3
         );
         this.allocator =  new BlockAllocatorImpl();
         this.databaseMetaData = this.connection.getMetaData();
-
+        verticaMetadataHandlerMocked = Mockito.spy(this.verticaMetadataHandler);
     }
+
+
     @After
     public void tearDown()
             throws Exception
@@ -148,7 +168,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
     @Test
     public void doListTables() throws SQLException {
-        String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME", };
         Object[][] values = {{"testSchema", "testTable1"}};
         List<TableName> expectedTables = new ArrayList<>();
         expectedTables.add(new TableName("testSchema", "testTable1"));
@@ -157,8 +177,6 @@ public class VerticaMetadataHandlerTest extends TestBase
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
 
         Mockito.when(databaseMetaData.getTables(null, tableName.getSchemaName(), null, TABLE_TYPES)).thenReturn(resultSet);
-
-
         Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
 
         ListTablesResponse listTablesResponse = this.verticaMetadataHandler.doListTables(this.allocator,
@@ -195,56 +213,176 @@ public class VerticaMetadataHandlerTest extends TestBase
     @Test
     public void getPartitions() throws Exception
     {
-       /* Schema tableSchema = SchemaBuilder.newBuilder()
+       Schema tableSchema = SchemaBuilder.newBuilder()
                 .addIntField("day")
                 .addIntField("month")
                 .addIntField("year")
                 .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
                 .build();
 
         Set<String> partitionCols = new HashSet<>();
         partitionCols.add("preparedStmt");
-
+        partitionCols.add("queryId");
+        partitionCols.add("awsRegionSql");
         Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put("day", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0)), false));
+
+        constraintsMap.put("month", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 0)), false));
+
+        constraintsMap.put("year", SortedRangeSet.copyOf(org.apache.arrow.vector.types.Types.MinorType.INT.getType(),
+                ImmutableList.of(Range.greaterThan(allocator, org.apache.arrow.vector.types.Types.MinorType.INT.getType(), 2000)), false));
+
 
         GetTableLayoutRequest req = null;
         GetTableLayoutResponse res = null;
 
+
         String testSql = "Select * from schema1.table1";
         String[] test = new String[]{"Select * from schema1.table1", "Select * from schema1.table1"};
-        ResultSet definition = connection.getMetaData().getColumns(null, "schema1", "table1", null);
-        Mockito.when(verticaJdbcSplitQueryBuilder.buildSql(null, "schema1", "table1", tableSchema,
-                new Constraints(constraintsMap),
-                "queryId", definition)).thenReturn(testSql);
+
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+        Object[][] values = {{"testSchema", "testTable1", "day", "int"}, {"testSchema", "testTable1", "month", "int"},
+                {"testSchema", "testTable1", "year", "int"}, {"testSchema", "testTable1", "preparedStmt", "varchar"},
+                {"testSchema", "testTable1", "queryId", "varchar"},  {"testSchema", "testTable1", "awsRegionSql", "varchar"}};
+        int[] types = {Types.INTEGER, Types.INTEGER, Types.INTEGER,Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        List<TableName> expectedTables = new ArrayList<>();
+        expectedTables.add(new TableName("testSchema", "testTable1"));
+
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
+
+        Mockito.when(connection.getMetaData().getColumns(null, "schema1",
+                "table1", null)).thenReturn(resultSet);
+
+        Mockito.when(queryFactory.createVerticaExportQueryBuilder()).thenReturn(new VerticaExportQueryBuilder(new ST("templateVerticaExportQuery")));
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
+
+        try {
+            req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
+                    new TableName("schema1", "table1"),
+                    new Constraints(constraintsMap),
+                    tableSchema,
+                    partitionCols);
+
+            res = verticaMetadataHandlerMocked.doGetTableLayout(allocator, req);
+
+            Block partitions = res.getPartitions();
+
+            String actualQueryID = partitions.getFieldReader("queryId").readText().toString();
+            String expectedExportSql = "EXPORT TO PARQUET(directory = 's3://testS3Bucket/" +
+                    actualQueryID + "', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) " +
+                    "AS SELECT day,month,year,preparedStmt,queryId,awsRegionSql " +
+                    "FROM \"schema1\".\"table1\" " +
+                    "WHERE ((\"day\" > 0 )) AND ((\"month\" > 0 )) AND ((\"year\" > 2000 ))";
+
+            Assert.assertEquals(expectedExportSql, partitions.getFieldReader("preparedStmt").readText().toString());
 
 
-        req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
-                new TableName("schema1", "table1"),
-                new Constraints(constraintsMap),
-                tableSchema,
-                partitionCols);
+            for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
+                logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
 
+            }
+            assertTrue(partitions.getRowCount() > 0);
+            logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
 
-        verticaMetadataHandler.getPartitions(this.blockWriter, req, this.queryStatusChecker);
-        res = verticaMetadataHandler.doGetTableLayout(allocator, req);
-
-        Block partitions = res.getPartitions();
-        for (int row = 0; row < partitions.getRowCount() && row < 1; row++) {
-            logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
         }
-        assertTrue(partitions.getRowCount() > 0);
-        logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());*/
+        finally {
+        try {
+            req.close();
+            res.close();
+        }
+        catch (Exception ex) {
+            logger.error("doGetTableLayout: ", ex);
+        }
+    }
+
+        logger.info("doGetTableLayout - exit");
 
     }
+
 
     @Test
-    public void doGetSplits()
-    {
-        //todo : to add more tests
+    public void doGetSplits() {
 
+        logger.info("doGetSplits: enter");
+
+        Schema schema = SchemaBuilder.newBuilder()
+                .addIntField("day")
+                .addIntField("month")
+                .addIntField("year")
+                .addStringField("preparedStmt")
+                .addStringField("queryId")
+                .addStringField("awsRegionSql")
+                .build();
+
+        List<String> partitionCols = new ArrayList<>();
+        partitionCols.add("preparedStmt");
+        partitionCols.add("queryId");
+        partitionCols.add("awsRegionSql");
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        Block partitions = allocator.createBlock(schema);
+
+        int num_partitions = 10;
+        for (int i = 0; i < num_partitions; i++) {
+            BlockUtils.setValue(partitions.getFieldVector("day"), i, 2016 + i);
+            BlockUtils.setValue(partitions.getFieldVector("month"), i, (i % 12) + 1);
+            BlockUtils.setValue(partitions.getFieldVector("year"), i, (i % 28) + 1);
+            BlockUtils.setValue(partitions.getFieldVector("preparedStmt"), i, "test");
+            BlockUtils.setValue(partitions.getFieldVector("queryId"), i, "123");
+            BlockUtils.setValue(partitions.getFieldVector("awsRegionSql"), i, "us-west-2");
+
+        }
+        List<S3ObjectSummary> s3ObjectSummariesList = new ArrayList<>();
+        S3ObjectSummary s3ObjectSummary = new S3ObjectSummary();
+        s3ObjectSummary.setBucketName("s3ExportBucket");
+        s3ObjectSummary.setKey("testKey");
+        s3ObjectSummariesList.add(s3ObjectSummary);
+        ListObjectsRequest listObjectsRequestObj = new ListObjectsRequest();
+        listObjectsRequestObj.setBucketName("s3ExportBucket");
+        listObjectsRequestObj.setPrefix("queryId");
+
+
+        Mockito.when(verticaMetadataHandlerMocked.getS3ExportBucket()).thenReturn("testS3Bucket");
+        Mockito.when(listObjectsRequest.withBucketName(anyString())).thenReturn(listObjectsRequestObj);
+        Mockito.when(listObjectsRequest.withPrefix(anyString())).thenReturn(listObjectsRequestObj);
+        Mockito.when(amazonS3.listObjects(any(ListObjectsRequest.class))).thenReturn(objectListing);
+        Mockito.when(objectListing.getObjectSummaries()).thenReturn(s3ObjectSummariesList);
+
+        GetSplitsRequest originalReq = new GetSplitsRequest(this.federatedIdentity, "queryId", "catalog_name",
+                new TableName("schema", "table_name"),
+                partitions,
+                partitionCols,
+                new Constraints(constraintsMap),
+                null);
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+
+        logger.info("doGetSplits: req[{}]", req);
+        MetadataResponse rawResponse = verticaMetadataHandlerMocked.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        String continuationToken = response.getContinuationToken();
+
+        logger.info("doGetSplits: continuationToken[{}] - splits[{}]", continuationToken, response.getSplits());
+
+        for (Split nextSplit : response.getSplits()) {
+
+            assertNotNull(nextSplit.getProperty("query_id"));
+            assertNotNull(nextSplit.getProperty("exportBucket"));
+            assertNotNull(nextSplit.getProperty("s3ObjectKey"));
+        }
+
+        assertTrue(!response.getSplits().isEmpty());
+
+        logger.info("doGetSplits: exit");
     }
-
-
 
 
 }
