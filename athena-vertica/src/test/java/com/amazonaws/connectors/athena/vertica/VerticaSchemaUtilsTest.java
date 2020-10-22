@@ -22,16 +22,14 @@ package com.amazonaws.connectors.athena.vertica;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Matchers.anyString;
@@ -59,22 +57,32 @@ public class VerticaSchemaUtilsTest extends TestBase
     @Test
     public void buildTableSchema() throws SQLException
     {
-        String[] schema = {"TYPE_NAME", "COLUMN_NAME"};
-        Object[][] values = {{"INTEGER", "testCol1"}};
+     /*   String[] schema = {"TYPE_NAME", "COLUMN_NAME"};
+        Object[][] values = {{"INTEGER", "testCol1"}, {"INTEGER", "testCol2"}};
+        int [] types = {Types.INTEGER, Types.INTEGER};*/
 
+        String[] schema = {"TABLE_SCHEM", "TABLE_NAME", "COLUMN_NAME", "TYPE_NAME"};
+        Object[][] values = {{"testSchema", "testTable1", "id", "bigint"}, {"testSchema", "testTable1", "date", "timestamp"},
+                {"testSchema", "testTable1", "orders", "integer"}, {"testSchema", "testTable1", "price", "float4"},
+                {"testSchema", "testTable1", "shop", "varchar"}
+               };
+        int[] types = {Types.BIGINT, Types.TIMESTAMP, Types.INTEGER,Types.FLOAT, Types.VARCHAR, Types.VARCHAR};
 
         AtomicInteger rowNumber = new AtomicInteger(-1);
-        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        ResultSet resultSet = mockResultSet(schema, types, values, rowNumber);
 
         Mockito.when(connection.getMetaData()).thenReturn(databaseMetaData);
         Mockito.when(databaseMetaData.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null)).thenReturn(resultSet);
-        Mockito.when(resultSet.next()).thenReturn(true).thenReturn(false);
-
 
         VerticaSchemaUtils verticaSchemaUtils = new VerticaSchemaUtils();
         Schema mockSchema = verticaSchemaUtils.buildTableSchema(this.connection, tableName);
-        Field testField = mockSchema.findField("testCol1");
-        org.junit.Assert.assertEquals(testField.getName(), "testCol1");
+
+        Field testDateField = mockSchema.findField("date");
+        Assert.assertEquals("Utf8", testDateField.getType().toString());
+
+        Field testPriceField = mockSchema.findField("price");
+        Assert.assertEquals("FloatingPoint(SINGLE)", testPriceField.getType().toString());
+
 
     }
 }
