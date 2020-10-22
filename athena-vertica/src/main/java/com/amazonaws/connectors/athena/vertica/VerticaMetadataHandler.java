@@ -32,7 +32,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.connectors.athena.vertica.query.QueryFactory;
 import com.amazonaws.connectors.athena.vertica.query.VerticaExportQueryBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -69,10 +68,8 @@ public class VerticaMetadataHandler
     private  static  final String TABLE_NAME = "TABLE_NAME";
     private static  final String TABLE_SCHEMA = "TABLE_SCHEM";
     private static final String[] TABLE_TYPES = {"TABLE"};
-    private static final String VERTICA_QUOTE_CHARACTER = "\"";
     private static final String EXPORT_BUCKET_KEY = "export_bucket";
     private final VerticaConnectionFactory connectionFactory;
-    private final VerticaJdbcSplitQueryBuilder verticaJdbcSplitQueryBuilder;
     private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
@@ -83,8 +80,8 @@ public class VerticaMetadataHandler
         super(SOURCE_TYPE);
         amazonS3 = AmazonS3ClientBuilder.defaultClient();
         connectionFactory = new VerticaConnectionFactory();
-        verticaJdbcSplitQueryBuilder = new VerticaJdbcSplitQueryBuilder(VERTICA_QUOTE_CHARACTER);
         verticaSchemaUtils = new VerticaSchemaUtils();
+
 
     }
 
@@ -95,14 +92,12 @@ public class VerticaMetadataHandler
                                      AmazonAthena athena,
                                      String spillBucket,
                                      String spillPrefix,
-                                     VerticaJdbcSplitQueryBuilder verticaJdbcSplitQueryBuilder,
                                      VerticaSchemaUtils verticaSchemaUtils,
                                      AmazonS3 amazonS3
                                      )
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.connectionFactory = connectionFactory;
-        this.verticaJdbcSplitQueryBuilder = verticaJdbcSplitQueryBuilder;
         this.verticaSchemaUtils = verticaSchemaUtils;
         this.amazonS3 = amazonS3;
 
@@ -116,8 +111,6 @@ public class VerticaMetadataHandler
     }
     private String getConnStr(MetadataRequest request)
     {
-        FederatedIdentity identity = request.getIdentity();
-
         String conStr = System.getenv(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
@@ -236,7 +229,7 @@ public class VerticaMetadataHandler
         logger.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName());
         partitionSchemaBuilder.addField("preparedStmt", new ArrowType.Utf8());
         partitionSchemaBuilder.addField("queryId", new ArrowType.Utf8());
-
+        partitionSchemaBuilder.addField("awsRegionSql", new ArrowType.Utf8());
     }
 
     /**
@@ -255,8 +248,7 @@ public class VerticaMetadataHandler
         TableName tableName = request.getTableName();
         Constraints constraints  = request.getConstraints();
         //get the bucket where export results wll be uploaded
-        String s3ExportBucket = System.getenv(EXPORT_BUCKET_KEY);
-
+        String s3ExportBucket = getS3ExportBucket();
         //Appending a random int to the query id to support multiple federated queries within a single query
 
         String randomStr = UUID.randomUUID().toString();
@@ -267,14 +259,6 @@ public class VerticaMetadataHandler
         DatabaseMetaData dbMetadata = connection.getMetaData();
         ResultSet definition = dbMetadata.getColumns(null, tableName.getSchemaName(), tableName.getTableName(), null);
 
-        /*String preparedSQLStmt = verticaJdbcSplitQueryBuilder.buildSql(s3ExportBucket,
-                tableName.getSchemaName(),
-                tableName.getTableName(),
-                schemaName,
-                constraints,
-                queryID,
-                definition);*/
-
         VerticaExportQueryBuilder queryBuilder = queryFactory.createVerticaExportQueryBuilder();
 
         String preparedSQLStmt = queryBuilder.withS3ExportBucket(s3ExportBucket)
@@ -284,13 +268,17 @@ public class VerticaMetadataHandler
                 .withConstraints(constraints, schemaName)
                 .build();
 
-        logger.info("PREP STMT: {}", preparedSQLStmt);
+        logger.info("Vertica Export Statement: {}", preparedSQLStmt);
+
+        // Build the Set AWS Region SQL
+        String awsRegionSql = queryBuilder.buildSetAwsRegionSql(amazonS3.getRegion().toString());
 
         // write the prepared SQL statement to the partition column created in enhancePartitionSchema
         blockWriter.writeRows((Block block, int rowNum) ->{
-            boolean matched = true;
-            matched &= block.setValue("preparedStmt", rowNum, preparedSQLStmt);
+            boolean matched;
+            matched = block.setValue("preparedStmt", rowNum, preparedSQLStmt);
             matched &= block.setValue("queryId", rowNum, queryID);
+            matched &= block.setValue("awsRegionSql", rowNum, awsRegionSql);
             //If all fields matches then we wrote 1 row during this call so we return 1
             return matched ? 1 : 0;
         });
@@ -316,21 +304,23 @@ public class VerticaMetadataHandler
 
         Connection connection = getConnection(request);
         Set<Split> splits = new HashSet<>();
-        String exportBucket = System.getenv("export_bucket");
+        String exportBucket = getS3ExportBucket();
         String queryId = request.getQueryId().replace("-","");
 
-
-
         //get the SQL statement which was created in getPartitions
-        FieldReader fieldReader = request.getPartitions().getFieldReader("preparedStmt");
-        String sqlStatement  = fieldReader.readText().toString();
+        FieldReader fieldReaderPS = request.getPartitions().getFieldReader("preparedStmt");
+        String sqlStatement  = fieldReaderPS.readText().toString();
         String catalogName = request.getCatalogName();
 
-        FieldReader fieldReader1 = request.getPartitions().getFieldReader("queryId");
-        String queryID  = fieldReader1.readText().toString();
+        FieldReader fieldReaderQid = request.getPartitions().getFieldReader("queryId");
+        String queryID  = fieldReaderQid.readText().toString();
+
+        FieldReader fieldReaderAwsRegion = request.getPartitions().getFieldReader("awsRegionSql");
+        String awsRegionSql  = fieldReaderAwsRegion.readText().toString();
+
 
         //execute the queries on Vertica
-        executeQueriesOnVertica(connection, sqlStatement);
+        executeQueriesOnVertica(connection, sqlStatement, awsRegionSql);
 
          /*
           * For each generated S3 object, create a split and add data to the split.
@@ -356,14 +346,10 @@ public class VerticaMetadataHandler
      * Generates the necessary Prepared Statements to set the AWS Auth and export S3 bucket Region on Vertica
      * and executes the queries
      */
-    private void executeQueriesOnVertica(Connection connection, String sqlStatement)
+    private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql)
     {
         try
         {
-            // Generating the SQL to set the AWS Session Region on Vertica
-            String defaultRegion = amazonS3.getRegion().toString();
-            String awsRegionSql = verticaJdbcSplitQueryBuilder.buildSetAwsRegionSql(defaultRegion);
-
             PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
             PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
 
@@ -402,5 +388,9 @@ public class VerticaMetadataHandler
         return objectListing.getObjectSummaries();
     }
 
+    public String getS3ExportBucket()
+    {
+       return System.getenv(EXPORT_BUCKET_KEY);
+    }
 
 }
