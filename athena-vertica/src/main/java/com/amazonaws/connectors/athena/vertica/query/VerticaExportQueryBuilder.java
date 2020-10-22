@@ -51,6 +51,7 @@ public class VerticaExportQueryBuilder {
     private String colNames;
     private String constraintValues;
 
+
     public VerticaExportQueryBuilder(ST template)
     {
         this.query = Validate.notNull(template, "The StringTemplate for " + TEMPLATE_NAME + " can not be null!");
@@ -61,15 +62,21 @@ public class VerticaExportQueryBuilder {
         return TEMPLATE_NAME;
     }
 
+    public String getTable(){return table;}
+
     public VerticaExportQueryBuilder fromTable(String schemaName, String tableName)
     {
         this.table = PredicateBuilder.getFromClauseWithSplit(schemaName, tableName);
         return this;
     }
 
+    public String getColNames() {return colNames;}
+
+    // get the column names from user issued query in Athena
     public VerticaExportQueryBuilder withColumns(ResultSet definition, Schema tableSchema) throws SQLException {
         //get column name and type from the Schema in a hashmap for future use
         HashMap<String, String> mapOfNamesAndTypes = new HashMap<>();
+
         while(definition.next())
         {
             String colName = definition.getString("COLUMN_NAME").toLowerCase();
@@ -83,10 +90,11 @@ public class VerticaExportQueryBuilder {
         for(Field f : fields)
         {
             /*
-            Vertica exports timestamp field as a INT 96 (26 digit number). The solution implemented here adds a 'cast as varchar' statement
+            Vertica exports timestamp/timestamptz field as a INT 96 (26 digit number). The solution implemented here adds a 'cast as varchar' statement
             to the timestamp column to export the field as a VARCHAR.
              */
-            if(mapOfNamesAndTypes.get(f.getName().toLowerCase()).equalsIgnoreCase("timestamp"))
+            String col_type = mapOfNamesAndTypes.get(f.getName().toLowerCase());
+            if(col_type.equals("timestamp") || col_type.equals("timestamptz"))
             {
                 String castedField = castTimestamp(f.getName());
                 colN.append(castedField).append(",");
@@ -99,20 +107,23 @@ public class VerticaExportQueryBuilder {
         return this;
     }
 
+    public String getConstraintValues() {
+        return constraintValues;}
 
+    //get the constraints from user issued query in Athena
     public VerticaExportQueryBuilder withConstraints(Constraints constraints, Schema tableSchema)
     {
-        LOGGER.info(constraints.toString());
+
         StringBuilder stringBuilder = new StringBuilder();
         //Get the constraints
         HashMap<String, PredicateBuilder.TypeAndValue> accumulator = new HashMap<>();
         List<String> clauses =  PredicateBuilder.toConjuncts(tableSchema.getFields(), constraints, accumulator);
 
-        LOGGER.info(clauses.toString());
         // if clauses is not empty, add it to the templates
         if (!clauses.isEmpty())
         {
-            stringBuilder.append(Joiner.on(" AND ").join(clauses));
+            stringBuilder.append("WHERE ")
+                    .append(Joiner.on(" AND ").join(clauses));
         }
 
         ST sqlTemplate = new ST(stringBuilder.toString());
@@ -180,18 +191,23 @@ public class VerticaExportQueryBuilder {
         return castFieldST.render();
     }
 
-    protected String buildSetAwsRegionSql(String awsRegion)
+    //build the Vertica SQL to set the AWS Region
+    public String buildSetAwsRegionSql(String awsRegion)
     {
         ST regionST=  new ST("ALTER SESSION SET AWSRegion='<defaultRegion>'") ;
         regionST.add("defaultRegion", awsRegion);
         return regionST.render();
     }
 
+    public String getS3ExportBucket(){return s3ExportBucket;}
+
     public VerticaExportQueryBuilder withS3ExportBucket(String s3ExportBucket)
     {
         this.s3ExportBucket = s3ExportBucket;
         return this;
     }
+
+    public String getQueryID(){return queryID;}
 
     public VerticaExportQueryBuilder withQueryID(String queryID)
     {
@@ -205,8 +221,7 @@ public class VerticaExportQueryBuilder {
         Validate.notNull(table, "table can not be null.");
         Validate.notNull(queryID, "queryID can not be null.");
 
-        query.add("builder", this);
-        LOGGER.info(query.render().trim());
+        query.add(TEMPLATE_FIELD, this);
         return query.render().trim();
     }
 
