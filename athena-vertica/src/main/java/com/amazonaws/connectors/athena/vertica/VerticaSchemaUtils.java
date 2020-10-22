@@ -47,7 +47,6 @@ public class VerticaSchemaUtils
             while(definition.next())
             {
                 String colType = definition.getString("TYPE_NAME").toUpperCase();
-
                 switch (colType)
                 {
                     //If Bit
@@ -94,8 +93,9 @@ public class VerticaSchemaUtils
                         break;
                     }
                     //If VARCHAR
+                    case "BOOLEAN":
                     case "VARCHAR":
-                        //If TIMESTAMP
+                    case "TIMESTAMPTZ":
                     case "TIMESTAMP": {
                         tableSchemaBuilder.addStringField(definition.getString("COLUMN_NAME"));
                         break;
