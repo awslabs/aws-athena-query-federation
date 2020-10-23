@@ -54,7 +54,7 @@ Multiplexer provides a way to connect to multiple database instances of any type
 
 ```
 ${catalog}_connection_string    Database instance connection string. One of two types specified above. Required.
-                                If the catalog is myredshiftcatalog then the environment variable name should be myredshiftcatalog_connection_string
+                                Example: If the catalog as registered with Athena is myredshiftcatalog then the environment variable name should be myredshiftcatalog_connection_string
 
 default                         Default connection string. Required. This will be used when catalog is `lambda:${AWS_LAMBDA_FUNCTION_NAME}`.
 ```
