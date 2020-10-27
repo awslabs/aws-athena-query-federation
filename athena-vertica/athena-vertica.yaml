@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2021.24.0
+    SemanticVersion: 2021.35.10
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -20,11 +20,10 @@ Parameters:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
-    Default: "avc"
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
-  ExportBucket:
+  VerticaExportBucket:
     Description: "The bucket where the Vertica Query results will be exported."
     Type: String
   SpillPrefix:
@@ -60,9 +59,9 @@ Parameters:
 
 Resources:
   LambdaSecurityGroup:
-    Type: 'AWS:EC2::SecurityGroup'
+    Type: 'AWS::EC2::SecurityGroup'
     Properties:
-      GroupDescription: 'Athena Vertica Connector VPC Security Group'
+      GroupDescription: 'Athena Vertica Connector Lambda VPC Security Group'
       VpcId: !Ref VpcId
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -72,7 +71,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
-          export_bucket: !Ref ExportBucket
+          export_bucket: !Ref VerticaExportBucket
           default_vertica: !Ref VerticaConnectionString
 
       FunctionName: !Sub "${AthenaCatalogName}"
@@ -86,6 +85,7 @@ Resources:
         - Statement:
             - Action:
                 - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
@@ -94,7 +94,7 @@ Resources:
                 - s3:ListBucket
               Effect: Allow
               Resource:
-                - !Sub 'arn:aws:s3:::${ExportBucket}'
+                - !Sub 'arn:aws:s3:::${VerticaExportBucket}'
                 - !Sub 'arn:aws:s3:::${SpillBucket}'
           Version: '2012-10-17'
         - Statement:
@@ -110,12 +110,13 @@ Resources:
               Ref: SpillBucket
         - S3ReadPolicy:
             BucketName:
-              Ref: ExportBucket
+              Ref: VerticaExportBucket
         - S3WritePolicy:
             BucketName:
-              Ref: ExportBucket
+              Ref: VerticaExportBucket
       #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
       VpcConfig:
         SecurityGroupIds:
+          #SecurityGroup that should be applied to the Lambda function
           - !Ref LambdaSecurityGroup
         SubnetIds: !Ref SubnetIds

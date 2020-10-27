@@ -60,7 +60,6 @@ public class PredicateBuilder {
                 }
             }
         }
-        LOGGER.info(String.valueOf(conjuncts));
         return conjuncts;
     }
 

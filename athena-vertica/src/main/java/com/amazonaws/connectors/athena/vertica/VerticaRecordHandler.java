@@ -20,7 +20,6 @@
 
 package com.amazonaws.connectors.athena.vertica;
 
-import com.amazonaws.SdkClientException;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
@@ -113,7 +112,6 @@ public class VerticaRecordHandler
 
         for(Field field : schemaName.getFields())
         {
-
             Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
             mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
             mapOfCols.put(field.getName(), null);
@@ -144,18 +142,16 @@ public class VerticaRecordHandler
             while ((inputStr = streamReader.readLine()) != null) {
                 HashMap<String, Object> map = new HashMap<>();
                 //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
-
                 ObjectMapper objectMapper = new ObjectMapper();
                 map = objectMapper.readValue(inputStr, HashMap.class);
                 rowContext.setNameValue(map);
-
 
                 //Passing the RowContext to BlockWriter;
                 spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
             }
         }
         
-         catch (SdkClientException e)
+         catch (Exception e)
         {
             throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
         }
@@ -362,4 +358,5 @@ public class VerticaRecordHandler
 
         return request;
     }
+
 }

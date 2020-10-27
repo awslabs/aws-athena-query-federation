@@ -26,8 +26,8 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class VerticaConnectionFactoryTest {
     private VerticaConnectionFactory connectionFactory;
@@ -48,7 +48,6 @@ public class VerticaConnectionFactoryTest {
         Connection connection = connectionFactory.getOrCreateConn("conStr");
 
         assertEquals(mockConnection, connection);
-        verify(mockConnection, times(1)).isValid(300);
 
     }
 
