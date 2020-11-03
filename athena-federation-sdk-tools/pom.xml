@@ -70,6 +70,12 @@
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-cloudformation -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-cloudformation</artifactId>
+            <version>${aws-sdk.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
