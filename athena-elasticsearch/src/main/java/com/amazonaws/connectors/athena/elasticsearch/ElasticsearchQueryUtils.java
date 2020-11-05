@@ -22,6 +22,7 @@ package com.amazonaws.connectors.athena.elasticsearch;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.elasticsearch.common.Strings;
@@ -45,12 +46,14 @@ class ElasticsearchQueryUtils
     // Predicate conjunctions.
     private static final String AND_OPER = " AND ";
     private static final String OR_OPER = " OR ";
-    private static final String NO_OPER = "";
     private static final String NOT_OPER = "NOT ";
-    private static final String LESS_THAN = "<";
-    private static final String LESS_THAN_OR_EQUAL = "<=";
-    private static final String GREATER_THAN = ">";
-    private static final String GREATER_THAN_OR_EQUAL = ">=";
+    private static final String RANGE_OPER = " TO ";
+    private static final String LOWER_UNBOUNDED_RANGE = "[*";
+    private static final String LOWER_INCLUSIVE_RANGE = "[";
+    private static final String LOWER_EXCLUSIVE_RANGE = "{";
+    private static final String UPPER_UNBOUNDED_RANGE = "*]";
+    private static final String UPPER_INCLUSIVE_RANGE = "]";
+    private static final String UPPER_EXCLUSIVE_RANGE = "}";
     private static final String EMPTY_PREDICATE = "";
 
     // Existence predicates.
@@ -183,18 +186,27 @@ class ElasticsearchQueryUtils
         List<String> disjuncts = new ArrayList<>();
         for (Range range : constraint.getRanges().getOrderedRanges()) {
             if (range.isSingleValue()) {
-                singleValues.add(range.getSingleValue().toString());
+                String singleValue = range.getSingleValue().toString();
+                if (range.getType() instanceof ArrowType.Date) {
+                    // Wrap a single date in quotes, e.g. my-birthday:("2000-11-11T06:57:44.123")
+                    singleValues.add("\"" + singleValue + "\"");
+                }
+                else {
+                    singleValues.add(singleValue);
+                }
             }
             else {
-                boolean lowerBounded = !range.getLow().isLowerUnbounded();
-                String rangeConjuncts = "(";
-                if (lowerBounded) {
+                String rangeConjuncts;
+                if (range.getLow().isLowerUnbounded()) {
+                    rangeConjuncts = LOWER_UNBOUNDED_RANGE;
+                }
+                else {
                     switch (range.getLow().getBound()) {
                         case EXACTLY:
-                            rangeConjuncts += GREATER_THAN_OR_EQUAL + range.getLow().getValue().toString();
+                            rangeConjuncts = LOWER_INCLUSIVE_RANGE + range.getLow().getValue().toString();
                             break;
                         case ABOVE:
-                            rangeConjuncts += GREATER_THAN + range.getLow().getValue().toString();
+                            rangeConjuncts = LOWER_EXCLUSIVE_RANGE + range.getLow().getValue().toString();
                             break;
                         case BELOW:
                             logger.warn("Low Marker should never use BELOW bound: " + range);
@@ -204,15 +216,17 @@ class ElasticsearchQueryUtils
                             continue;
                     }
                 }
-                if (!range.getHigh().isUpperUnbounded()) {
+                rangeConjuncts += RANGE_OPER;
+                if (range.getHigh().isUpperUnbounded()) {
+                    rangeConjuncts += UPPER_UNBOUNDED_RANGE;
+                }
+                else {
                     switch (range.getHigh().getBound()) {
                         case EXACTLY:
-                            rangeConjuncts += (lowerBounded ? AND_OPER : NO_OPER) +
-                                    LESS_THAN_OR_EQUAL + range.getHigh().getValue().toString();
+                            rangeConjuncts += range.getHigh().getValue().toString() + UPPER_INCLUSIVE_RANGE;
                             break;
                         case BELOW:
-                            rangeConjuncts += (lowerBounded ? AND_OPER : NO_OPER) +
-                                    LESS_THAN + range.getHigh().getValue().toString();
+                            rangeConjuncts += range.getHigh().getValue().toString() + UPPER_EXCLUSIVE_RANGE;
                             break;
                         case ABOVE:
                             logger.warn("High Marker should never use ABOVE bound: " + range);
@@ -222,7 +236,7 @@ class ElasticsearchQueryUtils
                             continue;
                     }
                 }
-                disjuncts.add(rangeConjuncts + ")");
+                disjuncts.add(rangeConjuncts);
             }
         }
 
@@ -236,7 +250,7 @@ class ElasticsearchQueryUtils
             return EMPTY_PREDICATE;
         }
 
-        // field:((>=value1 AND <=value2) OR value3 OR value4 OR value5...)
+        // field:([value1 TO value2] OR value3 OR value4 OR value5...)
         return fieldName + ":(" + Strings.collectionToDelimitedString(disjuncts, OR_OPER) + ")";
     }
 }

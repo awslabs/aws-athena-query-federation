@@ -94,8 +94,15 @@ public class GlueFieldLexer
         }
         else if (startToken.getValue().toLowerCase().equals(LIST)) {
             GlueTypeParser.Token arrayType = parser.next();
-            return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType())
-                    .addField(mapper.getField(name, arrayType.getValue())).build();
+            Field child;
+            String type = arrayType.getValue().toLowerCase();
+            if (type.equals(STRUCT) || type.equals(LIST)) {
+                child = lexComplex(name, arrayType, parser, mapper);
+            }
+            else {
+                child = mapper.getField(name, arrayType.getValue());
+            }
+            return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType()).addField(child).build();
         }
         else {
             throw new RuntimeException("Unexpected start type " + startToken.getValue());
@@ -104,6 +111,17 @@ public class GlueFieldLexer
         while (parser.hasNext() && parser.currentToken().getMarker() != GlueTypeParser.FIELD_END) {
             Field child = lex(parser.next(), parser, mapper);
             fieldBuilder.addField(child);
+            if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.LIST) {
+                // An ARRAY Glue type (LIST in Arrow) within a STRUCT has the same ending token as a STRUCT (">" or
+                // GlueTypeParser.FIELD_END). If allowed to proceed, the Glue parser will misinterpret the end of the
+                // ARRAY to be the end of the STRUCT (which is currently being processed) ending the loop prematurely
+                // and causing all subsequent fields in the STRUCT to be dropped.
+                // Example: movies: STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>
+                // will result in Field definition: movies: Struct<actors: List<actors: Utf8>>.
+                // In order to prevent that from happening, we must consume an additional token to get past the LIST's
+                // ending token ">".
+                parser.next();
+            }
         }
         parser.next();
 

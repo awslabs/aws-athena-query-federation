@@ -77,7 +77,7 @@ public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
         logger.info("deserialize: deserialized[{}]", actual);
 
         assertEquals(expected, actual);
-        assertEquals(expected.getIdentity().getId(), actual.getIdentity().getId());
+        assertEquals(expected.getIdentity().getArn(), actual.getIdentity().getArn());
 
         logger.info("deserialize: exit");
     }
@@ -85,7 +85,7 @@ public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
     @Test
     public void testBackwardsCompatibility()
     {
-        ObjectMapperUtil.assertSerialization(expected, true);
+        ObjectMapperUtil.assertSerialization(expected);
     }
 
     @Test
@@ -102,7 +102,7 @@ public class PingRequestSerDeTest extends TypedSerDeTest<FederationRequest>
         logger.info("testForwardsCompatibility: deserialized[{}]", actual);
 
         assertEquals(expected, actual);
-        assertEquals(expected.getIdentity().getId(), actual.getIdentity().getId());
+        assertEquals(expected.getIdentity().getArn(), actual.getIdentity().getArn());
 
         logger.info("testForwardsCompatibility: exit");
     }

@@ -397,8 +397,6 @@ public class DynamoDBMetadataHandler
         Set<Split> splits = new HashSet<>();
         Block partitions = request.getPartitions();
         Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
-        // copy all partition metadata to the split
-        Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
         String partitionType = partitionMetadata.get(PARTITION_TYPE_METADATA);
         if (partitionType == null) {
             throw new IllegalStateException(String.format("No metadata %s defined in Schema %s", PARTITION_TYPE_METADATA, partitions.getSchema()));
@@ -412,11 +410,13 @@ public class DynamoDBMetadataHandler
 
                 //Every split must have a unique location if we wish to spill to avoid failures
                 SpillLocation spillLocation = makeSpillLocation(request);
+
+                // copy all partition metadata to the split
+                Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
+
                 Object hashKeyValue = DDBTypeUtils.convertArrowTypeIfNecessary(hashKeyName, hashKeyValueReader.readObject());
                 String hashKeyValueJSON = Jackson.toJsonString(ItemUtils.toAttributeValue(hashKeyValue));
                 splitMetadata.put(hashKeyName, hashKeyValueJSON);
-
-                splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(partitions.getRowCount()));
 
                 splits.add(new Split(spillLocation, makeEncryptionKey(), splitMetadata));
 
@@ -434,7 +434,11 @@ public class DynamoDBMetadataHandler
             FieldReader segmentCountReader = partitions.getFieldReader(SEGMENT_COUNT_METADATA);
             int segmentCount = segmentCountReader.readInteger();
             for (int curPartition = partitionContd; curPartition < segmentCount; curPartition++) {
+                //Every split must have a unique location if we wish to spill to avoid failures
                 SpillLocation spillLocation = makeSpillLocation(request);
+
+                // copy all partition metadata to the split
+                Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
 
                 splitMetadata.put(SEGMENT_ID_PROPERTY, String.valueOf(curPartition));
                 splitMetadata.put(SEGMENT_COUNT_METADATA, String.valueOf(segmentCount));

@@ -9,9 +9,9 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -34,18 +34,12 @@ public class GlueFieldLexerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(GlueFieldLexerTest.class);
 
-    private static final String INPUT1 = "STRUCT <  street_address: STRUCT <    street_number: INT,    street_name: STRING,    street_type: STRING  >,  country: STRING,  postal_code: ARRAY<STRING>>";
-
-    private static final String INPUT2 = "ARRAY<STRING>";
-
-    private static final String INPUT3 = "INT";
-
     @Test
     public void basicLexTest()
     {
         logger.info("basicLexTest: enter");
-
-        Field field = GlueFieldLexer.lex("testField", INPUT2);
+        String input = "ARRAY<STRING>";
+        Field field = GlueFieldLexer.lex("testField", input);
         assertEquals("testField", field.getName());
         assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(field.getChildren().get(0).getType()));
@@ -57,8 +51,8 @@ public class GlueFieldLexerTest
     public void baseLexTest()
     {
         logger.info("baseLexTest: enter");
-
-        Field field = GlueFieldLexer.lex("testField", INPUT3);
+        String input = "INT";
+        Field field = GlueFieldLexer.lex("testField", input);
         assertEquals("testField", field.getName());
         assertEquals(Types.MinorType.INT, Types.getMinorTypeForArrowType(field.getType()));
         assertEquals(0, field.getChildren().size());
@@ -71,7 +65,9 @@ public class GlueFieldLexerTest
     {
         logger.info("lexTest: enter");
 
-        Field field = GlueFieldLexer.lex("testField", INPUT1);
+        String input = "STRUCT <  street_address: STRUCT <    street_number: INT,    street_name: STRING,    street_type: STRING  >,  country: STRING,  postal_code: ARRAY<STRING>>";
+
+        Field field = GlueFieldLexer.lex("testField", input);
 
         logger.info("lexTest: {}", field);
         assertEquals("testField", field.getName());
@@ -104,5 +100,116 @@ public class GlueFieldLexerTest
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level1.get(2).getChildren().get(0).getType()));
 
         logger.info("lexTest: exit");
+    }
+
+    @Test
+    public void arrayOfStructLexComplexTest()
+    {
+        logger.info("arrayOfStructLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("namelist", "ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING>>");
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals("namelist", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+        Field child = field.getChildren().get(0);
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(child.getType()));
+        assertEquals(3, child.getChildren().size());
+        assertEquals("last", child.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(0).getType()));
+        assertEquals("mi", child.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(1).getType()));
+        assertEquals("first", child.getChildren().get(2).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(child.getChildren().get(2).getType()));
+
+        logger.info("arrayOfStructLexComplexTest: exit");
+    }
+
+    @Test
+    public void nestedArrayLexComplexTest()
+    {
+        logger.info("nestedArrayLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("namelist", "ARRAY<ARRAY<STRUCT<last:STRING,mi:STRING,first:STRING, aliases:ARRAY<STRING>>>>");
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals("namelist", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+
+        Field level1 = field.getChildren().get(0);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(level1.getType()));
+
+        Field level2 = level1.getChildren().get(0);
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(level2.getType()));
+        assertEquals(4, level2.getChildren().size());
+        assertEquals("last", level2.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level2.getChildren().get(0).getType()));
+        assertEquals("mi", level2.getChildren().get(1).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level2.getChildren().get(1).getType()));
+        assertEquals("first", level2.getChildren().get(2).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level2.getChildren().get(2).getType()));
+        assertEquals("aliases", level2.getChildren().get(3).getName());
+
+        Field level3 = level2.getChildren().get(3);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(level3.getType()));
+        assertEquals("aliases", level3.getChildren().get(0).getName());
+        assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(level3.getChildren().get(0).getType()));
+
+        logger.info("nestedArrayLexComplexTest: exit");
+    }
+
+    @Test
+    public void multiArrayStructLexComplexTest()
+    {
+        logger.info("multiArrayStructLexComplexTest: enter");
+
+        Field field = GlueFieldLexer.lex("movie_info", "STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>");
+
+        logger.info("lexTest: {}", field);
+
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(field.getType()));
+        assertEquals("movie_info", field.getName());
+        assertEquals(2, field.getChildren().size());
+
+        Field array1 = field.getChildren().get(0);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array1.getType()));
+        assertEquals("actors", array1.getChildren().get(0).getName());
+
+        Field array2 = field.getChildren().get(1);
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(array2.getType()));
+        assertEquals("genre", array2.getChildren().get(0).getName());
+
+        logger.info("multiArrayStructLexComplexTest: exit");
+    }
+
+    @Test
+    public void lexListOfStructTest()
+    {
+        logger.info("lexListOfStructTest: enter");
+
+        String input = "ARRAY<STRUCT<time:timestamp, measure_value\\:\\:double:double>>";
+
+        Field field = GlueFieldLexer.lex("testField", input);
+
+        logger.info("lexListOfStructTest: {}", field);
+        assertEquals("testField", field.getName());
+        assertEquals(Types.MinorType.LIST, Types.getMinorTypeForArrowType(field.getType()));
+        assertEquals(1, field.getChildren().size());
+
+        List<Field> level1 = field.getChildren();
+        assertEquals("testField", level1.get(0).getName());
+        assertEquals(Types.MinorType.STRUCT, Types.getMinorTypeForArrowType(level1.get(0).getType()));
+        assertEquals(2, level1.get(0).getChildren().size());
+
+        List<Field> level2 = level1.get(0).getChildren();
+        assertEquals("time", level2.get(0).getName());
+        assertEquals(Types.MinorType.DATEMILLI, Types.getMinorTypeForArrowType(level2.get(0).getType()));
+        assertEquals(0, level2.get(0).getChildren().size());
+        assertEquals("measure_value::double", level2.get(1).getName());
+        assertEquals(Types.MinorType.FLOAT8, Types.getMinorTypeForArrowType(level2.get(1).getType()));
+
+        logger.info("lexListOfStructTest: exit");
     }
 }
