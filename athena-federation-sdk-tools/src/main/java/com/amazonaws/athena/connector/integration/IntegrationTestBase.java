@@ -154,7 +154,7 @@ public abstract class IntegrationTestBase
         logger.info("Create CloudFormation stack: {}", cloudFormationStackName);
         logger.info("------------------------------------------------------");
 
-        Stack stack = generateStack();
+        final Stack stack = generateStack();
         JsonNode stackTemplate = objectMapper
                 .valueToTree(theApp.synth().getStackArtifact(stack.getArtifactId()).getTemplate());
         logger.info("CloudFormation Template:\n{}: {}", cloudFormationStackName, stackTemplate.toPrettyString());
@@ -174,7 +174,7 @@ public abstract class IntegrationTestBase
      */
     private Stack generateStack()
     {
-        Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
+        final Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
                 lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars());
         // Setup connector specific stack data (e.g. DB table).
         setupStackData(stack);
