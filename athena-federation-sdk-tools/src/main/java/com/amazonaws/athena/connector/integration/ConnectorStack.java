@@ -52,17 +52,17 @@ public class ConnectorStack extends Stack
     private final String functionHandler;
     private final Map environmentVariables;
 
-    private ConnectorStack(Builder builder)
+    public ConnectorStack(final Construct scope, final String id, final String spillBucket, final String s3Key,
+                          final String functionName, final String functionHandler, Map environmentVariables)
     {
-        super(builder.scope, builder.id);
+        super(scope, id);
 
-        spillBucket = builder.spillBucket;
-        s3Key = builder.s3Key;
-
-        iamRole = setIamRole();
-        functionName = builder.functionName;
-        functionHandler = builder.functionHandler;
-        environmentVariables = builder.environmentVariables;
+        this.spillBucket = spillBucket;
+        this.s3Key = s3Key;
+        this.functionName = functionName;
+        this.functionHandler = functionHandler;
+        this.environmentVariables = environmentVariables;
+        this.iamRole = setIamRole();
 
         setLambdaFunction();
     }
@@ -148,45 +148,5 @@ public class ConnectorStack extends Stack
                 .timeout(Duration.seconds(Integer.valueOf(900)))
                 .environment(environmentVariables)
                 .build();
-    }
-
-    public static class Builder
-    {
-        private final Construct scope;
-        private final String id;
-        private String spillBucket;
-        private String s3Key;
-        private String functionName;
-        private String functionHandler;
-        private Map environmentVariables;
-
-        public Builder(final Construct scope, final String id)
-        {
-            this.scope = scope;
-            this.id = id;
-        }
-
-        public Builder withSpillBucket(final String spillBucket, final String s3Key)
-        {
-            this.spillBucket = spillBucket;
-            this.s3Key = s3Key;
-
-            return this;
-        }
-
-        public Builder withFunctionProperties(final String functionName, final String functionHandler,
-                                              final Map<String, String> environmentVariables)
-        {
-            this.functionName = functionName;
-            this.functionHandler = functionHandler;
-            this.environmentVariables = environmentVariables;
-
-            return this;
-        }
-
-        public ConnectorStack build()
-        {
-            return new ConnectorStack(this);
-        }
     }
 }

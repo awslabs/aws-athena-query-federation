@@ -126,7 +126,8 @@ public abstract class IntegrationTestBase
     protected abstract void setupData();
 
     /**
-     * Must be overridden in the extending class to create a CloudFormation stack using AWS CDK.
+     * Must be overridden in the extending class to create a connector-specific CloudFormation stack resource
+     * (e.g. DB table) using AWS CDK.
      * @param stack The current CloudFormation stack.
      * @return A Stack object.
      */
@@ -141,9 +142,8 @@ public abstract class IntegrationTestBase
 
     /**
      * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
-     * instance, Lambda function, etc...) It then calls abstract method setupDbTable() to setup the DB table.
+     * instance, Lambda function, etc...).
      * @throws InterruptedException Thread is interrupted during sleep.
-     * @throws IOException The CloudFormation stack template file is not found or cannot be read.
      * @throws RuntimeException The CloudFormation stack creation failed.
      */
     @BeforeClass
@@ -174,10 +174,8 @@ public abstract class IntegrationTestBase
      */
     private Stack generateStack()
     {
-        Stack stack = new ConnectorStack.Builder(theApp, cloudFormationStackName)
-                .withSpillBucket(spillBucket, s3Key)
-                .withFunctionProperties(lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars())
-                .build();
+        Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
+                lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars());
         // Setup connector specific stack data (e.g. DB table).
         setupStackData(stack);
 
