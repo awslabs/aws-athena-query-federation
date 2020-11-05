@@ -76,6 +76,18 @@
             <artifactId>aws-java-sdk-cloudformation</artifactId>
             <version>${aws-sdk.version}</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/iam -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>iam</artifactId>
+            <version>${aws-cdk.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/lambda -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>lambda</artifactId>
+            <version>${aws-cdk.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

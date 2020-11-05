@@ -36,18 +36,23 @@ import com.amazonaws.services.cloudformation.model.DeleteStackRequest;
 import com.amazonaws.services.cloudformation.model.DescribeStackEventsRequest;
 import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
 import com.amazonaws.services.cloudformation.model.StackEvent;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import software.amazon.awscdk.core.App;
+import software.amazon.awscdk.core.Stack;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 /**
  * The Integration-Tests base class from which all connector-specific integration test modules should subclass.
@@ -56,7 +61,11 @@ public abstract class IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
 
-    private static final String CF_TEMPLATE_NAME = "integration-test.yaml";
+    private static final String CF_TEMPLATE_NAME = "packaged.yaml";
+    private static final String LAMBDA_CODE_URI_TAG = "CodeUri:";
+    private static final String LAMBDA_SPILL_BUCKET_PREFIX = "s3://";
+    private static final String LAMBDA_HANDLER_TAG = "Handler:";
+    private static final String LAMBDA_HANDLER_PREFIX = "Handler: ";
     private static final String CF_CREATE_RESOURCE_IN_PROGRESS_STATUS = "CREATE_IN_PROGRESS";
     private static final String CF_CREATE_RESOURCE_FAILED_STATUS = "CREATE_FAILED";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
@@ -66,20 +75,69 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_FEDERATION_WORK_GROUP = "AmazonAthenaPreviewFunctionality";
     private static final long sleepTimeMillis = 5000L;
 
+    private final String lambdaFunctionName;
+    private String lambdaFunctionHandler;
+    private String spillBucket;
+    private String s3Key;
     private final AmazonAthena athenaClient;
     private final String cloudFormationStackName;
+    private final App theApp;
+    private final ObjectMapper objectMapper;
 
-    public IntegrationTestBase()
+    public IntegrationTestBase(final String lambdaFunctionName)
     {
-        athenaClient = AmazonAthenaClientBuilder.defaultClient();
-        cloudFormationStackName = "Integration-Test-" + this.getClass().getSimpleName() +
-                "-" + UUID.randomUUID().toString();
+        this.lambdaFunctionName = lambdaFunctionName;
+        this.athenaClient = AmazonAthenaClientBuilder.defaultClient();
+        this.cloudFormationStackName = "Integration-Test-" + this.getClass().getSimpleName() + "-" + UUID.randomUUID();
+        this.theApp = new App();
+        this.objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
+
+        setupLambdaFunctionInfo();
+    }
+
+    /**
+     * Sets several variables needed in the creation of the CF Stack (e.g. spillBucket, s3Key, lambdaFunctionHandler).
+     */
+    private void setupLambdaFunctionInfo()
+    {
+        try {
+            for (String line : Files.readAllLines(Paths.get(CF_TEMPLATE_NAME), StandardCharsets.UTF_8)) {
+                if (line.contains(LAMBDA_CODE_URI_TAG)) {
+                    spillBucket = line.substring(line.indexOf(LAMBDA_SPILL_BUCKET_PREFIX) +
+                            LAMBDA_SPILL_BUCKET_PREFIX.length(), line.lastIndexOf('/'));
+                    s3Key = line.substring(line.lastIndexOf('/') + 1);
+                }
+                else if (line.contains(LAMBDA_HANDLER_TAG)) {
+                    lambdaFunctionHandler = line.substring(line.indexOf(LAMBDA_HANDLER_PREFIX) +
+                            LAMBDA_HANDLER_PREFIX.length());
+                }
+            }
+        }
+        catch (IOException e) {
+            logger.error("Unable to retrieve Lambda Function information", e);
+        }
+
+        logger.info("Spill Bucket: [{}], S3 Key: [{}], Handler: [{}]", spillBucket, s3Key, lambdaFunctionHandler);
     }
 
     /**
      * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
      */
     protected abstract void setupData();
+
+    /**
+     * Must be overridden in the extending class to create a CloudFormation stack using AWS CDK.
+     * @param stack The current CloudFormation stack.
+     * @return A Stack object.
+     */
+    protected abstract void setupStackData(final Stack stack);
+
+    /**
+     * Must be overridden in the extending class to get the lambda function's environment variables (e.g. Spill Bucket,
+     * Connection String, etc...)
+     * @return Map with parameter key-value pairs.
+     */
+    protected abstract Map<String, String> getLambdaFunctionEnvironmentVars();
 
     /**
      * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
@@ -90,66 +148,40 @@ public abstract class IntegrationTestBase
      */
     @BeforeClass
     protected void createStack()
-            throws InterruptedException, IOException, RuntimeException
+            throws InterruptedException, RuntimeException
     {
         logger.info("------------------------------------------------------");
         logger.info("Create CloudFormation stack: {}", cloudFormationStackName);
         logger.info("------------------------------------------------------");
 
-        String stackTemplate = getTemplateFromFile();
+        Stack stack = generateStack();
+        JsonNode stackTemplate = objectMapper
+                .valueToTree(theApp.synth().getStackArtifact(stack.getArtifactId()).getTemplate());
+        logger.info("CloudFormation Template:\n{}: {}", cloudFormationStackName, stackTemplate.toPrettyString());
+
         CreateStackRequest createStackRequest = new CreateStackRequest()
                 .withStackName(cloudFormationStackName)
-                .withTemplateBody(stackTemplate)
+                .withTemplateBody(stackTemplate.toPrettyString())
                 .withDisableRollback(true)
-                .withCapabilities(Capability.CAPABILITY_IAM);
+                .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
         processCreateStackRequest(createStackRequest);
         setupData();
     }
 
     /**
-     * Converts the CloudFormation stack template yaml/json file to String.
-     * @return A String representation of the CloudFormation stack template.
-     * @throws IOException If the CloudFormation stack template file is not found or cannot be read.
+     * Generate the CloudFormation stack.
+     * @return CloudFormation stack object.
      */
-    private String getTemplateFromFile()
-            throws IOException
+    private Stack generateStack()
     {
-        StringBuilder templateBuilder = new StringBuilder();
+        Stack stack = new ConnectorStack.Builder(theApp, cloudFormationStackName)
+                .withSpillBucket(spillBucket, s3Key)
+                .withFunctionProperties(lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars())
+                .build();
+        // Setup connector specific stack data (e.g. DB table).
+        setupStackData(stack);
 
-        Stream<String> stream = Files.lines(Paths.get(CF_TEMPLATE_NAME), StandardCharsets.UTF_8);
-        stream.forEach(line -> {
-            if (line.contains("S3_KEY")) {
-                line = line.replace("S3_KEY", getS3KeyFromPackagedYaml());
-            }
-            templateBuilder.append(line).append("\n");
-        });
-
-        return templateBuilder.toString();
-    }
-
-    /**
-     * Gets the S3 Key (from packaged.yaml) for the S3 Bucket containing the Connector code.
-     * @return String with the S3 Key.
-     */
-    private String getS3KeyFromPackagedYaml()
-    {
-        String s3Key = "";
-
-        try {
-            for (String line : Files.readAllLines(Paths.get("packaged.yaml"), StandardCharsets.UTF_8)) {
-                if (line.contains("CodeUri")) {
-                    s3Key = line.substring(line.lastIndexOf('/') + 1);
-                    break;
-                }
-            }
-        }
-        catch (IOException e) {
-            logger.error("Unable to retrieve S3 Key", e);
-        }
-
-        logger.info("S3Key: {}", s3Key);
-
-        return s3Key;
+        return stack;
     }
 
     /**

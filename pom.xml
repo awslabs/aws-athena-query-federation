@@ -18,6 +18,8 @@
         <mockito.version>1.10.19</mockito.version>
         <junit.version>4.13.1</junit.version>
         <testng.version>7.0.0</testng.version>
+        <fasterxml.jackson.version>2.11.3</fasterxml.jackson.version>
+        <aws-cdk.version>1.71.0</aws-cdk.version>
     </properties>
 
     <organization>
@@ -85,6 +87,18 @@
             <artifactId>testng</artifactId>
             <version>${testng.version}</version>
             <scope>compile</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-annotations -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${fasterxml.jackson.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/core -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>core</artifactId>
+            <version>${aws-cdk.version}</version>
         </dependency>
     </dependencies>
 
