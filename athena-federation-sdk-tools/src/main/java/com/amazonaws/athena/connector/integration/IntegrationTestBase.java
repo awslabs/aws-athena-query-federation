@@ -91,8 +91,86 @@ public abstract class IntegrationTestBase
         this.cloudFormationStackName = "Integration-Test-" + this.getClass().getSimpleName() + "-" + UUID.randomUUID();
         this.theApp = new App();
         this.objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
+    }
 
+    /**
+     * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
+     */
+    protected abstract void setupData();
+
+    /**
+     * Must be overridden in the extending class (can be a no-op) to create a connector-specific CloudFormation stack
+     * resource (e.g. DB table) using AWS CDK.
+     * @param stack The current CloudFormation stack.
+     */
+    protected abstract void setupStackData(final Stack stack);
+
+    /**
+     * Must be overridden in the extending class to get the lambda function's environment variables key-value pairs
+     * (e.g. "spillbucket":"myspillbucket"). See individual connector for expected environment variables.
+     * @return Map with parameter key-value pairs.
+     */
+    protected abstract Map<String, String> getLambdaFunctionEnvironmentVars();
+
+    /**
+     * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
+     * instance, Lambda function, etc...).
+     * @throws InterruptedException Thread is interrupted during sleep.
+     * @throws RuntimeException The CloudFormation stack creation failed.
+     */
+    @BeforeClass
+    protected void createStack()
+            throws Exception
+    {
+        logger.info("------------------------------------------------------");
+        logger.info("Create CloudFormation stack: {}", cloudFormationStackName);
+        logger.info("------------------------------------------------------");
+
+        String cloudFormationTemplate = getCloudFormationTemplate();
+
+        try {
+            CreateStackRequest createStackRequest = new CreateStackRequest()
+                    .withStackName(cloudFormationStackName)
+                    .withTemplateBody(cloudFormationTemplate)
+                    .withDisableRollback(true)
+                    .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
+            processCreateStackRequest(createStackRequest);
+            setupData();
+        }
+        catch (Exception e) {
+            // Delete the partially formed CloudFormation stack.
+            deleteStack();
+            throw e;
+        }
+    }
+
+    /**
+     * Gets the CloudFormation template (generated programmatically using AWS CDK).
+     * @return CloudFormation stack template.
+     */
+    private String getCloudFormationTemplate()
+    {
+        final Stack stack = generateStack();
+        JsonNode stackTemplate = objectMapper
+                .valueToTree(theApp.synth().getStackArtifact(stack.getArtifactId()).getTemplate());
+        logger.info("CloudFormation Template:\n{}: {}", cloudFormationStackName, stackTemplate.toPrettyString());
+
+        return stackTemplate.toPrettyString();
+    }
+
+    /**
+     * Generate the CloudFormation stack programmatically using AWS CDK.
+     * @return CloudFormation stack object.
+     */
+    private Stack generateStack()
+    {
         setupLambdaFunctionInfo();
+        final Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
+                lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars());
+        // Setup connector specific stack data (e.g. DB table).
+        setupStackData(stack);
+
+        return stack;
     }
 
     /**
@@ -118,68 +196,6 @@ public abstract class IntegrationTestBase
         }
 
         logger.info("Spill Bucket: [{}], S3 Key: [{}], Handler: [{}]", spillBucket, s3Key, lambdaFunctionHandler);
-    }
-
-    /**
-     * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
-     */
-    protected abstract void setupData();
-
-    /**
-     * Must be overridden in the extending class to create a connector-specific CloudFormation stack resource
-     * (e.g. DB table) using AWS CDK.
-     * @param stack The current CloudFormation stack.
-     * @return A Stack object.
-     */
-    protected abstract void setupStackData(final Stack stack);
-
-    /**
-     * Must be overridden in the extending class to get the lambda function's environment variables (e.g. Spill Bucket,
-     * Connection String, etc...)
-     * @return Map with parameter key-value pairs.
-     */
-    protected abstract Map<String, String> getLambdaFunctionEnvironmentVars();
-
-    /**
-     * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
-     * instance, Lambda function, etc...).
-     * @throws InterruptedException Thread is interrupted during sleep.
-     * @throws RuntimeException The CloudFormation stack creation failed.
-     */
-    @BeforeClass
-    protected void createStack()
-            throws InterruptedException, RuntimeException
-    {
-        logger.info("------------------------------------------------------");
-        logger.info("Create CloudFormation stack: {}", cloudFormationStackName);
-        logger.info("------------------------------------------------------");
-
-        final Stack stack = generateStack();
-        JsonNode stackTemplate = objectMapper
-                .valueToTree(theApp.synth().getStackArtifact(stack.getArtifactId()).getTemplate());
-        logger.info("CloudFormation Template:\n{}: {}", cloudFormationStackName, stackTemplate.toPrettyString());
-
-        CreateStackRequest createStackRequest = new CreateStackRequest()
-                .withStackName(cloudFormationStackName)
-                .withTemplateBody(stackTemplate.toPrettyString())
-                .withDisableRollback(true)
-                .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
-        processCreateStackRequest(createStackRequest);
-        setupData();
-    }
-
-    /**
-     * Generate the CloudFormation stack.
-     * @return CloudFormation stack object.
-     */
-    private Stack generateStack()
-    {
-        final Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
-                lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars());
-        // Setup connector specific stack data (e.g. DB table).
-        setupStackData(stack);
-
-        return stack;
     }
 
     /**
