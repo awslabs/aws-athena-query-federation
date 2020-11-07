@@ -45,6 +45,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
+import software.amazon.awscdk.services.iam.PolicyDocument;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -110,7 +111,14 @@ public abstract class IntegrationTestBase
      * (e.g. "spillbucket":"myspillbucket"). See individual connector for expected environment variables.
      * @return Map with parameter key-value pairs.
      */
-    protected abstract Map<String, String> getLambdaFunctionEnvironmentVars();
+    protected abstract Map<String, String> getConnectorEnvironmentVars();
+
+    /**
+     * Must be overridden in the extending class to get the lambda function's IAM access policy. The latter sets up
+     * access to multiple connector-specific AWS services (e.g. DynamoDB, Elasticsearch etc...)
+     * @return A policy document object.
+     */
+    protected abstract PolicyDocument getConnectorAccessPolicy();
 
     /**
      * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
@@ -166,7 +174,7 @@ public abstract class IntegrationTestBase
     {
         setupLambdaFunctionInfo();
         final Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
-                lambdaFunctionName, lambdaFunctionHandler, getLambdaFunctionEnvironmentVars());
+                lambdaFunctionName, lambdaFunctionHandler, getConnectorAccessPolicy(), getConnectorEnvironmentVars());
         // Setup connector specific stack data (e.g. DB table).
         setupStackData(stack);
 

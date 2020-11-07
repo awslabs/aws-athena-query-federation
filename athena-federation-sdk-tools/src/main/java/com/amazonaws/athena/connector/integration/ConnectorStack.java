@@ -21,8 +21,6 @@ package com.amazonaws.athena.connector.integration;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.core.CfnParameter;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.core.Duration;
@@ -41,19 +39,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Sets up the CloudFormation stack necessary for a Lambda Connector.
+ */
 public class ConnectorStack extends Stack
 {
-    private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
-
     private final String spillBucket;
     private final String s3Key;
-    private final Role iamRole;
     private final String functionName;
     private final String functionHandler;
+    private final PolicyDocument connectorAccessPolicy;
     private final Map environmentVariables;
 
     public ConnectorStack(final Construct scope, final String id, final String spillBucket, final String s3Key,
-                          final String functionName, final String functionHandler, Map environmentVariables)
+                          final String functionName, final String functionHandler,
+                          final PolicyDocument connectorAccessPolicy, final Map environmentVariables)
     {
         super(scope, id);
 
@@ -61,79 +61,20 @@ public class ConnectorStack extends Stack
         this.s3Key = s3Key;
         this.functionName = functionName;
         this.functionHandler = functionHandler;
+        this.connectorAccessPolicy = connectorAccessPolicy;
         this.environmentVariables = environmentVariables;
-        this.iamRole = setIamRole();
 
-        setLambdaFunction();
+        setConnectorStack();
     }
 
-    private Role setIamRole()
-    {
-        List<String> statementActionsPolicy0 = new ArrayList<>();
-        statementActionsPolicy0.add("dynamodb:DescribeTable");
-        statementActionsPolicy0.add("dynamodb:ListSchemas");
-        statementActionsPolicy0.add("dynamodb:ListTables");
-        statementActionsPolicy0.add("dynamodb:Query");
-        statementActionsPolicy0.add("dynamodb:Scan");
-        statementActionsPolicy0.add("glue:GetTableVersions");
-        statementActionsPolicy0.add("glue:GetPartitions");
-        statementActionsPolicy0.add("glue:GetTables");
-        statementActionsPolicy0.add("glue:GetTableVersion");
-        statementActionsPolicy0.add("glue:GetDatabases");
-        statementActionsPolicy0.add("glue:GetTable");
-        statementActionsPolicy0.add("glue:GetPartition");
-        statementActionsPolicy0.add("glue:GetDatabase");
-        statementActionsPolicy0.add("athena:GetQueryExecution");
-        statementActionsPolicy0.add("s3:ListAllMyBuckets");
-
-        PolicyStatement statement0 = PolicyStatement.Builder.create()
-                .actions(statementActionsPolicy0)
-                .resources(ImmutableList.of("*"))
-                .effect(Effect.ALLOW)
-                .build();
-
-        PolicyDocument document0 = PolicyDocument.Builder.create()
-                .statements(ImmutableList.of(statement0))
-                .build();
-
-        List<String> statementActionsPolicy1 = new ArrayList<>();
-        statementActionsPolicy1.add("s3:GetObject");
-        statementActionsPolicy1.add("s3:ListBucket");
-        statementActionsPolicy1.add("s3:GetBucketLocation");
-        statementActionsPolicy1.add("s3:GetObjectVersion");
-        statementActionsPolicy1.add("s3:PutObject");
-        statementActionsPolicy1.add("s3:PutObjectAcl");
-        statementActionsPolicy1.add("s3:GetLifecycleConfiguration");
-        statementActionsPolicy1.add("s3:PutLifecycleConfiguration");
-        statementActionsPolicy1.add("s3:DeleteObject");
-
-        PolicyStatement statement1 = PolicyStatement.Builder.create()
-                .actions(statementActionsPolicy1)
-                .resources(ImmutableList.of(
-                        String.format("arn:aws:s3:::%s", spillBucket),
-                        String.format("arn:aws:s3:::%s/*", spillBucket)))
-                .effect(Effect.ALLOW)
-                .build();
-
-        PolicyDocument document1 = PolicyDocument.Builder.create()
-                .statements(ImmutableList.of(statement1))
-                .build();
-
-        Role role = Role.Builder.create(this, "ConnectorConfigRole")
-                .assumedBy(ServicePrincipal.Builder.create("lambda.amazonaws.com").build())
-                .inlinePolicies(ImmutableMap.of(
-                        "ConnectorConfigRolePolicy0", document0,
-                        "ConnectorConfigRolePolicy1", document1))
-                .build();
-
-        return role;
-    }
-
-    private void setLambdaFunction()
+    /**
+     * Sets up the Connector's CloudFormation stack.
+     */
+    private void setConnectorStack()
     {
         Function.Builder.create(this, "LambdaConnector")
                 .functionName(functionName)
-                .role(iamRole)
+                .role(getIamRole())
                 .code(Code.fromCfnParameters(CfnParametersCodeProps.builder()
                         .bucketNameParam(CfnParameter.Builder.create(this, "BucketName")
                                 .defaultValue(spillBucket)
@@ -147,6 +88,76 @@ public class ConnectorStack extends Stack
                 .memorySize(Integer.valueOf(3008))
                 .timeout(Duration.seconds(Integer.valueOf(900)))
                 .environment(environmentVariables)
+                .build();
+    }
+
+    /**
+     * Sets up the IAM role for the Lambda function.
+     * @return IAM Role object.
+     */
+    private Role getIamRole()
+    {
+        return Role.Builder.create(this, "ConnectorConfigRole")
+                .assumedBy(ServicePrincipal.Builder.create("lambda.amazonaws.com").build())
+                .inlinePolicies(ImmutableMap.of(
+                        "ConnectorAccessPolicy", connectorAccessPolicy,
+                        "GlueAthenaS3AccessPolicy", getGlueAthenaS3AccessPolicy(),
+                        "S3BucketAccessPolicy", getS3SpillBucketAccessPolicy()))
+                .build();
+    }
+
+    /**
+     * Sets up Glue, Athena, and S3 access policy for the Lambda connector.
+     * @return A policy document object.
+     */
+    private PolicyDocument getGlueAthenaS3AccessPolicy()
+    {
+        List<String> statementActionsPolicy = new ArrayList<>();
+        statementActionsPolicy.add("glue:GetTableVersions");
+        statementActionsPolicy.add("glue:GetPartitions");
+        statementActionsPolicy.add("glue:GetTables");
+        statementActionsPolicy.add("glue:GetTableVersion");
+        statementActionsPolicy.add("glue:GetDatabases");
+        statementActionsPolicy.add("glue:GetTable");
+        statementActionsPolicy.add("glue:GetPartition");
+        statementActionsPolicy.add("glue:GetDatabase");
+        statementActionsPolicy.add("athena:GetQueryExecution");
+        statementActionsPolicy.add("s3:ListAllMyBuckets");
+
+        return PolicyDocument.Builder.create()
+                .statements(ImmutableList.of(PolicyStatement.Builder.create()
+                        .actions(statementActionsPolicy)
+                        .resources(ImmutableList.of("*"))
+                        .effect(Effect.ALLOW)
+                        .build()))
+                .build();
+    }
+
+    /**
+     * Sets up the S3 spill-bucket access policy for the Lambda connector.
+     * @return A policy document object.
+     */
+    private PolicyDocument getS3SpillBucketAccessPolicy()
+    {
+        List<String> statementActionsPolicy = new ArrayList<>();
+        statementActionsPolicy.add("s3:GetObject");
+        statementActionsPolicy.add("s3:ListBucket");
+        statementActionsPolicy.add("s3:GetBucketLocation");
+        statementActionsPolicy.add("s3:GetObjectVersion");
+        statementActionsPolicy.add("s3:PutObject");
+        statementActionsPolicy.add("s3:PutObjectAcl");
+        statementActionsPolicy.add("s3:GetLifecycleConfiguration");
+        statementActionsPolicy.add("s3:PutLifecycleConfiguration");
+        statementActionsPolicy.add("s3:DeleteObject");
+
+        return PolicyDocument.Builder.create()
+                .statements(ImmutableList.of(PolicyStatement.Builder.create()
+                        .actions(statementActionsPolicy)
+                        .resources(ImmutableList.of(
+                                String.format("arn:aws:s3:::%s", spillBucket),
+                                String.format("arn:aws:s3:::%s/*", spillBucket)))
+                        .effect(Effect.ALLOW)
+                        .build()))
                 .build();
     }
 }
