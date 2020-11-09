@@ -309,9 +309,6 @@ public abstract class JdbcMetadataHandler
                 }
             }
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
         catch (Exception ex) {
             LOGGER.warn("Unable to split data.", ex);
         }
