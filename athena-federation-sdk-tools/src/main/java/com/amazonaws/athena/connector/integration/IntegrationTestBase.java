@@ -325,12 +325,12 @@ public abstract class IntegrationTestBase
     }
 
     /**
-     * Send show databases DDL query to Athena using the lambda function.
+     * Uses the listDatabases Athena API to send a show databases DDL query utilizing the lambda function.
      * @return a list of database objects.
      */
     protected List<Database> listDatabases()
     {
-        logger.info(String.format("Query: [show databases in %s;]", lambdaFunctionName));
+        logger.info("Query: [show databases in {};]", lambdaFunctionName);
         ListDatabasesRequest listDatabasesRequest = new ListDatabasesRequest()
                 .withCatalogName(lambdaFunctionName);
         ListDatabasesResult listDatabasesResult = athenaClient.listDatabases(listDatabasesRequest);
