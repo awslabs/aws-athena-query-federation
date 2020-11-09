@@ -70,6 +70,13 @@
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.testng/testng -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-cloudformation -->
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -77,17 +84,26 @@
             <version>${aws-sdk.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/core -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>core</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/iam -->
         <dependency>
             <groupId>software.amazon.awscdk</groupId>
             <artifactId>iam</artifactId>
             <version>${aws-cdk.version}</version>
+            <scope>provided</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/lambda -->
         <dependency>
             <groupId>software.amazon.awscdk</groupId>
             <artifactId>lambda</artifactId>
             <version>${aws-cdk.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
