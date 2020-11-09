@@ -75,6 +75,7 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-cloudformation</artifactId>
             <version>${aws-sdk.version}</version>
+            <scope>provided</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/iam -->
         <dependency>
