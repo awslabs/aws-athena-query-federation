@@ -23,7 +23,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.athena.model.CreateDataCatalogRequest;
 import com.amazonaws.services.athena.model.DataCatalogType;
-import com.amazonaws.services.athena.model.Database;
 import com.amazonaws.services.athena.model.DeleteDataCatalogRequest;
 import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
 import com.amazonaws.services.athena.model.GetQueryExecutionResult;
@@ -56,6 +55,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -327,9 +328,9 @@ public abstract class IntegrationTestBase
 
     /**
      * Uses the listDatabases Athena API to list databases for the data source utilizing the lambda function.
-     * @return a list of database objects.
+     * @return a list of database names.
      */
-    protected List<Database> listDatabases()
+    protected List<String> listDatabases()
     {
         logger.info("listDatabases({})", lambdaFunctionName);
         ListDatabasesRequest listDatabasesRequest = new ListDatabasesRequest()
@@ -338,7 +339,51 @@ public abstract class IntegrationTestBase
         ListDatabasesResult listDatabasesResult = athenaClient.listDatabases(listDatabasesRequest);
         logger.info("Results: [{}]", listDatabasesResult);
 
-        return listDatabasesResult.getDatabaseList();
+        List<String> dbNames = new ArrayList<>();
+        listDatabasesResult.getDatabaseList().forEach(db -> dbNames.add(db.getName()));
+
+        return dbNames;
+    }
+
+    /**
+     * Uses the startQueryExecution Athena API to process a "show tables" query utilizing the lambda function.
+     * @param databaseName The name of the database.
+     * @return A list of database names.
+     * @throws InterruptedException Thread is interrupted during sleep.
+     * @throws RuntimeException The Query is cancelled or has failed.
+     */
+    protected List<String> listTables(String databaseName)
+            throws InterruptedException, RuntimeException
+    {
+        String query = String.format("show tables in %s.%s;", lambdaFunctionName, databaseName);
+        List<String> tableNames = new ArrayList<>();
+        startQueryExecution(query).getResultSet().getRows()
+                .forEach(row -> tableNames.add(row.getData().get(0).getVarCharValue()));
+
+        return tableNames;
+    }
+
+    /**
+     * Uses the startQueryExecution Athena API to process a "describe table" query utilizing the lambda function.
+     * @param databaseName The name of the database.
+     * @param tableName The name of the database table.
+     * @return A Map of the table column names and their associated types.
+     * @throws InterruptedException Thread is interrupted during sleep.
+     * @throws RuntimeException The Query is cancelled or has failed.
+     */
+    protected Map<String, String> describeTable(String databaseName, String tableName)
+            throws InterruptedException, RuntimeException
+    {
+        String query = String.format("describe %s.%s.%s;", lambdaFunctionName, databaseName, tableName);
+        Map<String, String> schema = new HashMap<>();
+        startQueryExecution(query).getResultSet().getRows()
+                .forEach(row -> {
+                    String property = row.getData().get(0).getVarCharValue();
+                    schema.put(property.substring(0, property.indexOf('\t')),
+                            property.substring(property.indexOf('\t') + 1));
+                });
+
+        return schema;
     }
 
     /**
