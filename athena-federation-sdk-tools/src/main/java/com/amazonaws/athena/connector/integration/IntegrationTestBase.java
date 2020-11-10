@@ -93,7 +93,8 @@ public abstract class IntegrationTestBase
     public IntegrationTestBase()
     {
         final UUID randomUuid = UUID.randomUUID();
-        this.lambdaFunctionName = this.getClass().getSimpleName().toLowerCase() + "-" + randomUuid;
+        this.lambdaFunctionName = this.getClass().getSimpleName().toLowerCase() + "_" +
+                randomUuid.toString().replace('-', '_') ;
         this.cloudFormationStackName = "integration-" + this.getClass().getSimpleName() + "-" + randomUuid;
         this.athenaClient = AmazonAthenaClientBuilder.defaultClient();
         this.theApp = new App();
