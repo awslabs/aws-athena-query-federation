@@ -105,6 +105,13 @@
             <version>${aws-cdk.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/athena -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>athena</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

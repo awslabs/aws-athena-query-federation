@@ -25,6 +25,7 @@ import software.amazon.awscdk.core.CfnParameter;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.core.Duration;
 import software.amazon.awscdk.core.Stack;
+import software.amazon.awscdk.services.athena.CfnDataCatalog;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.iam.PolicyStatement;
@@ -64,13 +65,14 @@ public class ConnectorStack extends Stack
         this.connectorAccessPolicy = connectorAccessPolicy;
         this.environmentVariables = environmentVariables;
 
-        setConnectorStack();
+        setupLambdaFunction();
+        setupAthenaDataCatalog();
     }
 
     /**
-     * Sets up the Connector's CloudFormation stack.
+     * Sets up the Connector's CloudFormation stack for the lambda function.
      */
-    private void setConnectorStack()
+    private void setupLambdaFunction()
     {
         Function.Builder.create(this, "LambdaConnector")
                 .functionName(functionName)
@@ -92,6 +94,18 @@ public class ConnectorStack extends Stack
     }
 
     /**
+     * Sets up the Connector's CloudFormation stack to register the lambda function with Athena.
+     */
+    private void setupAthenaDataCatalog()
+    {
+        CfnDataCatalog.Builder.create(this, "AthenaDataCatalog")
+                .name(functionName)
+                .type("LAMBDA")
+                .parameters(ImmutableMap.of("function", "arn:aws:lambda:function:" + functionName))
+                .build();
+    }
+
+    /**
      * Sets up the IAM role for the Lambda function.
      * @return IAM Role object.
      */
@@ -102,7 +116,7 @@ public class ConnectorStack extends Stack
                 .inlinePolicies(ImmutableMap.of(
                         "ConnectorAccessPolicy", connectorAccessPolicy,
                         "GlueAthenaS3AccessPolicy", getGlueAthenaS3AccessPolicy(),
-                        "S3BucketAccessPolicy", getS3SpillBucketAccessPolicy()))
+                        "S3SpillBucketAccessPolicy", getS3SpillBucketAccessPolicy()))
                 .build();
     }
 

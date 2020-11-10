@@ -21,9 +21,6 @@ package com.amazonaws.athena.connector.integration;
 
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.athena.model.CreateDataCatalogRequest;
-import com.amazonaws.services.athena.model.DataCatalogType;
-import com.amazonaws.services.athena.model.DeleteDataCatalogRequest;
 import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
 import com.amazonaws.services.athena.model.GetQueryExecutionResult;
 import com.amazonaws.services.athena.model.GetQueryResultsRequest;
@@ -42,7 +39,6 @@ import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
 import com.amazonaws.services.cloudformation.model.StackEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -162,7 +158,6 @@ public abstract class IntegrationTestBase
                     .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
             processCreateStackRequest(createStackRequest);
             setupData();
-            createAthenaDataCatalog();
         }
         catch (Exception e) {
             // Delete the partially formed CloudFormation stack.
@@ -285,19 +280,6 @@ public abstract class IntegrationTestBase
     }
 
     /**
-     * Creates and registers the lambda function with Athena.
-     */
-    private void createAthenaDataCatalog()
-    {
-        CreateDataCatalogRequest createDataCatalogRequest = new CreateDataCatalogRequest()
-                .withName(lambdaFunctionName)
-                .withType(DataCatalogType.LAMBDA)
-                .withParameters(ImmutableMap.of("function", "arn:aws:lambda:function:" + lambdaFunctionName));
-
-        athenaClient.createDataCatalog(createDataCatalogRequest);
-    }
-
-    /**
      * Deletes a CloudFormation stack, and the lambda function registered with Athena.
      */
     @AfterClass
@@ -311,19 +293,10 @@ public abstract class IntegrationTestBase
             AmazonCloudFormation cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient();
             DeleteStackRequest request = new DeleteStackRequest().withStackName(cloudFormationStackName);
             cloudFormationClient.deleteStack(request);
-            deleteAthenaDataCatalog();
         }
         catch (Exception e) {
             logger.error("Something went wrong... Manual resource cleanup may be needed!!!", e);
         }
-    }
-
-    /**
-     * Deletes the lambda function registered with Athena.
-     */
-    private void deleteAthenaDataCatalog()
-    {
-        athenaClient.deleteDataCatalog(new DeleteDataCatalogRequest().withName(lambdaFunctionName));
     }
 
     /**
