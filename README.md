@@ -5,14 +5,14 @@
 The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code. This enables you to integrate with new data sources, proprietary data formats, or build in new user defined functions. Initially these customizations will be limited to the parts of a query that occur during a TableScan operation but will eventually be expanded to include other parts of the query lifecycle using the same easy to understand interface.
 
 
-**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.  To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
 
 tldr; Get Started:
 1. Ensure you have the [proper permissions/policies to deploy/use Athena Federated Queries](https://docs.aws.amazon.com/athena/latest/ug/federated-query-iam-access.html)
 1. Navigate to [Servless Application Repository](https://console.aws.amazon.com/serverlessrepo/home#/available-applications) and search for "athena-federation". Be sure to check the box to show entries that require custom IAM roles. 
 1. Look for entries published by the "Amazon Athena Federation" author.
 1. Deploy the application
-1. Go to the [Athena Console in us-east-1 (N. Virginia)](https://console.aws.amazon.com/athena/home) and create a workgroup called "AmazonAthenaPreviewFunctionality", any queries run from that workgroup will be able to use Preview features described in this repository. If you are running a federated query in US-East-1, Us-East-2, or Us-West-2, you can use any workgroup. 
+1. Go to the [Athena Console in us-east-1 (N. Virginia)](https://console.aws.amazon.com/athena/home) and create a workgroup called "AmazonAthenaPreviewFunctionality", any queries run from that workgroup will be able to use Preview features described in this repository. If you are running a federated query in US-East-1, Us-East-2, or Us-West-2, you can use any workgroup as long as you have set your engine setting to V2. See Engine Versions here:https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html. 
 1. Run a query "show databases in \`lambda:<func_name>\`" where <func_name> is the name of the Lambda function you deployed in the previous steps.
 
 For more information please consult:
