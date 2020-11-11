@@ -13,7 +13,7 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2020.35.1</version>
+    <version>2020.46.1</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
 
