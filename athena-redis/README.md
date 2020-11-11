@@ -2,7 +2,7 @@
 
 This connector enables Amazon Athena to communicate with your Redis instance(s), making your Redis data accessible via SQL. 
 
-**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.  To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
 
 Unlike traditional relational data stores, Redis does not have the concept of a table or a column. Instead, Redis offers key-value access patterns where the key is essentially a 'string' and the value is one of: string, z-set, hmap. The Athena Redis Connector allows you to configure virtual tables using the Glue Data Catalog for schema and special table properties to tell the Athena Redis Connector how to map your Redis key-values into a table. You can read more on this below in the 'Setting Up Tables Section'.
 
