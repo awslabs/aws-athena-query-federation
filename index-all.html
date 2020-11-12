@@ -771,6 +771,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#COLUMN_NAME_MAPPING_PROPERTY">COLUMN_NAME_MAPPING_PROPERTY</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/integration/package-summary.html">com.amazonaws.athena.connector.integration</a> - package com.amazonaws.athena.connector.integration</dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/package-summary.html">com.amazonaws.athena.connector.lambda</a> - package com.amazonaws.athena.connector.lambda</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a> - package com.amazonaws.athena.connector.lambda.data</dt>
@@ -918,6 +920,12 @@
 <dd>
 <div class="block">Creates a new HBase connection using the provided config.</div>
 </dd>
+<dt><a href="com/amazonaws/athena/connector/integration/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integration"><span class="typeNameLink">ConnectorStack</span></a> - Class in <a href="com/amazonaws/athena/connector/integration/package-summary.html">com.amazonaws.athena.connector.integration</a></dt>
+<dd>
+<div class="block">Sets up the CloudFormation stack necessary for a Lambda Connector.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/ConnectorStack.html#ConnectorStack-software.amazon.awscdk.core.Construct-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-software.amazon.awscdk.services.iam.PolicyDocument-java.util.Map-">ConnectorStack(Construct, String, String, String, String, String, PolicyDocument, Map)</a></span> - Constructor for class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integration">ConnectorStack</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connector/validation/ConnectorValidator.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">ConnectorValidator</span></a> - Class in <a href="com/amazonaws/athena/connector/validation/package-summary.html">com.amazonaws.athena.connector.validation</a></dt>
 <dd>
 <div class="block">This class should be used to validate deployed Lambda functions that use Athena's Federation SDK.</div>
@@ -1099,6 +1107,11 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/QueryFactory.html#createSelectQueryBuilder-java.lang.String-">createSelectQueryBuilder(String)</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.connectors.timestream.query">QueryFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#createStack--">createStack()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
+ instance, Lambda function, etc...).</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html#createValueProjection-org.apache.arrow.vector.types.Types.MinorType-">createValueProjection(Types.MinorType)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ArrowValueProjectorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ArrowValueProjectorImpl</a></dt>
 <dd>
 <div class="block">Concrete implementation of ArrowValueProjectorImpl should invoke thie method to get the Projection instance.</div>
@@ -1264,6 +1277,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html#DelegatingSerializer-java.lang.Class-java.util.Set-">DelegatingSerializer(Class&lt;T&gt;, Set&lt;TypedSerializer&lt;T&gt;&gt;)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.serde.<a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#deleteStack--">deleteStack()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Deletes a CloudFormation stack, and the lambda function registered with Athena.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#describeTable-java.lang.String-java.lang.String-">describeTable(String, String)</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Uses the startQueryExecution Athena API to process a "describe table" query utilizing the lambda function.</div>
+</dd>
 <dt><a href="com/amazonaws/connectors/timestream/query/DescribeTableQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query"><span class="typeNameLink">DescribeTableQueryBuilder</span></a> - Class in <a href="com/amazonaws/connectors/timestream/query/package-summary.html">com.amazonaws.connectors.timestream.query</a></dt>
 <dd>
 <div class="block">Used to build a Timestream query which can describe a table in a specific database.</div>
@@ -2384,6 +2405,15 @@
 <dd>
 <div class="block">Retrieves database connection for a database type.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#getConnectorAccessPolicy--">getConnectorAccessPolicy()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Must be overridden in the extending class to get the lambda function's IAM access policy.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#getConnectorEnvironmentVars--">getConnectorEnvironmentVars()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Must be overridden in the extending class to get the lambda function's environment variables key-value pairs
+ (e.g.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#getConstraintEvaluator--">getConstraintEvaluator()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
 <div class="block">Returns the ConstraintEvaluator used by the block.</div>
@@ -2588,6 +2618,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getKnownAttributeDefinitions--">getKnownAttributeDefinitions()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#getLambdaFunctionName--">getLambdaFunctionName()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Gets the name of the lambda function generated by the Integration-Test Suite.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#getLogGroupName--">getLogGroupName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#getLogStreamName--">getLogStreamName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
@@ -3719,6 +3753,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html#IntegerSplitter-com.amazonaws.connectors.athena.jdbc.splits.SplitInfo-">IntegerSplitter(SplitInfo&lt;Integer&gt;)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.splits.<a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits">IntegerSplitter</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration"><span class="typeNameLink">IntegrationTestBase</span></a> - Class in <a href="com/amazonaws/athena/connector/integration/package-summary.html">com.amazonaws.athena.connector.integration</a></dt>
+<dd>
+<div class="block">The Integration-Tests base class from which all connector-specific integration test modules should subclass.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#IntegrationTestBase--">IntegrationTestBase()</a></span> - Constructor for class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#internalGetSchema--">internalGetSchema()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/SchemaAware.html#internalGetSchema--">internalGetSchema()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaAware.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaAware</a></dt>
@@ -4038,6 +4078,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/projectors/ListArrowValueProjector.html#ListArrowValueProjector-org.apache.arrow.vector.complex.reader.FieldReader-">ListArrowValueProjector(FieldReader)</a></span> - Constructor for class com.amazonaws.athena.connector.lambda.data.projectors.<a href="com/amazonaws/athena/connector/lambda/data/projectors/ListArrowValueProjector.html" title="class in com.amazonaws.athena.connector.lambda.data.projectors">ListArrowValueProjector</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#listDatabases--">listDatabases()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Uses the listDatabases Athena API to list databases for the data source utilizing the lambda function.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html#listNamespaceDescriptors--">listNamespaceDescriptors()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a></dt>
 <dd>
 <div class="block">Lists the available namespaces in the HBase instance.</div>
@@ -4065,6 +4109,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html#listTableNamesByNamespace-java.lang.String-">listTableNamesByNamespace(String)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a></dt>
 <dd>
 <div class="block">Lists the table names present in the given schema (aka namespace)</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#listTables-java.lang.String-">listTables(String)</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Uses the startQueryExecution Athena API to process a "show tables" query utilizing the lambda function.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.html#listTables-java.lang.String-java.lang.String-java.lang.String-com.amazonaws.athena.connector.lambda.security.FederatedIdentity-">listTables(String, String, String, FederatedIdentity)</a></span> - Static method in class com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/LambdaMetadataProvider.html" title="class in com.amazonaws.athena.connector.validation">LambdaMetadataProvider</a></dt>
 <dd>
@@ -5221,6 +5269,15 @@
 <dd>
 <div class="block">Sets the valid row count on the underlying Apache Arrow Vector Schema.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#setupData--">setupData()</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Must be overridden in the extending class to setup the DB table (i.e.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#setupStackData-software.amazon.awscdk.core.Stack-">setupStackData(Stack)</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Must be overridden in the extending class (can be a no-op) to create a connector-specific CloudFormation stack
+ resource (e.g.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/Block.html#setValue-java.lang.String-int-java.lang.Object-">setValue(String, int, Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></dt>
 <dd>
 <div class="block">Writes the provided value to the specified field on the specified row.</div>
@@ -5346,6 +5403,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#START_KEY_FIELD">START_KEY_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html#startQueryExecution-java.lang.String-">startQueryExecution(String)</a></span> - Method in class com.amazonaws.athena.connector.integration.<a href="com/amazonaws/athena/connector/integration/IntegrationTestBase.html" title="class in com.amazonaws.athena.connector.integration">IntegrationTestBase</a></dt>
+<dd>
+<div class="block">Sends a DB query via Athena and returns the query results.</div>
+</dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/connection/StaticJdbcCredentialProvider.html" title="class in com.amazonaws.connectors.athena.jdbc.connection"><span class="typeNameLink">StaticJdbcCredentialProvider</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/connection/package-summary.html">com.amazonaws.connectors.athena.jdbc.connection</a></dt>
 <dd>
 <div class="block">Static credential provider.</div>
