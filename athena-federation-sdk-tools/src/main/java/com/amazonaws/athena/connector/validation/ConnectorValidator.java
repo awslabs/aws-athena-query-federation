@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -198,13 +198,18 @@ public class ConnectorValidator
                                         .map(t -> toQualifiedTableName(t))
                                         .collect(Collectors.toList()));
     requireNonNull(tables, "Returned collection of tables was null!");
-    checkState(!tables.isEmpty(), "No tables were returned!");
-    List<String> notLower = tables.stream().filter(t -> !t.equals(new TableName(t.getSchemaName().toLowerCase(),
-                                                                                t.getTableName().toLowerCase()))).limit(5)
-                                    .map(t -> toQualifiedTableName(t))
-                                    .collect(Collectors.toList());
-    checkState(notLower.isEmpty(),
-                             "All returned tables must be lowercase! Found these non-lowercase tables: " + notLower);
+    if (!testConfig.isAllowEmptyTables()) {
+      checkState(!tables.isEmpty(), "No tables were returned!");
+      List<String> notLower = tables.stream().filter(t -> !t.equals(new TableName(t.getSchemaName().toLowerCase(),
+              t.getTableName().toLowerCase()))).limit(5)
+              .map(t -> toQualifiedTableName(t))
+              .collect(Collectors.toList());
+      checkState(notLower.isEmpty(),
+              "All returned tables must be lowercase! Found these non-lowercase tables: " + notLower);
+    }
+    else {
+      log.info("showTables is allowing empty table list, actual size is " + tables.size());
+    }
     return tables;
   }
 
@@ -376,6 +381,7 @@ public class ConnectorValidator
     private static final String CONSTRAINTS_ARG = "constraints";
     private static final String PLANNING_ONLY_ARG = "planning-only";
     private static final String HELP_ARG = "help";
+    private static final String ALLOW_EMPTY_SHOW_TABLES = "allow-empty-show-tables";
 
     private final FederatedIdentity identity;
     private final String metadataFunction;
@@ -385,6 +391,7 @@ public class ConnectorValidator
     private final Optional<String> tableId;
     private final Optional<String> constraints;
     private final boolean planningOnly;
+    private final boolean allowEmptyTables;
 
     private TestConfig(String metadataFunction,
                        String recordFunction,
@@ -392,7 +399,8 @@ public class ConnectorValidator
                        Optional<String> schemaId,
                        Optional<String> tableId,
                        Optional<String> constraints,
-                       boolean planningOnly)
+                       boolean planningOnly,
+                       boolean allowEmptyTables)
     {
       this.metadataFunction = metadataFunction;
       this.recordFunction = recordFunction;
@@ -401,6 +409,7 @@ public class ConnectorValidator
       this.tableId = tableId;
       this.constraints = constraints;
       this.planningOnly = planningOnly;
+      this.allowEmptyTables = allowEmptyTables;
       this.identity = new FederatedIdentity("VALIDATION_ARN",
                                             "VALIDATION_ACCOUNT",
                                             Collections.emptyMap(),
@@ -447,6 +456,11 @@ public class ConnectorValidator
       return planningOnly;
     }
 
+    boolean isAllowEmptyTables()
+    {
+      return allowEmptyTables;
+    }
+
     static TestConfig fromArgs(String[] args) throws ParseException
     {
       log.info("Received arguments: {}", args);
@@ -475,6 +489,8 @@ public class ConnectorValidator
       options.addOption("p", PLANNING_ONLY_ARG, false,
                         "If this option is set, then the validator will not attempt to read"
                                 + " any records after calling GetSplits.");
+      options.addOption("e", ALLOW_EMPTY_SHOW_TABLES, false,
+              "Allows empty show tables results without considering it a failure.");
       options.addOption("h", HELP_ARG, false, "Prints usage information.");
       DefaultParser argParser = new DefaultParser();
       CommandLine parsedArgs = argParser.parse(options, args);
@@ -486,7 +502,9 @@ public class ConnectorValidator
                                                    + " catalog] [--" + SCHEMA_ID_ARG
                                                    + " schema [--" + TABLE_ID_ARG
                                                    + " table [--" + CONSTRAINTS_ARG
-                                                   + " constraints]]] [--" + PLANNING_ONLY_ARG + "] [--" + HELP_ARG + "]",
+                                                   + " constraints]]] [--" + PLANNING_ONLY_ARG + "]"
+                                                   + " [--" + ALLOW_EMPTY_SHOW_TABLES + "]"
+                                                   + " [--" + HELP_ARG + "]",
                                       null,
                                       options,
                                       null);
@@ -524,7 +542,8 @@ public class ConnectorValidator
                             Optional.ofNullable(parsedArgs.getOptionValue(SCHEMA_ID_ARG)),
                             Optional.ofNullable(parsedArgs.getOptionValue(TABLE_ID_ARG)),
                             Optional.ofNullable(parsedArgs.getOptionValue(CONSTRAINTS_ARG)),
-                            parsedArgs.hasOption(PLANNING_ONLY_ARG));
+                            parsedArgs.hasOption(PLANNING_ONLY_ARG),
+                            parsedArgs.hasOption(ALLOW_EMPTY_SHOW_TABLES));
     }
   }
 }
