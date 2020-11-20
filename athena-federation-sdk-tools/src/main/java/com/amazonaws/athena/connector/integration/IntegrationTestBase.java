@@ -121,7 +121,7 @@ public abstract class IntegrationTestBase
 
     /**
      * Must be overridden in the extending class to get the lambda function's environment variables key-value pairs
-     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables.
+     * (e.g. "spillbucket":"myspillbucket"). See individual connector for expected environment variables.
      * @return Map with parameter key-value pairs.
      */
     protected abstract Map<String, String> getConnectorEnvironmentVars();
@@ -303,7 +303,7 @@ public abstract class IntegrationTestBase
      * Uses the listDatabases Athena API to list databases for the data source utilizing the lambda function.
      * @return a list of database names.
      */
-    public List<String> listDatabases()
+    protected List<String> listDatabases()
     {
         logger.info("listDatabases({})", lambdaFunctionName);
         ListDatabasesRequest listDatabasesRequest = new ListDatabasesRequest()
@@ -321,11 +321,11 @@ public abstract class IntegrationTestBase
     /**
      * Uses the startQueryExecution Athena API to process a "show tables" query utilizing the lambda function.
      * @param databaseName The name of the database.
-     * @return A list of database table names.
+     * @return A list of database names.
      * @throws InterruptedException Thread is interrupted during sleep.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public List<String> listTables(String databaseName)
+    protected List<String> listTables(String databaseName)
             throws InterruptedException, RuntimeException
     {
         String query = String.format("show tables in %s.%s;", lambdaFunctionName, databaseName);
@@ -344,7 +344,7 @@ public abstract class IntegrationTestBase
      * @throws InterruptedException Thread is interrupted during sleep.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public Map<String, String> describeTable(String databaseName, String tableName)
+    protected Map<String, String> describeTable(String databaseName, String tableName)
             throws InterruptedException, RuntimeException
     {
         String query = String.format("describe %s.%s.%s;", lambdaFunctionName, databaseName, tableName);
@@ -366,7 +366,7 @@ public abstract class IntegrationTestBase
      * @throws InterruptedException Thread is interrupted during sleep.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public GetQueryResultsResult startQueryExecution(String query)
+    protected GetQueryResultsResult startQueryExecution(String query)
             throws InterruptedException, RuntimeException
     {
         StartQueryExecutionRequest startQueryExecutionRequest = new StartQueryExecutionRequest()

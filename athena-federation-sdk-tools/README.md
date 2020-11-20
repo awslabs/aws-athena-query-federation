@@ -25,6 +25,6 @@ usage: ./validate_connector.sh --lambda-func lambda_func [--record-func record_f
 ### Integration-Test Suite
 
 The integration-test suite provides end-to-end testing capabilities, and is available
-to all connectors developed using the Athena Federation SDK.
+for all connectors developed using the Athena Federation SDK.
 
 For additional information, see [Integration-Test Suite](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-federation-sdk-tools/src/main/java/com/amazonaws/athena/connector/integration).
