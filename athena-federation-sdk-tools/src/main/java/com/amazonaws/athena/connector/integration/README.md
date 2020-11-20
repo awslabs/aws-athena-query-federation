@@ -48,7 +48,7 @@ Include the following dependencies in the specific connector's `pom.xml` file:
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <version>${fasterxml.jackson.version}</version>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 ```
 

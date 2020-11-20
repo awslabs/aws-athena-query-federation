@@ -88,6 +88,13 @@
             <version>${testng.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/core -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>core</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

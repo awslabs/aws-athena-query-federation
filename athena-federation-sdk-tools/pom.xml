@@ -84,13 +84,6 @@
             <version>${aws-sdk.version}</version>
             <scope>provided</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-annotations -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.jackson.version}</version>
-            <scope>runtime</scope>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/core -->
         <dependency>
             <groupId>software.amazon.awscdk</groupId>
