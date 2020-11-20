@@ -80,40 +80,6 @@
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
         </dependency>
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>athena-federation-sdk-tools</artifactId>
-            <version>1.0</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-cloudformation -->
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-cloudformation</artifactId>
-            <version>${aws-sdk.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/dynamodb -->
-        <dependency>
-            <groupId>software.amazon.awscdk</groupId>
-            <artifactId>dynamodb</artifactId>
-            <version>${aws-cdk.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/athena -->
-        <dependency>
-            <groupId>software.amazon.awscdk</groupId>
-            <artifactId>athena</artifactId>
-            <version>${aws-cdk.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-annotations -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${fasterxml.jackson.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <repositories>
