@@ -1,7 +1,7 @@
 # Integration-Test Suite
 
 The integration-test suite provides end-to-end testing capabilities, and is available
-to all connectors developed using the Athena Federation SDK.
+for all connectors developed using the Athena Federation SDK.
 
 ## How It Works
 
@@ -59,19 +59,15 @@ All integration-test classes need to adhere to the naming convention `<class>IT`
 
 ### Writing Integration Tests
 
-Import the `@Test` annotation from `org.testng.annotations` and extend the Integration-Test
-Suite (`IntegrationTestBase`):
+Import the `@Test` annotation from `org.testng.annotations` and extend the Integration-
+Test Suite (`IntegrationTestBase`):
 
 ```java
 import org.testng.annotations.Test;
 
-public class MyClassIT extends IntegrationTestBase
+public class DynamoDBIT extends IntegrationTestBase 
 {
-    @Test
-    public void MyIT()
-    {
-        //...
-    }
+//...
 }
 ``` 
 
@@ -105,9 +101,9 @@ Provide implementation for the following methods in the test class:
     protected abstract PolicyDocument getConnectorAccessPolicy();
 ```
 
-### Public Suite APIs
+### Suite APIs
 
-The Integration-Test Suite provides the following 5 public APIs that can be used to send DB
+The Integration-Test Suite provides the following 5 APIs that can be used to send DB
 queries as part of the tests' execution:
 
 ```java
@@ -121,16 +117,16 @@ queries as part of the tests' execution:
      * Uses the listDatabases Athena API to list databases for the data source utilizing the lambda function.
      * @return a list of database names.
      */
-    public List<String> listDatabases()
+    protected List<String> listDatabases()
 
     /**
      * Uses the startQueryExecution Athena API to process a "show tables" query utilizing the lambda function.
      * @param databaseName The name of the database.
-     * @return A list of database table names.
+     * @return A list of database names.
      * @throws InterruptedException Thread is interrupted during sleep.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public List<String> listTables(String databaseName)
+    protected List<String> listTables(String databaseName)
 
     /**
      * Uses the startQueryExecution Athena API to process a "describe table" query utilizing the lambda function.
@@ -140,7 +136,7 @@ queries as part of the tests' execution:
      * @throws InterruptedException Thread is interrupted during sleep.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public Map<String, String> describeTable(String databaseName, String tableName)
+    protected Map<String, String> describeTable(String databaseName, String tableName)
 
     /**
      * Sends a DB query via Athena and returns the query results.
@@ -149,7 +145,7 @@ queries as part of the tests' execution:
      * @throws InterruptedException Thread is interrupted during sleep.
      * @throws RuntimeException The Query is cancelled or has failed.
      */
-    public GetQueryResultsResult startQueryExecution(String query)
+    protected GetQueryResultsResult startQueryExecution(String query)
 ```
 
 ## Running Integration Tests
@@ -172,7 +168,7 @@ the first time, and each time the connector's code changes:
 
 The following command will trigger the integration tests: `mvn failsafe:integration-test`
 
-If run from the root directory, the command will execute the integration tests for all connectors.
+If run from the root directory, it will execute the integration tests for all connectors.
 Likewise, if run from a specific connector's directory, it will trigger the integration tests
 for the specific connector.
  
