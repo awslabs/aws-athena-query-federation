@@ -77,15 +77,11 @@ public class DynamoDBIT extends IntegrationTestBase {
     }
 
     /**
-     * Gets the environment variables for the Lambda function.
-     * @return A Map of the variables and their associated values.
+     * Sets the environment variables for the Lambda function.
      */
-    protected Map getConnectorEnvironmentVars()
+    protected void setConnectorEnvironmentVars(final Map environmentVars)
     {
-        return ImmutableMap.of(
-                "spill_prefix", "athena-spill",
-                "disable_spill_encryption", "false",
-                "spill_bucket", "shurvitz-federation-spill-1");
+        // This is a no-op for this connector.
     }
 
     /**

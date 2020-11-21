@@ -69,6 +69,9 @@ public abstract class IntegrationTestBase
     private static final String LAMBDA_SPILL_BUCKET_PREFIX = "s3://";
     private static final String LAMBDA_HANDLER_TAG = "Handler:";
     private static final String LAMBDA_HANDLER_PREFIX = "Handler: ";
+    private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
+    private static final String LAMBDA_SPILL_PREFIX_TAG = "spill_prefix";
+    private static final String LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG = "disable_spill_encryption";
     private static final String CF_CREATE_RESOURCE_IN_PROGRESS_STATUS = "CREATE_IN_PROGRESS";
     private static final String CF_CREATE_RESOURCE_FAILED_STATUS = "CREATE_FAILED";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
@@ -120,11 +123,12 @@ public abstract class IntegrationTestBase
     protected abstract void setupStackData(final Stack stack);
 
     /**
-     * Must be overridden in the extending class to get the lambda function's environment variables key-value pairs
-     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables.
-     * @return Map with parameter key-value pairs.
+     * Must be overridden in the extending class to set the lambda function's environment variables key-value pairs
+     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables. This method
+     * can be a no-op in the extending class since some environment variables are set by default (spill_bucket,
+     * spill_prefix, and disable_spill_encryption).
      */
-    protected abstract Map<String, String> getConnectorEnvironmentVars();
+    protected abstract void setConnectorEnvironmentVars(final Map<String, String> environmentVars);
 
     /**
      * Must be overridden in the extending class to get the lambda function's IAM access policy. The latter sets up
@@ -218,6 +222,37 @@ public abstract class IntegrationTestBase
         }
 
         logger.info("Spill Bucket: [{}], S3 Key: [{}], Handler: [{}]", spillBucket, s3Key, lambdaFunctionHandler);
+    }
+
+    /**
+     * Gets the specific connectors' environment variables.
+     * @return A Map containing the environment variables key-value pairs.
+     */
+    private Map getConnectorEnvironmentVars()
+    {
+        final Map<String, String> environmentVars = new HashMap<>();
+        // Have the connector set specific environment variables first.
+        setConnectorEnvironmentVars(environmentVars);
+
+        // Check for missing spill_bucket
+        if (!environmentVars.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
+            // Add missing spill_bucket environment variable
+            environmentVars.put(LAMBDA_SPILL_BUCKET_TAG, spillBucket);
+        }
+
+        // Check for missing spill_prefix
+        if (!environmentVars.containsKey(LAMBDA_SPILL_PREFIX_TAG)) {
+            // Add missing spill_prefix environment variable
+            environmentVars.put(LAMBDA_SPILL_PREFIX_TAG, "athena-spill");
+        }
+
+        // Check for missing disable_spill_encryption environment variable
+        if (!environmentVars.containsKey(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG)) {
+            // Add missing disable_spill_encryption environment variable
+            environmentVars.put(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG, "false");
+        }
+
+        return environmentVars;
     }
 
     /**

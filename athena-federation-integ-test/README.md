@@ -75,11 +75,12 @@ Provide implementation for the following 4 abstract methods in the test class:
     protected abstract void setupStackData(final Stack stack);
 
     /**
-     * Must be overridden in the extending class to get the lambda function's environment variables key-value pairs
-     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables.
-     * @return Map with parameter key-value pairs.
+     * Must be overridden in the extending class to set the lambda function's environment variables key-value pairs
+     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables. This method
+     * can be a no-op in the extending class since some environment variables are set by default (spill_bucket,
+     * spill_prefix, and disable_spill_encryption).
      */
-    protected abstract Map<String, String> getConnectorEnvironmentVars();
+    protected abstract void setConnectorEnvironmentVars(final Map<String, String> environmentVars);
 
     /**
      * Must be overridden in the extending class to get the lambda function's IAM access policy. The latter sets up
