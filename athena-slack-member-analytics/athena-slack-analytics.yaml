@@ -1,0 +1,97 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: Athena-SlackMemberAnalytics-Connector
+    Description: Connector to Slack Member Analytics REST API endpoint.
+    Author: 'pablito'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation','slack-member-analytics','slack-enterprise-grid']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2020.11.4
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+# Parameters are CloudFormation features to pass input
+# to your template when you create a stack
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+    Default: slackanalytics
+  SlackEndpointURL:
+    Description: "Slack Analytics data endpoint."
+    Type: String
+    Default: 'https://slack.com/api/admin.analytics.getFile'
+  AWSSecretName:
+    Description: "AWS Secret name where Slack API token is stored."
+    Type: String
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: "false"
+    Type: String
+ 
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          data_endpoint: !Ref SlackEndpointURL
+          region: !Ref AWS::Region
+          secret_name: !Ref AWSSecretName
+      FunctionName: !Sub "${AthenaCatalogName}"
+      Handler: "com.amazonaws.connectors.athena.slack.SlackCompositeHandler"
+      CodeUri: "./target/athena-slack-member-analytics-1.0.jar"
+      Description: "A guided example for writing and deploying your own federated Amazon Athena connector for Slack API."
+      Runtime: java8
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
+              Effect: Allow
+              Resource: '*'
+            - Action:
+                - secretsmanager:GetSecretValue
+                - secretsmanager:DescribeSecret
+                - secretsmanager:ListSecretVersionIds
+              Effect: Allow
+              Resource: !Join
+                - ''
+                - - 'arn:'
+                  - !Ref AWS::Partition
+                  - ':secretsmanager:'
+                  - !Ref AWS::Region
+                  - ':'
+                  - !Ref AWS::AccountId
+                  - ':secret:'
+                  - !Ref AWSSecretName
+                  - '*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
