@@ -52,8 +52,8 @@ public class SlackSchemaUtility {
         
         logger.info("getSchema: enter - " + tableName);
         
-        //TODO - Get sample data from endpoint. For this example we only have 
-        // one endpoint and we use a static sample record.
+        // TODO - Get sample data from endpoint. For the slack member analytics endpoint
+        // we only have one table, thus we know the expected metadata.
         JSONObject data =  new JSONObject("{" +
             "\"date\": \"2020-09-01\"," +
             "\"enterprise_id\": \"E2AB3A10F\"," +
@@ -88,7 +88,8 @@ public class SlackSchemaUtility {
         JSONObject schema = new JSONObject();
         for (String key : data.keySet()){
             JSONObject def = new JSONObject();
-            //TODO - Handle nested data types (list, Structs)
+            // TODO - Handle nested data types (list, Structs). Not 
+            // required for Slack Member Analytics
             if(data.get(key) instanceof JSONObject){
                 def.put("type", TYPE_STRUCT);
                 def.put("items", processSchema(data.getJSONObject(key), true));
@@ -126,7 +127,8 @@ public class SlackSchemaUtility {
         SchemaBuilder result    = SchemaBuilder.newBuilder();
         JSONObject schema       = getSchema(tableName);
         for (String key : schema.keySet()){
-            //TODO - Handle nested json (struct, list)
+            // TODO - Handle nested json (struct, list). 
+            // For slack member analytics endpoint, we don't expect addiitonal data types. 
             switch(schema.getJSONObject(key).getString("type")) {
                 case TYPE_INTEGER:
                     result.addIntField(key);
@@ -150,8 +152,8 @@ public class SlackSchemaUtility {
         logger.info("getRowWriterBuilder: Parsing through json schema"); 
         JSONObject schema = getSchema(tableName);
         for (String key : schema.keySet()){
-            //TODO - Handle decimal values
-            //TODO - Handle structs and lists
+            // TODO - Handle decimal values,  structs and lists. 
+            // For slack memeber analytics endpoint we only expect integers and strings
             switch (schema.getJSONObject(key).getString("type")) {
                 case TYPE_INTEGER:
                     logger.debug("getRowWriterBuilder: key={}, type=Integer", key);
