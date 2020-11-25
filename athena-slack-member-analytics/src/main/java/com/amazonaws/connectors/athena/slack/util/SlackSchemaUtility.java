@@ -177,6 +177,63 @@ public class SlackSchemaUtility {
         logger.info("getRowWriterBuilder: exit");
         return builder;
     }
+
+    /**
+     * Use to get the slack token from AWS Secrets manager
+     *
+     * If you need more information about configurations or implementing the
+     * sample code, visit the AWS docs:
+     * https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/java-dg-samples.html#prerequisites
+     *
+     * @return String Slack authentiation token
+     * @throws Exception if unable to get secret.
+     **/
+    public static String getSlackToken()
+            throws Exception {
+        logger.info("getSlackToken: enter");
+
+        String secretName = System.getenv("secret_name");
+        String region = System.getenv("region");
+
+        if (secretName==null || secretName.isEmpty() || region==null || region.isEmpty())
+            throw new Exception("Missing AWS Secrets environment variables.");
+
+        logger.info("getSlackToken: Retrieving " + secretName);
+
+        // Create a Secrets Manager client
+        AWSSecretsManager client  = AWSSecretsManagerClientBuilder.standard()
+                .withRegion(region)
+                .build();
+
+        // In this sample we only handle the specific exceptions for the 'GetSecretValue' API.
+        // See https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        // We rethrow the exception by default.
+
+        String secret, decodedBinarySecret;
+        GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest()
+                .withSecretId(secretName);
+        GetSecretValueResult getSecretValueResult = client.getSecretValue(getSecretValueRequest);
+
+        // Decrypts secret using the associated KMS CMK.
+        // Depending on whether the secret is a string or binary, one of these fields will be populated.
+        if (getSecretValueResult.getSecretString() != null) {
+            secret = getSecretValueResult.getSecretString();
+        }
+        else {
+            secret = new String(Base64.getDecoder().decode(getSecretValueResult.getSecretBinary()).array());
+        }
+
+        JSONObject slackSecret = new JSONObject(secret);
+
+        String slackToken = "";
+        if(slackSecret.has("access_token"))
+            slackToken = slackSecret.getString("access_token");
+
+        logger.info("getSlackToken: exit");
+
+        return slackToken;
+
+    }
     
 }
     

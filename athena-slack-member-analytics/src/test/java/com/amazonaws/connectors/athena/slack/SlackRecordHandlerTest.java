@@ -144,7 +144,7 @@ public class SlackRecordHandlerTest
                     //TODO - Retrieve credentials from secret
                     Split.newBuilder(makeSpillLocation(), null)
                             .add("date", System.getenv("test_date"))
-                            .add("authToken", System.getenv("auth_token"))
+                            .add("authToken", SlackSchemaUtility.getSlackToken())
                             .build(),
                     new Constraints(constraintsMap),
                     100_000_000_000L, //100GB don't expect this to spill
