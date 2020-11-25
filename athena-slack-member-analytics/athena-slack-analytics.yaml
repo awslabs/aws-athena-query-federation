@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: Athena-SlackMemberAnalytics-Connector
+    Name: athena-slackmemberanalytics-connector
     Description: Connector to Slack Member Analytics REST API endpoint.
     Author: 'pablito'
     SpdxLicenseId: Apache-2.0
