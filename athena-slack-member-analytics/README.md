@@ -43,29 +43,23 @@ The Slack Member Analytics API is available for Slack Enterprise Grid Customers.
 
 1. Create a custom Slack App and obtain OAuth Access Token with the user scope of 'admin.analytics:read' following [these instructions](https://api.slack.com/scopes/admin.conversations:write). 
 
-2. Once you obtain an OAuth Token store it in an AWS Secret under the 'access_token' key. 
+2. Once you obtain an OAuth Token store it in an AWS Secret with secret_key='access_token' and secret_value='your OAuth token'. 
 
 3. Navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. 
 
-Alternatively, you can build and deploy this connector from source follow the below steps:
+Alternatively, you can build and deploy this connector from source following the below steps:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-2. Initialize the following environment variables with your secret and a valid test date.
+2. Initialize the following environment variables with your secret info.
 
 ```
-    export data_endpoint="<API_Gateway_Endpoint>" 
+    export data_endpoint="https://slack.com/api/admin.analytics.getFile" 
     export region="<AWS_Region>"
     export secret_name="<New_AWS_Secret_Name>"
     export test_date="2020-11-10"
 ```
 
-<p>
-
-**Note: If you don't have access to an Slack Enteprise Grid, alternatively you can deploy the sam-slackanalytics-simulator and create your secret with a dummy token. Follow the instructions under the athena-slack-member-analytics/sam-slackanalytics-simulator/README.me**
-
-</p>
-
-3. From the athena-slack-member-analytics dir, run `mvn clean install -Dpublishing=true`.
+3. From the athena-slack-member-analytics dir, run `mvn clean install`.
 4. From the athena-slack-member-analytics dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-slack-analytics` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
 ### Required Permissions
