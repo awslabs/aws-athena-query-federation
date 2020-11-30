@@ -21,7 +21,7 @@ connector.
 
 This section explains the steps necessary to create integration tests using the
 Integration-Test module. For an actual code example, see the DynamoDB connector
-[DynamoDBIT integration-test class](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDBInteg.java).
+[DynamoDBInteg integration-test class](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDBInteg.java).
 
 ### Dependencies
 
