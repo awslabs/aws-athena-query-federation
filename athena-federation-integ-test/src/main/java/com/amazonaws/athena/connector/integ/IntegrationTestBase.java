@@ -92,10 +92,10 @@ public abstract class IntegrationTestBase
 
     public IntegrationTestBase()
     {
-        final UUID randomUuid = UUID.randomUUID();
-        this.lambdaFunctionName = this.getClass().getSimpleName().toLowerCase() + "_" +
-                randomUuid.toString().replace('-', '_');
-        this.cloudFormationStackName = "integration-" + this.getClass().getSimpleName() + "-" + randomUuid;
+        final String randomUuid = UUID.randomUUID().toString().substring(0, 21);
+        final String className = this.getClass().getSimpleName();
+        this.lambdaFunctionName = className.toLowerCase() + "_" + randomUuid.replace('-', '_');
+        this.cloudFormationStackName = "integration-" + className + "-" + randomUuid;
         this.athenaClient = AmazonAthenaClientBuilder.defaultClient();
         this.theApp = new App();
         this.objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);

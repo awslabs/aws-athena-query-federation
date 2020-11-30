@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.dynamodb;
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.services.athena.model.Row;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -42,19 +41,18 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration-tests for the DynamoDB connector using the Integration-test Suite.
  */
-public class DynamoDBIT extends IntegrationTestBase {
-    private static final Logger logger = LoggerFactory.getLogger(DynamoDBIT.class);
+public class DynamoDBIntegrationTest extends IntegrationTestBase {
+    private static final Logger logger = LoggerFactory.getLogger(DynamoDBIntegrationTest.class);
     private static final String DATABASE_NAME = "default";
 
     private final String lambdaFunctionName;
     private final String tableName;
     private final DdbTableUtils ddbTableUtils;
 
-    public DynamoDBIT()
+    public DynamoDBIntegrationTest()
     {
         lambdaFunctionName = getLambdaFunctionName();
-        tableName = String.format("%s_%s", this.getClass().getSimpleName().toLowerCase(),
-                UUID.randomUUID().toString().replace('-', '_'));
+        tableName = String.format("dynamodbit_%s", UUID.randomUUID().toString().replace('-', '_'));
         ddbTableUtils = new DdbTableUtils(tableName);
     }
 
@@ -98,17 +96,19 @@ public class DynamoDBIT extends IntegrationTestBase {
      */
     protected void setupData()
     {
-        logger.info("Setting up DB table.");
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", tableName);
+        logger.info("----------------------------------------------------");
 
         ddbTableUtils.addItems();
     }
 
     @Test
-    public void listDatabasesIT()
+    public void listDatabasesIntegrationTest()
     {
-        logger.info("--------------------------");
-        logger.info("Executing listDatabasesIT.");
-        logger.info("--------------------------");
+        logger.info("--------------------------------------");
+        logger.info("Executing listDatabasesIntegrationTest");
+        logger.info("--------------------------------------");
 
         List dbNames = listDatabases();
         logger.info("Databases: {}", dbNames);
@@ -116,11 +116,11 @@ public class DynamoDBIT extends IntegrationTestBase {
     }
 
     @Test
-    public void listTablesIT()
+    public void listTablesIntegrationTest()
     {
-        logger.info("-----------------------");
-        logger.info("Executing listTablesIT.");
-        logger.info("-----------------------");
+        logger.info("-----------------------------------");
+        logger.info("Executing listTablesIntegrationTest");
+        logger.info("-----------------------------------");
 
         List tableNames = listTables(DATABASE_NAME);
         logger.info("Tables: {}", tableNames);
@@ -128,11 +128,11 @@ public class DynamoDBIT extends IntegrationTestBase {
     }
 
     @Test
-    public void describeTableIT()
+    public void describeTableIntegrationTest()
     {
-        logger.info("--------------------------");
-        logger.info("Executing describeTableIT.");
-        logger.info("--------------------------");
+        logger.info("--------------------------------------");
+        logger.info("Executing describeTableIntegrationTest");
+        logger.info("--------------------------------------");
 
         Map schema = describeTable(DATABASE_NAME, tableName);
         logger.info("Schema: {}", schema);
@@ -147,11 +147,11 @@ public class DynamoDBIT extends IntegrationTestBase {
     }
 
     @Test
-    public void selectColumnWithPredicateIT()
+    public void selectColumnWithPredicateIntegrationTest()
     {
-        logger.info("--------------------------------------");
-        logger.info("Executing selectColumnWithPredicateIT.");
-        logger.info("--------------------------------------");
+        logger.info("--------------------------------------------------");
+        logger.info("Executing selectColumnWithPredicateIntegrationTest");
+        logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
                 lambdaFunctionName, DATABASE_NAME, tableName);
