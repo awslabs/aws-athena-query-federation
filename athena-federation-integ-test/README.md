@@ -21,7 +21,7 @@ connector.
 
 This section explains the steps necessary to create integration tests using the
 Integration-Test module. For an actual code example, see the DynamoDB connector
-[DynamoDBIT integration-test class](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDBIntegrationTest.java).
+[DynamoDBIT integration-test class](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDBInteg.java).
 
 ### Dependencies
 
@@ -39,8 +39,8 @@ with current version):
 
 ### Naming Convention
 
-All integration-test classes need to adhere to the naming convention `<class>IntegrationTest`
-(e.g. `public class DynamoDBIntegrationTest`). The same goes for the integration-tests themselves.
+All integration-test classes need to adhere to the naming convention `<class>Integ`
+(e.g. `public class DynamoDBInteg`). The same goes for the integration-tests themselves.
 
 ### Writing Integration Tests
 
@@ -50,10 +50,10 @@ class (`IntegrationTestBase`):
 ```java
 import org.testng.annotations.Test;
 
-public class MyConnectorIntegrationTest extends IntegrationTestBase
+public class MyConnectorInteg extends IntegrationTestBase
 {
     @Test
-    public void exampleIntegrationTest()
+    public void exampleInteg()
     {
         //...
     }

@@ -41,15 +41,15 @@ import static org.junit.Assert.assertTrue;
 /**
  * Integration-tests for the DynamoDB connector using the Integration-test Suite.
  */
-public class DynamoDBIntegrationTest extends IntegrationTestBase {
-    private static final Logger logger = LoggerFactory.getLogger(DynamoDBIntegrationTest.class);
+public class DynamoDBInteg extends IntegrationTestBase {
+    private static final Logger logger = LoggerFactory.getLogger(DynamoDBInteg.class);
     private static final String DATABASE_NAME = "default";
 
     private final String lambdaFunctionName;
     private final String tableName;
     private final DdbTableUtils ddbTableUtils;
 
-    public DynamoDBIntegrationTest()
+    public DynamoDBInteg()
     {
         lambdaFunctionName = getLambdaFunctionName();
         tableName = String.format("dynamodbit_%s", UUID.randomUUID().toString().replace('-', '_'));
@@ -104,10 +104,10 @@ public class DynamoDBIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    public void listDatabasesIntegrationTest()
+    public void listDatabasesInteg()
     {
         logger.info("--------------------------------------");
-        logger.info("Executing listDatabasesIntegrationTest");
+        logger.info("Executing listDatabasesInteg");
         logger.info("--------------------------------------");
 
         List dbNames = listDatabases();
@@ -116,10 +116,10 @@ public class DynamoDBIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    public void listTablesIntegrationTest()
+    public void listTablesInteg()
     {
         logger.info("-----------------------------------");
-        logger.info("Executing listTablesIntegrationTest");
+        logger.info("Executing listTablesInteg");
         logger.info("-----------------------------------");
 
         List tableNames = listTables(DATABASE_NAME);
@@ -128,10 +128,10 @@ public class DynamoDBIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    public void describeTableIntegrationTest()
+    public void describeTableInteg()
     {
         logger.info("--------------------------------------");
-        logger.info("Executing describeTableIntegrationTest");
+        logger.info("Executing describeTableInteg");
         logger.info("--------------------------------------");
 
         Map schema = describeTable(DATABASE_NAME, tableName);
@@ -147,10 +147,10 @@ public class DynamoDBIntegrationTest extends IntegrationTestBase {
     }
 
     @Test
-    public void selectColumnWithPredicateIntegrationTest()
+    public void selectColumnWithPredicateInteg()
     {
         logger.info("--------------------------------------------------");
-        logger.info("Executing selectColumnWithPredicateIntegrationTest");
+        logger.info("Executing selectColumnWithPredicateInteg");
         logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
