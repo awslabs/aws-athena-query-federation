@@ -37,7 +37,7 @@ import java.util.UUID;
 
 public abstract class CloudFormationTemplateProvider
 {
-    private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
+    private static final Logger logger = LoggerFactory.getLogger(CloudFormationTemplateProvider.class);
 
     private static final String CF_TEMPLATE_NAME = "packaged.yaml";
     private static final String LAMBDA_CODE_URI_TAG = "CodeUri:";

@@ -35,7 +35,7 @@ import java.util.List;
 
 public class CloudFormationClient
 {
-    private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
+    private static final Logger logger = LoggerFactory.getLogger(CloudFormationClient.class);
 
     private static final String CF_CREATE_RESOURCE_IN_PROGRESS_STATUS = "CREATE_IN_PROGRESS";
     private static final String CF_CREATE_RESOURCE_FAILED_STATUS = "CREATE_FAILED";
