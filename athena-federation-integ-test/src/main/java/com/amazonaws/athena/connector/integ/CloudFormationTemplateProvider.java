@@ -68,8 +68,8 @@ public abstract class CloudFormationTemplateProvider
         objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
         cloudFormationStackName = "integration-" + stackName + "-" + randomUuid;
         lambdaFunctionName = stackName.toLowerCase() + "_" + randomUuid.toString().replace('-', '_');
-        accessPolicy = getAccessPolicy();
         environmentVars = getEnvironmentVars();
+        accessPolicy = getAccessPolicy();
     }
 
     /**
@@ -97,6 +97,37 @@ public abstract class CloudFormationTemplateProvider
         }
 
         logger.info("Spill Bucket: [{}], S3 Key: [{}], Handler: [{}]", spillBucket, s3Key, lambdaFunctionHandler);
+    }
+
+    /**
+     * Gets the specific connectors' environment variables.
+     * @return A Map containing the environment variables key-value pairs.
+     */
+    private Map getEnvironmentVars()
+    {
+        final Map<String, String> environmentVars = new HashMap<>();
+        // Have the connector set specific environment variables first.
+        setEnvironmentVars(environmentVars);
+
+        // Check for missing spill_bucket
+        if (!environmentVars.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
+            // Add missing spill_bucket environment variable
+            environmentVars.put(LAMBDA_SPILL_BUCKET_TAG, spillBucket);
+        }
+
+        // Check for missing spill_prefix
+        if (!environmentVars.containsKey(LAMBDA_SPILL_PREFIX_TAG)) {
+            // Add missing spill_prefix environment variable
+            environmentVars.put(LAMBDA_SPILL_PREFIX_TAG, "athena-spill");
+        }
+
+        // Check for missing disable_spill_encryption environment variable
+        if (!environmentVars.containsKey(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG)) {
+            // Add missing disable_spill_encryption environment variable
+            environmentVars.put(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG, "false");
+        }
+
+        return environmentVars;
     }
 
     /**
@@ -174,36 +205,5 @@ public abstract class CloudFormationTemplateProvider
         setSpecificResource(stack);
 
         return stack;
-    }
-
-    /**
-     * Gets the specific connectors' environment variables.
-     * @return A Map containing the environment variables key-value pairs.
-     */
-    private Map getEnvironmentVars()
-    {
-        final Map<String, String> environmentVars = new HashMap<>();
-        // Have the connector set specific environment variables first.
-        setEnvironmentVars(environmentVars);
-
-        // Check for missing spill_bucket
-        if (!environmentVars.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
-            // Add missing spill_bucket environment variable
-            environmentVars.put(LAMBDA_SPILL_BUCKET_TAG, spillBucket);
-        }
-
-        // Check for missing spill_prefix
-        if (!environmentVars.containsKey(LAMBDA_SPILL_PREFIX_TAG)) {
-            // Add missing spill_prefix environment variable
-            environmentVars.put(LAMBDA_SPILL_PREFIX_TAG, "athena-spill");
-        }
-
-        // Check for missing disable_spill_encryption environment variable
-        if (!environmentVars.containsKey(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG)) {
-            // Add missing disable_spill_encryption environment variable
-            environmentVars.put(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG, "false");
-        }
-
-        return environmentVars;
     }
 }

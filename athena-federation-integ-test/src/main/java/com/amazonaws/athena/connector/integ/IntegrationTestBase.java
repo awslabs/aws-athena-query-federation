@@ -84,7 +84,6 @@ public abstract class IntegrationTestBase
 
         cloudFormationStackName = templateProvider.getStackName();
         lambdaFunctionName = templateProvider.getLambdaFunctionName();
-
         cloudFormationClient = new CloudFormationClient(cloudFormationStackName);
         athenaClient = AmazonAthenaClientBuilder.defaultClient();
     }
@@ -133,8 +132,15 @@ public abstract class IntegrationTestBase
     @BeforeClass
     protected void setUp()
     {
-        cloudFormationClient.createStack(templateProvider.getTemplate());
-        setUpTableData();
+        try {
+            cloudFormationClient.createStack(templateProvider.getTemplate());
+            setUpTableData();
+        }
+        catch (Exception e) {
+            // Delete the partially formed CloudFormation stack.
+            cloudFormationClient.deleteStack();
+            throw e;
+        }
     }
 
     /**
@@ -255,15 +261,15 @@ public abstract class IntegrationTestBase
             if (queryState.equals(ATHENA_QUERY_QUEUED_STATE) || queryState.equals(ATHENA_QUERY_RUNNING_STATE)) {
                 try {
                     Thread.sleep(sleepTimeMillis);
+                    continue;
                 }
                 catch (InterruptedException e) {
-                    throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage());
+                    throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage(), e);
                 }
-                continue;
             }
             else if (queryState.equals(ATHENA_QUERY_FAILED_STATE) || queryState.equals(ATHENA_QUERY_CANCELLED_STATE)) {
-                throw new RuntimeException(getQueryExecutionResult.
-                        getQueryExecution().getStatus().getStateChangeReason());
+                throw new RuntimeException(getQueryExecutionResult
+                        .getQueryExecution().getStatus().getStateChangeReason());
             }
             break;
         }

@@ -60,20 +60,14 @@ public class CloudFormationClient
         logger.info("Create CloudFormation stack: {}", stackName);
         logger.info("------------------------------------------------------");
 
-        try {
-            CreateStackRequest createStackRequest = new CreateStackRequest()
-                    .withStackName(stackName)
-                    .withTemplateBody(template)
-                    .withDisableRollback(true)
-                    .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
-            processCreateStackRequest(createStackRequest);
-        }
-        catch (Exception e) {
-            // Delete the partially formed CloudFormation stack.
-            deleteStack();
-            throw e;
-        }
+        CreateStackRequest createStackRequest = new CreateStackRequest()
+                .withStackName(stackName)
+                .withTemplateBody(template)
+                .withDisableRollback(true)
+                .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
+        processCreateStackRequest(createStackRequest);
     }
+
     /**
      * Processes the creation of a CloudFormation stack including polling of the stack's status while in progress.
      * @param createStackRequest Request used to generate the CloudFormation stack.
@@ -102,11 +96,11 @@ public class CloudFormationClient
                     resourceStatus.equals(CF_CREATE_RESOURCE_IN_PROGRESS_STATUS)) {
                 try {
                     Thread.sleep(sleepTimeMillis);
+                    continue;
                 }
                 catch (InterruptedException e) {
-                    throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage());
+                    throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage(), e);
                 }
-                continue;
             }
             else if (resourceStatus.equals(CF_CREATE_RESOURCE_FAILED_STATUS)) {
                 throw new RuntimeException(getCloudFormationErrorReasons(describeStackEventsResult.getStackEvents()));
