@@ -66,14 +66,14 @@ Provide implementation for the following 4 abstract methods in the test class:
     /**
      * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
      */
-    protected abstract void setupData();
+    protected abstract void setUpTableData();
 
     /**
      * Must be overridden in the extending class (can be a no-op) to create a connector-specific CloudFormation stack
      * resource (e.g. DB table) using AWS CDK.
      * @param stack The current CloudFormation stack.
      */
-    protected abstract void setupStackData(final Stack stack);
+    protected abstract void setUpStackData(final Stack stack);
 
     /**
      * Must be overridden in the extending class to set the lambda function's environment variables key-value pairs

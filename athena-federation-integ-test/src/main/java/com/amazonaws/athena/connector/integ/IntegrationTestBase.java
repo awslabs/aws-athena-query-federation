@@ -28,34 +28,17 @@ import com.amazonaws.services.athena.model.GetQueryResultsResult;
 import com.amazonaws.services.athena.model.ListDatabasesRequest;
 import com.amazonaws.services.athena.model.ListDatabasesResult;
 import com.amazonaws.services.athena.model.StartQueryExecutionRequest;
-import com.amazonaws.services.cloudformation.AmazonCloudFormation;
-import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder;
-import com.amazonaws.services.cloudformation.model.Capability;
-import com.amazonaws.services.cloudformation.model.CreateStackRequest;
-import com.amazonaws.services.cloudformation.model.CreateStackResult;
-import com.amazonaws.services.cloudformation.model.DeleteStackRequest;
-import com.amazonaws.services.cloudformation.model.DescribeStackEventsRequest;
-import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
-import com.amazonaws.services.cloudformation.model.StackEvent;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * The Integration-Tests base class from which all connector-specific integration test modules should subclass.
@@ -64,16 +47,6 @@ public abstract class IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
 
-    private static final String CF_TEMPLATE_NAME = "packaged.yaml";
-    private static final String LAMBDA_CODE_URI_TAG = "CodeUri:";
-    private static final String LAMBDA_SPILL_BUCKET_PREFIX = "s3://";
-    private static final String LAMBDA_HANDLER_TAG = "Handler:";
-    private static final String LAMBDA_HANDLER_PREFIX = "Handler: ";
-    private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
-    private static final String LAMBDA_SPILL_PREFIX_TAG = "spill_prefix";
-    private static final String LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG = "disable_spill_encryption";
-    private static final String CF_CREATE_RESOURCE_IN_PROGRESS_STATUS = "CREATE_IN_PROGRESS";
-    private static final String CF_CREATE_RESOURCE_FAILED_STATUS = "CREATE_FAILED";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
     private static final String ATHENA_QUERY_FAILED_STATE = "FAILED";
@@ -81,28 +54,43 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_FEDERATION_WORK_GROUP = "AmazonAthenaPreviewFunctionality";
     private static final long sleepTimeMillis = 5000L;
 
-    private final String lambdaFunctionName;
-    private String lambdaFunctionHandler;
-    private String spillBucket;
-    private String s3Key;
-    private final AmazonAthena athenaClient;
+    private final CloudFormationTemplateProvider templateProvider;
     private final String cloudFormationStackName;
-    private final App theApp;
-    private final ObjectMapper objectMapper;
+    private final String lambdaFunctionName;
+    private final CloudFormationClient cloudFormationClient;
+    private final AmazonAthena athenaClient;
 
     public IntegrationTestBase()
     {
-        final UUID randomUuid = UUID.randomUUID();
-        this.lambdaFunctionName = this.getClass().getSimpleName().toLowerCase() + "_" +
-                randomUuid.toString().replace('-', '_');
-        this.cloudFormationStackName = "integration-" + this.getClass().getSimpleName() + "-" + randomUuid;
-        this.athenaClient = AmazonAthenaClientBuilder.defaultClient();
-        this.theApp = new App();
-        this.objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
+        templateProvider = new CloudFormationTemplateProvider(this.getClass().getSimpleName()) {
+            @Override
+            protected PolicyDocument getAccessPolicy()
+            {
+                return getConnectorAccessPolicy();
+            }
+
+            @Override
+            protected void setEnvironmentVars(final Map environmentVars)
+            {
+                setConnectorEnvironmentVars(environmentVars);
+            }
+
+            @Override
+            protected void setSpecificResource(final Stack stack)
+            {
+                setUpStackData(stack);
+            }
+        };
+
+        cloudFormationStackName = templateProvider.getStackName();
+        lambdaFunctionName = templateProvider.getLambdaFunctionName();
+
+        cloudFormationClient = new CloudFormationClient(cloudFormationStackName);
+        athenaClient = AmazonAthenaClientBuilder.defaultClient();
     }
 
     /**
-     * Gets the name of the lambda function generated by the Integration-Test Suite.
+     * Gets the name of the lambda function generated by the Integration-Test module.
      * @return The name of the lambda function.
      */
     public String getLambdaFunctionName()
@@ -113,14 +101,14 @@ public abstract class IntegrationTestBase
     /**
      * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
      */
-    protected abstract void setupData();
+    protected abstract void setUpTableData();
 
     /**
      * Must be overridden in the extending class (can be a no-op) to create a connector-specific CloudFormation stack
      * resource (e.g. DB table) using AWS CDK.
      * @param stack The current CloudFormation stack.
      */
-    protected abstract void setupStackData(final Stack stack);
+    protected abstract void setUpStackData(final Stack stack);
 
     /**
      * Must be overridden in the extending class to set the lambda function's environment variables key-value pairs
@@ -143,198 +131,19 @@ public abstract class IntegrationTestBase
      * with Athena.
      */
     @BeforeClass
-    protected void createStack()
+    protected void setUp()
     {
-        logger.info("------------------------------------------------------");
-        logger.info("Create CloudFormation stack: {}", cloudFormationStackName);
-        logger.info("------------------------------------------------------");
-
-        try {
-            final String cloudFormationTemplate = getCloudFormationTemplate();
-
-            CreateStackRequest createStackRequest = new CreateStackRequest()
-                    .withStackName(cloudFormationStackName)
-                    .withTemplateBody(cloudFormationTemplate)
-                    .withDisableRollback(true)
-                    .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
-            processCreateStackRequest(createStackRequest);
-            setupData();
-        }
-        catch (Exception e) {
-            // Delete the partially formed CloudFormation stack.
-            deleteStack();
-            throw e;
-        }
-    }
-
-    /**
-     * Gets the CloudFormation template (generated programmatically using AWS CDK).
-     * @return CloudFormation stack template.
-     */
-    private String getCloudFormationTemplate()
-    {
-        final Stack stack = generateStack();
-        final String stackTemplate = objectMapper
-                .valueToTree(theApp.synth().getStackArtifact(stack.getArtifactId()).getTemplate())
-                .toPrettyString();
-        logger.info("CloudFormation Template:\n{}: {}", cloudFormationStackName, stackTemplate);
-
-        return stackTemplate;
-    }
-
-    /**
-     * Generate the CloudFormation stack programmatically using AWS CDK.
-     * @return CloudFormation stack object.
-     */
-    private Stack generateStack()
-    {
-        setupLambdaFunctionInfo();
-        final Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
-                lambdaFunctionName, lambdaFunctionHandler, getConnectorAccessPolicy(), getConnectorEnvironmentVars());
-        // Setup connector specific stack data (e.g. DB table).
-        setupStackData(stack);
-
-        return stack;
-    }
-
-    /**
-     * Sets several variables needed in the creation of the CF Stack (e.g. spillBucket, s3Key, lambdaFunctionHandler).
-     * @throws RuntimeException CloudFormation template (packaged.yaml) was not found.
-     */
-    private void setupLambdaFunctionInfo()
-            throws RuntimeException
-    {
-        try {
-            for (String line : Files.readAllLines(Paths.get(CF_TEMPLATE_NAME), StandardCharsets.UTF_8)) {
-                if (line.contains(LAMBDA_CODE_URI_TAG)) {
-                    spillBucket = line.substring(line.indexOf(LAMBDA_SPILL_BUCKET_PREFIX) +
-                            LAMBDA_SPILL_BUCKET_PREFIX.length(), line.lastIndexOf('/'));
-                    s3Key = line.substring(line.lastIndexOf('/') + 1);
-                }
-                else if (line.contains(LAMBDA_HANDLER_TAG)) {
-                    lambdaFunctionHandler = line.substring(line.indexOf(LAMBDA_HANDLER_PREFIX) +
-                            LAMBDA_HANDLER_PREFIX.length());
-                }
-            }
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Lambda connector has not been packaged via `sam package` (see README).", e);
-        }
-
-        logger.info("Spill Bucket: [{}], S3 Key: [{}], Handler: [{}]", spillBucket, s3Key, lambdaFunctionHandler);
-    }
-
-    /**
-     * Gets the specific connectors' environment variables.
-     * @return A Map containing the environment variables key-value pairs.
-     */
-    private Map getConnectorEnvironmentVars()
-    {
-        final Map<String, String> environmentVars = new HashMap<>();
-        // Have the connector set specific environment variables first.
-        setConnectorEnvironmentVars(environmentVars);
-
-        // Check for missing spill_bucket
-        if (!environmentVars.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
-            // Add missing spill_bucket environment variable
-            environmentVars.put(LAMBDA_SPILL_BUCKET_TAG, spillBucket);
-        }
-
-        // Check for missing spill_prefix
-        if (!environmentVars.containsKey(LAMBDA_SPILL_PREFIX_TAG)) {
-            // Add missing spill_prefix environment variable
-            environmentVars.put(LAMBDA_SPILL_PREFIX_TAG, "athena-spill");
-        }
-
-        // Check for missing disable_spill_encryption environment variable
-        if (!environmentVars.containsKey(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG)) {
-            // Add missing disable_spill_encryption environment variable
-            environmentVars.put(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG, "false");
-        }
-
-        return environmentVars;
-    }
-
-    /**
-     * Processes the creation of a CloudFormation stack including polling of the stack's status while in progress.
-     * @param createStackRequest Request used to generate the CloudFormation stack.
-     * @throws RuntimeException The CloudFormation stack creation failed.
-     */
-    private void processCreateStackRequest(CreateStackRequest createStackRequest)
-            throws RuntimeException
-    {
-        // Create CloudFormation stack.
-        AmazonCloudFormation cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient();
-        CreateStackResult result = cloudFormationClient.createStack(createStackRequest);
-        logger.info("Stack ID: {}", result.getStackId());
-
-        DescribeStackEventsRequest describeStackEventsRequest = new DescribeStackEventsRequest()
-                .withStackName(createStackRequest.getStackName());
-        DescribeStackEventsResult describeStackEventsResult;
-
-        // Poll status of stack until stack has been created or creation has failed
-        while (true) {
-            describeStackEventsResult = cloudFormationClient.describeStackEvents(describeStackEventsRequest);
-            StackEvent event = describeStackEventsResult.getStackEvents().get(0);
-            String resourceId = event.getLogicalResourceId();
-            String resourceStatus = event.getResourceStatus();
-            logger.info("Resource Id: {}, Resource status: {}", resourceId, resourceStatus);
-            if (!resourceId.equals(event.getStackName()) ||
-                    resourceStatus.equals(CF_CREATE_RESOURCE_IN_PROGRESS_STATUS)) {
-                try {
-                    Thread.sleep(sleepTimeMillis);
-                }
-                catch (InterruptedException e) {
-                    throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage());
-                }
-                continue;
-            }
-            else if (resourceStatus.equals(CF_CREATE_RESOURCE_FAILED_STATUS)) {
-                throw new RuntimeException(getCloudFormationErrorReasons(describeStackEventsResult.getStackEvents()));
-            }
-            break;
-        }
-    }
-
-    /**
-     * Provides a detailed error message when the CloudFormation stack creation fails.
-     * @param stackEvents The list of CloudFormation stack events.
-     * @return String containing the formatted error message.
-     */
-    private String getCloudFormationErrorReasons(List<StackEvent> stackEvents)
-    {
-        StringBuilder errorMessageBuilder =
-                new StringBuilder("CloudFormation stack creation failed due to the following reason(s):\n");
-
-        stackEvents.forEach(stackEvent -> {
-            if (stackEvent.getResourceStatus().equals(CF_CREATE_RESOURCE_FAILED_STATUS)) {
-                String errorMessage = String.format("Resource: %s, Reason: %s\n",
-                        stackEvent.getLogicalResourceId(), stackEvent.getResourceStatusReason());
-                errorMessageBuilder.append(errorMessage);
-            }
-        });
-
-        return errorMessageBuilder.toString();
+        cloudFormationClient.createStack(templateProvider.getTemplate());
+        setUpTableData();
     }
 
     /**
      * Deletes a CloudFormation stack, and the lambda function registered with Athena.
      */
     @AfterClass
-    protected void deleteStack()
+    protected void cleanUp()
     {
-        logger.info("------------------------------------------------------");
-        logger.info("Delete CloudFormation stack: {}", cloudFormationStackName);
-        logger.info("------------------------------------------------------");
-
-        try {
-            AmazonCloudFormation cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient();
-            DeleteStackRequest request = new DeleteStackRequest().withStackName(cloudFormationStackName);
-            cloudFormationClient.deleteStack(request);
-        }
-        catch (Exception e) {
-            logger.error("Something went wrong... Manual resource cleanup may be needed!!!", e);
-        }
+        cloudFormationClient.deleteStack();
     }
 
     /**

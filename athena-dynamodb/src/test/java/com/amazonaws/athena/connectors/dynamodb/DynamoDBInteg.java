@@ -39,7 +39,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Integration-tests for the DynamoDB connector using the Integration-test Suite.
+ * Integration-tests for the DynamoDB connector using the Integration-test module.
  */
 public class DynamoDBInteg extends IntegrationTestBase {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBInteg.class);
@@ -86,7 +86,7 @@ public class DynamoDBInteg extends IntegrationTestBase {
      * Sets up the DDB Table's CloudFormation stack.
      * @param stack The current CloudFormation stack.
      */
-    protected void setupStackData(final Stack stack)
+    protected void setUpStackData(final Stack stack)
     {
         ddbTableUtils.setupTableStack(stack);
     }
@@ -94,7 +94,7 @@ public class DynamoDBInteg extends IntegrationTestBase {
     /**
      * Insert rows into the newly created DDB table.
      */
-    protected void setupData()
+    protected void setUpTableData()
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", tableName);
