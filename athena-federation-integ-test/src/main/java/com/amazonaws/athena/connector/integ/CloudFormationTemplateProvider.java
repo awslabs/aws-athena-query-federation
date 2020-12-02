@@ -47,6 +47,7 @@ public abstract class CloudFormationTemplateProvider
     private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
     private static final String LAMBDA_SPILL_PREFIX_TAG = "spill_prefix";
     private static final String LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG = "disable_spill_encryption";
+    private static final int MAX_LAMBDA_FUNCTION_NAME = 64;
 
     private final String cloudFormationStackName;
     private final App theApp;
@@ -63,11 +64,14 @@ public abstract class CloudFormationTemplateProvider
     {
         setupLambdaFunctionInfo();
 
-        final UUID randomUuid = UUID.randomUUID();
+        final String randomUuidStr = UUID.randomUUID().toString();
         theApp = new App();
         objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
-        cloudFormationStackName = "integration-" + stackName + "-" + randomUuid;
-        lambdaFunctionName = stackName.toLowerCase() + "_" + randomUuid.toString().replace('-', '_');
+        cloudFormationStackName = String.format("integration-%s-%s", stackName, randomUuidStr);
+        // Lambda Function's name cannot exceed 64 bytes.
+        lambdaFunctionName = String.format("%s_%s", stackName.toLowerCase(), randomUuidStr
+                .replace('-', '_'))
+                .substring(0, Math.min(MAX_LAMBDA_FUNCTION_NAME, stackName.length() + randomUuidStr.length() + 1));
         environmentVars = getEnvironmentVars();
         accessPolicy = getAccessPolicy();
     }
