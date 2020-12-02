@@ -1,3 +1,4 @@
+com.amazonaws.athena.connector.integ
 com.amazonaws.athena.connector.lambda
 com.amazonaws.athena.connector.lambda.data
 com.amazonaws.athena.connector.lambda.data.projectors
