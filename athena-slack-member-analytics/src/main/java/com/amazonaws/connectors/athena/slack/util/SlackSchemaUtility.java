@@ -59,7 +59,7 @@ public class SlackSchemaUtility {
         // TODO - Get sample data from endpoint. For the slack member analytics endpoint
         // we only have one table, thus we know the expected metadata.
         JSONObject data =  new JSONObject("{" +
-            "\"date\": \"2020-09-01\"," +
+            //"\"date\": \"2020-09-01\"," +
             "\"enterprise_id\": \"E2AB3A10F\"," +
             "\"enterprise_user_id\": \"W1F83A9F9\"," +
             "\"email_address\": \"person@acme.com\"," +
@@ -92,8 +92,7 @@ public class SlackSchemaUtility {
         JSONObject schema = new JSONObject();
         for (String key : data.keySet()){
             JSONObject def = new JSONObject();
-            // TODO - Handle nested data types (list, Structs). Not 
-            // required for Slack Member Analytics
+            // TODO - Handle nested data types (list, Structs). Not required for Slack Member Analytics
             if(data.get(key) instanceof JSONObject){
                 def.put("type", TYPE_STRUCT);
                 def.put("items", processSchema(data.getJSONObject(key), true));
@@ -132,7 +131,7 @@ public class SlackSchemaUtility {
         JSONObject schema       = getSchema(tableName);
         for (String key : schema.keySet()){
             // TODO - Handle nested json (struct, list). 
-            // For slack member analytics endpoint, we don't expect addiitonal data types. 
+            // For slack member analytics endpoint, we don't expect addiitonal data types.
             switch(schema.getJSONObject(key).getString("type")) {
                 case TYPE_INTEGER:
                     result.addIntField(key);

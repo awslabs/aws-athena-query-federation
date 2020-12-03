@@ -107,10 +107,7 @@ public class SlackMetadataHandler extends MetadataHandler
 
         Set<String> schemas = new HashSet<>();
 
-        /**
-         * TODO: Add schemas, this example produces a single slack schema
-         **/
-         schemas.add("slackanalytics");
+        schemas.add("slackanalytics");
 
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
@@ -130,10 +127,7 @@ public class SlackMetadataHandler extends MetadataHandler
 
         List<TableName> tables = new ArrayList<>();
 
-        /**
-         * TODO: Add tables for the requested schema, in this example we have a single endpoint.
-         **/
-         tables.add(new TableName(request.getSchemaName(), "member_analytics"));
+        tables.add(new TableName(request.getSchemaName(), "member_analytics"));
 
         return new ListTablesResponse(request.getCatalogName(), tables);
     }
