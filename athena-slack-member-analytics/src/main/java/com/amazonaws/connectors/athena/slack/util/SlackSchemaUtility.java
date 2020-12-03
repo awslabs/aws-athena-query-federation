@@ -59,7 +59,7 @@ public class SlackSchemaUtility {
         // TODO - Get sample data from endpoint. For the slack member analytics endpoint
         // we only have one table, thus we know the expected metadata.
         JSONObject data =  new JSONObject("{" +
-            //"\"date\": \"2020-09-01\"," +
+            "\"date\": \"2020-09-01\"," +
             "\"enterprise_id\": \"E2AB3A10F\"," +
             "\"enterprise_user_id\": \"W1F83A9F9\"," +
             "\"email_address\": \"person@acme.com\"," +

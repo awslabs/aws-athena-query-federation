@@ -174,8 +174,11 @@ public class SlackMetadataHandler extends MetadataHandler
         logger.info("getPartitions: enter");
         
         /**
-         * For this implementation we are partitioning by date and always returning
-         * the last 30 days
+         * For this implementation we are partitioning by date and registering
+         * partitions for the last 30 days. At the moment the Slack Member Analytics
+         * API has no method to get all possible dates. Returning the last 30
+         * days for partition prooning.
+         * 
          * TODO - Take this value from an env variable.
          **/
         LocalDate today = LocalDate.now();
