@@ -94,11 +94,11 @@ public class SlackRecordHandler extends RecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws IOException, Exception
     {
-        logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
+        logger.info("readWithConstraint: enter");
 
-        Split split             = recordsRequest.getSplit();
-        String splitDateVal     = split.getProperty("date");
-        String splitAuthToken   = split.getProperty("authToken");
+        Split split = recordsRequest.getSplit();
+        String splitDateVal = split.getProperty("date");
+        String splitAuthToken = split.getProperty("authToken");
         
         //Retrieving schema elements 
         String tableName = recordsRequest.getTableName().getTableName();

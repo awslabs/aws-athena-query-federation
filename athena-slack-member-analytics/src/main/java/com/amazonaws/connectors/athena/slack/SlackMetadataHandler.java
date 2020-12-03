@@ -56,22 +56,18 @@ import org.json.JSONObject;
 
 
 /**
- * This class is part of an tutorial that will walk you through how to build a connector for your
- * slack analytics data source. The README for this module will guide you through preparing
- * your development environment, modifying this example Metadatahandler, building, deploying, and then
- * using your new source in an Athena query.
- * <p>
- * More specifically, this class is responsible for providing Athena with metadata about the schemas (aka databases),
+ * 
+ * This class is responsible for providing Athena with metadata about the schemas (aka databases),
  * tables, and table partitions that your source contains. Lastly, this class tells Athena how to split up reads against
  * this source. This gives you control over the level of performance and parallelism your source can support.
- * 
+ *
  **/
 public class SlackMetadataHandler extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(SlackMetadataHandler.class);
 
     /**
-     * used to aid in debugging. Athena will use this name in conjunction with your catalog id
+     * Used to aid in debugging. Athena will use this name in conjunction with your catalog id
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "slackanalytics";
