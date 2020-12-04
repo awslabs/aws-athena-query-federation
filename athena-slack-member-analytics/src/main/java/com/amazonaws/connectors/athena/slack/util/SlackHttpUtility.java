@@ -171,9 +171,18 @@ public class SlackHttpUtility {
              */
             case "application/json":
                 String response = EntityUtils.toString(entity);
-                JSONObject respJSON = new JSONObject(response);
-                logger.warn("getData: " + content);
-                break;
+                try {
+                    JSONObject jsonResponse = new JSONObject(response);
+                    if (jsonResponse.has('ok') && !jsonResponse.getBoolean('ok'))
+                        logger.warn("getData: " + response);
+                        break;
+                } catch(JSONException e){
+                    logger.info("getData: Processing uncompressed response...." )
+                    Reader inputString = new StringReader(response);
+                    reader = new BufferedReader(inputString);
+                    break;
+                }
+
             case "application/gzip":
                 logger.info("getData: Processing compressed response...");
                 GZIPInputStream gzIs = new GZIPInputStream(entity.getContent());
