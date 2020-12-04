@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-example
+ *athena-slack-member-analytics
  * %%
  * Copyright (C) 2019 - 2020 Amazon Web Services
  * %%
