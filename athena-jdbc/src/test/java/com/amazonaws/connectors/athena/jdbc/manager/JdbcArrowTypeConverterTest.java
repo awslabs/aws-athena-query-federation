@@ -50,6 +50,6 @@ public class JdbcArrowTypeConverterTest
         Assert.assertEquals(Types.MinorType.VARBINARY.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.LONGVARBINARY, 0, 0));
         Assert.assertEquals(Types.MinorType.DATEMILLI.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.DATE, 0, 0));
         Assert.assertEquals(Types.MinorType.TIMEMILLI.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.TIME, 0, 0));
-        Assert.assertEquals(Types.MinorType.TIMESTAMPMILLI.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.TIMESTAMP, 0, 0));
+        Assert.assertEquals(Types.MinorType.DATEMILLI.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.TIMESTAMP, 0, 0));
     }
 }
