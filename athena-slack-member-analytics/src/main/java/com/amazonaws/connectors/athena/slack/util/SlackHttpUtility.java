@@ -32,6 +32,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.json.JSONObject;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.BufferedReader;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
+
 
 public class SlackHttpUtility {
 
@@ -164,12 +166,12 @@ public class SlackHttpUtility {
         logger.info("getData: Content Type=" + mimeType);
         switch(mimeType){
             /**
-             * If slack endpoint returns application/json, file is empty or there is an error.
-             * Logging error without throwing an exception, just return empty records.
-             * TODO - Handle different error types returned by slack analytics endpoint
+             * If slack endpoint returns application/json, file might be empty or there is an error.
+             * Logging error as WARNING without throwing an exception, just return empty records.
              */
             case "application/json":
-                String content = EntityUtils.toString(entity);
+                String response = EntityUtils.toString(entity);
+                JSONObject respJSON = new JSONObject(response);
                 logger.warn("getData: " + content);
                 break;
             case "application/gzip":
