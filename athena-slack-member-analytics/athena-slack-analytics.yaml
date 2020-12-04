@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation','slack-member-analytics','slack-enterprise-grid']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2020.11.6
+    SemanticVersion: 2020.11.7
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input

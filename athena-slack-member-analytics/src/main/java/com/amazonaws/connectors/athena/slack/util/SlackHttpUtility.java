@@ -36,6 +36,8 @@ import org.json.JSONObject;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.StringReader;
+import java.io.Reader;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -170,19 +172,16 @@ public class SlackHttpUtility {
              * Logging error as WARNING without throwing an exception, just return empty records.
              */
             case "application/json":
-                String response = EntityUtils.toString(entity);
-                try {
-                    JSONObject jsonResponse = new JSONObject(response);
-                    if (jsonResponse.has('ok') && !jsonResponse.getBoolean('ok'))
-                        logger.warn("getData: " + response);
-                        break;
-                } catch(JSONException e){
-                    logger.info("getData: Processing uncompressed response...." )
-                    Reader inputString = new StringReader(response);
+                String data = EntityUtils.toString(entity);
+                JSONObject jsonResponse = new JSONObject(data);
+                if (jsonResponse.has("ok") && !jsonResponse.getBoolean("ok")){
+                    logger.warn("getData: " + data);
+                }else {
+                    logger.info("getData: Processing uncompressed response....");
+                    Reader inputString = new StringReader(data);
                     reader = new BufferedReader(inputString);
-                    break;
                 }
-
+                break;
             case "application/gzip":
                 logger.info("getData: Processing compressed response...");
                 GZIPInputStream gzIs = new GZIPInputStream(entity.getContent());
