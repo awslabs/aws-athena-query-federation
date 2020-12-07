@@ -164,6 +164,11 @@ public class ElasticsearchMetadataHandler
     {
         logger.debug("doListSchemaNames: enter - " + request);
 
+        if (autoDiscoverEndpoint) {
+            // Refresh Domain Map as new domains could have been added (in Amazon ES), and/or old ones removed...
+            domainMap = domainMapProvider.getDomainMap(null);
+        }
+
         return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
     }
 
