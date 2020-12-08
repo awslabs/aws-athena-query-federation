@@ -63,7 +63,7 @@ public class SlackSchemaUtility {
     
         // The slack member analytics has only one endpoint/table
         JSONObject data = getMasterRecord(1);
-        // Try sample from two days ago if is empty.
+        // Try sample from two days ago if empty.
         if (data.length()==0)
             data = getMasterRecord(2);
         
@@ -86,7 +86,7 @@ public class SlackSchemaUtility {
             
             //Get sample records from the Slack Members API to extract metadata.
             String yesterday = LocalDate.now().minusDays(minusDays).toString();
-            logger.info("getSchema: Extracting metadata from {} record sample", yesterday);
+            logger.info("getMasterRecord: Extracting metadata from {} record sample", yesterday);
             String baseURL = System.getenv("data_endpoint");
             URIBuilder requestURI  = new URIBuilder(baseURL);
             requestURI.addParameter("date", yesterday);
