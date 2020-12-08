@@ -137,8 +137,7 @@ public class SlackMetadataHandlerTest
     }
 
     @Test
-    public void doGetTable()
-    {
+    public void doGetTable(){
         if (!enableTests) {
             //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
             //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we

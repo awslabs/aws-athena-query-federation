@@ -23,17 +23,22 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.connectors.athena.slack.util.SlackHttpUtility;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.http.client.utils.URIBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.json.JSONObject;
 import org.json.JSONArray;
+import java.io.BufferedReader;
 import java.util.Base64;
+import java.util.HashMap;
+import java.time.LocalDate;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 
 public class SlackSchemaUtility {
@@ -52,31 +57,68 @@ public class SlackSchemaUtility {
      * @return JSONObject with the table schema
      * 
      */
-    public static JSONObject getSchema(String tableName){
+    public static JSONObject getSchema(String tableName) {
         
         logger.info("getSchema: enter - " + tableName);
+    
+        // The slack member analytics has only one endpoint/table
+        JSONObject data = getMasterRecord(1);
+        // Try sample from two days ago if is empty.
+        if (data.length()==0)
+            data = getMasterRecord(2);
         
-        // TODO - Get sample data from endpoint. For the slack member analytics endpoint
-        // we only have one table, thus we know the expected metadata.
-        JSONObject data =  new JSONObject("{" +
-            "\"date\": \"2020-09-01\"," +
-            "\"enterprise_id\": \"E2AB3A10F\"," +
-            "\"enterprise_user_id\": \"W1F83A9F9\"," +
-            "\"email_address\": \"person@acme.com\"," +
-            "\"enterprise_employee_number\": \"273849373\"," +
-            "\"is_guest\": false," +
-            "\"is_billable_seat\": true," +
-            "\"is_active\": true," +
-            "\"is_active_iOS\": true," +
-            "\"is_active_Android\": false," +
-            "\"is_active_desktop\": true," +
-            "\"reactions_added_count\": 20," +
-            "\"messages_posted_count\": 40," +
-            "\"channel_messages_posted_count\": 30," +
-            "\"files_added_count\": 5" +
-        "}");
-        
+        logger.info("getSchema: exit");
         return processSchema(data, false);
+    }
+    
+    /**
+     * Help function to extract metadata based on the first 20 records. 
+     * 
+     * @param reader BufferedReader with sample records.
+     * @return JSONObject with master record.
+     */
+    private static JSONObject getMasterRecord(int minusDays){
+        
+        logger.info("getMasterRecord - enter - try " + minusDays);    
+        JSONObject master = new JSONObject();
+        
+        try {
+            
+            //Get sample records from the Slack Members API to extract metadata.
+            String yesterday = LocalDate.now().minusDays(minusDays).toString();
+            logger.info("getSchema: Extracting metadata from {} record sample", yesterday);
+            String baseURL = System.getenv("data_endpoint");
+            URIBuilder requestURI  = new URIBuilder(baseURL);
+            requestURI.addParameter("date", yesterday);
+            requestURI.addParameter("type", "member");
+            HashMap<String, String> headers = new HashMap<String, String>();
+            headers.put("Authorization", "Bearer " + getSlackToken());
+            BufferedReader reader = SlackHttpUtility.getData(requestURI, headers);    
+            
+            String line;
+            int counter = 0;
+            
+            while (reader != null && (line = reader.readLine()) != null) { // Read line by line
+                logger.debug("getMasterRecord: Line - " + line);
+                JSONObject record = new JSONObject(line);
+                
+                // Adding field to master if not exists
+                // For member analytics we don't expect a nested structure.
+                for (String keyStr : record.keySet()) {
+                    if(!master.has(keyStr))
+                        master.put(keyStr, record.get(keyStr));
+                }
+                
+                counter++;
+                if (counter==20) break;
+            }
+        } catch (Exception e) {
+            logger.error("getMasterRecord: Error while extracting schema. {}", e.getMessage());
+            master.put("INVALID_SCHEMA","EMPTY");
+        }
+        
+        logger.info("getMasterRecord - exit - Record: {}", master.toString());
+        return master;
     }
     
     /**
@@ -148,7 +190,7 @@ public class SlackSchemaUtility {
         return result;
     }
     
-    public static GeneratedRowWriter.RowWriterBuilder getRowWriterBuilder(ReadRecordsRequest recordsRequest, String tableName){
+    public static GeneratedRowWriter.RowWriterBuilder getRowWriterBuilder(ReadRecordsRequest recordsRequest, String tableName) {
         logger.info("getRowWriterBuilder: enter");
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
          

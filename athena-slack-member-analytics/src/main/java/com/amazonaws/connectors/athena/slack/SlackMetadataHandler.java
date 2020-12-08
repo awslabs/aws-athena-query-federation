@@ -97,8 +97,7 @@ public class SlackMetadataHandler extends MetadataHandler
      * corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
-    {
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request){
         logger.info("doListSchemaNames: enter - " + request);
 
         Set<String> schemas = new HashSet<>();
@@ -117,8 +116,7 @@ public class SlackMetadataHandler extends MetadataHandler
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
-    {
+    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request) {
         logger.info("doListTables: enter - " + request);
 
         List<TableName> tables = new ArrayList<>();
@@ -140,8 +138,7 @@ public class SlackMetadataHandler extends MetadataHandler
      * 4. A catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
-    {
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request){
         logger.info("doGetTable: Retrieving metadata for table {}.{} ", 
             request.getTableName().getSchemaName(),
             request.getTableName().getTableName());
