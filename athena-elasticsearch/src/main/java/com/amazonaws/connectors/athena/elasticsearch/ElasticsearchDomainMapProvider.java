@@ -87,7 +87,7 @@ class ElasticsearchDomainMapProvider
     private Map<String, String> getDomainMapFromAmazonElasticsearch()
             throws RuntimeException
     {
-        final AWSElasticsearch awsEsClient = AWSElasticsearchClientBuilder.defaultClient();
+        final AWSElasticsearch awsEsClient = getElasticsearchClient();
         final Map<String, String> domainMap = new HashMap<>();
 
         try {
@@ -125,6 +125,15 @@ class ElasticsearchDomainMapProvider
         finally {
             awsEsClient.shutdown();
         }
+    }
+
+    /**
+     * Gets an Amazon Elasticsearch client.
+     * @return Amazon Elasticsearch client.
+     */
+    protected AWSElasticsearch getElasticsearchClient()
+    {
+        return AWSElasticsearchClientBuilder.defaultClient();
     }
 
     /**

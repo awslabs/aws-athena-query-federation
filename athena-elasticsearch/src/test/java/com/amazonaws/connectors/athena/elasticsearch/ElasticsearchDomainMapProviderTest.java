@@ -19,15 +19,30 @@
  */
 package com.amazonaws.connectors.athena.elasticsearch;
 
+import com.amazonaws.services.elasticsearch.AWSElasticsearch;
+import com.amazonaws.services.elasticsearch.model.DomainInfo;
+import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
+import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsResult;
+import com.amazonaws.services.elasticsearch.model.ElasticsearchDomainStatus;
+import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
+import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertTrue;
 
 /**
  * This class is used to test the ElasticsearchDomainMapProvider class.
@@ -59,5 +74,54 @@ public class ElasticsearchDomainMapProviderTest
                 domainMap.get("domain2"));
 
         logger.info("getDomainMapTest - exit");
+    }
+
+    @Test
+    public void getDomainMapFromElasticsearchTest()
+    {
+        logger.info("getDomainMapFromElasticsearchTest - enter");
+
+        ElasticsearchDomainMapProvider mockProvider = spy(new ElasticsearchDomainMapProvider(true));
+        AWSElasticsearch mockClient = mock(AWSElasticsearch.class);
+        ListDomainNamesResult mockDomainInfo = mock(ListDomainNamesResult.class);
+        List<String> domainNames = ImmutableList.of("domain1", "domain2", "domain3", "domain4", "domain5", "domain6");
+        List<DomainInfo> domainInfo = new ArrayList<>();
+        List<ElasticsearchDomainStatus> domainStatus = new ArrayList<>();
+        domainNames.forEach(domainName -> {
+            domainInfo.add(new DomainInfo().withDomainName(domainName));
+            domainStatus.add(new ElasticsearchDomainStatus()
+                    .withDomainName(domainName)
+                    .withEndpoint("www.domain." + domainName));
+        });
+
+        when(mockProvider.getElasticsearchClient()).thenReturn(mockClient);
+        when(mockClient.listDomainNames(any())).thenReturn(mockDomainInfo);
+        when(mockDomainInfo.getDomainNames()).thenReturn(domainInfo);
+
+        when(mockClient.describeElasticsearchDomains(new DescribeElasticsearchDomainsRequest()
+                .withDomainNames(domainNames.subList(0, 5))))
+                .thenReturn(new DescribeElasticsearchDomainsResult()
+                        .withDomainStatusList(domainStatus.subList(0, 5)));
+        when(mockClient.describeElasticsearchDomains(new DescribeElasticsearchDomainsRequest()
+                .withDomainNames(domainNames.subList(5, 6))))
+                .thenReturn(new DescribeElasticsearchDomainsResult()
+                        .withDomainStatusList(domainStatus.subList(5, 6)));
+
+        Map domainMap = mockProvider.getDomainMap(null);
+        logger.info("Domain Map: {}", domainMap);
+
+        verify(mockClient).describeElasticsearchDomains(new DescribeElasticsearchDomainsRequest()
+                .withDomainNames(domainNames.subList(0, 5)));
+        verify(mockClient).describeElasticsearchDomains(new DescribeElasticsearchDomainsRequest()
+                .withDomainNames(domainNames.subList(5, 6)));
+
+        assertEquals("Invalid number of domains.", domainNames.size(), domainMap.size());
+        domainNames.forEach(domainName -> {
+            assertTrue("Domain does not exist in Map.", domainMap.containsKey(domainName));
+            assertEquals("Domain info mismatch.", "https://www.domain." + domainName,
+                    domainMap.get(domainName));
+        });
+
+        logger.info("getDomainMapFromElasticsearchTest - exit");
     }
 }
