@@ -39,7 +39,6 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertTrue;
@@ -57,9 +56,9 @@ public class ElasticsearchDomainMapProviderTest
      * associated endpoints.
      */
     @Test
-    public void getDomainMapTest()
+    public void getDomainMapFromEnvironmentVarTest()
     {
-        logger.info("getDomainMapTest - enter");
+        logger.info("getDomainMapFromEnvironmentVarTest - enter");
 
         ElasticsearchDomainMapProvider domainMapProvider = new ElasticsearchDomainMapProvider(false);
         String domainMapping = "domain1=myusername@password:www.endpoint1.com,domain2=myusername@password:www.endpoint2.com";
@@ -73,20 +72,24 @@ public class ElasticsearchDomainMapProviderTest
         assertEquals("Invalid value for domain2:", "myusername@password:www.endpoint2.com",
                 domainMap.get("domain2"));
 
-        logger.info("getDomainMapTest - exit");
+        logger.info("getDomainMapFromEnvironmentVarTest - exit");
     }
 
     @Test
-    public void getDomainMapFromElasticsearchTest()
+    public void getDomainMapFromAwsElasticsearchTest()
     {
-        logger.info("getDomainMapFromElasticsearchTest - enter");
+        logger.info("getDomainMapFromAwsElasticsearchTest - enter");
 
-        ElasticsearchDomainMapProvider mockProvider = spy(new ElasticsearchDomainMapProvider(true));
+        AwsElasticsearchFactory mockElasticsearchFactory = mock(AwsElasticsearchFactory.class);
+        ElasticsearchDomainMapProvider domainProvider =
+                new ElasticsearchDomainMapProvider(true, mockElasticsearchFactory);
         AWSElasticsearch mockClient = mock(AWSElasticsearch.class);
         ListDomainNamesResult mockDomainInfo = mock(ListDomainNamesResult.class);
+
         List<String> domainNames = ImmutableList.of("domain1", "domain2", "domain3", "domain4", "domain5", "domain6");
         List<DomainInfo> domainInfo = new ArrayList<>();
         List<ElasticsearchDomainStatus> domainStatus = new ArrayList<>();
+
         domainNames.forEach(domainName -> {
             domainInfo.add(new DomainInfo().withDomainName(domainName));
             domainStatus.add(new ElasticsearchDomainStatus()
@@ -94,7 +97,7 @@ public class ElasticsearchDomainMapProviderTest
                     .withEndpoint("www.domain." + domainName));
         });
 
-        when(mockProvider.getElasticsearchClient()).thenReturn(mockClient);
+        when(mockElasticsearchFactory.getClient()).thenReturn(mockClient);
         when(mockClient.listDomainNames(any())).thenReturn(mockDomainInfo);
         when(mockDomainInfo.getDomainNames()).thenReturn(domainInfo);
 
@@ -107,7 +110,7 @@ public class ElasticsearchDomainMapProviderTest
                 .thenReturn(new DescribeElasticsearchDomainsResult()
                         .withDomainStatusList(domainStatus.subList(5, 6)));
 
-        Map domainMap = mockProvider.getDomainMap(null);
+        Map domainMap = domainProvider.getDomainMap(null);
         logger.info("Domain Map: {}", domainMap);
 
         verify(mockClient).describeElasticsearchDomains(new DescribeElasticsearchDomainsRequest()
@@ -122,6 +125,6 @@ public class ElasticsearchDomainMapProviderTest
                     domainMap.get(domainName));
         });
 
-        logger.info("getDomainMapFromElasticsearchTest - exit");
+        logger.info("getDomainMapFromAwsElasticsearchTest - exit");
     }
 }

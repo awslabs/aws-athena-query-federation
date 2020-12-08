@@ -20,12 +20,12 @@
 package com.amazonaws.connectors.athena.elasticsearch;
 
 import com.amazonaws.services.elasticsearch.AWSElasticsearch;
-import com.amazonaws.services.elasticsearch.AWSElasticsearchClientBuilder;
 import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsRequest;
 import com.amazonaws.services.elasticsearch.model.DescribeElasticsearchDomainsResult;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
 import com.google.common.base.Splitter;
+import org.apache.arrow.util.VisibleForTesting;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,19 +41,28 @@ import java.util.Map;
  */
 class ElasticsearchDomainMapProvider
 {
-    // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
-    // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
-    // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
-    private final boolean autoDiscoverEndpoint;
-
     // Splitter for inline map properties extracted from the domain_mapping environment variable.
     private static final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
 
     private static final String endpointPrefix = "https://";
 
+    // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
+    // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
+    // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
+    private final boolean autoDiscoverEndpoint;
+    private final AwsElasticsearchFactory awsElasticsearchFactory;
+
     protected ElasticsearchDomainMapProvider(boolean autoDiscoverEndpoint)
     {
+        this(autoDiscoverEndpoint, new AwsElasticsearchFactory());
+    }
+
+    @VisibleForTesting
+    protected ElasticsearchDomainMapProvider(boolean autoDiscoverEndpoint,
+                                             AwsElasticsearchFactory awsElasticsearchFactory)
+    {
         this.autoDiscoverEndpoint = autoDiscoverEndpoint;
+        this.awsElasticsearchFactory = awsElasticsearchFactory;
     }
 
     /**
@@ -75,7 +84,7 @@ class ElasticsearchDomainMapProvider
         }
         else {
             // Get domain mapping from the domainMapping variable.
-            return getDomainMapFromDomainMappingVar(domainMapping);
+            return getDomainMapFromEnvironmentVar(domainMapping);
         }
     }
 
@@ -87,7 +96,7 @@ class ElasticsearchDomainMapProvider
     private Map<String, String> getDomainMapFromAmazonElasticsearch()
             throws RuntimeException
     {
-        final AWSElasticsearch awsEsClient = getElasticsearchClient();
+        final AWSElasticsearch awsEsClient = awsElasticsearchFactory.getClient();
         final Map<String, String> domainMap = new HashMap<>();
 
         try {
@@ -128,15 +137,6 @@ class ElasticsearchDomainMapProvider
     }
 
     /**
-     * Gets an Amazon Elasticsearch client.
-     * @return Amazon Elasticsearch client.
-     */
-    protected AWSElasticsearch getElasticsearchClient()
-    {
-        return AWSElasticsearchClientBuilder.defaultClient();
-    }
-
-    /**
      * Gets a map of the domain names and their associated endpoints derived from the domainMapping string.
      * @param domainMapping The contents of the domain_mapping environment variable with secrets already resolved.
      *                      This parameter will be ignored when autoDiscoverEndpoint=true.
@@ -144,7 +144,7 @@ class ElasticsearchDomainMapProvider
      * @throws RuntimeException Invalid domainMapping variable (empty, null, or contain invalid information that cannot
      * be parsed successfully).
      */
-    private Map<String, String> getDomainMapFromDomainMappingVar(String domainMapping)
+    private Map<String, String> getDomainMapFromEnvironmentVar(String domainMapping)
     {
         if (domainMapping == null || domainMapping.isEmpty()) {
             throw new RuntimeException("Unable to create domain map: Empty or null value found in DomainMapping.");
