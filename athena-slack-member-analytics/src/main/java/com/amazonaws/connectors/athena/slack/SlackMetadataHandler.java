@@ -1,6 +1,6 @@
 /*-
  * #%L
- *  athena-slackapi-example
+ *  athena-slack-member-analytics
  * %%
  * Copyright (C) 2020 Amazon Web Services
  * %%
@@ -56,22 +56,18 @@ import org.json.JSONObject;
 
 
 /**
- * This class is part of an tutorial that will walk you through how to build a connector for your
- * slack analytics data source. The README for this module will guide you through preparing
- * your development environment, modifying this example Metadatahandler, building, deploying, and then
- * using your new source in an Athena query.
- * <p>
- * More specifically, this class is responsible for providing Athena with metadata about the schemas (aka databases),
+ * 
+ * This class is responsible for providing Athena with metadata about the schemas (aka databases),
  * tables, and table partitions that your source contains. Lastly, this class tells Athena how to split up reads against
  * this source. This gives you control over the level of performance and parallelism your source can support.
- * 
+ *
  **/
 public class SlackMetadataHandler extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(SlackMetadataHandler.class);
 
     /**
-     * used to aid in debugging. Athena will use this name in conjunction with your catalog id
+     * Used to aid in debugging. Athena will use this name in conjunction with your catalog id
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "slackanalytics";
@@ -101,16 +97,12 @@ public class SlackMetadataHandler extends MetadataHandler
      * corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
-    {
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request){
         logger.info("doListSchemaNames: enter - " + request);
 
         Set<String> schemas = new HashSet<>();
 
-        /**
-         * TODO: Add schemas, this example produces a single slack schema
-         **/
-         schemas.add("slackanalytics");
+        schemas.add("slackanalytics");
 
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
@@ -124,16 +116,12 @@ public class SlackMetadataHandler extends MetadataHandler
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
-    {
+    public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request) {
         logger.info("doListTables: enter - " + request);
 
         List<TableName> tables = new ArrayList<>();
 
-        /**
-         * TODO: Add tables for the requested schema, in this example we have a single endpoint.
-         **/
-         tables.add(new TableName(request.getSchemaName(), "member_analytics"));
+        tables.add(new TableName(request.getSchemaName(), "member_analytics"));
 
         return new ListTablesResponse(request.getCatalogName(), tables);
     }
@@ -150,14 +138,12 @@ public class SlackMetadataHandler extends MetadataHandler
      * 4. A catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
-    {
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request){
         logger.info("doGetTable: Retrieving metadata for table {}.{} ", 
             request.getTableName().getSchemaName(),
             request.getTableName().getTableName());
             
-        Set<String> partitionColNames = new HashSet<>();
-        partitionColNames.add("date");
+        Set<String> partitionColNames = SlackSchemaUtility.getPartitions(request.getTableName().getTableName());
         
         SchemaBuilder tableSchemaBuilder = SlackSchemaUtility.getSchemaBuilder(request.getTableName().getTableName());
 
@@ -184,8 +170,11 @@ public class SlackMetadataHandler extends MetadataHandler
         logger.info("getPartitions: enter");
         
         /**
-         * For this implementation we are partitioning by date and always returning
-         * the last 30 days
+         * For this implementation we are partitioning by date and registering
+         * partitions for the last 30 days. At the moment the Slack Member Analytics
+         * API has no method to get all possible dates. Returning the last 30
+         * days for partition prooning.
+         * 
          * TODO - Take this value from an env variable.
          **/
         LocalDate today = LocalDate.now();

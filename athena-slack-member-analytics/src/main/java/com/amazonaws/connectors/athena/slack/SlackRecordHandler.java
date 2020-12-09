@@ -1,6 +1,6 @@
 /*
  * #%L
- * athena-example
+ * athena-slack-member-analytics
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -92,13 +92,12 @@ public class SlackRecordHandler extends RecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException, Exception
-    {
-        logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
+            throws IOException, Exception{
+        logger.info("readWithConstraint: enter");
 
-        Split split             = recordsRequest.getSplit();
-        String splitDateVal     = split.getProperty("date");
-        String splitAuthToken   = split.getProperty("authToken");
+        Split split = recordsRequest.getSplit();
+        String splitDateVal = split.getProperty("date");
+        String splitAuthToken = split.getProperty("authToken");
         
         //Retrieving schema elements 
         String tableName = recordsRequest.getTableName().getTableName();
@@ -121,8 +120,7 @@ public class SlackRecordHandler extends RecordHandler
             logger.debug("readWithConstraint: Line - " + line);
             JSONObject record = new JSONObject(line);
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, record) ? 1 : 0);
-        }
         
+        }
     }
-    
 }

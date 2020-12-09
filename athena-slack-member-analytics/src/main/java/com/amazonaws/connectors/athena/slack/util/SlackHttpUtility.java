@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-slackapi-example
+ * athena-slack-member-analytics
  * %%
  * Copyright (C) 2019 - 2020 Amazon Web Services
  * %%
@@ -32,13 +32,18 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.json.JSONObject;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.StringReader;
+import java.io.Reader;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
+import java.lang.RuntimeException;
+
 
 public class SlackHttpUtility {
 
@@ -55,7 +60,7 @@ public class SlackHttpUtility {
      *             thrown if any I/O error occurred
      */
     public static CloseableHttpResponse doGetRequest(URIBuilder requestURI, HashMap<String, String> headers)
-            throws IOException, Exception {
+            throws Exception {
 
         logger.info("doGetRequest: enter - {}", requestURI.toString());
         HttpGet httpGet = new HttpGet(requestURI.build());
@@ -65,10 +70,7 @@ public class SlackHttpUtility {
 
         CloseableHttpClient client = HttpClients.createDefault();
         CloseableHttpResponse response = client.execute(httpGet);
-        if (!isRequestOk(response)){
-            client.close();
-            throw new IOException("doGetRequest: response " + response.getStatusLine().getReasonPhrase());
-        }
+        isRequestOk(response);
 
         logger.info("doGetRequest: exit");
         return response;
@@ -111,10 +113,7 @@ public class SlackHttpUtility {
         CloseableHttpClient client = HttpClients.createDefault();
         CloseableHttpResponse response = client.execute(httpPost);
 
-        if (!isRequestOk(response)){
-            client.close();
-            throw new IOException("doPostRequest: response " + response.getStatusLine().getReasonPhrase());
-        }
+        isRequestOk(response);
 
         logger.info("doPostRequest: exit");
         return response;
@@ -130,13 +129,19 @@ public class SlackHttpUtility {
      * @return True if request status is 200.
      *
      */
-    private static boolean isRequestOk(CloseableHttpResponse response){
+    private static boolean isRequestOk(CloseableHttpResponse response) 
+        throws Exception{
         logger.info("isRequestOk: enter");
-        if (response == null) return false;
+        if (response == null) {
+            logger.warn("isRequestOK: Null response.");
+            return false;
+        }
         int responseStatus = response.getStatusLine().getStatusCode();
         logger.info("isRequestOK: Status " + response.getStatusLine().toString());
         if (responseStatus!=200){
-            return false;
+            String e = response.getStatusLine().getReasonPhrase();
+            response.close();
+            throw new RuntimeException("isRequestOK: Error - " + e);
         }
         return true;
     }
@@ -150,27 +155,34 @@ public class SlackHttpUtility {
      * @return BufferedReader with source records.
      */
     public static BufferedReader getData(URIBuilder requestURI, HashMap<String, String> headers)
-            throws IOException, Exception {
+            throws Exception {
         logger.info("getData: enter");
 
         BufferedReader reader = null;
         headers.put(HttpHeaders.ACCEPT_ENCODING, "gzip");
-
-        CloseableHttpResponse response = doGetRequest(requestURI, headers);
-        HttpEntity entity = response.getEntity();
-
+        
+        CloseableHttpResponse resp = doGetRequest(requestURI, headers);
+        
+        HttpEntity entity = resp.getEntity();
+    
         ContentType contentType = ContentType.getOrDefault(entity);
         String mimeType = contentType.getMimeType();
         logger.info("getData: Content Type=" + mimeType);
         switch(mimeType){
             /**
-             * If slack endpoint returns application/json, file is empty or there is an error.
-             * Logging error without throwing an exception, just return empty records.
-             * TODO - Handle different error types returned by slack analytics endpoint
+             * If slack endpoint returns application/json, file might be empty or there is an error.
+             * Logging error as WARNING without throwing an exception, just return empty records.
              */
             case "application/json":
-                String content = EntityUtils.toString(entity);
-                logger.warn("getData: " + content);
+                String data = EntityUtils.toString(entity);
+                JSONObject jsonResponse = new JSONObject(data);
+                if (jsonResponse.has("ok") && !jsonResponse.getBoolean("ok")){
+                    logger.warn("getData: " + data);
+                }else {
+                    logger.info("getData: Processing uncompressed response....");
+                    Reader inputString = new StringReader(data);
+                    reader = new BufferedReader(inputString);
+                }
                 break;
             case "application/gzip":
                 logger.info("getData: Processing compressed response...");
@@ -178,11 +190,13 @@ public class SlackHttpUtility {
                 reader = new BufferedReader(new InputStreamReader(gzIs));
                 break;
             default:
-                throw new Exception("Unsupported mime type returned by Slack Analytics endpoint.");
+                resp.close();
+                throw new RuntimeException("Unsupported mime type returned by Slack Analytics endpoint.");
         }
 
         logger.info("getData: exit");
 
         return reader;
     }
+    
 }
