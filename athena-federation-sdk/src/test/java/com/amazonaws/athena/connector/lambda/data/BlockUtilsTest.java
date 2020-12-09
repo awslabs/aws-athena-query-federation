@@ -160,7 +160,7 @@ public class BlockUtilsTest
     }
 
     @Test
-    public void issue147()
+    public void canSetDate()
     {
         Schema schema = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Date(DateUnit.DAY))
