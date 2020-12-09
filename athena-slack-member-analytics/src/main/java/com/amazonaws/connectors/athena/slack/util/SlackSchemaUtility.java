@@ -38,17 +38,19 @@ import org.json.JSONArray;
 import java.io.BufferedReader;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.time.LocalDate;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 
 public class SlackSchemaUtility {
     
-    private static final Logger logger          = LoggerFactory.getLogger(SlackSchemaUtility.class);
-    private static final String TYPE_INTEGER    = "int";
-    private static final String TYPE_STRING     = "string";
-    private static final String TYPE_FLOAT4     = "float";
-    private static final String TYPE_STRUCT     = "struct";
-    private static final String TYPE_LIST       = "list";
+    private static final Logger logger = LoggerFactory.getLogger(SlackSchemaUtility.class);
+    private static final String TYPE_INTEGER = "int";
+    private static final String TYPE_STRING = "string";
+    private static final String TYPE_FLOAT4 = "float";
+    private static final String TYPE_STRUCT = "struct";
+    private static final String TYPE_LIST = "list";
     
     /**
      * Retrieves json schema for a particular table.
@@ -117,9 +119,30 @@ public class SlackSchemaUtility {
             master.put("INVALID_SCHEMA","EMPTY");
         }
         
-        logger.info("getMasterRecord - exit - Record: {}", master.toString());
+        logger.debug("getMasterRecord - exit - Record: {}", master.toString());
+        logger.info("getMasterRecord - exit");
         return master;
     }
+    
+    /**
+     * Help function to get partition columns from table. 
+     * 
+     * @param tableName String with table name.
+     * @return Set<String> with partition fields.
+     */
+    public static Set<String> getPartitions(String tableName){
+        logger.info("getPartitions - enter");
+        
+        Set<String> partitionColNames = new HashSet<>(); 
+        // The slack member analytics has only one endpoint/table
+        partitionColNames.add("date");
+        
+        logger.info("getPartitions - exit");
+        
+        return partitionColNames;
+    }
+    
+    
     
     /**
      * Help function that loops through the sample data and identifies
@@ -241,7 +264,7 @@ public class SlackSchemaUtility {
         String region = System.getenv("region");
 
         if (secretName==null || secretName.isEmpty() || region==null || region.isEmpty())
-            throw new Exception("Missing AWS Secrets environment variables.");
+            throw new RuntimeException("Missing AWS Secrets environment variables.");
 
         logger.info("getSlackToken: Retrieving " + secretName);
 

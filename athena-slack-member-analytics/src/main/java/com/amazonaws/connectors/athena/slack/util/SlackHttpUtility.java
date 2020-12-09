@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
+import java.lang.RuntimeException;
 
 
 public class SlackHttpUtility {
@@ -59,7 +60,7 @@ public class SlackHttpUtility {
      *             thrown if any I/O error occurred
      */
     public static CloseableHttpResponse doGetRequest(URIBuilder requestURI, HashMap<String, String> headers)
-            throws IOException, Exception {
+            throws Exception {
 
         logger.info("doGetRequest: enter - {}", requestURI.toString());
         HttpGet httpGet = new HttpGet(requestURI.build());
@@ -69,10 +70,7 @@ public class SlackHttpUtility {
 
         CloseableHttpClient client = HttpClients.createDefault();
         CloseableHttpResponse response = client.execute(httpGet);
-        if (!isRequestOk(response)){
-            client.close();
-            throw new IOException("doGetRequest: response " + response.getStatusLine().getReasonPhrase());
-        }
+        isRequestOk(response);
 
         logger.info("doGetRequest: exit");
         return response;
@@ -115,10 +113,7 @@ public class SlackHttpUtility {
         CloseableHttpClient client = HttpClients.createDefault();
         CloseableHttpResponse response = client.execute(httpPost);
 
-        if (!isRequestOk(response)){
-            client.close();
-            throw new IOException("doPostRequest: response " + response.getStatusLine().getReasonPhrase());
-        }
+        isRequestOk(response);
 
         logger.info("doPostRequest: exit");
         return response;
@@ -134,13 +129,19 @@ public class SlackHttpUtility {
      * @return True if request status is 200.
      *
      */
-    private static boolean isRequestOk(CloseableHttpResponse response){
+    private static boolean isRequestOk(CloseableHttpResponse response) 
+        throws Exception{
         logger.info("isRequestOk: enter");
-        if (response == null) return false;
+        if (response == null) {
+            logger.warn("isRequestOK: Null response.");
+            return false;
+        }
         int responseStatus = response.getStatusLine().getStatusCode();
         logger.info("isRequestOK: Status " + response.getStatusLine().toString());
         if (responseStatus!=200){
-            return false;
+            String e = response.getStatusLine().getReasonPhrase();
+            response.close();
+            throw new RuntimeException("isRequestOK: Error - " + e);
         }
         return true;
     }
@@ -154,15 +155,16 @@ public class SlackHttpUtility {
      * @return BufferedReader with source records.
      */
     public static BufferedReader getData(URIBuilder requestURI, HashMap<String, String> headers)
-            throws IOException, Exception {
+            throws Exception {
         logger.info("getData: enter");
 
         BufferedReader reader = null;
         headers.put(HttpHeaders.ACCEPT_ENCODING, "gzip");
-
-        CloseableHttpResponse response = doGetRequest(requestURI, headers);
-        HttpEntity entity = response.getEntity();
-
+        
+        CloseableHttpResponse resp = doGetRequest(requestURI, headers);
+        
+        HttpEntity entity = resp.getEntity();
+    
         ContentType contentType = ContentType.getOrDefault(entity);
         String mimeType = contentType.getMimeType();
         logger.info("getData: Content Type=" + mimeType);
@@ -188,11 +190,13 @@ public class SlackHttpUtility {
                 reader = new BufferedReader(new InputStreamReader(gzIs));
                 break;
             default:
-                throw new Exception("Unsupported mime type returned by Slack Analytics endpoint.");
+                resp.close();
+                throw new RuntimeException("Unsupported mime type returned by Slack Analytics endpoint.");
         }
 
         logger.info("getData: exit");
 
         return reader;
     }
+    
 }

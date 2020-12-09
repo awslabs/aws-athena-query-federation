@@ -92,8 +92,7 @@ public class SlackRecordHandler extends RecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException, Exception
-    {
+            throws IOException, Exception{
         logger.info("readWithConstraint: enter");
 
         Split split = recordsRequest.getSplit();
@@ -121,8 +120,7 @@ public class SlackRecordHandler extends RecordHandler
             logger.debug("readWithConstraint: Line - " + line);
             JSONObject record = new JSONObject(line);
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, record) ? 1 : 0);
-        }
         
+        }
     }
-    
 }

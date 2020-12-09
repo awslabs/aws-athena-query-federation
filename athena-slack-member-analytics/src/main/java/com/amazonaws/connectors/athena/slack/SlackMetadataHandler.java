@@ -143,8 +143,7 @@ public class SlackMetadataHandler extends MetadataHandler
             request.getTableName().getSchemaName(),
             request.getTableName().getTableName());
             
-        Set<String> partitionColNames = new HashSet<>();
-        partitionColNames.add("date");
+        Set<String> partitionColNames = SlackSchemaUtility.getPartitions(request.getTableName().getTableName());
         
         SchemaBuilder tableSchemaBuilder = SlackSchemaUtility.getSchemaBuilder(request.getTableName().getTableName());
 
