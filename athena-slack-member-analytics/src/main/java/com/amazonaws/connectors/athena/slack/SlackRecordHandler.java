@@ -92,35 +92,43 @@ public class SlackRecordHandler extends RecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException, Exception{
+            throws Exception{
         logger.info("readWithConstraint: enter");
 
-        Split split = recordsRequest.getSplit();
-        String splitDateVal = split.getProperty("date");
-        String splitAuthToken = split.getProperty("authToken");
-        
-        //Retrieving schema elements 
-        String tableName = recordsRequest.getTableName().getTableName();
-        logger.info("readWithConstraint: Reading schema for table " + tableName);
-        GeneratedRowWriter.RowWriterBuilder builder = SlackSchemaUtility.getRowWriterBuilder(recordsRequest, tableName);
-        GeneratedRowWriter rowWriter = builder.build();
-        
-        //Get records for date
-        String baseURL = System.getenv("data_endpoint");
-        URIBuilder requestURI  = new URIBuilder(baseURL);
-        requestURI.addParameter("date", splitDateVal);
-        requestURI.addParameter("type", "member");
-        HashMap<String, String> headers = new HashMap<String, String>();
-        headers.put("Authorization", "Bearer " + splitAuthToken);
-        BufferedReader reader = SlackHttpUtility.getData(requestURI, headers);
-        
-        //Process each line.
-        String line;
-        while (reader != null && (line = reader.readLine()) != null) { // Read line by line
-            logger.debug("readWithConstraint: Line - " + line);
-            JSONObject record = new JSONObject(line);
-            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, record) ? 1 : 0);
-        
+        try {
+            Split split = recordsRequest.getSplit();
+            String splitDateVal = split.getProperty("date");
+            String splitAuthToken = split.getProperty("authToken");
+            
+            //Retrieving schema elements 
+            String tableName = recordsRequest.getTableName().getTableName();
+            logger.info("readWithConstraint: Reading schema for table " + tableName);
+            GeneratedRowWriter.RowWriterBuilder builder = SlackSchemaUtility.getRowWriterBuilder(recordsRequest, tableName);
+            GeneratedRowWriter rowWriter = builder.build();
+            
+            //Get records for date
+            String baseURL = System.getenv("data_endpoint");
+            URIBuilder requestURI  = new URIBuilder(baseURL);
+            requestURI.addParameter("date", splitDateVal);
+            requestURI.addParameter("type", "member");
+            HashMap<String, String> headers = new HashMap<String, String>();
+            headers.put("Authorization", "Bearer " + splitAuthToken);
+            BufferedReader reader = SlackHttpUtility.getData(requestURI, headers);
+            
+            //Process each line.
+            String line;
+            while (reader != null && (line = reader.readLine()) != null) { // Read line by line
+                logger.debug("readWithConstraint: Line - " + line);
+                JSONObject record = new JSONObject(line);
+                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, record) ? 1 : 0);
+            
+            }
+        } catch (Exception e){
+            throw new RuntimeException("readWithConstraint: Error - " + e.getMessage());
+        } finally {
+            SlackHttpUtility.disconnect();
         }
+        
+        logger.info("readWithConstraint: exit");
     }
 }

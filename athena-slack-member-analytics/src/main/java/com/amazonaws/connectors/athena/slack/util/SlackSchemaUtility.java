@@ -117,6 +117,8 @@ public class SlackSchemaUtility {
         } catch (Exception e) {
             logger.error("getMasterRecord: Error while extracting schema. {}", e.getMessage());
             master.put("INVALID_SCHEMA","EMPTY");
+        } finally {
+            SlackHttpUtility.disconnect();
         }
         
         logger.debug("getMasterRecord - exit - Record: {}", master.toString());
