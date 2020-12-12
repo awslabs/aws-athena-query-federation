@@ -48,6 +48,7 @@ import java.lang.RuntimeException;
 public class SlackHttpUtility {
 
     private static final Logger logger = LoggerFactory.getLogger(SlackHttpUtility.class);
+    private static CloseableHttpClient client;
 
     /**
      * Makes an HTTP request using GET method to the specified URL.
@@ -68,7 +69,7 @@ public class SlackHttpUtility {
             httpGet.setHeader(i,headers.get(i));
         }
 
-        CloseableHttpClient client = HttpClients.createDefault();
+        client = HttpClients.createDefault();
         CloseableHttpResponse response = client.execute(httpGet);
         isRequestOk(response);
 
@@ -110,7 +111,7 @@ public class SlackHttpUtility {
                 httpPost.setHeader(i,headers.get(i));
             }
         }
-        CloseableHttpClient client = HttpClients.createDefault();
+        client = HttpClients.createDefault();
         CloseableHttpResponse response = client.execute(httpPost);
 
         isRequestOk(response);
@@ -141,6 +142,7 @@ public class SlackHttpUtility {
         if (responseStatus!=200){
             String e = response.getStatusLine().getReasonPhrase();
             response.close();
+            disconnect();
             throw new RuntimeException("isRequestOK: Error - " + e);
         }
         return true;
@@ -161,9 +163,9 @@ public class SlackHttpUtility {
         BufferedReader reader = null;
         headers.put(HttpHeaders.ACCEPT_ENCODING, "gzip");
         
-        CloseableHttpResponse resp = doGetRequest(requestURI, headers);
+        CloseableHttpResponse response = doGetRequest(requestURI, headers);
         
-        HttpEntity entity = resp.getEntity();
+        HttpEntity entity = response.getEntity();
     
         ContentType contentType = ContentType.getOrDefault(entity);
         String mimeType = contentType.getMimeType();
@@ -190,13 +192,29 @@ public class SlackHttpUtility {
                 reader = new BufferedReader(new InputStreamReader(gzIs));
                 break;
             default:
-                resp.close();
+                response.close();
+                disconnect();
                 throw new RuntimeException("Unsupported mime type returned by Slack Analytics endpoint.");
         }
 
         logger.info("getData: exit");
 
         return reader;
+    }
+    
+    /**
+     * Closes the client if opened
+     */
+    public static void disconnect() {
+        logger.info("disconnect: enter");
+        if (client != null) {
+            try{
+                client.close();
+                logger.info("disconnect: connection closed");
+            } catch (IOException ioe) {
+                logger.warn("disconnect: Not able to close client. " + ioe.getMessage());
+            }
+        }
     }
     
 }

@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.connectors.athena.slack.util.SlackHttpUtility;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -51,6 +52,9 @@ public class SlackSchemaUtility {
     private static final String TYPE_FLOAT4 = "float";
     private static final String TYPE_STRUCT = "struct";
     private static final String TYPE_LIST = "list";
+    private static final String ENV_SECRET_NAME = "secret_name";
+    private static final String ENV_REGION = "region";
+    private static final String AWS_SECRET_KEY_TOKEN = "access_token";
     
     /**
      * Retrieves json schema for a particular table.
@@ -64,10 +68,15 @@ public class SlackSchemaUtility {
         logger.info("getSchema: enter - " + tableName);
     
         // The slack member analytics has only one endpoint/table
-        JSONObject data = getMasterRecord(1);
-        // Try sample from two days ago if empty.
-        if (data.length()==0)
-            data = getMasterRecord(2);
+        JSONObject data = new JSONObject();
+        for(int i = 1; i <= 3; i++){
+            data = getMasterRecord(i);
+            if (data.length() > 0) break;
+        }
+        
+        if (data == null || data.length() == 0){
+            logger.error("getSchema: Failed to load metadata. No data for the last 3 days.");
+        }
         
         logger.info("getSchema: exit");
         return processSchema(data, false);
@@ -117,6 +126,8 @@ public class SlackSchemaUtility {
         } catch (Exception e) {
             logger.error("getMasterRecord: Error while extracting schema. {}", e.getMessage());
             master.put("INVALID_SCHEMA","EMPTY");
+        } finally {
+            SlackHttpUtility.disconnect();
         }
         
         logger.debug("getMasterRecord - exit - Record: {}", master.toString());
@@ -260,8 +271,8 @@ public class SlackSchemaUtility {
             throws Exception {
         logger.info("getSlackToken: enter");
 
-        String secretName = System.getenv("secret_name");
-        String region = System.getenv("region");
+        String secretName = System.getenv(ENV_SECRET_NAME);
+        String region = System.getenv(ENV_REGION);
 
         if (secretName==null || secretName.isEmpty() || region==null || region.isEmpty())
             throw new RuntimeException("Missing AWS Secrets environment variables.");
@@ -269,33 +280,16 @@ public class SlackSchemaUtility {
         logger.info("getSlackToken: Retrieving " + secretName);
 
         // Create a Secrets Manager client
-        AWSSecretsManager client  = AWSSecretsManagerClientBuilder.standard()
+        CachableSecretsManager client = new CachableSecretsManager(AWSSecretsManagerClientBuilder.standard()
                 .withRegion(region)
-                .build();
-
-        // In this sample we only handle the specific exceptions for the 'GetSecretValue' API.
-        // See https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-        // We rethrow the exception by default.
-
-        String secret, decodedBinarySecret;
-        GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest()
-                .withSecretId(secretName);
-        GetSecretValueResult getSecretValueResult = client.getSecretValue(getSecretValueRequest);
-
-        // Decrypts secret using the associated KMS CMK.
-        // Depending on whether the secret is a string or binary, one of these fields will be populated.
-        if (getSecretValueResult.getSecretString() != null) {
-            secret = getSecretValueResult.getSecretString();
-        }
-        else {
-            secret = new String(Base64.getDecoder().decode(getSecretValueResult.getSecretBinary()).array());
-        }
-
+                .build());
+        
+        String secret = client.getSecret(secretName);
         JSONObject slackSecret = new JSONObject(secret);
 
         String slackToken = "";
-        if(slackSecret.has("access_token"))
-            slackToken = slackSecret.getString("access_token");
+        if(slackSecret.has(AWS_SECRET_KEY_TOKEN))
+            slackToken = slackSecret.getString(AWS_SECRET_KEY_TOKEN);
 
         logger.info("getSlackToken: exit");
 
