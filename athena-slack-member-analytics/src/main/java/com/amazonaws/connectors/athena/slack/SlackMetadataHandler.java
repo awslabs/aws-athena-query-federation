@@ -65,7 +65,7 @@ import org.json.JSONObject;
 public class SlackMetadataHandler extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(SlackMetadataHandler.class);
-
+    
     /**
      * Used to aid in debugging. Athena will use this name in conjunction with your catalog id
      * to correlate relevant query errors.
