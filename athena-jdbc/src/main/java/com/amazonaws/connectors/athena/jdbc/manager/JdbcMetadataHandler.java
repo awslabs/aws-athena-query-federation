@@ -244,11 +244,12 @@ public abstract class JdbcMetadataHandler
                     else {
                         schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
                     }
-                    found = true;
                 }
                 else {
-                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                    // Default to VARCHAR ArrowType
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
                 }
+                found = true;
             }
 
             if (!found) {

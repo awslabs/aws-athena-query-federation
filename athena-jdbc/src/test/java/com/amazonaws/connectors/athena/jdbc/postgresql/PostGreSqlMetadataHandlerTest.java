@@ -301,7 +301,7 @@ public class PostGreSqlMetadataHandlerTest
                 {Types.ARRAY, "binary_array", 0, 0, "_bytea"},
                 {Types.ARRAY, "decimal_array", 38, 2, "_numeric"},
                 {Types.ARRAY, "string_array", 0, 0, "_text"},
-                {Types.ARRAY, "default_array", 0, 0, "_unsupported"}
+                {Types.ARRAY, "uuid_array", 0, 0, "_uuid"}
         };
         AtomicInteger rowNumber = new AtomicInteger(-1);
         ResultSet resultSet = mockResultSet(schema, values, rowNumber);
@@ -319,7 +319,7 @@ public class PostGreSqlMetadataHandlerTest
                 .addListField("binary_array", new ArrowType.Utf8())
                 .addListField("decimal_array", new ArrowType.Decimal(38, 2))
                 .addListField("string_array", new ArrowType.Utf8())
-                .addListField("default_array", new ArrowType.Utf8());
+                .addListField("uuid_array", new ArrowType.Utf8());
         postGreSqlMetadataHandler.getPartitionSchema("testCatalog").getFields()
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
