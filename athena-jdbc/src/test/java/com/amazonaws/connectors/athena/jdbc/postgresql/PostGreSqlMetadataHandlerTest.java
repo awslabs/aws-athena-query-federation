@@ -314,9 +314,9 @@ public class PostGreSqlMetadataHandlerTest
                 .addListField("bigint_array", new ArrowType.Int(64, true))
                 .addListField("float_array", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE))
                 .addListField("double_array", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
-                .addListField("date_array", new ArrowType.Date(DateUnit.MILLISECOND))
+                .addListField("date_array", new ArrowType.Date(DateUnit.DAY))
                 .addListField("timestamp_array", new ArrowType.Date(DateUnit.MILLISECOND))
-                .addListField("binary_array", new ArrowType.Binary())
+                .addListField("binary_array", new ArrowType.Utf8())
                 .addListField("decimal_array", new ArrowType.Decimal(38, 2))
                 .addListField("string_array", new ArrowType.Utf8())
                 .addListField("default_array", new ArrowType.Utf8());

@@ -139,8 +139,8 @@ spill_prefix    Spill bucket key prefix. Required.
 |Long|bigint[]|Bigint
 |float|float4[]|Float4
 |Double|float8[]|Float8
-|Date|date[]|Datemilli
-|Timestamp|timestamp[]|Datemilli
+|Date|date[]|DateDay
+|Timestamp|timestamp[]|DateMilli
 |String|text[]|Varchar
 |Bytes|bytea[]|Varbinary
 |BigDecimal|numeric(p,s)[]|Decimal

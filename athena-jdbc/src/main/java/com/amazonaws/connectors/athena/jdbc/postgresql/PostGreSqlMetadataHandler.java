@@ -250,10 +250,9 @@ public class PostGreSqlMetadataHandler
             case "_float8":
                 return Types.MinorType.FLOAT8.getType();
             case "_date":
+                return Types.MinorType.DATEDAY.getType();
             case "_timestamp":
                 return Types.MinorType.DATEMILLI.getType();
-            case "_bytea":
-                return Types.MinorType.VARBINARY.getType();
             case "_numeric":
                 return new ArrowType.Decimal(precision, scale);
             default:
