@@ -41,6 +41,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,5 +224,40 @@ public class PostGreSqlMetadataHandler
     private String encodeContinuationToken(int partition)
     {
         return String.valueOf(partition);
+    }
+
+    /**
+     * Converts an ARRAY column's TYPE_NAME provided by the jdbc metadata to an ArrowType.
+     * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
+     * @param precision Used for BigDecimal ArrowType
+     * @param scale Used for BigDecimal ArrowType
+     * @return ArrowType equivalent of the fieldType.
+     */
+    @Override
+    protected ArrowType arrowTypeFromTypeName(String typeName, int precision, int scale)
+    {
+        switch(typeName) {
+            case "_bool":
+                return Types.MinorType.BIT.getType();
+            case "_int2":
+                return Types.MinorType.SMALLINT.getType();
+            case "_int4":
+                return Types.MinorType.INT.getType();
+            case "_int8":
+                return Types.MinorType.BIGINT.getType();
+            case "_float4":
+                return Types.MinorType.FLOAT4.getType();
+            case "_float8":
+                return Types.MinorType.FLOAT8.getType();
+            case "_date":
+            case "_timestamp":
+                return Types.MinorType.DATEMILLI.getType();
+            case "_bytea":
+                return Types.MinorType.VARBINARY.getType();
+            case "_numeric":
+                return new ArrowType.Decimal(precision, scale);
+            default:
+                return super.arrowTypeFromTypeName(typeName, precision, scale);
+        }
     }
 }

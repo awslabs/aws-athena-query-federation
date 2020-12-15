@@ -235,7 +235,15 @@ public abstract class JdbcMetadataHandler
                         resultSet.getInt("DECIMAL_DIGITS"));
                 String columnName = resultSet.getString("COLUMN_NAME");
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, arrowTypeFromTypeName(
+                                resultSet.getString("TYPE_NAME"),
+                                resultSet.getInt("COLUMN_SIZE"),
+                                resultSet.getInt("DECIMAL_DIGITS")));
+                    }
+                    else {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    }
                     found = true;
                 }
                 else {
@@ -314,5 +322,18 @@ public abstract class JdbcMetadataHandler
         }
 
         return splitClauses;
+    }
+
+    /**
+     * Converts an ARRAY column's TYPE_NAME provided by the jdbc metadata to an ArrowType.
+     * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
+     * @param precision Used for BigDecimal ArrowType
+     * @param scale Used for BigDecimal ArrowType
+     * @return Utf8 ArrowType (VARCHAR)
+     */
+    protected ArrowType arrowTypeFromTypeName(String typeName, int precision, int scale)
+    {
+        // Default array support is List<Utf8>.
+        return new ArrowType.Utf8();
     }
 }
