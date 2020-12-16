@@ -5,6 +5,8 @@ making your Elasticsearch data accessible via SQL. This connector will work with
 Elasticsearch Service as well as any Elasticsearch compatible endpoint configured with 
 `Elasticsearch version 7.0` or higher.
 
+**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH), US-West-1 (SFO), AP-South-1 (BOM), AP-Northeast-1 (NRT), and EU-West-1 (DUB). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.  To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+
 ## Nomenclature
 
 This document includes descriptions and explanations using Elasticsearch concepts and
