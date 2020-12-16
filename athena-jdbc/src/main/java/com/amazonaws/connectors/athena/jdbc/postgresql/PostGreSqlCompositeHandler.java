@@ -20,8 +20,6 @@
 package com.amazonaws.connectors.athena.jdbc.postgresql;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -32,7 +30,7 @@ import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 public class PostGreSqlCompositeHandler
         extends CompositeHandler
 {
-    public PostGreSqlCompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler)
+    public PostGreSqlCompositeHandler()
     {
         super(new PostGreSqlMetadataHandler(), new PostGreSqlRecordHandler());
     }
