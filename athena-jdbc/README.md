@@ -130,21 +130,27 @@ spill_prefix    Spill bucket key prefix. Required.
 
 # Data types support
 
-|Jdbc|Arrow|
-| ---|---|
-|Boolean|Bit|
-|Integer|Tiny|
-|Short|Smallint|
-|Integer|Int|
-|Long|Bigint|
-|float|Float4|
-|Double|Float8|
-|Date|DateDay|
-|String|Varchar|
-|Bytes|Varbinary|
-|BigDecimal|Decimal|
+|Jdbc|*PostGreSQL[]|Arrow|
+| ---|---|---|
+|Boolean|boolean[]|Bit
+|Integer|**N/A**|Tiny
+|Short|smallint[]|Smallint
+|Integer|integer[]|Int
+|Long|bigint[]|Bigint
+|float|float4[]|Float4
+|Double|float8[]|Float8
+|Date|date[]|DateDay
+|Timestamp|timestamp[]|DateMilli
+|String|text[]|Varchar
+|Bytes|bytea[]|Varbinary
+|BigDecimal|numeric(p,s)[]|Decimal
+|**\*ARRAY**|**N/A**|List|
 
 See respective database documentation for conversion between JDBC and database types.
+
+**\*NOTE**: ARRAY type is supported for the PostGreSQL connector with the following constraints:
+* Multi-dimensional arrays (`<data_type>[][]`, or nested arrays) are **NOT** supported.
+* Columns with unsupported ARRAY data-types will be converted to array of string elements (i.e. `array<varchar>`).
 
 # Secrets
 

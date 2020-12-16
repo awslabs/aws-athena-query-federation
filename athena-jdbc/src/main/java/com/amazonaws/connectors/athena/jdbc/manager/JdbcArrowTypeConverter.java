@@ -49,6 +49,15 @@ public final class JdbcArrowTypeConverter
                 new JdbcFieldInfo(jdbcType, precision, scale),
                 null);
 
-        return (arrowType instanceof ArrowType.Timestamp) ? new ArrowType.Date(DateUnit.MILLISECOND) : arrowType;
+        if (arrowType instanceof ArrowType.Date) {
+            // Convert from DateMilli to DateDay
+            return new ArrowType.Date(DateUnit.DAY);
+        }
+        else if (arrowType instanceof ArrowType.Timestamp) {
+            // Convert from Timestamp to DateMilli
+            return new ArrowType.Date(DateUnit.MILLISECOND);
+        }
+
+        return arrowType;
     }
 }
