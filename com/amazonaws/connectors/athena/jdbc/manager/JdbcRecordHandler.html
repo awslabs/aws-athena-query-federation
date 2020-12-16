@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":10};
+var methods = {"i0":6,"i1":10,"i2":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -203,6 +203,12 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code>protected <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcRecordHandler.html#makeFactory-org.apache.arrow.vector.types.pojo.Field-">makeFactory</a></span>(org.apache.arrow.vector.types.pojo.Field&nbsp;field)</code>
+<div class="block">Create a field extractor for complex List type.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcRecordHandler.html#readWithConstraint-com.amazonaws.athena.connector.lambda.data.BlockSpiller-com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">readWithConstraint</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;blockSpiller,
                   <a href="../../../../../../com/amazonaws/athena/connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;readRecordsRequest,
@@ -312,6 +318,22 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
  3. The filtering predicate (if any)
  4. The columns required for projection.</dd>
 <dd><code>queryStatusChecker</code> - A QueryStatusChecker that you can use to stop doing work for a query that has already terminated</dd>
+</dl>
+</li>
+</ul>
+<a name="makeFactory-org.apache.arrow.vector.types.pojo.Field-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>makeFactory</h4>
+<pre>protected&nbsp;<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/writers/fieldwriters/FieldWriterFactory.html" title="interface in com.amazonaws.athena.connector.lambda.data.writers.fieldwriters">FieldWriterFactory</a>&nbsp;makeFactory(org.apache.arrow.vector.types.pojo.Field&nbsp;field)</pre>
+<div class="block">Create a field extractor for complex List type.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>field</code> - Field's metadata information.</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Extractor for the List type.</dd>
 </dl>
 </li>
 </ul>

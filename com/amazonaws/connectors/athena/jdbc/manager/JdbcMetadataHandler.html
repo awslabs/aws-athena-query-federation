@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":6,"i8":6,"i9":10};
+var methods = {"i0":6,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":6,"i9":6,"i10":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -225,14 +225,22 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;escape)</code>&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code>protected org.apache.arrow.vector.types.pojo.ArrowType</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getArrayArrowTypeFromTypeName-java.lang.String-int-int-">getArrayArrowTypeFromTypeName</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;typeName,
+                             int&nbsp;precision,
+                             int&nbsp;scale)</code>
+<div class="block">Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>protected <a href="../../../../../../com/amazonaws/connectors/athena/jdbc/connection/JdbcCredentialProvider.html" title="interface in com.amazonaws.connectors.athena.jdbc.connection">JdbcCredentialProvider</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getCredentialProvider--">getCredentialProvider</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>protected <a href="../../../../../../com/amazonaws/connectors/athena/jdbc/connection/JdbcConnectionFactory.html" title="interface in com.amazonaws.connectors.athena.jdbc.connection">JdbcConnectionFactory</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getJdbcConnectionFactory--">getJdbcConnectionFactory</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>abstract void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
@@ -240,13 +248,13 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>abstract org.apache.arrow.vector.types.pojo.Schema</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getPartitionSchema-java.lang.String-">getPartitionSchema</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;catalogName)</code>
 <div class="block">Delegates creation of partition schema to database type implementation.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#getSplitClauses-com.amazonaws.athena.connector.lambda.domain.TableName-">getSplitClauses</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</code>&nbsp;</td>
 </tr>
@@ -481,10 +489,30 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/handler
 <a name="getSplitClauses-com.amazonaws.athena.connector.lambda.domain.TableName-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getSplitClauses</h4>
 <pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;getSplitClauses(<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&nbsp;tableName)</pre>
+</li>
+</ul>
+<a name="getArrayArrowTypeFromTypeName-java.lang.String-int-int-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getArrayArrowTypeFromTypeName</h4>
+<pre>protected&nbsp;org.apache.arrow.vector.types.pojo.ArrowType&nbsp;getArrayArrowTypeFromTypeName(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;typeName,
+                                                                                     int&nbsp;precision,
+                                                                                     int&nbsp;scale)</pre>
+<div class="block">Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>typeName</code> - The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)</dd>
+<dd><code>precision</code> - Used for BigDecimal ArrowType</dd>
+<dd><code>scale</code> - Used for BigDecimal ArrowType</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Utf8 ArrowType (VARCHAR)</dd>
+</dl>
 </li>
 </ul>
 </li>
