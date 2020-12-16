@@ -32,7 +32,7 @@ import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 public class PostGreSqlCompositeHandler
         extends CompositeHandler
 {
-    public PostGreSqlCompositeHandler(MetadataHandler metadataHandler, RecordHandler recordHandler)
+    public PostGreSqlCompositeHandler()
     {
         super(new PostGreSqlMetadataHandler(), new PostGreSqlRecordHandler());
     }
