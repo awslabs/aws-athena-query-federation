@@ -236,7 +236,7 @@ public abstract class JdbcMetadataHandler
                 String columnName = resultSet.getString("COLUMN_NAME");
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
                     if (columnType instanceof ArrowType.List) {
-                        schemaBuilder.addListField(columnName, arrowTypeFromTypeName(
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
                                 resultSet.getString("TYPE_NAME"),
                                 resultSet.getInt("COLUMN_SIZE"),
                                 resultSet.getInt("DECIMAL_DIGITS")));
@@ -247,6 +247,8 @@ public abstract class JdbcMetadataHandler
                 }
                 else {
                     // Default to VARCHAR ArrowType
+                    LOGGER.warn("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
                     schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
                 }
                 found = true;
@@ -326,15 +328,15 @@ public abstract class JdbcMetadataHandler
     }
 
     /**
-     * Converts an ARRAY column's TYPE_NAME provided by the jdbc metadata to an ArrowType.
+     * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
      * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
      * @param precision Used for BigDecimal ArrowType
      * @param scale Used for BigDecimal ArrowType
      * @return Utf8 ArrowType (VARCHAR)
      */
-    protected ArrowType arrowTypeFromTypeName(String typeName, int precision, int scale)
+    protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
     {
-        // Default array support is List<Utf8>.
+        // Default ARRAY type is VARCHAR.
         return new ArrowType.Utf8();
     }
 }

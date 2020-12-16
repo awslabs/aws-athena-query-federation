@@ -227,14 +227,14 @@ public class PostGreSqlMetadataHandler
     }
 
     /**
-     * Converts an ARRAY column's TYPE_NAME provided by the jdbc metadata to an ArrowType.
+     * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
      * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
      * @param precision Used for BigDecimal ArrowType
      * @param scale Used for BigDecimal ArrowType
      * @return ArrowType equivalent of the fieldType.
      */
     @Override
-    protected ArrowType arrowTypeFromTypeName(String typeName, int precision, int scale)
+    protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
     {
         switch(typeName) {
             case "_bool":
@@ -256,7 +256,7 @@ public class PostGreSqlMetadataHandler
             case "_numeric":
                 return new ArrowType.Decimal(precision, scale);
             default:
-                return super.arrowTypeFromTypeName(typeName, precision, scale);
+                return super.getArrayArrowTypeFromTypeName(typeName, precision, scale);
         }
     }
 }
