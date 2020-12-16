@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation','athena-neptune','neptune']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2020.5.1
+    SemanticVersion: 2020.51.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
