@@ -206,7 +206,11 @@ If you have not previously used Athena Query Federation, we recommend you begin 
 1. If you are working on a development machine that already has Apache Maven, the AWS CLI, and the AWS SAM build. If not, you can run  the `./tools/prepare_dev_env.sh` script in the root of the Github project you checked out.
 2. To ensure your terminal can see the new tools that we installed run `source ~/.profile` or open a fresh terminal. If you skip this step you will get errors later about the AWS CLI or SAM build tool not being able to publish your connector.
 
-Now run `mvn clean install -DskipTests=true > /tmp/log` from the athena-federation-sdk directory within the Github project you checked out earlier. We are skipping tests with the `-DskipTests=true` option to make the build faster. As a best practice, you should let the tests run. If you are building on Cloud9 we've found that redirecting stdout to a log with `> /tmp/log` speeds up the build by 4x due to the browser trying to keep up with all the output logging associated with maven downloading dependencies. 
+Now run `mvn clean install -DskipTests=true > /tmp/log` from the **athena-federation-sdk** directory within the Github project you checked out earlier. We are skipping tests with the `-DskipTests=true` option to make the build faster. As a best practice, you should let the tests run. If you are building on Cloud9 we've found that redirecting stdout to a log with `> /tmp/log` speeds up the build by 4x due to the browser trying to keep up with all the output logging associated with maven downloading dependencies. 
+
+Next, run `mvn clean install` from the **athena-federation-integ-test** directory within the Github project you checked out earlier.
+This module is instrumental when writing and running integration tests for your connector. For more information about writing and running integration
+tests, see the [Integration-Test Module](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md).
 
 ### Step 4: Write The Code
 
