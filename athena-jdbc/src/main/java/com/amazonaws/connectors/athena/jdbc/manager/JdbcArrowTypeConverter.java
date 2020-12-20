@@ -21,6 +21,7 @@ package com.amazonaws.connectors.athena.jdbc.manager;
 
 import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,8 +45,19 @@ public final class JdbcArrowTypeConverter
      */
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
-        return JdbcToArrowUtils.getArrowTypeForJdbcField(
+        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeForJdbcField(
                 new JdbcFieldInfo(jdbcType, precision, scale),
                 null);
+
+        if (arrowType instanceof ArrowType.Date) {
+            // Convert from DateMilli to DateDay
+            return new ArrowType.Date(DateUnit.DAY);
+        }
+        else if (arrowType instanceof ArrowType.Timestamp) {
+            // Convert from Timestamp to DateMilli
+            return new ArrowType.Date(DateUnit.MILLISECOND);
+        }
+
+        return arrowType;
     }
 }

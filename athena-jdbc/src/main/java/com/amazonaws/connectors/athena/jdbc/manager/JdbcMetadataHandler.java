@@ -235,12 +235,23 @@ public abstract class JdbcMetadataHandler
                         resultSet.getInt("DECIMAL_DIGITS"));
                 String columnName = resultSet.getString("COLUMN_NAME");
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                    found = true;
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
+                                resultSet.getString("TYPE_NAME"),
+                                resultSet.getInt("COLUMN_SIZE"),
+                                resultSet.getInt("DECIMAL_DIGITS")));
+                    }
+                    else {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    }
                 }
                 else {
-                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                    // Default to VARCHAR ArrowType
+                    LOGGER.warn("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
                 }
+                found = true;
             }
 
             if (!found) {
@@ -309,13 +320,23 @@ public abstract class JdbcMetadataHandler
                 }
             }
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
         catch (Exception ex) {
             LOGGER.warn("Unable to split data.", ex);
         }
 
         return splitClauses;
+    }
+
+    /**
+     * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
+     * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
+     * @param precision Used for BigDecimal ArrowType
+     * @param scale Used for BigDecimal ArrowType
+     * @return Utf8 ArrowType (VARCHAR)
+     */
+    protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
+    {
+        // Default ARRAY type is VARCHAR.
+        return new ArrowType.Utf8();
     }
 }

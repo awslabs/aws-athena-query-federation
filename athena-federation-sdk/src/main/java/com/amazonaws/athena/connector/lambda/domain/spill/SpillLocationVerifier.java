@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.domain.spill;
  */
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +96,7 @@ public class SpillLocationVerifier
 
             logger.info("The state of bucket {} has been updated to {} from {}", bucket, state, BucketState.UNCHECKED);
         }
-        catch (Exception ex) {
+        catch (AmazonS3Exception ex) {
             throw new RuntimeException("Error while checking bucket ownership for " + bucket, ex);
         }
     }

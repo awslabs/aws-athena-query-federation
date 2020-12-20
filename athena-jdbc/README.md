@@ -2,7 +2,7 @@
 
 This connector enables Amazon Athena to access your SQL database or RDS instance(s) using JDBC driver. 
 
-**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH), US-West-1 (SFO), AP-South-1 (BOM), AP-Northeast-1 (NRT), and EU-West-1 (DUB). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.  To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
 
 Following databases are supported:
 
@@ -54,6 +54,8 @@ Multiplexer provides a way to connect to multiple database instances of any type
 
 ```
 ${catalog}_connection_string    Database instance connection string. One of two types specified above. Required.
+                                Example: If the catalog as registered with Athena is myredshiftcatalog then the environment variable name should be myredshiftcatalog_connection_string
+
 default                         Default connection string. Required. This will be used when catalog is `lambda:${AWS_LAMBDA_FUNCTION_NAME}`.
 ```
 
@@ -128,21 +130,27 @@ spill_prefix    Spill bucket key prefix. Required.
 
 # Data types support
 
-|Jdbc|Arrow|
-| ---|---|
-|Boolean|Bit|
-|Integer|Tiny|
-|Short|Smallint|
-|Integer|Int|
-|Long|Bigint|
-|float|Float4|
-|Double|Float8|
-|Date|DateDay|
-|String|Varchar|
-|Bytes|Varbinary|
-|BigDecimal|Decimal|
+|Jdbc|*PostGreSQL[]|Arrow|
+| ---|---|---|
+|Boolean|boolean[]|Bit
+|Integer|**N/A**|Tiny
+|Short|smallint[]|Smallint
+|Integer|integer[]|Int
+|Long|bigint[]|Bigint
+|float|float4[]|Float4
+|Double|float8[]|Float8
+|Date|date[]|DateDay
+|Timestamp|timestamp[]|DateMilli
+|String|text[]|Varchar
+|Bytes|bytea[]|Varbinary
+|BigDecimal|numeric(p,s)[]|Decimal
+|**\*ARRAY**|**N/A**|List|
 
 See respective database documentation for conversion between JDBC and database types.
+
+**\*NOTE**: ARRAY type is supported for the PostGreSQL connector with the following constraints:
+* Multi-dimensional arrays (`<data_type>[][]`, or nested arrays) are **NOT** supported.
+* Columns with unsupported ARRAY data-types will be converted to array of string elements (i.e. `array<varchar>`).
 
 # Secrets
 

@@ -13,7 +13,7 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2020.35.1</version>
+    <version>2020.51.1</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
 
@@ -22,7 +22,6 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <slf4jVersion>1.7.30</slf4jVersion>
         <log4j2Version>2.13.3</log4j2Version>
-        <aws-sdk.version>1.11.769</aws-sdk.version>
     </properties>
 
     <organization>

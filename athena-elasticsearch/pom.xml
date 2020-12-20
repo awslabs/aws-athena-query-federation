@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2020.35.1</version>
+            <version>2020.51.1</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
@@ -79,7 +79,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-elasticsearch</artifactId>
-            <version>1.11.759</version>
+            <version>${aws-sdk.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpclient -->
         <dependency>
