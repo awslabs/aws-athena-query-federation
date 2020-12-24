@@ -91,6 +91,34 @@ Provide implementation for the following 4 abstract methods in the test class:
     protected abstract PolicyDocument getConnectorAccessPolicy();
 ```
 
+### VPC Configuration
+
+The Integration-Test module can be adapted to test connectors that utilize a VPC configuration to connect to the data
+source. The framework can detect the default VPC configuration set in the specified AWS account and use it to configure
+the Lambda function. In order for the latter to be able to connect to the data source, however, the same VPC configuration
+must be set when provisioning the DB instance.
+
+To use a VPC configuration, the following method must be overridden in your integration test class to `return true`
+(default is false):
+
+```java
+    /**
+     * Must be overridden in the extending class when the connector supports a VPC configuration.
+     * @return false (default)
+     */
+    protected boolean connectorSupportsVpcConfig()
+```
+Access to the VPC configuration (VPC Id, Security Group Id, Subnet Ids, and Availability Zones) can be obtained via the
+Stack object:
+
+```java
+    @Override
+    protected void setUpStackData(final Stack stack)
+    {
+        ConnectorVpcAttributes vpcAttributes = ((ConnectorWithVpcStack) stack).getConnectorVpcAttributes();
+        ...
+```
+
 ### Integration-Test Public APIs
 
 The Integration-Test module provides the following 5 public APIs that can be used to send DB

@@ -27,43 +27,27 @@ import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Responsible for providing a CloudFormation stack template for the connector being tested.
+ */
 public abstract class CloudFormationTemplateProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(CloudFormationTemplateProvider.class);
 
-    private static final String CF_TEMPLATE_NAME = "packaged.yaml";
-    private static final String LAMBDA_CODE_URI_TAG = "CodeUri:";
-    private static final String LAMBDA_SPILL_BUCKET_PREFIX = "s3://";
-    private static final String LAMBDA_HANDLER_TAG = "Handler:";
-    private static final String LAMBDA_HANDLER_PREFIX = "Handler: ";
-    private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
-    private static final String LAMBDA_SPILL_PREFIX_TAG = "spill_prefix";
-    private static final String LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG = "disable_spill_encryption";
-    private static final int MAX_LAMBDA_FUNCTION_NAME = 64;
+    private static final int LAMBDA_FUNCTION_MAX_LENGTH = 64;
 
     private final String cloudFormationStackName;
     private final App theApp;
     private final ObjectMapper objectMapper;
     private final String lambdaFunctionName;
-    private final PolicyDocument accessPolicy;
-    private final Map environmentVars;
-
-    private String lambdaFunctionHandler;
-    private String spillBucket;
-    private String s3Key;
 
     public CloudFormationTemplateProvider(String stackName)
     {
-        setupLambdaFunctionInfo();
-
         final String randomUuidStr = UUID.randomUUID().toString();
         theApp = new App();
         objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
@@ -71,67 +55,7 @@ public abstract class CloudFormationTemplateProvider
         // Lambda Function's name cannot exceed 64 bytes.
         lambdaFunctionName = String.format("%s_%s", stackName.toLowerCase(), randomUuidStr
                 .replace('-', '_'))
-                .substring(0, Math.min(MAX_LAMBDA_FUNCTION_NAME, stackName.length() + randomUuidStr.length() + 1));
-        environmentVars = getEnvironmentVars();
-        accessPolicy = getAccessPolicy();
-    }
-
-    /**
-     * Sets several variables needed in the creation of the CF Stack (e.g. spillBucket, s3Key, lambdaFunctionHandler).
-     * @throws RuntimeException CloudFormation template (packaged.yaml) was not found.
-     */
-    private void setupLambdaFunctionInfo()
-            throws RuntimeException
-    {
-        try {
-            for (String line : Files.readAllLines(Paths.get(CF_TEMPLATE_NAME), StandardCharsets.UTF_8)) {
-                if (line.contains(LAMBDA_CODE_URI_TAG)) {
-                    spillBucket = line.substring(line.indexOf(LAMBDA_SPILL_BUCKET_PREFIX) +
-                            LAMBDA_SPILL_BUCKET_PREFIX.length(), line.lastIndexOf('/'));
-                    s3Key = line.substring(line.lastIndexOf('/') + 1);
-                }
-                else if (line.contains(LAMBDA_HANDLER_TAG)) {
-                    lambdaFunctionHandler = line.substring(line.indexOf(LAMBDA_HANDLER_PREFIX) +
-                            LAMBDA_HANDLER_PREFIX.length());
-                }
-            }
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Lambda connector has not been packaged via `sam package` (see README).", e);
-        }
-
-        logger.info("Spill Bucket: [{}], S3 Key: [{}], Handler: [{}]", spillBucket, s3Key, lambdaFunctionHandler);
-    }
-
-    /**
-     * Gets the specific connectors' environment variables.
-     * @return A Map containing the environment variables key-value pairs.
-     */
-    private Map getEnvironmentVars()
-    {
-        final Map<String, String> environmentVars = new HashMap<>();
-        // Have the connector set specific environment variables first.
-        setEnvironmentVars(environmentVars);
-
-        // Check for missing spill_bucket
-        if (!environmentVars.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
-            // Add missing spill_bucket environment variable
-            environmentVars.put(LAMBDA_SPILL_BUCKET_TAG, spillBucket);
-        }
-
-        // Check for missing spill_prefix
-        if (!environmentVars.containsKey(LAMBDA_SPILL_PREFIX_TAG)) {
-            // Add missing spill_prefix environment variable
-            environmentVars.put(LAMBDA_SPILL_PREFIX_TAG, "athena-spill");
-        }
-
-        // Check for missing disable_spill_encryption environment variable
-        if (!environmentVars.containsKey(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG)) {
-            // Add missing disable_spill_encryption environment variable
-            environmentVars.put(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG, "false");
-        }
-
-        return environmentVars;
+                .substring(0, Math.min(LAMBDA_FUNCTION_MAX_LENGTH, stackName.length() + randomUuidStr.length() + 1));
     }
 
     /**
@@ -139,7 +63,7 @@ public abstract class CloudFormationTemplateProvider
      * access to multiple connector-specific AWS services (e.g. DynamoDB, Elasticsearch etc...)
      * @return A policy document object.
      */
-    protected abstract PolicyDocument getAccessPolicy();
+    protected abstract Optional<PolicyDocument> getAccessPolicy();
 
     /**
      * Must be overridden to facilitate the setting of the lambda function's environment variables key-value pairs
@@ -155,6 +79,12 @@ public abstract class CloudFormationTemplateProvider
      * @param stack The current CloudFormation stack.
      */
     protected abstract void setSpecificResource(final Stack stack);
+
+    /**
+     * Must be overridden to indicate whether the connector being tested supports a VPC configuration.
+     * @return true/false
+     */
+    protected abstract boolean isSupportedVpcConfig();
 
     /**
      * Gets the CloudFormation stack name.
@@ -204,10 +134,26 @@ public abstract class CloudFormationTemplateProvider
      */
     private Stack generateStack()
     {
-        final Stack stack = new ConnectorStack(theApp, cloudFormationStackName, spillBucket, s3Key,
-                lambdaFunctionName, lambdaFunctionHandler, accessPolicy, environmentVars);
+        ConnectorStackAttributesProvider attributesProvider = new ConnectorStackAttributesProvider(theApp,
+                cloudFormationStackName, lambdaFunctionName, getAccessPolicy(), getEnvironmentVars(),
+                isSupportedVpcConfig());
+        ConnectorStackFactory stackFactory = new ConnectorStackFactory(attributesProvider.getAttributes());
+        final Stack stack = stackFactory.getStack();
         setSpecificResource(stack);
 
         return stack;
+    }
+
+    /**
+     * Gets the specific connectors' environment variables.
+     * @return A Map containing the environment variables key-value pairs.
+     */
+    private Map<String, String> getEnvironmentVars()
+    {
+        final Map<String, String> environmentVars = new HashMap<>();
+        // Set connector-specific environment variables.
+        setEnvironmentVars(environmentVars);
+
+        return environmentVars;
     }
 }

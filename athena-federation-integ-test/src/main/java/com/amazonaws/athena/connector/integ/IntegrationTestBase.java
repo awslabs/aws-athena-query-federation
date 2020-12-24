@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The Integration-Tests base class from which all connector-specific integration test modules should subclass.
@@ -51,11 +52,10 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
     private static final String ATHENA_QUERY_FAILED_STATE = "FAILED";
     private static final String ATHENA_QUERY_CANCELLED_STATE = "CANCELLED";
-    private static final String ATHENA_FEDERATION_WORK_GROUP = "AmazonAthenaPreviewFunctionality";
+    private static final String ATHENA_FEDERATION_WORK_GROUP = "AthenaV2";
     private static final long sleepTimeMillis = 5000L;
 
     private final CloudFormationTemplateProvider templateProvider;
-    private final String cloudFormationStackName;
     private final String lambdaFunctionName;
     private final CloudFormationClient cloudFormationClient;
     private final AmazonAthena athenaClient;
@@ -64,7 +64,7 @@ public abstract class IntegrationTestBase
     {
         templateProvider = new CloudFormationTemplateProvider(this.getClass().getSimpleName()) {
             @Override
-            protected PolicyDocument getAccessPolicy()
+            protected Optional<PolicyDocument> getAccessPolicy()
             {
                 return getConnectorAccessPolicy();
             }
@@ -76,15 +76,20 @@ public abstract class IntegrationTestBase
             }
 
             @Override
+            protected boolean isSupportedVpcConfig()
+            {
+                return connectorSupportsVpcConfig();
+            }
+
+            @Override
             protected void setSpecificResource(final Stack stack)
             {
                 setUpStackData(stack);
             }
         };
 
-        cloudFormationStackName = templateProvider.getStackName();
         lambdaFunctionName = templateProvider.getLambdaFunctionName();
-        cloudFormationClient = new CloudFormationClient(cloudFormationStackName);
+        cloudFormationClient = new CloudFormationClient(templateProvider.getStackName());
         athenaClient = AmazonAthenaClientBuilder.defaultClient();
     }
 
@@ -122,7 +127,16 @@ public abstract class IntegrationTestBase
      * access to multiple connector-specific AWS services (e.g. DynamoDB, Elasticsearch etc...)
      * @return A policy document object.
      */
-    protected abstract PolicyDocument getConnectorAccessPolicy();
+    protected abstract Optional<PolicyDocument> getConnectorAccessPolicy();
+
+    /**
+     * Must be overridden in the extending class when the connector supports a VPC configuration.
+     * @return false (default)
+     */
+    protected boolean connectorSupportsVpcConfig()
+    {
+        return false;
+    }
 
     /**
      * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database

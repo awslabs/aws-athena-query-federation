@@ -33,6 +33,7 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -62,21 +63,23 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
      * Elasticsearch etc...)
      * @return A policy document object.
      */
-    protected PolicyDocument getConnectorAccessPolicy()
+    @Override
+    protected Optional<PolicyDocument> getConnectorAccessPolicy()
     {
-        return PolicyDocument.Builder.create()
+        return Optional.of(PolicyDocument.Builder.create()
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()
                         .actions(ImmutableList.of("dynamodb:DescribeTable", "dynamodb:ListSchemas",
                                 "dynamodb:ListTables", "dynamodb:Query", "dynamodb:Scan"))
                         .resources(ImmutableList.of("*"))
                         .effect(Effect.ALLOW)
                         .build()))
-                .build();
+                .build());
     }
 
     /**
      * Sets the environment variables for the Lambda function.
      */
+    @Override
     protected void setConnectorEnvironmentVars(final Map environmentVars)
     {
         // This is a no-op for this connector.
@@ -86,6 +89,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
      * Sets up the DDB Table's CloudFormation stack.
      * @param stack The current CloudFormation stack.
      */
+    @Override
     protected void setUpStackData(final Stack stack)
     {
         ddbTableUtils.setupTableStack(stack);
@@ -94,6 +98,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
     /**
      * Insert rows into the newly created DDB table.
      */
+    @Override
     protected void setUpTableData()
     {
         logger.info("----------------------------------------------------");
