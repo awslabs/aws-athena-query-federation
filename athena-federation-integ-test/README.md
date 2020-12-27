@@ -173,9 +173,11 @@ locally from the terminal.
 The following commands should be sent after cloning the Federation GitHub repository for
 the first time, and each time the connector's code changes:
 
-1. Build the SDK and connector (SDK only needs to build once): `mvn clean install`
-2. Export the IAM credentials for the AWS account used for testing purposes.
-3. Package the connector (from the connector's directory):
+1. From the **athena-federation-sdk** dir, run `mvn clean install` if you haven't done so already.
+2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't done so already.
+3. From your connector's dir, run `mvn clean install`.
+4. Export the IAM credentials for the AWS account used for testing purposes.
+5. Package the connector (from the connector's directory):
 `sam package --template-file <connector.yaml> --output-template-file packaged.yaml
 --s3-bucket <spill-bucket> --region <region> --force-upload`
 

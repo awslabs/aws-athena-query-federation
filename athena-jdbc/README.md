@@ -178,13 +178,19 @@ A partition is represented by two partition columns of type varchar. We leverage
 
 **Note:** In case of Redshift partition_schema and partition_name will always be '*'. It does not support external partitions. Performance with huge datasets is slow.
 
+### Running Integration Tests
+
+See [Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests).
+
 ### Deploying The Connector
 
-To use the Amazon Athena HBase Connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps or use the more detailed tutorial in the athena-example module:
+To use this connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from
+source follow the below steps or use the more detailed tutorial in the athena-example module:
 
-1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-2. From the athena-jdbc dir, run `mvn clean install`.
-3. From the athena-jdbc dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-jdbc` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+1. From the **athena-federation-sdk** dir, run `mvn clean install` if you haven't already.
+2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't already.
+3. From the **athena-jdbc** dir, run `mvn clean install`.
+4. From the **athena-jdbc** dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-jdbc` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
 # JDBC Driver Versions
 
