@@ -35,26 +35,26 @@ public class ConnectorStackFactory
     private static final Logger logger = LoggerFactory.getLogger(ConnectorStackFactory.class);
 
     private final ConnectorStackAttributes attributes;
-    private final boolean isSupportsVpcConfig;
+    private final boolean isSupportedVpcConfig;
 
     public ConnectorStackFactory(final ConnectorStackAttributes attributes)
     {
         this.attributes = attributes;
-        this.isSupportsVpcConfig = attributes.getConnectorVpcAttributes().isPresent();
+        this.isSupportedVpcConfig = attributes.getConnectorVpcAttributes().isPresent();
     }
 
     /**
-     * Gets the Connector's CloudFormation stack.
+     * Creates the Connector's CloudFormation stack.
      * @return Connector's stack: ConnectorWithVpcStack (supports a VPC config), or ConnectorStack (default).
      */
-    public Stack getStack()
+    public Stack createStack()
     {
-        if (isSupportsVpcConfig) {
-            logger.info("Stack Factory is using ConnectorWithVpcStack stack.");
-            return new ConnectorWithVpcStack.Builder(attributes).build();
+        if (isSupportedVpcConfig) {
+            logger.info("Creating stack: ConnectorWithVpcStack");
+            return ConnectorWithVpcStack.buildWithAttributes(attributes);
         }
 
-        logger.info("Stack Factory is using ConnectorStack stack.");
-        return new ConnectorStack.Builder(attributes).build();
+        logger.info("Creating stack: ConnectorStack");
+        return ConnectorStack.buildWithAttributes(attributes);
     }
 }

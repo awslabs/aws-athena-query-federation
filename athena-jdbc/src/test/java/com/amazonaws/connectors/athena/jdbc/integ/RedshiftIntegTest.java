@@ -22,6 +22,8 @@ package com.amazonaws.connectors.athena.jdbc.integ;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.stacks.ConnectorWithVpcStack;
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
+import com.amazonaws.services.athena.model.Row;
+import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -37,39 +39,43 @@ import software.amazon.awscdk.services.redshift.ClusterType;
 import software.amazon.awscdk.services.redshift.Login;
 import software.amazon.awscdk.services.redshift.NodeType;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Integration-tests for the DynamoDB connector using the Integration-test module.
+ */
 public class RedshiftIntegTest extends IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftIntegTest.class);
 
-    private static final String REDSHIFT_DB_NAME = "redshift_movies";
+    private static final String REDSHIFT_DB_NAME = "public";
     private static final String REDSHIFT_DB_PORT = "5439";
     private static final String REDSHIFT_DB_USERNAME = "integusername";
     private static final String REDSHIFT_DB_PASSWORD = "IntegPassword1";
+    private static final String REDSHIFT_TABLE_NAME = "movies";
 
     private final String lambdaFunctionName;
     private final String clusterName;
     private final String clusterEndpoint;
-    private final String connectionString;
-    private final String connectionStringTag;
+    private final Map<String, String> environmentVars;
 
     public RedshiftIntegTest()
     {
-        final UUID uuid = UUID.randomUUID();
-
         lambdaFunctionName = getLambdaFunctionName();
-        clusterName = "redshift-" + uuid;
+        clusterName = "redshift-" + UUID.randomUUID();
         clusterEndpoint = clusterName + ".c9afbdb0synx.us-east-1.redshift.amazonaws.com";
-        connectionString = String.format("redshift://jdbc:redshift://%s:%s/%s?user=%s&password=%s",
+        String connectionString = String.format("redshift://jdbc:redshift://%s:%s/%s?user=%s&password=%s",
                 clusterEndpoint, REDSHIFT_DB_PORT, REDSHIFT_DB_NAME, REDSHIFT_DB_USERNAME, REDSHIFT_DB_PASSWORD);
-        connectionStringTag = lambdaFunctionName + "_connection_string";
+        String connectionStringTag = lambdaFunctionName + "_connection_string";
+        environmentVars = ImmutableMap.of("default", connectionString, connectionStringTag, connectionString);
     }
 
     /**
@@ -90,8 +96,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
     @Override
     protected void setConnectorEnvironmentVars(final Map environmentVars)
     {
-        environmentVars.put("default", connectionString);
-        environmentVars.put(connectionStringTag, connectionString);
+        environmentVars.putAll(this.environmentVars);
     }
 
     /**
@@ -138,17 +143,18 @@ public class RedshiftIntegTest extends IntegrationTestBase
     }
 
     /**
-     * Insert rows into the newly created DDB table.
+     * Create a DB table in the Redshift DB instance and insert data rows.
      */
     @Override
     protected void setUpTableData()
     {
         logger.info("----------------------------------------------------");
-//        logger.info("Setting up DB table: {}", tableName);
-        logger.info("Redshift Cluster Endpoint: {}", clusterEndpoint);
+        logger.info("Setting up DB table: {}", REDSHIFT_TABLE_NAME);
         logger.info("----------------------------------------------------");
-// redshift-73d78d54-1435-48ad-979e-81741a5d00f3
-// redshift-73d78d54-1435-48ad-979e-81741a5d00f3.c9afbdb0synx.us-east-1.redshift.amazonaws.com:5439/redshift_movies
+
+        RedshiftTableUtils redshiftTableUtils = new RedshiftTableUtils(lambdaFunctionName, REDSHIFT_TABLE_NAME,
+                environmentVars);
+        redshiftTableUtils.setUpTable();
     }
 
     @Test
@@ -160,6 +166,61 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         List dbNames = listDatabases();
         logger.info("Databases: {}", dbNames);
-        assertTrue("DB not found.", dbNames.contains("public"));
+        assertTrue("DB not found.", dbNames.contains(REDSHIFT_DB_NAME));
+    }
+
+    @Test
+    public void listTablesIntegTest()
+    {
+        logger.info("-----------------------------------");
+        logger.info("Executing listTablesIntegTest");
+        logger.info("-----------------------------------");
+
+        List tableNames = listTables(REDSHIFT_DB_NAME);
+        logger.info("Tables: {}", tableNames);
+        assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_NAME), tableNames.contains(REDSHIFT_TABLE_NAME));
+    }
+
+    @Test
+    public void listTableSchemaIntegTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing listTableSchemaIntegTest");
+        logger.info("--------------------------------------");
+
+        Map schema = describeTable(REDSHIFT_DB_NAME, REDSHIFT_TABLE_NAME);
+        schema.remove("partition_name");
+        schema.remove("partition_schema_name");
+        logger.info("Schema: {}", schema);
+        assertEquals("Wrong number of columns found.", 4, schema.size());
+        assertTrue("Column not found: year", schema.containsKey("year"));
+        assertEquals("Wrong column type for year.", "int", schema.get("year"));
+        assertTrue("Column not found: title", schema.containsKey("title"));
+        assertEquals("Wrong column type for title.", "varchar", schema.get("title"));
+        assertTrue("Column not found: director", schema.containsKey("director"));
+        assertEquals("Wrong column type for director.", "varchar", schema.get("director"));
+        assertTrue("Column not found: lead", schema.containsKey("lead"));
+        assertEquals("Wrong column type for lead.", "varchar", schema.get("lead"));
+    }
+
+    @Test
+    public void selectColumnWithPredicateIntegTest()
+    {
+        logger.info("--------------------------------------------------");
+        logger.info("Executing selectColumnWithPredicateIntegTest");
+        logger.info("--------------------------------------------------");
+
+        String query = String.format("select title from %s.%s.%s where year > 2000;",
+                lambdaFunctionName, REDSHIFT_DB_NAME, REDSHIFT_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<String> titles = new ArrayList<>();
+        rows.forEach(row -> titles.add(row.getData().get(0).getVarCharValue()));
+        logger.info("Titles: {}", titles);
+        assertEquals("Wrong number of DB records found.", 1, titles.size());
+        assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
     }
 }

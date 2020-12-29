@@ -23,6 +23,8 @@ import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.core.CfnParameter;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.core.Duration;
@@ -49,6 +51,8 @@ import java.util.Optional;
  */
 public class ConnectorStack extends Stack
 {
+    private static final Logger logger = LoggerFactory.getLogger(ConnectorStack.class);
+
     private final String s3Bucket;
     private final String s3Key;
     private final String functionHandler;
@@ -73,27 +77,28 @@ public class ConnectorStack extends Stack
      */
     protected void initialize()
     {
-        buildLambdaFunction();
-        buildAthenaDataCatalog();
+        logger.info("Initializing stack: {}", this.getClass().getSimpleName());
+        createLambdaFunction();
+        createAthenaDataCatalog();
     }
 
     /**
-     * Builds the Connector's CloudFormation stack for the lambda function.
+     * Creates the Connector's CloudFormation stack for the lambda function.
      */
-    private void buildLambdaFunction()
+    private void createLambdaFunction()
     {
-        createLambdaFunction().build();
+        lambdaFunctionBuilder().build();
     }
 
     /**
-     * Creates the Lambda function stack resource.
+     * Builds the Lambda function stack resource.
      * @return Lambda function Builder.
      */
-    protected Function.Builder createLambdaFunction()
+    protected Function.Builder lambdaFunctionBuilder()
     {
         return Function.Builder.create(this, "LambdaConnector")
                 .functionName(functionName)
-                .role(buildIamRole())
+                .role(createIamRole())
                 .code(Code.fromCfnParameters(CfnParametersCodeProps.builder()
                         .bucketNameParam(CfnParameter.Builder.create(this, "BucketName")
                                 .defaultValue(s3Bucket)
@@ -110,18 +115,18 @@ public class ConnectorStack extends Stack
     }
 
     /**
-     * Builds the Connector's CloudFormation stack to register the lambda function with Athena.
+     * Creates the Connector's CloudFormation stack to register the lambda function with Athena.
      */
-    private void buildAthenaDataCatalog()
+    private void createAthenaDataCatalog()
     {
-        createAthenaDataCatalog().build();
+        athenaDataCatalogBuilder().build();
     }
 
     /**
-     * Creates the Athena data catalog stack resource.
+     * Builds the Athena data catalog stack resource.
      * @return Athena data catalog Builder.
      */
-    protected CfnDataCatalog.Builder createAthenaDataCatalog()
+    protected CfnDataCatalog.Builder athenaDataCatalogBuilder()
     {
         return CfnDataCatalog.Builder.create(this, "AthenaDataCatalog")
                 .name(functionName)
@@ -130,19 +135,19 @@ public class ConnectorStack extends Stack
     }
 
     /**
-     * Builds the IAM role for the Lambda function.
+     * Creates the IAM role for the Lambda function.
      * @return IAM Role object.
      */
-    private Role buildIamRole()
+    private Role createIamRole()
     {
-        return createIamRole().build();
+        return iamRoleBuilder().build();
     }
 
     /**
-     * Creates the IAM role stack resource.
+     * Builds the IAM role stack resource.
      * @return IAM role Builder.
      */
-    protected Role.Builder createIamRole()
+    protected Role.Builder iamRoleBuilder()
     {
         Map<String, PolicyDocument> policies = new HashMap<>();
 
@@ -219,16 +224,26 @@ public class ConnectorStack extends Stack
                 .build();
     }
 
+    public static Stack buildWithAttributes(ConnectorStackAttributes attributes)
+    {
+        return builder().withAttributes(attributes).build();
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
     public static class Builder
     {
-        private final Construct scope;
-        private final String id;
-        private final String functionName;
-        private final Optional<PolicyDocument> connectorAccessPolicy;
-        private final Map environmentVariables;
-        private final ConnectorPackagingAttributes connectorPackagingAttributes;
+        private Construct scope;
+        private String id;
+        private String functionName;
+        private Optional<PolicyDocument> connectorAccessPolicy;
+        private Map environmentVariables;
+        private ConnectorPackagingAttributes connectorPackagingAttributes;
 
-        public Builder(ConnectorStackAttributes attributes)
+        public Builder withAttributes(ConnectorStackAttributes attributes)
         {
             this.scope = attributes.getScope();
             this.id = attributes.getId();
@@ -236,6 +251,8 @@ public class ConnectorStack extends Stack
             this.connectorAccessPolicy = attributes.getConnectorAccessPolicy();
             this.environmentVariables = attributes.getEnvironmentVariables();
             this.connectorPackagingAttributes = attributes.getConnectorPackagingAttributes();
+
+            return this;
         }
 
         public Stack build()

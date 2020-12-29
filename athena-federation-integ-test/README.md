@@ -176,7 +176,9 @@ the first time, and each time the connector's code changes:
 1. From the **athena-federation-sdk** dir, run `mvn clean install` if you haven't done so already.
 2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't done so already.
 3. From your connector's dir, run `mvn clean install`.
-4. Export the IAM credentials for the AWS account used for testing purposes.
+4. Export the IAM credentials for the AWS account used for testing purposes. The account's Athena console should have
+   `FederationIntegrationTests` Workgroup defined and set to `Athena engine version 2` (for more information on the
+   latter, see [Athena Engine Versioning](https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html)).
 5. Package the connector (from the connector's directory):
 `sam package --template-file <connector.yaml> --output-template-file packaged.yaml
 --s3-bucket <spill-bucket> --region <region> --force-upload`

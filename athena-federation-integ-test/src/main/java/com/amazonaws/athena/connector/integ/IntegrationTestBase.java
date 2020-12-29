@@ -52,7 +52,7 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
     private static final String ATHENA_QUERY_FAILED_STATE = "FAILED";
     private static final String ATHENA_QUERY_CANCELLED_STATE = "CANCELLED";
-    private static final String ATHENA_FEDERATION_WORK_GROUP = "AthenaV2";
+    private static final String ATHENA_FEDERATION_WORK_GROUP = "FederationIntegrationTests";
     private static final long sleepTimeMillis = 5000L;
 
     private final CloudFormationTemplateProvider templateProvider;
@@ -217,8 +217,10 @@ public abstract class IntegrationTestBase
         startQueryExecution(query).getResultSet().getRows()
                 .forEach(row -> {
                     String property = row.getData().get(0).getVarCharValue();
-                    schema.put(property.substring(0, property.indexOf('\t')),
-                            property.substring(property.indexOf('\t') + 1));
+                    String[] columns = property.split("\t");
+                    if (columns.length == 2) {
+                        schema.put(columns[0], columns[1]);
+                    }
                 });
 
         return schema;

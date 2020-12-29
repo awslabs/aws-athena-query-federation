@@ -41,12 +41,20 @@ import java.util.Map;
 public class ConnectorWithVpcStack extends ConnectorStack
 {
     private final ConnectorVpcAttributes connectorVpcAttributes;
+    private final String vpcId;
+    private final String securityGroupId;
+    private final List<String> subnetIds;
+    private final List<String> availabilityZones;
 
     public ConnectorWithVpcStack(Builder builder)
     {
         super(builder);
 
         this.connectorVpcAttributes = builder.connectorVpcAttributes;
+        this.vpcId = connectorVpcAttributes.getVpcId();
+        this.securityGroupId = connectorVpcAttributes.getSecurityGroupId();
+        this.subnetIds = connectorVpcAttributes.getPrivateSubnetIds();
+        this.availabilityZones = connectorVpcAttributes.getAvailabilityZones();
     }
 
     /**
@@ -63,38 +71,37 @@ public class ConnectorWithVpcStack extends ConnectorStack
     }
 
     /**
-     * Creates the Lambda function stack resource injecting the VPC configuration.
+     * Builds the Lambda function stack resource injecting the VPC configuration.
      * @return Lambda function Builder.
      */
     @Override
-    protected Function.Builder createLambdaFunction()
+    protected Function.Builder lambdaFunctionBuilder()
     {
-        return super.createLambdaFunction()
-                .vpc(Vpc.fromVpcAttributes(this, "VpcConfig", buildVpcAttributes()))
+        return super.lambdaFunctionBuilder()
+                .vpc(Vpc.fromVpcAttributes(this, "VpcConfig", createVpcAttributes()))
                 .securityGroups(Collections.singletonList(SecurityGroup
-                        .fromSecurityGroupId(this, "VpcSecurityGroup",
-                                connectorVpcAttributes.getSecurityGroupId())));
+                        .fromSecurityGroupId(this, "VpcSecurityGroup", securityGroupId)));
     }
 
     /**
-     * Builds the VPC Attributes used in the VPC configuration.
+     * Creates the VPC Attributes used in the VPC configuration.
      * @return VPC attributes object.
      */
-    private VpcAttributes buildVpcAttributes()
+    private VpcAttributes createVpcAttributes()
     {
-        return createVpcAttributes().build();
+        return vpcAttributesBuilder().build();
     }
 
     /**
-     * Creates the VPC Attributes.
+     * Builds the VPC Attributes.
      * @return VPC attributes Builder.
      */
-    protected VpcAttributes.Builder createVpcAttributes()
+    protected VpcAttributes.Builder vpcAttributesBuilder()
     {
         return VpcAttributes.builder()
-                .vpcId(connectorVpcAttributes.getVpcId())
-                .privateSubnetIds(connectorVpcAttributes.getPrivateSubnetIds())
-                .availabilityZones(connectorVpcAttributes.getAvailabilityZones());
+                .vpcId(vpcId)
+                .privateSubnetIds(subnetIds)
+                .availabilityZones(availabilityZones);
     }
 
     /**
@@ -128,19 +135,32 @@ public class ConnectorWithVpcStack extends ConnectorStack
                 .build();
     }
 
+    public static Stack buildWithAttributes(ConnectorStackAttributes attributes)
+    {
+        return builder().withAttributes(attributes).build();
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
     public static class Builder extends ConnectorStack.Builder
     {
-        private final ConnectorVpcAttributes connectorVpcAttributes;
+        private ConnectorVpcAttributes connectorVpcAttributes;
 
-        public Builder(ConnectorStackAttributes attributes)
+        @Override
+        public Builder withAttributes(ConnectorStackAttributes attributes)
         {
-            super(attributes);
+            super.withAttributes(attributes);
 
             if (!attributes.getConnectorVpcAttributes().isPresent()) {
                 throw new RuntimeException("VPC configuration must be provided.");
             }
 
             this.connectorVpcAttributes = attributes.getConnectorVpcAttributes().get();
+
+            return this;
         }
 
         @Override

@@ -138,7 +138,7 @@ public abstract class CloudFormationTemplateProvider
                 cloudFormationStackName, lambdaFunctionName, getAccessPolicy(), getEnvironmentVars(),
                 isSupportedVpcConfig());
         ConnectorStackFactory stackFactory = new ConnectorStackFactory(attributesProvider.getAttributes());
-        final Stack stack = stackFactory.getStack();
+        final Stack stack = stackFactory.createStack();
         setSpecificResource(stack);
 
         return stack;
