@@ -115,7 +115,7 @@ public class ConnectorStack extends Stack
     }
 
     /**
-     * Creates the Connector's CloudFormation stack to register the lambda function with Athena.
+     * Creates the Connector's Athena data catalog stack resource, and registers the lambda function with Athena.
      */
     private void createAthenaDataCatalog()
     {

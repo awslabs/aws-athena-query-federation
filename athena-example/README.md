@@ -283,4 +283,4 @@ Don't forget to try out [Amazon Athena ML](https://github.com/awslabs/aws-athena
 ## Integration Tests
 
 Although the topic of integration tests is not covered in this example, you can learn more about how to create and
-run integration tests for you connector in the [Integration-Test Module](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md).
+run integration tests for your connector in the [Integration-Test Module](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md).

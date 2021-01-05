@@ -144,6 +144,7 @@ public class ConnectorStackAttributesProvider
      * @throws RuntimeException No VPCs were found.
      */
     private String getVpcId()
+            throws RuntimeException
     {
         DescribeVpcsResult vpcsResult = ec2Client.describeVpcs();
         for (Vpc vpc : vpcsResult.getVpcs()) {
@@ -161,6 +162,7 @@ public class ConnectorStackAttributesProvider
      * @throws RuntimeException No Security Group Ids were found.
      */
     private String getSecurityGroupId(final String vpcId)
+            throws RuntimeException
     {
         DescribeSecurityGroupsResult sgResult = ec2Client.describeSecurityGroups();
         for (SecurityGroup securityGroup : sgResult.getSecurityGroups()) {
