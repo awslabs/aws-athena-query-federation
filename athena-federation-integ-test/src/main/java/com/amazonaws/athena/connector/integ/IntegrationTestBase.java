@@ -217,9 +217,9 @@ public abstract class IntegrationTestBase
         startQueryExecution(query).getResultSet().getRows()
                 .forEach(row -> {
                     String property = row.getData().get(0).getVarCharValue();
-                    String[] columns = property.split("\t");
-                    if (columns.length == 2) {
-                        schema.put(columns[0], columns[1]);
+                    String[] columnProperties = property.split("\t");
+                    if (columnProperties.length == 2) {
+                        schema.put(columnProperties[0], columnProperties[1]);
                     }
                 });
 

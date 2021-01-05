@@ -154,11 +154,8 @@ public class ConnectorWithVpcStack extends ConnectorStack
         {
             super.withAttributes(attributes);
 
-            if (!attributes.getConnectorVpcAttributes().isPresent()) {
-                throw new RuntimeException("VPC configuration must be provided.");
-            }
-
-            this.connectorVpcAttributes = attributes.getConnectorVpcAttributes().get();
+            this.connectorVpcAttributes = attributes.getConnectorVpcAttributes()
+                    .orElseThrow(() -> new RuntimeException("VPC configuration must be provided."));
 
             return this;
         }
