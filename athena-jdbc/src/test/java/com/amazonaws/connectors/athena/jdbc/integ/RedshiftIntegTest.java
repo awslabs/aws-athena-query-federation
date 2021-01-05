@@ -62,6 +62,8 @@ public class RedshiftIntegTest extends IntegrationTestBase
     private static final String REDSHIFT_DB_PASSWORD = "IntegPassword1";
     private static final String REDSHIFT_TABLE_NAME = "movies";
 
+    private static final long sleepDelayMillis = 120_000L;
+
     private final String lambdaFunctionName;
     private final String clusterName;
     private final String clusterEndpoint;
@@ -155,6 +157,14 @@ public class RedshiftIntegTest extends IntegrationTestBase
         RedshiftTableUtils redshiftTableUtils = new RedshiftTableUtils(lambdaFunctionName, REDSHIFT_TABLE_NAME,
                 environmentVars);
         redshiftTableUtils.setUpTable();
+
+        try {
+            logger.info("Allowing Redshift cluster to fully warm up - Sleeping for 2 min...");
+            Thread.sleep(sleepDelayMillis);
+        }
+        catch (InterruptedException e) {
+            throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage(), e);
+        }
     }
 
     @Test
