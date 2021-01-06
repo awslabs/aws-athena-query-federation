@@ -60,7 +60,8 @@ public class RedshiftIntegTest extends IntegrationTestBase
     private static final String REDSHIFT_DB_PORT = "5439";
     private static final String REDSHIFT_DB_USERNAME = "integusername";
     private static final String REDSHIFT_DB_PASSWORD = "IntegPassword1";
-    private static final String REDSHIFT_TABLE_NAME = "movies";
+    private static final String REDSHIFT_TABLE_MOVIES = "movies";
+    private static final String REDSHIFT_TABLE_BDAY = "bday";
 
     private static final long sleepDelayMillis = 120_000L;
 
@@ -145,18 +146,13 @@ public class RedshiftIntegTest extends IntegrationTestBase
     }
 
     /**
-     * Create a DB table in the Redshift DB instance and insert data rows.
+     * Sets up the DB tables used by the tests.
      */
     @Override
     protected void setUpTableData()
     {
-        logger.info("----------------------------------------------------");
-        logger.info("Setting up DB table: {}", REDSHIFT_TABLE_NAME);
-        logger.info("----------------------------------------------------");
-
-        RedshiftTableUtils redshiftTableUtils = new RedshiftTableUtils(lambdaFunctionName, REDSHIFT_TABLE_NAME,
-                environmentVars);
-        redshiftTableUtils.setUpTable();
+        setUpMoviesTable();
+        setUpBdayTable();
 
         try {
             logger.info("Allowing Redshift cluster to fully warm up - Sleeping for 2 min...");
@@ -165,6 +161,40 @@ public class RedshiftIntegTest extends IntegrationTestBase
         catch (InterruptedException e) {
             throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Creates the 'movies' table and inserts rows.
+     */
+    private void setUpMoviesTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", REDSHIFT_TABLE_MOVIES);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, REDSHIFT_TABLE_MOVIES,
+                environmentVars);
+        moviesTable.createTable("year int, title varchar, director varchar, lead varchar");
+        moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', 'Matthew McConaughey'");
+        moviesTable.insertRow("1986, 'Aliens', 'James Cameron', 'Sigourney Weaver'");
+
+    }
+
+    /**
+     * Creates the 'bday' table and inserts rows.
+     */
+    private void setUpBdayTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", REDSHIFT_TABLE_BDAY);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName, REDSHIFT_TABLE_BDAY,
+                environmentVars);
+        bdayTable.createTable("first_name varchar, last_name varchar, birthday date");
+        bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')");
+        bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')");
+        bdayTable.insertRow("'John', 'Smith', date('2006-02-10')");
     }
 
     @Test
@@ -188,7 +218,8 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         List tableNames = listTables(REDSHIFT_DB_NAME);
         logger.info("Tables: {}", tableNames);
-        assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_NAME), tableNames.contains(REDSHIFT_TABLE_NAME));
+        assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_MOVIES),
+                tableNames.contains(REDSHIFT_TABLE_MOVIES));
     }
 
     @Test
@@ -198,7 +229,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Executing listTableSchemaIntegTest");
         logger.info("--------------------------------------");
 
-        Map schema = describeTable(REDSHIFT_DB_NAME, REDSHIFT_TABLE_NAME);
+        Map schema = describeTable(REDSHIFT_DB_NAME, REDSHIFT_TABLE_MOVIES);
         schema.remove("partition_name");
         schema.remove("partition_schema_name");
         logger.info("Schema: {}", schema);
@@ -221,7 +252,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
-                lambdaFunctionName, REDSHIFT_DB_NAME, REDSHIFT_TABLE_NAME);
+                lambdaFunctionName, REDSHIFT_DB_NAME, REDSHIFT_TABLE_MOVIES);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -232,5 +263,27 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
+    }
+
+    @Test
+    public void selectColumnBetweenDatesIntegTest()
+    {
+        logger.info("--------------------------------------------------");
+        logger.info("Executing selectColumnBetweenDatesIntegTest");
+        logger.info("--------------------------------------------------");
+
+        String query = String.format(
+                "select first_name from %s.%s.%s where birthday between date('2003-1-1') and date('2005-12-31');",
+                lambdaFunctionName, REDSHIFT_DB_NAME, REDSHIFT_TABLE_BDAY);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<String> names = new ArrayList<>();
+        rows.forEach(row -> names.add(row.getData().get(0).getVarCharValue()));
+        logger.info("Names: {}", names);
+        assertEquals("Wrong number of DB records found.", 1, names.size());
+        assertTrue("Name not found: Jane.", names.contains("Jane"));
     }
 }
