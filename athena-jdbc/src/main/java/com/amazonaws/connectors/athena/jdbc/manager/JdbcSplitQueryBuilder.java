@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -148,8 +149,8 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
                     break;
                 case DATEDAY:
-                    LocalDateTime dateTime = ((LocalDateTime) typeAndValue.getValue());
-                    statement.setDate(i + 1, new Date(dateTime.toDateTime(DateTimeZone.UTC).getMillis()));
+                    statement.setDate(i + 1,
+                            new Date(TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue())));
                     break;
                 case DATEMILLI:
                     LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
