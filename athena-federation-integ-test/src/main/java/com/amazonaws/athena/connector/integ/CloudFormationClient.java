@@ -147,6 +147,7 @@ public class CloudFormationClient
         try {
             DeleteStackRequest request = new DeleteStackRequest().withStackName(stackName);
             client.deleteStack(request);
+            client.shutdown();
         }
         catch (Exception e) {
             logger.error("Something went wrong... Manual resource cleanup may be needed!!!", e);

@@ -22,43 +22,23 @@ package com.amazonaws.athena.connector.integ;
 import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
-import com.amazonaws.athena.connector.integ.data.ConnectorVpcSubnetAttributes;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.DescribeVpcsResult;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Vpc;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
+import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Responsible for providing the Connector's stack attributes used in creating the Connector's stack.
+ */
 public class ConnectorStackAttributesProvider
 {
-    private static final Logger logger = LoggerFactory.getLogger(ConnectorStackAttributesProvider.class);
-
-    private static final String CF_TEMPLATE_NAME = "packaged.yaml";
-    private static final String LAMBDA_CODE_URI_TAG = "CodeUri:";
-    private static final String LAMBDA_SPILL_BUCKET_PREFIX = "s3://";
-    private static final String LAMBDA_HANDLER_TAG = "Handler:";
-    private static final String LAMBDA_HANDLER_PREFIX = "Handler: ";
     private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
     private static final String LAMBDA_SPILL_PREFIX_TAG = "spill_prefix";
     private static final String LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG = "disable_spill_encryption";
 
-    private final AmazonEC2 ec2Client;
     private final Construct scope;
     private final String id;
     private final String lambdaFunctionName;
@@ -69,130 +49,40 @@ public class ConnectorStackAttributesProvider
 
     protected ConnectorStackAttributesProvider(final Construct scope, final String id, final String lambdaFunctionName,
                                                final Optional<PolicyDocument> connectorAccessPolicy,
-                                               final Map<String, String> environmentVariables, boolean isSupportedVpcConfig)
+                                               final Map<String, String> environmentVariables,
+                                               boolean isSupportedVpcConfig)
     {
-        this.ec2Client = AmazonEC2ClientBuilder.defaultClient();
         this.scope = scope;
         this.id = id;
         this.lambdaFunctionName = lambdaFunctionName;
         this.connectorAccessPolicy = connectorAccessPolicy;
         this.environmentVariables = environmentVariables;
-        this.connectorPackagingAttributes = getPackagingAttributes();
+        this.connectorPackagingAttributes = ConnectorPackagingAttributesProvider.getAttributes();
         this.connectorVpcAttributes = getVpcAttributes(isSupportedVpcConfig);
 
         setUpEnvironmentVars();
     }
 
     /**
-     * Extracts the packaging attributes needed in the creation of the CF Stack from packaged.yaml (S3 Bucket,
-     * S3 Key, and lambdaFunctionHandler).
-     * @return Connector's packaging attributes (S3 Bucket, S3 Key, and Lambda function handler).
-     * @throws RuntimeException CloudFormation template (packaged.yaml) was not found.
-     */
-    private ConnectorPackagingAttributes getPackagingAttributes()
-            throws RuntimeException
-    {
-        String s3Bucket = "";
-        String s3Key = "";
-        String lambdaFunctionHandler = "";
-
-        try {
-            for (String line : Files.readAllLines(Paths.get(CF_TEMPLATE_NAME), StandardCharsets.UTF_8)) {
-                if (line.contains(LAMBDA_CODE_URI_TAG)) {
-                    s3Bucket = line.substring(line.indexOf(LAMBDA_SPILL_BUCKET_PREFIX) +
-                            LAMBDA_SPILL_BUCKET_PREFIX.length(), line.lastIndexOf('/'));
-                    s3Key = line.substring(line.lastIndexOf('/') + 1);
-                }
-                else if (line.contains(LAMBDA_HANDLER_TAG)) {
-                    lambdaFunctionHandler = line.substring(line.indexOf(LAMBDA_HANDLER_PREFIX) +
-                            LAMBDA_HANDLER_PREFIX.length());
-                }
-            }
-        }
-        catch (IOException e) {
-            throw new RuntimeException("Lambda connector has not been packaged via `sam package` (see README).", e);
-        }
-
-        logger.info("S3 Bucket: [{}], S3 Key: [{}], Handler: [{}]", s3Bucket, s3Key, lambdaFunctionHandler);
-        return new ConnectorPackagingAttributes(s3Bucket, s3Key, lambdaFunctionHandler);
-    }
-
-    /**
      * Gets the default VPC configuration used for configuring the Lambda function.
      * @param isSupportedVpcConfig Indicates whether a VPC configuration is supported for this connector.
-     * @return VPC attributes (VPC Id, Security group Id, Subnet Ids, and Availability zones) if a VPC configuration is
-     * supported for this connector.
+     * @return Optional VPC attributes (VPC Id, Security group Id, Subnet Ids, and Availability zones) if a VPC
+     * configuration is supported for this connector.
+     * @throws RuntimeException Errors were encountered trying ot obtain the VPC configuration.
      */
     private Optional<ConnectorVpcAttributes> getVpcAttributes(boolean isSupportedVpcConfig)
+            throws RuntimeException
     {
         if (isSupportedVpcConfig) {
-            final String vpcId = getVpcId();
-            final String securityGroupId = getSecurityGroupId(vpcId);
-            final ConnectorVpcSubnetAttributes subnetAttributes = getSubnetAttributes(vpcId);
-
-            logger.info("VPC Id: [{}], SG: [{}], {}", vpcId, securityGroupId, subnetAttributes);
-
-            return Optional.of(new ConnectorVpcAttributes(vpcId, securityGroupId, subnetAttributes));
+            try (ConnectorVpcAttributesProvider attributesProvider = new ConnectorVpcAttributesProvider()) {
+                return Optional.of(attributesProvider.getAttributes());
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Unable to get VPC Attributes: " + e.getMessage(), e);
+            }
         }
 
         return Optional.empty();
-    }
-
-    /**
-     * Gets the default VPC Id used for configuring the Lambda function (e.g. vpc-xxxx).
-     * @return VPC Id
-     * @throws RuntimeException No VPCs were found.
-     */
-    private String getVpcId()
-            throws RuntimeException
-    {
-        DescribeVpcsResult vpcsResult = ec2Client.describeVpcs();
-        for (Vpc vpc : vpcsResult.getVpcs()) {
-            if (vpc.getIsDefault()) {
-                return vpc.getVpcId();
-            }
-        }
-
-        throw new RuntimeException("VPC Id is required for VPC configuration, but none were found.");
-    }
-
-    /**
-     * Gets the Security Group Id for the default VPC Id used for configuring the Lambda function (e.g. sg-xxxx).
-     * @return Security Group Id
-     * @throws RuntimeException No Security Group Ids were found.
-     */
-    private String getSecurityGroupId(final String vpcId)
-            throws RuntimeException
-    {
-        DescribeSecurityGroupsResult sgResult = ec2Client.describeSecurityGroups();
-        for (SecurityGroup securityGroup : sgResult.getSecurityGroups()) {
-            if (securityGroup.getVpcId().equals(vpcId)) {
-                return securityGroup.getGroupId();
-            }
-        }
-
-        throw new RuntimeException("Security Group Id is required for VPC configuration, but none were found.");
-    }
-
-    /**
-     * Gets the VPC Subnet Attributes:
-     * 1) Subnet Ids (e.g. subnet-xxxx),
-     * 2) Availability Zones (e.g. us-east-1a).
-     * @return Subnet Attributes
-     */
-    private ConnectorVpcSubnetAttributes getSubnetAttributes(String vpcId)
-    {
-        DescribeSubnetsResult subnetsResult = ec2Client.describeSubnets();
-        List<String> privateSubnetIds = new ArrayList<>();
-        List<String> availabilityZones = new ArrayList<>();
-        for (Subnet subnet : subnetsResult.getSubnets()) {
-            if (subnet.getVpcId().equals(vpcId)) {
-                privateSubnetIds.add(subnet.getSubnetId());
-                availabilityZones.add(subnet.getAvailabilityZone());
-            }
-        }
-
-        return new ConnectorVpcSubnetAttributes(privateSubnetIds, availabilityZones);
     }
 
     /**
