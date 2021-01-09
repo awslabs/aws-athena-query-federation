@@ -218,8 +218,11 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         List tableNames = listTables(REDSHIFT_DB_NAME);
         logger.info("Tables: {}", tableNames);
+        assertEquals("Incorrect number of tables found.", 2, tableNames.size());
         assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_MOVIES),
                 tableNames.contains(REDSHIFT_TABLE_MOVIES));
+        assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_BDAY),
+                tableNames.contains(REDSHIFT_TABLE_BDAY));
     }
 
     @Test
