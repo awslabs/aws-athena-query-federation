@@ -359,7 +359,8 @@ public abstract class GlueMetadataHandler
             // this is currently only used for timestamp with timezone support
             logger.info("Column {} with registered type {}", rawColumnName, next.getType());
             schemaBuilder.addField(convertField(mappedColumnName, next.getType()));
-            if (next.getComment() != null) {
+            // Add non-null non-empty comments to metadata
+            if (next.getComment() != null && !next.getComment().trim().isEmpty()) {
                 schemaBuilder.addMetadata(mappedColumnName, next.getComment());
             }
             if (dateTimeFormatMapping.containsKey(rawColumnName)) {
