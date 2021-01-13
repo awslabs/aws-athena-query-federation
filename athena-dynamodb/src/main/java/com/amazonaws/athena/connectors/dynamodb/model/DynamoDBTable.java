@@ -39,7 +39,7 @@ public class DynamoDBTable
     private final String hashKey;
     private final Optional<String> rangeKey;
     private final List<AttributeDefinition> knownAttributeDefinitions;
-    private final List<DynamoDBTable> indexes;
+    private final List<DynamoDBIndex> indexes;
     private final long approxTableSizeInBytes;
     private final long approxItemCount;
     private final long provisionedReadCapacity;
@@ -49,7 +49,7 @@ public class DynamoDBTable
             String hashKey,
             Optional<String> rangeKey,
             List<AttributeDefinition> knownAttributeDefinitions,
-            List<DynamoDBTable> indexes,
+            List<DynamoDBIndex> indexes,
             long approxTableSizeInBytes,
             long approxItemCount,
             long provisionedReadCapacity)
@@ -85,7 +85,7 @@ public class DynamoDBTable
         return knownAttributeDefinitions;
     }
 
-    public List<DynamoDBTable> getIndexes()
+    public List<DynamoDBIndex> getIndexes()
     {
         return indexes;
     }
