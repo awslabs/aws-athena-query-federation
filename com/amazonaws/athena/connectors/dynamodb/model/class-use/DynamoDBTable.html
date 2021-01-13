@@ -83,14 +83,10 @@
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.athena.connectors.dynamodb.model">com.amazonaws.athena.connectors.dynamodb.model</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.dynamodb.resolver">com.amazonaws.athena.connectors.dynamodb.resolver</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.dynamodb.util">com.amazonaws.athena.connectors.dynamodb.util</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -99,42 +95,6 @@
 </li>
 <li class="blockList">
 <ul class="blockList">
-<li class="blockList"><a name="com.amazonaws.athena.connectors.dynamodb.model">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/package-summary.html">com.amazonaws.athena.connectors.dynamodb.model</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/package-summary.html">com.amazonaws.athena.connectors.dynamodb.model</a> that return types with arguments of type <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&gt;</code></td>
-<td class="colLast"><span class="typeNameLabel">DynamoDBTable.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getIndexes--">getIndexes</a></span>()</code>&nbsp;</td>
-</tr>
-</tbody>
-</table>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing constructors, and an explanation">
-<caption><span>Constructor parameters in <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/package-summary.html">com.amazonaws.athena.connectors.dynamodb.model</a> with type arguments of type <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Constructor and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#DynamoDBTable-java.lang.String-java.lang.String-java.util.Optional-java.util.List-java.util.List-long-long-long-">DynamoDBTable</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;name,
-             <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;hashKey,
-             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;rangeKey,
-             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;com.amazonaws.services.dynamodbv2.model.AttributeDefinition&gt;&nbsp;knownAttributeDefinitions,
-             <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&gt;&nbsp;indexes,
-             long&nbsp;approxTableSizeInBytes,
-             long&nbsp;approxItemCount,
-             long&nbsp;provisionedReadCapacity)</code>&nbsp;</td>
-</tr>
-</tbody>
-</table>
-</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.dynamodb.resolver">
 <!--   -->
 </a>
@@ -169,13 +129,6 @@
 <tbody>
 <tr class="altColor">
 <td class="colFirst"><code>static <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></code></td>
-<td class="colLast"><span class="typeNameLabel">DDBPredicateUtils.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getBestIndexForPredicates-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-java.util.Map-">getBestIndexForPredicates</a></span>(<a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;table,
-                         <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;predicates)</code>
-<div class="block">Attempts to pick an optimal index (if any) from the given predicates.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>static <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></code></td>
 <td class="colLast"><span class="typeNameLabel">DDBTableUtils.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBTableUtils.html#getTable-java.lang.String-com.amazonaws.athena.connector.lambda.ThrottlingInvoker-com.amazonaws.services.dynamodbv2.AmazonDynamoDB-">getTable</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;tableName,
         <a href="../../../../../../../com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a>&nbsp;invoker,
         com.amazonaws.services.dynamodbv2.AmazonDynamoDB&nbsp;ddbClient)</code>
@@ -192,11 +145,18 @@
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colFirst"><code>static <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></code></td>
-<td class="colLast"><span class="typeNameLabel">DDBPredicateUtils.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getBestIndexForPredicates-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-java.util.Map-">getBestIndexForPredicates</a></span>(<a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;table,
+<td class="colFirst"><code>static <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></code></td>
+<td class="colLast"><span class="typeNameLabel">DDBPredicateUtils.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getBestIndexForPredicates-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-java.util.List-java.util.Map-">getBestIndexForPredicates</a></span>(<a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;table,
+                         <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;requestedCols,
                          <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt;&nbsp;predicates)</code>
 <div class="block">Attempts to pick an optimal index (if any) from the given predicates.</div>
 </td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static boolean</code></td>
+<td class="colLast"><span class="typeNameLabel">DDBPredicateUtils.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#indexContainsAllRequiredColumns-java.util.List-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-">indexContainsAllRequiredColumns</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;requestedCols,
+                               <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a>&nbsp;index,
+                               <a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a>&nbsp;table)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>

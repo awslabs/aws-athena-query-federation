@@ -1743,6 +1743,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html#DynamoDBFieldResolver-com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata-">DynamoDBFieldResolver(DDBRecordMetadata)</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.resolver.<a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBFieldResolver.html" title="class in com.amazonaws.athena.connectors.dynamodb.resolver">DynamoDBFieldResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model"><span class="typeNameLink">DynamoDBIndex</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/model/package-summary.html">com.amazonaws.athena.connectors.dynamodb.model</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#DynamoDBIndex-java.lang.String-java.lang.String-java.util.Optional-com.amazonaws.services.dynamodbv2.model.ProjectionType-java.util.List-">DynamoDBIndex(String, String, Optional&lt;String&gt;, ProjectionType, List&lt;String&gt;)</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html" title="class in com.amazonaws.athena.connectors.dynamodb"><span class="typeNameLink">DynamoDBMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/package-summary.html">com.amazonaws.athena.connectors.dynamodb</a></dt>
 <dd>
 <div class="block">Handles metadata requests for the Athena DynamoDB Connector.</div>
@@ -1759,7 +1763,7 @@
 <dd>
 <div class="block">A model class to store table metadata in an easy to consume manner.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#DynamoDBTable-java.lang.String-java.lang.String-java.util.Optional-java.util.List-java.util.List-long-long-long-">DynamoDBTable(String, String, Optional&lt;String&gt;, List&lt;AttributeDefinition&gt;, List&lt;DynamoDBTable&gt;, long, long, long)</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#DynamoDBTable-java.lang.String-java.lang.String-java.util.Optional-java.util.List-java.util.List-long-long-long-">DynamoDBTable(String, String, Optional&lt;String&gt;, List&lt;AttributeDefinition&gt;, List&lt;DynamoDBIndex&gt;, long, long, long)</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/dynamodb/resolver/DynamoDBTableResolver.html" title="class in com.amazonaws.athena.connectors.dynamodb.resolver"><span class="typeNameLink">DynamoDBTableResolver</span></a> - Class in <a href="com/amazonaws/athena/connectors/dynamodb/resolver/package-summary.html">com.amazonaws.athena.connectors.dynamodb.resolver</a></dt>
 <dd>
@@ -1958,6 +1962,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionResponse.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionResponse</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
@@ -2350,7 +2356,7 @@
 <dd>
 <div class="block">Provides access to the Glue client if the extender should need it.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getBestIndexForPredicates-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-java.util.Map-">getBestIndexForPredicates(DynamoDBTable, Map&lt;String, ValueSet&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getBestIndexForPredicates-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-java.util.List-java.util.Map-">getBestIndexForPredicates(DynamoDBTable, List&lt;String&gt;, Map&lt;String, ValueSet&gt;)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
 <dd>
 <div class="block">Attempts to pick an optimal index (if any) from the given predicates.</div>
 </dd>
@@ -2601,6 +2607,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html#getFunctionType--">getFunctionType()</a></span> - Method in class com.amazonaws.athena.connector.lambda.udf.<a href="com/amazonaws/athena/connector/lambda/udf/UserDefinedFunctionRequest.html" title="class in com.amazonaws.athena.connector.lambda.udf">UserDefinedFunctionRequest</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getHashKey--">getHashKey()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getHashKey--">getHashKey()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#getHashKeyAttributeValues-com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet-">getHashKeyAttributeValues(ValueSet)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
@@ -2708,6 +2716,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html#getName--">getName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/MetricsTable.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">MetricsTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html#getName--">getName()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.metrics.tables.<a href="com/amazonaws/athena/connectors/cloudwatch/metrics/tables/Table.html" title="class in com.amazonaws.athena.connectors.cloudwatch.metrics.tables">Table</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getName--">getName()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getName--">getName()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
@@ -2932,6 +2942,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html#getProjection--">getProjection()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getProjectionAttributeNames--">getProjectionAttributeNames()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getProjectionType--">getProjectionType()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/Split.html#getProperties--">getProperties()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a></dt>
 <dd>
 <div class="block">Provides access to all properties on this Split.</div>
@@ -2987,6 +3001,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/Ranges.html#getRangeCount--">getRangeCount()</a></span> - Method in interface com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Ranges.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">Ranges</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html#getRangeCount--">getRangeCount()</a></span> - Method in class com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/SortedRangeSet.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">SortedRangeSet</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#getRangeKey--">getRangeKey()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#getRangeKey--">getRangeKey()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
@@ -3655,6 +3671,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableName</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBIndex.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBIndex</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.athena.connectors.dynamodb.model.<a href="com/amazonaws/athena/connectors/dynamodb/model/DynamoDBTable.html" title="class in com.amazonaws.athena.connectors.dynamodb.model">DynamoDBTable</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html#hashCode--">hashCode()</a></span> - Method in class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/DatabaseConnectionConfig.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">DatabaseConnectionConfig</a></dt>
@@ -3761,6 +3779,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/IncrementingValueNameProducer.html#IncrementingValueNameProducer--">IncrementingValueNameProducer()</a></span> - Constructor for class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/IncrementingValueNameProducer.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">IncrementingValueNameProducer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#INDEX_METADATA">INDEX_METADATA</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html#indexContainsAllRequiredColumns-java.util.List-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex-com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable-">indexContainsAllRequiredColumns(List&lt;String&gt;, DynamoDBIndex, DynamoDBTable)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBPredicateUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBPredicateUtils</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html#inferArrowField-java.lang.String-java.lang.Object-">inferArrowField(String, Object)</a></span> - Static method in class com.amazonaws.athena.connectors.dynamodb.util.<a href="com/amazonaws/athena/connectors/dynamodb/util/DDBTypeUtils.html" title="class in com.amazonaws.athena.connectors.dynamodb.util">DDBTypeUtils</a></dt>
 <dd>
