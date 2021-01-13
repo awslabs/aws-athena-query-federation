@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.dynamodb.util;
 
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
@@ -28,9 +29,11 @@ import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.DescribeTableRequest;
 import com.amazonaws.services.dynamodbv2.model.GlobalSecondaryIndexDescription;
+import com.amazonaws.services.dynamodbv2.model.IndexStatus;
 import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
 import com.amazonaws.services.dynamodbv2.model.KeyType;
 import com.amazonaws.services.dynamodbv2.model.LocalSecondaryIndexDescription;
+import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.TableDescription;
@@ -88,17 +91,19 @@ public final class DDBTableUtils
         // get secondary indexes
         List<LocalSecondaryIndexDescription> localSecondaryIndexes = table.getLocalSecondaryIndexes() != null ? table.getLocalSecondaryIndexes() : ImmutableList.of();
         List<GlobalSecondaryIndexDescription> globalSecondaryIndexes = table.getGlobalSecondaryIndexes() != null ? table.getGlobalSecondaryIndexes() : ImmutableList.of();
-        ImmutableList.Builder<DynamoDBTable> indices = ImmutableList.builder();
+        ImmutableList.Builder<DynamoDBIndex> indices = ImmutableList.builder();
         localSecondaryIndexes.forEach(i -> {
             KeyNames indexKeys = getKeys(i.getKeySchema());
-            indices.add(new DynamoDBTable(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), table.getAttributeDefinitions(), ImmutableList.of(), i.getIndexSizeBytes(), i.getItemCount(),
-                    provisionedReadCapacity));
+            // DynamoDB automatically fetches all attributes from the table for local secondary index, so ignore projected attributes
+            indices.add(new DynamoDBIndex(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ProjectionType.ALL, ImmutableList.of()));
         });
-        globalSecondaryIndexes.forEach(i -> {
-            KeyNames indexKeys = getKeys(i.getKeySchema());
-            indices.add(new DynamoDBTable(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), table.getAttributeDefinitions(), ImmutableList.of(), i.getIndexSizeBytes(), i.getItemCount(),
-                    i.getProvisionedThroughput() != null ? i.getProvisionedThroughput().getReadCapacityUnits() : PSUEDO_CAPACITY_FOR_ON_DEMAND));
-        });
+        globalSecondaryIndexes.stream()
+              .filter(i -> IndexStatus.fromValue(i.getIndexStatus()).equals(IndexStatus.ACTIVE))
+              .forEach(i -> {
+                  KeyNames indexKeys = getKeys(i.getKeySchema());
+                  indices.add(new DynamoDBIndex(i.getIndexName(), indexKeys.getHashKey(), indexKeys.getRangeKey(), ProjectionType.fromValue(i.getProjection().getProjectionType()),
+                        i.getProjection().getNonKeyAttributes() == null ? ImmutableList.of() : i.getProjection().getNonKeyAttributes()));
+              });
 
         return new DynamoDBTable(tableName, keys.getHashKey(), keys.getRangeKey(), table.getAttributeDefinitions(), indices.build(), approxTableSizeInBytes, approxItemCount, provisionedReadCapacity);
     }
