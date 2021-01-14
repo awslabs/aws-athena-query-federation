@@ -88,7 +88,7 @@ Provide implementation for the following 4 abstract methods in the test class:
      * access to multiple connector-specific AWS services (e.g. DynamoDB, Elasticsearch etc...)
      * @return A policy document object.
      */
-    protected abstract PolicyDocument getConnectorAccessPolicy();
+    protected abstract Optional<PolicyDocument> getConnectorAccessPolicy();
 ```
 
 ### VPC Configuration
