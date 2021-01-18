@@ -16,6 +16,15 @@
         <log4j2Version>2.13.0</log4j2Version>
     </properties>
 
+    <repositories>
+        <repository>
+            <id>project.local</id>
+            <name>project</name>
+            <url>file:${project.basedir}/repo</url>
+        </repository>
+    </repositories>
+
+
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
