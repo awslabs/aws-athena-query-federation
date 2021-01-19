@@ -309,4 +309,53 @@ public class GlueMetadataHandlerTest
         Schema schema = schemaBuilder.build();
         assertEquals("My-Table", getSourceTableName(schema));
     }
+
+    @Test
+    public void doGetTableEmptyComment()
+            throws Exception
+    {
+        String sourceTable = "My-Table";
+
+        Map<String, String> expectedParams = new HashMap<>();
+        expectedParams.put(SOURCE_TABLE_PROPERTY, sourceTable);
+        // Put in a conflicting parameter
+        expectedParams.put("col1", "col1");
+
+        List<Column> columns = new ArrayList<>();
+        columns.add(new Column().withName("col1").withType("int").withComment(" "));
+
+        Table mockTable = mock(Table.class);
+        StorageDescriptor mockSd = mock(StorageDescriptor.class);
+
+        when(mockTable.getName()).thenReturn(table);
+        when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
+        when(mockTable.getParameters()).thenReturn(expectedParams);
+        when(mockSd.getColumns()).thenReturn(columns);
+
+        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class)))
+                .thenAnswer((InvocationOnMock invocationOnMock) ->
+                {
+                    com.amazonaws.services.glue.model.GetTableRequest request =
+                            (com.amazonaws.services.glue.model.GetTableRequest) invocationOnMock.getArguments()[0];
+
+                    assertEquals(accountId, request.getCatalogId());
+                    assertEquals(schema, request.getDatabaseName());
+                    assertEquals(table, request.getName());
+
+                    GetTableResult mockResult = mock(GetTableResult.class);
+                    when(mockResult.getTable()).thenReturn(mockTable);
+                    return mockResult;
+                });
+
+        GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table));
+        GetTableResponse res = handler.doGetTable(allocator, req);
+
+        logger.info("doGetTable - {}", res);
+
+        //Verify column name mapping works
+        assertNotNull(res.getSchema().findField("col1"));
+
+        //Verify types
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col1").getType()).equals(Types.MinorType.INT));
+    }
 }
