@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>com.vertica</groupId>
+  <artifactId>vjdbc9</artifactId>
+  <versioning>
+    <release>9.1.1</release>
+    <versions>
+      <version>9.1.1</version>
+    </versions>
+    <lastUpdated>20210119013959</lastUpdated>
+  </versioning>
+</metadata>
