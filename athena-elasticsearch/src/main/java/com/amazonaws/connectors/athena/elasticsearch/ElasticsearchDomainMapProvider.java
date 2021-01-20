@@ -117,8 +117,15 @@ class ElasticsearchDomainMapProvider
                         .withDomainNames(domainNames.subList(startDomainNameIndex, endDomainNameIndex));
                 DescribeElasticsearchDomainsResult describeDomainsResult =
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
-                describeDomainsResult.getDomainStatusList().forEach(domainStatus ->
-                        domainMap.put(domainStatus.getDomainName(), endpointPrefix + domainStatus.getEndpoint()));
+                describeDomainsResult.getDomainStatusList().forEach(domainStatus -> {
+                    String endpoint = domainStatus.getEndpoint();
+                    if (endpoint == null) {
+                        endpoint = domainStatus.getEndpoints().get("vpc");
+                    }
+
+                    domainMap.put(domainStatus.getDomainName(), endpointPrefix + endpoint);
+                });
+
                 startDomainNameIndex = endDomainNameIndex;
             }
 
