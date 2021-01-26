@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connector.integ;
 
-import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
-import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
@@ -48,7 +46,6 @@ public abstract class CloudFormationTemplateProvider
     private final App theApp;
     private final ObjectMapper objectMapper;
     private final String lambdaFunctionName;
-    private final Optional<ConnectorVpcAttributes> vpcAttributes;
 
     public CloudFormationTemplateProvider(String stackName, Map<String, Object> testConfig)
     {
@@ -61,7 +58,6 @@ public abstract class CloudFormationTemplateProvider
                 .replace('-', '_'))
                 .substring(0, Math.min(LAMBDA_FUNCTION_MAX_LENGTH, stackName.length() + randomUuidStr.length() + 1));
         this.testConfig = testConfig;
-        vpcAttributes = ConnectorVpcAttributesProvider.getAttributes(this.testConfig);
     }
 
     /**
@@ -105,15 +101,6 @@ public abstract class CloudFormationTemplateProvider
     }
 
     /**
-     * Gets the VPC attributes used in generating the lambda function.
-     * @return The VPC attributes object.
-     */
-    protected Optional<ConnectorVpcAttributes> getVpcAttributes()
-    {
-        return vpcAttributes;
-    }
-
-    /**
      * Gets the CloudFormation stack template.
      * @return The stack template as String.
      */
@@ -144,8 +131,7 @@ public abstract class CloudFormationTemplateProvider
     private Stack generateStack()
     {
         ConnectorStackAttributesProvider attributesProvider = new ConnectorStackAttributesProvider(theApp,
-                cloudFormationStackName, lambdaFunctionName, testConfig, getAccessPolicy(), getEnvironmentVars(),
-                vpcAttributes);
+                cloudFormationStackName, lambdaFunctionName, testConfig, getAccessPolicy(), getEnvironmentVars());
         ConnectorStackFactory stackFactory = new ConnectorStackFactory(attributesProvider.getAttributes());
         final Stack stack = stackFactory.createStack();
         setSpecificResource(stack);

@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
+import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
@@ -50,8 +51,7 @@ public class ConnectorStackAttributesProvider
     protected ConnectorStackAttributesProvider(final Construct scope, final String id, final String lambdaFunctionName,
                                                final Map<String, Object> testConfig,
                                                final Optional<PolicyDocument> connectorAccessPolicy,
-                                               final Map<String, String> environmentVariables,
-                                               Optional<ConnectorVpcAttributes> vpcAttributes)
+                                               final Map<String, String> environmentVariables)
     {
         this.scope = scope;
         this.id = id;
@@ -60,7 +60,7 @@ public class ConnectorStackAttributesProvider
         this.connectorAccessPolicy = connectorAccessPolicy;
         this.environmentVariables = environmentVariables;
         this.connectorPackagingAttributes = ConnectorPackagingAttributesProvider.getAttributes();
-        this.connectorVpcAttributes = vpcAttributes;
+        this.connectorVpcAttributes = ConnectorVpcAttributesProvider.getAttributes(testConfig);
 
         setUpEnvironmentVars();
     }

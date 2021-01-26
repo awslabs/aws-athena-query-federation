@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.integ;
 
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
+import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
@@ -66,10 +67,12 @@ public abstract class IntegrationTestBase
     private final CloudFormationClient cloudFormationClient;
     private final AmazonAthena athenaClient;
     private final Map<String, Object> testConfig;
+    private final Optional<ConnectorVpcAttributes> vpcAttributes;
 
     public IntegrationTestBase()
     {
         testConfig = setUpTestConfig();
+        vpcAttributes = ConnectorVpcAttributesProvider.getAttributes(testConfig);
         templateProvider = new CloudFormationTemplateProvider(this.getClass().getSimpleName(), testConfig) {
             @Override
             protected Optional<PolicyDocument> getAccessPolicy()
@@ -127,7 +130,7 @@ public abstract class IntegrationTestBase
     public ConnectorVpcAttributes getVpcAttributes()
             throws RuntimeException
     {
-        return templateProvider.getVpcAttributes()
+        return vpcAttributes
                 .orElseThrow(() -> new RuntimeException("VPC configuration must be specified in test-config.json"));
     }
 
