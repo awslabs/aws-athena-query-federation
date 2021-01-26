@@ -40,7 +40,6 @@ import java.util.Map;
  */
 public class ConnectorWithVpcStack extends ConnectorStack
 {
-    private final ConnectorVpcAttributes connectorVpcAttributes;
     private final String vpcId;
     private final String securityGroupId;
     private final List<String> subnetIds;
@@ -50,24 +49,10 @@ public class ConnectorWithVpcStack extends ConnectorStack
     {
         super(builder);
 
-        this.connectorVpcAttributes = builder.connectorVpcAttributes;
-        this.vpcId = connectorVpcAttributes.getVpcId();
-        this.securityGroupId = connectorVpcAttributes.getSecurityGroupId();
-        this.subnetIds = connectorVpcAttributes.getPrivateSubnetIds();
-        this.availabilityZones = connectorVpcAttributes.getAvailabilityZones();
-    }
-
-    /**
-     * Public accessor for the Connector's VPC attributes:
-     * 1) VPC Id (e.g. vpc-xxxx),
-     * 2) Security Group Id (e.g. sg-xxxx),
-     * 3) Subnet Ids (e.g. subnet-xxxx),
-     * 4) Subnet availability zones (e.g. us-east-1a)
-     * @return VPC attributes
-     */
-    public ConnectorVpcAttributes getConnectorVpcAttributes()
-    {
-        return connectorVpcAttributes;
+        vpcId = builder.vpcId;
+        securityGroupId = builder.securityGroupId;
+        subnetIds = builder.subnetIds;
+        availabilityZones = builder.availabilityZones;
     }
 
     /**
@@ -147,15 +132,22 @@ public class ConnectorWithVpcStack extends ConnectorStack
 
     public static class Builder extends ConnectorStack.Builder
     {
-        private ConnectorVpcAttributes connectorVpcAttributes;
+        private String vpcId;
+        private String securityGroupId;
+        private List<String> subnetIds;
+        private List<String> availabilityZones;
 
         @Override
         public Builder withAttributes(ConnectorStackAttributes attributes)
         {
             super.withAttributes(attributes);
 
-            this.connectorVpcAttributes = attributes.getConnectorVpcAttributes()
-                    .orElseThrow(() -> new RuntimeException("VPC configuration must be provided."));
+            ConnectorVpcAttributes vpcAttributes = attributes.getConnectorVpcAttributes()
+                .orElseThrow(() -> new RuntimeException("VPC configuration must be provided in test-config.json"));
+            vpcId = vpcAttributes.getVpcId();
+            securityGroupId = vpcAttributes.getSecurityGroupId();
+            subnetIds = vpcAttributes.getPrivateSubnetIds();
+            availabilityZones = vpcAttributes.getAvailabilityZones();
 
             return this;
         }

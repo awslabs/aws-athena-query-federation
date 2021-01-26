@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connector.integ;
 
+import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
+import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
@@ -42,11 +44,13 @@ public abstract class CloudFormationTemplateProvider
     private static final int LAMBDA_FUNCTION_MAX_LENGTH = 64;
 
     private final String cloudFormationStackName;
+    private final Map<String, Object> testConfig;
     private final App theApp;
     private final ObjectMapper objectMapper;
     private final String lambdaFunctionName;
+    private final Optional<ConnectorVpcAttributes> vpcAttributes;
 
-    public CloudFormationTemplateProvider(String stackName)
+    public CloudFormationTemplateProvider(String stackName, Map<String, Object> testConfig)
     {
         final String randomUuidStr = UUID.randomUUID().toString();
         theApp = new App();
@@ -56,6 +60,8 @@ public abstract class CloudFormationTemplateProvider
         lambdaFunctionName = String.format("%s_%s", stackName.toLowerCase(), randomUuidStr
                 .replace('-', '_'))
                 .substring(0, Math.min(LAMBDA_FUNCTION_MAX_LENGTH, stackName.length() + randomUuidStr.length() + 1));
+        this.testConfig = testConfig;
+        vpcAttributes = ConnectorVpcAttributesProvider.getAttributes(this.testConfig);
     }
 
     /**
@@ -81,12 +87,6 @@ public abstract class CloudFormationTemplateProvider
     protected abstract void setSpecificResource(final Stack stack);
 
     /**
-     * Must be overridden to indicate whether the connector being tested supports a VPC configuration.
-     * @return true/false
-     */
-    protected abstract boolean isSupportedVpcConfig();
-
-    /**
      * Gets the CloudFormation stack name.
      * @return The stack's name.
      */
@@ -102,6 +102,15 @@ public abstract class CloudFormationTemplateProvider
     protected String getLambdaFunctionName()
     {
         return lambdaFunctionName;
+    }
+
+    /**
+     * Gets the VPC attributes used in generating the lambda function.
+     * @return The VPC attributes object.
+     */
+    protected Optional<ConnectorVpcAttributes> getVpcAttributes()
+    {
+        return vpcAttributes;
     }
 
     /**
@@ -135,8 +144,8 @@ public abstract class CloudFormationTemplateProvider
     private Stack generateStack()
     {
         ConnectorStackAttributesProvider attributesProvider = new ConnectorStackAttributesProvider(theApp,
-                cloudFormationStackName, lambdaFunctionName, getAccessPolicy(), getEnvironmentVars(),
-                isSupportedVpcConfig());
+                cloudFormationStackName, lambdaFunctionName, testConfig, getAccessPolicy(), getEnvironmentVars(),
+                vpcAttributes);
         ConnectorStackFactory stackFactory = new ConnectorStackFactory(attributesProvider.getAttributes());
         final Stack stack = stackFactory.createStack();
         setSpecificResource(stack);

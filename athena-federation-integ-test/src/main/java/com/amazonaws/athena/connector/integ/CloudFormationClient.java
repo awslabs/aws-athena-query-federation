@@ -46,12 +46,12 @@ public class CloudFormationClient
     private static final long sleepTimeMillis = 5000L;
 
     private final String stackName;
-    private final AmazonCloudFormation client;
+    private final AmazonCloudFormation cloudFormationClient;
 
     public CloudFormationClient(String stackName)
     {
         this.stackName = stackName;
-        this.client = AmazonCloudFormationClientBuilder.defaultClient();
+        this.cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient();
     }
 
     /**
@@ -83,7 +83,7 @@ public class CloudFormationClient
             throws RuntimeException
     {
         // Create CloudFormation stack.
-        CreateStackResult result = client.createStack(createStackRequest);
+        CreateStackResult result = cloudFormationClient.createStack(createStackRequest);
         logger.info("Stack ID: {}", result.getStackId());
 
         DescribeStackEventsRequest describeStackEventsRequest = new DescribeStackEventsRequest()
@@ -92,7 +92,7 @@ public class CloudFormationClient
 
         // Poll status of stack until stack has been created or creation has failed
         while (true) {
-            describeStackEventsResult = client.describeStackEvents(describeStackEventsRequest);
+            describeStackEventsResult = cloudFormationClient.describeStackEvents(describeStackEventsRequest);
             StackEvent event = describeStackEventsResult.getStackEvents().get(0);
             String resourceId = event.getLogicalResourceId();
             String resourceStatus = event.getResourceStatus();
@@ -146,8 +146,8 @@ public class CloudFormationClient
 
         try {
             DeleteStackRequest request = new DeleteStackRequest().withStackName(stackName);
-            client.deleteStack(request);
-            client.shutdown();
+            cloudFormationClient.deleteStack(request);
+            cloudFormationClient.shutdown();
         }
         catch (Exception e) {
             logger.error("Something went wrong... Manual resource cleanup may be needed!!!", e);

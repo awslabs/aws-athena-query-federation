@@ -53,23 +53,27 @@ public class ConnectorStack extends Stack
 {
     private static final Logger logger = LoggerFactory.getLogger(ConnectorStack.class);
 
+    private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
+
     private final String s3Bucket;
     private final String s3Key;
     private final String functionHandler;
     private final String functionName;
     private final Optional<PolicyDocument> connectorAccessPolicy;
-    private final Map environmentVariables;
+    private final Map<String, String> environmentVariables;
+    private final String spillBucket;
 
     public ConnectorStack(Builder builder)
     {
         super(builder.scope, builder.id);
 
-        this.s3Bucket = builder.connectorPackagingAttributes.getS3Bucket();
-        this.s3Key = builder.connectorPackagingAttributes.getS3Key();
-        this.functionHandler = builder.connectorPackagingAttributes.getLambdaFunctionHandler();
-        this.functionName = builder.functionName;
-        this.connectorAccessPolicy = builder.connectorAccessPolicy;
-        this.environmentVariables = builder.environmentVariables;
+        s3Bucket = builder.connectorPackagingAttributes.getS3Bucket();
+        s3Key = builder.connectorPackagingAttributes.getS3Key();
+        functionHandler = builder.connectorPackagingAttributes.getLambdaFunctionHandler();
+        functionName = builder.functionName;
+        connectorAccessPolicy = builder.connectorAccessPolicy;
+        environmentVariables = builder.environmentVariables;
+        spillBucket = environmentVariables.get(LAMBDA_SPILL_BUCKET_TAG);
     }
 
     /**
@@ -217,8 +221,8 @@ public class ConnectorStack extends Stack
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()
                         .actions(statementActionsPolicy)
                         .resources(ImmutableList.of(
-                                String.format("arn:aws:s3:::%s", s3Bucket),
-                                String.format("arn:aws:s3:::%s/*", s3Bucket)))
+                                String.format("arn:aws:s3:::%s", spillBucket),
+                                String.format("arn:aws:s3:::%s/*", spillBucket)))
                         .effect(Effect.ALLOW)
                         .build()))
                 .build();
@@ -240,17 +244,17 @@ public class ConnectorStack extends Stack
         private String id;
         private String functionName;
         private Optional<PolicyDocument> connectorAccessPolicy;
-        private Map environmentVariables;
+        private Map<String, String> environmentVariables;
         private ConnectorPackagingAttributes connectorPackagingAttributes;
 
         public Builder withAttributes(ConnectorStackAttributes attributes)
         {
-            this.scope = attributes.getScope();
-            this.id = attributes.getId();
-            this.functionName = attributes.getLambdaFunctionName();
-            this.connectorAccessPolicy = attributes.getConnectorAccessPolicy();
-            this.environmentVariables = attributes.getEnvironmentVariables();
-            this.connectorPackagingAttributes = attributes.getConnectorPackagingAttributes();
+            scope = attributes.getScope();
+            id = attributes.getId();
+            functionName = attributes.getLambdaFunctionName();
+            connectorAccessPolicy = attributes.getConnectorAccessPolicy();
+            environmentVariables = attributes.getEnvironmentVariables();
+            connectorPackagingAttributes = attributes.getConnectorPackagingAttributes();
 
             return this;
         }

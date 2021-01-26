@@ -21,113 +21,69 @@ package com.amazonaws.athena.connector.integ.providers;
 
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcSubnetAttributes;
-import com.amazonaws.services.ec2.AmazonEC2;
-import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
-import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
-import com.amazonaws.services.ec2.model.DescribeSubnetsResult;
-import com.amazonaws.services.ec2.model.DescribeVpcsResult;
-import com.amazonaws.services.ec2.model.SecurityGroup;
-import com.amazonaws.services.ec2.model.Subnet;
-import com.amazonaws.services.ec2.model.Vpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Responsible for providing the Connector's VPC attributes used in creating the Connector's stack attributes.
  */
-public class ConnectorVpcAttributesProvider implements AutoCloseable
+public class ConnectorVpcAttributesProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(ConnectorVpcAttributesProvider.class);
 
-    private final AmazonEC2 ec2Client;
+    private static final String TEST_CONFIG_VPC_ID = "vpc_id";
+    private static final String TEST_CONFIG_SECURITY_GROUP_ID = "security_group_id";
+    private static final String TEST_CONFIG_SUBNET_IDS = "subnet_ids";
+    private static final String TEST_CONFIG_AVAILABILITY_ZONES = "availability_zones";
 
-    public ConnectorVpcAttributesProvider()
-    {
-        this.ec2Client = AmazonEC2ClientBuilder.defaultClient();
-    }
+    private ConnectorVpcAttributesProvider() {}
 
     /**
-     * Gets the default VPC configuration used for configuring the Lambda function.
+     * Gets the VPC attributes used for configuring the Lambda function.
+     * @param testConfig A Map containing the test configuration attributes extracted from a config file.
      * @return VPC attributes (VPC Id, Security group Id, Subnet Ids, and Availability zones) if a VPC configuration is
      * supported for this connector.
      * @throws RuntimeException Errors were encountered obtaining the VPC configuration.
      */
-    public ConnectorVpcAttributes getAttributes()
-            throws RuntimeException
+    public static Optional<ConnectorVpcAttributes> getAttributes(Map<String, Object> testConfig)
     {
-        final String vpcId = getDefaultVpcId();
-        final String securityGroupId = getSecurityGroupId(vpcId);
-        final ConnectorVpcSubnetAttributes subnetAttributes = getSubnetAttributes(vpcId);
+        // Get VPC Id.
+        Object vpcId = testConfig.get(TEST_CONFIG_VPC_ID);
+        if (!(vpcId instanceof String) || ((String) vpcId).isEmpty()) {
+            logger.info("VPC Id is not set in test-config.json");
+            return Optional.empty();
+        }
+
+        // Get Security Group Id.
+        Object securityGroupId = testConfig.get(TEST_CONFIG_SECURITY_GROUP_ID);
+        if (!(securityGroupId instanceof String) || ((String) securityGroupId).isEmpty()) {
+            logger.info("Security Group Id is not set in test-config.json");
+            return Optional.empty();
+        }
+
+        // Get Subnet Ids.
+        Object subnetIds = testConfig.get(TEST_CONFIG_SUBNET_IDS);
+        if (!(subnetIds instanceof List) || ((List) subnetIds).isEmpty()) {
+            logger.info("Subnet Ids are not set in test-config.json");
+            return Optional.empty();
+        }
+
+        // Get Availability Zones.
+        Object availabilityZones = testConfig.get(TEST_CONFIG_AVAILABILITY_ZONES);
+        if (!(availabilityZones instanceof List) || ((List) availabilityZones).isEmpty()) {
+            logger.info("Availability Zones are not set in test-config.json");
+            return Optional.empty();
+        }
+
+        ConnectorVpcSubnetAttributes subnetAttributes = new ConnectorVpcSubnetAttributes(
+                (List) subnetIds, (List) availabilityZones);
 
         logger.info("VPC Id: [{}], SG: [{}], {}", vpcId, securityGroupId, subnetAttributes);
 
-        return new ConnectorVpcAttributes(vpcId, securityGroupId, subnetAttributes);
-    }
-
-    /**
-     * Gets the default VPC Id used for configuring the Lambda function (e.g. vpc-xxxx).
-     * @return VPC Id
-     * @throws RuntimeException No VPCs were found.
-     */
-    private String getDefaultVpcId()
-            throws RuntimeException
-    {
-        DescribeVpcsResult vpcsResult = ec2Client.describeVpcs();
-        for (Vpc vpc : vpcsResult.getVpcs()) {
-            if (vpc.getIsDefault()) {
-                return vpc.getVpcId();
-            }
-        }
-
-        throw new RuntimeException("VPC Id is required for VPC configuration, but none were found.");
-    }
-
-    /**
-     * Gets the Security Group Id for the default VPC Id used for configuring the Lambda function (e.g. sg-xxxx).
-     * @return Security Group Id
-     * @throws RuntimeException No Security Group Ids were found.
-     */
-    private String getSecurityGroupId(final String vpcId)
-            throws RuntimeException
-    {
-        DescribeSecurityGroupsResult sgResult = ec2Client.describeSecurityGroups();
-        for (SecurityGroup securityGroup : sgResult.getSecurityGroups()) {
-            if (securityGroup.getVpcId().equals(vpcId)) {
-                return securityGroup.getGroupId();
-            }
-        }
-
-        throw new RuntimeException("Security Group Id is required for VPC configuration, but none were found.");
-    }
-
-    /**
-     * Gets the VPC Subnet Attributes:
-     * 1) Subnet Ids (e.g. subnet-xxxx),
-     * 2) Availability Zones (e.g. us-east-1a).
-     * @return Subnet Attributes
-     */
-    private ConnectorVpcSubnetAttributes getSubnetAttributes(final String vpcId)
-    {
-        DescribeSubnetsResult subnetsResult = ec2Client.describeSubnets();
-        List<String> privateSubnetIds = new ArrayList<>();
-        List<String> availabilityZones = new ArrayList<>();
-        for (Subnet subnet : subnetsResult.getSubnets()) {
-            if (subnet.getVpcId().equals(vpcId)) {
-                privateSubnetIds.add(subnet.getSubnetId());
-                availabilityZones.add(subnet.getAvailabilityZone());
-            }
-        }
-
-        return new ConnectorVpcSubnetAttributes(privateSubnetIds, availabilityZones);
-    }
-
-    @Override
-    public void close()
-            throws Exception
-    {
-        ec2Client.shutdown();
+        return Optional.of(new ConnectorVpcAttributes((String) vpcId, (String) securityGroupId, subnetAttributes));
     }
 }

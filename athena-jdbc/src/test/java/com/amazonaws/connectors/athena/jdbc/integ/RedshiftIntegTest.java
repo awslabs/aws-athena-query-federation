@@ -109,7 +109,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
     @Override
     protected void setUpStackData(final Stack stack)
     {
-        ConnectorVpcAttributes vpcAttributes = ((ConnectorWithVpcStack) stack).getConnectorVpcAttributes();
+        ConnectorVpcAttributes vpcAttributes = getVpcAttributes();
 
         Cluster.Builder.create(stack, "RedshiftCluster")
                 .publiclyAccessible(Boolean.TRUE)
@@ -136,24 +136,11 @@ public class RedshiftIntegTest extends IntegrationTestBase
     }
 
     /**
-     * This connector supports a VPC configuration.
-     * @return true
-     */
-    @Override
-    protected boolean connectorSupportsVpcConfig()
-    {
-        return true;
-    }
-
-    /**
      * Sets up the DB tables used by the tests.
      */
     @Override
     protected void setUpTableData()
     {
-        setUpMoviesTable();
-        setUpBdayTable();
-
         try {
             logger.info("Allowing Redshift cluster to fully warm up - Sleeping for 2 min...");
             Thread.sleep(sleepDelayMillis);
@@ -161,6 +148,8 @@ public class RedshiftIntegTest extends IntegrationTestBase
         catch (InterruptedException e) {
             throw new RuntimeException("Thread.sleep interrupted: " + e.getMessage(), e);
         }
+        setUpMoviesTable();
+        setUpBdayTable();
     }
 
     /**

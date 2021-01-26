@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
-import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
@@ -42,60 +41,48 @@ public class ConnectorStackAttributesProvider
     private final Construct scope;
     private final String id;
     private final String lambdaFunctionName;
+    private final Map<String, Object> testConfig;
     private final Optional<PolicyDocument> connectorAccessPolicy;
     private final Map<String, String> environmentVariables;
     private final ConnectorPackagingAttributes connectorPackagingAttributes;
     private final Optional<ConnectorVpcAttributes> connectorVpcAttributes;
 
     protected ConnectorStackAttributesProvider(final Construct scope, final String id, final String lambdaFunctionName,
+                                               final Map<String, Object> testConfig,
                                                final Optional<PolicyDocument> connectorAccessPolicy,
                                                final Map<String, String> environmentVariables,
-                                               boolean isSupportedVpcConfig)
+                                               Optional<ConnectorVpcAttributes> vpcAttributes)
     {
         this.scope = scope;
         this.id = id;
         this.lambdaFunctionName = lambdaFunctionName;
+        this.testConfig = testConfig;
         this.connectorAccessPolicy = connectorAccessPolicy;
         this.environmentVariables = environmentVariables;
         this.connectorPackagingAttributes = ConnectorPackagingAttributesProvider.getAttributes();
-        this.connectorVpcAttributes = getVpcAttributes(isSupportedVpcConfig);
+        this.connectorVpcAttributes = vpcAttributes;
 
         setUpEnvironmentVars();
-    }
-
-    /**
-     * Gets the default VPC configuration used for configuring the Lambda function.
-     * @param isSupportedVpcConfig Indicates whether a VPC configuration is supported for this connector.
-     * @return Optional VPC attributes (VPC Id, Security group Id, Subnet Ids, and Availability zones) if a VPC
-     * configuration is supported for this connector.
-     * @throws RuntimeException Errors were encountered trying ot obtain the VPC configuration.
-     */
-    private Optional<ConnectorVpcAttributes> getVpcAttributes(boolean isSupportedVpcConfig)
-            throws RuntimeException
-    {
-        if (isSupportedVpcConfig) {
-            try (ConnectorVpcAttributesProvider attributesProvider = new ConnectorVpcAttributesProvider()) {
-                return Optional.of(attributesProvider.getAttributes());
-            }
-            catch (Exception e) {
-                throw new RuntimeException("Unable to get VPC Attributes: " + e.getMessage(), e);
-            }
-        }
-
-        return Optional.empty();
     }
 
     /**
      * Sets defaults for environment variables (spill_bucket, spill_prefix, disable_spill_encryption) if not provided
      * by connector.
      * @return A Map containing the environment variables key-value pairs.
+     * @throws RuntimeException The spill_bucket is neither specified in the environment vars nor the test config file.
      */
     private void setUpEnvironmentVars()
+            throws RuntimeException
     {
         // Check for missing spill_bucket
         if (!environmentVariables.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
-            // Add missing spill_bucket environment variable
-            environmentVariables.put(LAMBDA_SPILL_BUCKET_TAG, connectorPackagingAttributes.getS3Bucket());
+            // Add missing spill_bucket environment variable from test config file
+            Object spillBucket = testConfig.get(LAMBDA_SPILL_BUCKET_TAG);
+            if (!(spillBucket instanceof String) || ((String) spillBucket).isEmpty()) {
+                throw new RuntimeException(
+                        "spill_bucket must be specified in environment var or test-config.json.");
+            }
+            environmentVariables.put(LAMBDA_SPILL_BUCKET_TAG, (String) spillBucket);
         }
 
         // Check for missing spill_prefix

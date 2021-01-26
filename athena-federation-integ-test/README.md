@@ -91,33 +91,45 @@ Provide implementation for the following 4 abstract methods in the test class:
     protected abstract Optional<PolicyDocument> getConnectorAccessPolicy();
 ```
 
+### Test Configuration
+
+The Integration-Test framework uses several configurable attributes to set up the test resources (e.g. a spill bucket,
+Athena work-group, etc...) Those attributes must be placed in the connectors' root directory in the `test-config.json`
+JSON file:
+```json
+{
+  "athena_work_group" : "FederationIntegrationTests",
+  "spill_bucket" : "my-spill-bucket",
+  "vpc_id" : "vpc-xxx",
+  "security_group_id" : "sg-xxx",
+  "subnet_ids" : ["subnet-xxx", "subnet-xxx", "subnet-xxx"],
+  "availability_zones" : ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+```
+By default `athena_work_group` is set to `FederationIntegrationTests`, but can be overridden to the user's
+specific work group in the config file. If the value is left empty or is removed, the integration test framework will
+throw a `RuntimeException`. The same is true for the `spill_bucket` attribute. The VPC attributes are optional and will
+be discussed in the next section.
+
 ### VPC Configuration
 
-The Integration-Test module can be adapted to test connectors that utilize a VPC configuration to connect to the data
-source. The framework can detect the default VPC configuration set in the specified AWS account and use it to configure
-the Lambda function. In order for the latter to be able to connect to the data source, however, the same VPC configuration
-must be set when provisioning the DB instance.
-
-To use a VPC configuration, the following method must be overridden in your integration test class to `return true`
-(default is false):
+The Integration-Test framework can be adapted to test connectors that utilize a VPC configuration to connect to the data
+source. The test configuration file `test-config.json` contains several configurable attributes to accomplish just that:
+`vpc_id`, `security_group_id`, `subnet_ids`, and `availability_zones`. In order for the connector to be able to connect
+to the data source, however, the same VPC configuration must be set when provisioning the DB instance. To that end,
+the Integration-Test framework provides the following public API allowing access to the VPC attributes:
 
 ```java
-    /**
-     * Must be overridden in the extending class when the connector supports a VPC configuration.
-     * @return false (default)
-     */
-    protected boolean connectorSupportsVpcConfig()
+/**
+ * Gets the VPC attributes used in generating the lambda function.
+ * @return The VPC attributes object.
+ * @throws RuntimeException The VPC attributes are no present in test-config.json
+ */
+public ConnectorVpcAttributes getVpcAttributes()
+        throws RuntimeException
 ```
-Access to the VPC configuration (VPC Id, Security Group Id, Subnet Ids, and Availability Zones) can be obtained via the
-Stack object:
-
-```java
-    @Override
-    protected void setUpStackData(final Stack stack)
-    {
-        ConnectorVpcAttributes vpcAttributes = ((ConnectorWithVpcStack) stack).getConnectorVpcAttributes();
-        ...
-```
+**Note**: If the VPC attributes have not been set in `test-config.json`, the method above will generate a
+`RuntimeException`.
 
 ### Integration-Test Public APIs
 
@@ -176,12 +188,10 @@ the first time, and each time the connector's code changes:
 1. From the **athena-federation-sdk** dir, run `mvn clean install` if you haven't done so already.
 2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't done so already.
 3. From your connector's dir, run `mvn clean install`.
-4. Export the IAM credentials for the AWS account used for testing purposes. The account's Athena console should have
-   `FederationIntegrationTests` Workgroup defined and set to `Athena engine version 2` (for more information on the
-   latter, see [Athena Engine Versioning](https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html)).
+4. Export the IAM credentials for the AWS account used for testing purposes.
 5. Package the connector (from the connector's directory):
 `sam package --template-file <connector.yaml> --output-template-file packaged.yaml
---s3-bucket <spill-bucket> --region <region> --force-upload`
+--s3-bucket <s3-bucket> --region <region> --force-upload`
 
 ### Running Integration Tests
 
