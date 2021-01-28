@@ -64,9 +64,9 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
-            <groupId>com.vertica</groupId>
-            <artifactId>vjdbc9</artifactId>
-            <version>9.1.1</version>
+            <groupId>com.vertica.jdbc</groupId>
+            <artifactId>vertica-jdbc</artifactId>
+            <version>10.0.1-0</version>
         </dependency>
         <dependency>
             <groupId>org.antlr</groupId>
