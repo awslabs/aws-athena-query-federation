@@ -186,7 +186,7 @@ public class VerticaExportQueryBuilder {
 
     protected String castTimestamp(String name)
     {
-        ST castFieldST = new ST("CAST(<name> AS VARCHAR AS <name>)");
+        ST castFieldST = new ST("CAST(<name> AS VARCHAR) AS <name>");
         castFieldST.add("name", name);
         return castFieldST.render();
     }
