@@ -194,6 +194,9 @@ public class VerticaExportQueryBuilder {
     //build the Vertica SQL to set the AWS Region
     public String buildSetAwsRegionSql(String awsRegion)
     {
+        if (awsRegion == null || awsRegion.equals("")) { 
+            awsRegion = "us-east-1"; 
+        }
         ST regionST=  new ST("ALTER SESSION SET AWSRegion='<defaultRegion>'") ;
         regionST.add("defaultRegion", awsRegion);
         return regionST.render();
