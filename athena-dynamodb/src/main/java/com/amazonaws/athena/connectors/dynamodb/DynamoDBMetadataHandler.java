@@ -42,6 +42,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
+import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBTableResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
@@ -77,6 +78,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
@@ -267,7 +269,9 @@ public class DynamoDBMetadataHandler
         // add table name so we don't have to do case insensitive resolution again
         partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
-        DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
+        List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
+        DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
+        logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
         List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
@@ -283,7 +287,7 @@ public class DynamoDBMetadataHandler
             partitionSchemaBuilder.addMetadata(HASH_KEY_NAME_METADATA, hashKeyName);
             columnsToIgnore.add(hashKeyName);
             partitionSchemaBuilder.addMetadata(PARTITION_TYPE_METADATA, QUERY_PARTITION_TYPE);
-            if (!table.equals(index)) {
+            if (!table.getName().equals(index.getName())) {
                 partitionSchemaBuilder.addMetadata(INDEX_METADATA, index.getName());
             }
 
@@ -331,7 +335,9 @@ public class DynamoDBMetadataHandler
         }
         DynamoDBTable table = tableResolver.getTableMetadata(tableName);
         Map<String, ValueSet> summary = request.getConstraints().getSummary();
-        DynamoDBTable index = DDBPredicateUtils.getBestIndexForPredicates(table, summary);
+        List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
+        DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
+        logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
         List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();

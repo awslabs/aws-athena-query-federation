@@ -263,7 +263,7 @@ public class BlockUtils
                                 new org.joda.time.DateTime(((Date) value).getTime()));
                         ((DateDayVector) vector).setSafe(pos, days.getDays());
                     }
-                    if (value instanceof LocalDate) {
+                    else if (value instanceof LocalDate) {
                         int days = (int) ((LocalDate) value).toEpochDay();
                         ((DateDayVector) vector).setSafe(pos, days);
                     }

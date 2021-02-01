@@ -20,9 +20,11 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.joda.time.LocalDate;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -155,5 +157,18 @@ public class BlockUtilsTest
         assertTrue(actual.contains(expectedRows));
         assertTrue(actual.contains(expectedCol1));
         assertTrue(actual.contains(expectedCol2));
+    }
+
+    @Test
+    public void canSetDate()
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addField("col1", new ArrowType.Date(DateUnit.DAY))
+                .build();
+
+        Date date = LocalDate.parse("1998-1-1").toDate();
+
+        Block block = allocator.createBlock(schema);
+        BlockUtils.setValue(block.getFieldVector("col1"), 0, date);
     }
 }
