@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,6 +40,7 @@ public class VerticaConnectionFactory
 {
     private static final Logger logger = LoggerFactory.getLogger(VerticaConnectionFactory.class);
     private final Map<String, Connection> clientCache = new HashMap<>();
+    private final int CONNECTION_TIMEOUT = 60;
 
     /**
      * Used to get an existing, pooled, connection or to create a new connection
@@ -54,11 +56,10 @@ public class VerticaConnectionFactory
             Class.forName("com.vertica.jdbc.Driver").newInstance();
             result = clientCache.get(connStr);
 
-        if (result == null) {
+        if (result == null || !connectionTest(result)) {
             logger.info("Unable to reuse an existing connection, creating a new one.");
             result = DriverManager.getConnection(connStr);
             clientCache.put(connStr, result);
-
             }
         }
         catch (Exception e)
@@ -67,6 +68,20 @@ public class VerticaConnectionFactory
         }
 
         return result;
+    }
+
+    /**
+     * Runs a 'quick' test on the connection and then returns it if it passes.
+     */
+    private boolean connectionTest(Connection conn) throws SQLException {
+        try {
+            conn.isValid(CONNECTION_TIMEOUT);
+            return true;
+        }
+        catch (RuntimeException | SQLException ex) {
+            logger.warn("getOrCreateConn: Exception while testing existing connection.", ex);
+        }
+        return false;
     }
 
     /**

@@ -132,25 +132,16 @@ We support two ways to input database user name and password:
 To use the Amazon Athena Vertica Connector in your queries build and deploy this connector from source follow the below steps:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-2. From the athena-jdbc dir, run `mvn clean install`.
-3. From the athena-jdbc dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-jdbc` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+2. From the athena-vertica dir, run `mvn clean install`.
+3. From the athena-vertica dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-vertica` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
-### Vertica Driver installation
+### Vertica Drivers
 
-You need to install the Vertica Driver from [this](https://www.vertica.com/download/vertica/client-drivers/) location.
-Code to install the driver:
-```
-mvn install:install-file \
-   -Dfile=<path-to-file> \
-   -DgroupId=<group-id> \
-   -DartifactId=<artifact-id> \
-   -Dversion=<version> \
-   -Dpackaging=<packaging> \
-   -DgeneratePom=true
-```
+The POM references the Vertica drivers hosted in Maven Central repository.
+
 
 ### Limitations
-1. The A/V connector uses S3 Select internally to read the parquet files from S3, this will cause slow performance of the connector. It is recommended to use a `CREATE TABLE AS (SELECT ..)` when querying large tables
+1. The A/V connector uses S3 Select internally to read the parquet files from S3, this will cause slow performance of the connector. It is recommended to use a `CREATE TABLE AS (SELECT ..)`  and use SQL predicates when querying large tables
 2. Currently, due to a bug in Athena Federated Query, the connector will cause Vertica to export ALL the columns of the queried table to S3 but only the queried columns will be visible in the results on Athena console
 3. Write DDL operations are not supported
 4. Any relevant AWS Lambda limits

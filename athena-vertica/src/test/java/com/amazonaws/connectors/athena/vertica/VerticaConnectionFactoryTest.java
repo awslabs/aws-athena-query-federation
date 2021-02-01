@@ -24,13 +24,12 @@ import org.junit.Test;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class VerticaConnectionFactoryTest {
     private VerticaConnectionFactory connectionFactory;
+    private int CONNECTION_TIMEOUT = 60;
 
     @Before
     public void setUp()
@@ -42,7 +41,7 @@ public class VerticaConnectionFactoryTest {
     public void clientCacheTest() throws SQLException
     {
         Connection mockConnection =  mock(Connection.class);
-        when(mockConnection.isValid(5)).thenReturn(true);
+        when(mockConnection.isValid(CONNECTION_TIMEOUT)).thenReturn(true);
 
         connectionFactory.addConnection("conStr", mockConnection);
         Connection connection = connectionFactory.getOrCreateConn("conStr");
