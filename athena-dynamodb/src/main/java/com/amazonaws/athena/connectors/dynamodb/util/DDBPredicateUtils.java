@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,16 +23,20 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -51,49 +55,58 @@ public class DDBPredicateUtils
     private static final Joiner OR_JOINER = Joiner.on(" OR ");
 
     /**
-     * Attempts to pick an optimal index (if any) from the given predicates. Returns the original table if
+     * Attempts to pick an optimal index (if any) from the given predicates. Returns the original table index if
      * one was not found.
      *
      * @param table the original table
      * @param predicates the predicates
-     * @return the optimal index if found, otherwise the original table
+     * @return the optimal index if found, otherwise the original table index
      */
-    public static DynamoDBTable getBestIndexForPredicates(DynamoDBTable table, Map<String, ValueSet> predicates)
+    public static DynamoDBIndex getBestIndexForPredicates(DynamoDBTable table, List<String> requestedCols, Map<String, ValueSet> predicates)
     {
         Set<String> columnNames = predicates.keySet();
+        ImmutableList.Builder<DynamoDBIndex> hashKeyMatchesBuilder = ImmutableList.builder();
 
-        ImmutableList.Builder<DynamoDBTable> hashKeyMatchesBuilder = ImmutableList.builder();
+        // create the original table index
+        DynamoDBIndex tableIndex = new DynamoDBIndex(table.getName(), table.getHashKey(), table.getRangeKey(), ProjectionType.ALL, ImmutableList.of());
+
         // if the original table has a hash key matching a predicate, start with that
-        if (columnNames.contains(table.getHashKey())) {
-            hashKeyMatchesBuilder.add(table);
+        if (columnNames.contains(tableIndex.getHashKey())) {
+            // here, treat table as a special index
+            hashKeyMatchesBuilder.add(tableIndex);
         }
 
+        // requested columns must be projected in index
+        List<DynamoDBIndex> candidateIndices = table.getIndexes().stream()
+              .filter(index -> indexContainsAllRequiredColumns(requestedCols, index, table))
+              .collect(Collectors.toList());
+
         // get indices with hash keys that match a predicate
-        table.getIndexes().stream()
+        candidateIndices.stream()
                 .filter(index -> columnNames.contains(index.getHashKey()) && !getHashKeyAttributeValues(predicates.get(index.getHashKey())).isEmpty())
                 .forEach(hashKeyMatchesBuilder::add);
-        List<DynamoDBTable> hashKeyMatches = hashKeyMatchesBuilder.build();
+        List<DynamoDBIndex> hashKeyMatches = hashKeyMatchesBuilder.build();
 
         // if the original table has a range key matching a predicate, start with that
-        ImmutableList.Builder<DynamoDBTable> rangeKeyMatchesBuilder = ImmutableList.builder();
-        if (table.getRangeKey().isPresent() && columnNames.contains(table.getRangeKey().get())) {
-            rangeKeyMatchesBuilder.add(table);
+        ImmutableList.Builder<DynamoDBIndex> rangeKeyMatchesBuilder = ImmutableList.builder();
+        if (tableIndex.getRangeKey().isPresent() && columnNames.contains(tableIndex.getRangeKey().get())) {
+            rangeKeyMatchesBuilder.add(tableIndex);
         }
 
         // get indices with range keys that match a predicate
-        table.getIndexes().stream()
+        candidateIndices.stream()
                 .filter(index -> index.getRangeKey().isPresent() && columnNames.contains(index.getRangeKey().get()))
                 .forEach(rangeKeyMatchesBuilder::add);
-        List<DynamoDBTable> rangeKeyMatches = rangeKeyMatchesBuilder.build();
+        List<DynamoDBIndex> rangeKeyMatches = rangeKeyMatchesBuilder.build();
 
         // return first index where both hash and range key can be specified with predicates
-        for (DynamoDBTable index : hashKeyMatches) {
+        for (DynamoDBIndex index : hashKeyMatches) {
             if (rangeKeyMatches.contains(index)) {
                 return index;
             }
         }
         // else return the first index with a hash key predicate, or the original table if there are none
-        return hashKeyMatches.isEmpty() ? table : hashKeyMatches.get(0);
+        return hashKeyMatches.isEmpty() ? tableIndex : hashKeyMatches.get(0);
     }
 
     /**
@@ -303,5 +316,40 @@ public class DDBPredicateUtils
             return AND_JOINER.join(filters);
         }
         return null;
+    }
+
+    public static boolean indexContainsAllRequiredColumns(List<String> requestedCols, DynamoDBIndex index, DynamoDBTable table)
+    {
+        Set<String> indexColumns = new HashSet<>();
+
+        if (index == null || table == null) {
+            return false;
+        }
+
+        // The partition key and sort key of the table are always projected into the index
+        indexColumns.add(table.getHashKey());
+        if (table.getRangeKey().isPresent()) {
+            indexColumns.add(table.getRangeKey().get());
+        }
+
+        // including partition key and sort key of index
+        indexColumns.add(index.getHashKey());
+        if (index.getRangeKey().isPresent()) {
+            indexColumns.add(index.getRangeKey().get());
+        }
+
+        // including more index columns based on projection type
+        switch (index.getProjectionType()) {
+            case ALL:
+                return true;
+            case INCLUDE:
+                indexColumns.addAll(index.getProjectionAttributeNames());
+                break;
+            case KEYS_ONLY:
+            default:
+                break;
+        }
+
+        return indexColumns.containsAll(requestedCols);
     }
 }
