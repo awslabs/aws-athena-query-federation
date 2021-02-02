@@ -133,7 +133,9 @@ To use the Amazon Athena Vertica Connector in your queries build and deploy this
 
 1. From the athena-federation dir, run `mvn clean install` if you haven't already.
 2. From the athena-vertica dir, run `mvn clean install`.
-3. From the athena-vertica dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-vertica` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+3. From the athena-vertica dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-vertica [region]` to publish the connector to your private AWS Serverless Application Repository. The `S3_BUCKET_NAME` in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+4. Deploy the serverless application following the instructions [here](https://docs.aws.amazon.com/serverlessrepo/latest/devguide/serverlessrepo-how-to-consume.html)
+5. Connect the serverless application with Athena following the instructions [here](https://docs.aws.amazon.com/athena/latest/ug/connect-to-a-data-source-lambda.html)
 
 ### Vertica Drivers
 
