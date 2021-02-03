@@ -1,0 +1,15 @@
+test_template() ::= <%
+    test template for validating file is accessible.
+%>
+
+/**
+ *@UsedBy: VerticaExportQueryBuilder.java
+ *@Description: This template is used to obtain basic details to prepare the export to parquet statement.
+ *@param builder An Instance of VerticaExportQueryBuilder.
+ *@return A query which is used to Export the federated query resultset to a S3 bucket
+ */
+
+templateVerticaExportQuery(builder) ::= <%
+EXPORT TO PARQUET(directory = 's3://<builder.s3ExportBucket>/<builder.queryID>', Compression='snappy', fileSizeMB=16, rowGroupSizeMB=16) AS SELECT <builder.colNames> FROM <builder.table> <builder.constraintValues>
+%>
+
