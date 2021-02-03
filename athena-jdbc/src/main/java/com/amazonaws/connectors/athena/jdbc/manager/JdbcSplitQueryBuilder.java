@@ -163,8 +163,7 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBytes(i + 1, (byte[]) typeAndValue.getValue());
                     break;
                 case DECIMAL:
-                    ArrowType.Decimal decimalType = (ArrowType.Decimal) typeAndValue.getType();
-                    statement.setBigDecimal(i + 1, BigDecimal.valueOf((long) typeAndValue.getValue(), decimalType.getScale()));
+                    statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
                     break;
                 default:
                     throw new UnsupportedOperationException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType));
