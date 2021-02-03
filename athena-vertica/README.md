@@ -2,8 +2,6 @@
 
 This connector enables Amazon Athena to communicate with your Vertica Database instance(s), making your Vertica data accessible via SQL.
 
-**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup. Also the IAM Role of the EC2 machines hosting the Vertica Database should be given write permissions to Export S3 bucket.**
-
 ### Design
 
 ![Alt text](av.jpg "Architecture")
