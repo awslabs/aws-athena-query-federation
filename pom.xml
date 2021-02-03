@@ -59,6 +59,7 @@
         <module>athena-jdbc</module>
         <module>athena-federation-sdk-tools</module>
         <module>athena-udfs</module>
+        <module>athena-vertica</module>
         <module>athena-timestream</module>
         <module>athena-neptune</module>
         <module>athena-federation-integ-test</module>
