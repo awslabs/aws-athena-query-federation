@@ -162,8 +162,7 @@ public class SapHanaMetadataHandler
             locationReader.setPosition(curPartition);
 
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
-
-
+            
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                     .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(locationReader.readText()));
 

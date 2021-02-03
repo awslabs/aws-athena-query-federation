@@ -85,8 +85,6 @@ public class SapHanaRecordHandler
             throws SQLException
     {
         PreparedStatement preparedStatement = jdbcSplitQueryBuilder.buildSql(jdbcConnection, null, tableName.getSchemaName().toUpperCase(), tableName.getTableName().toUpperCase(), schema, constraints, split);
-
-
         return preparedStatement;
     }
 }
