@@ -56,12 +56,14 @@ public class RedshiftIntegTest extends IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftIntegTest.class);
 
-    private static final String REDSHIFT_DB_NAME = "public";
-    private static final String REDSHIFT_DB_PORT = "5439";
-    private static final String REDSHIFT_DB_USERNAME = "integusername";
-    private static final String REDSHIFT_DB_PASSWORD = "IntegPassword1";
-    private static final String REDSHIFT_TABLE_MOVIES = "movies";
-    private static final String REDSHIFT_TABLE_BDAY = "bday";
+    Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
+            new RuntimeException("user_settings attribute must be provided in test-config.json."));
+    private final String redshiftDbName = userSettings.get("redshift_db_name");
+    private final String redshiftDbPort = userSettings.get("redshift_db_port");
+    private final String redshiftDbUsername = userSettings.get("redshift_db_username");
+    private final String redshiftDbPassword = userSettings.get("redshift_db_password");
+    private final String redshiftTableMovies = userSettings.get("redshift_table_movies");
+    private final String redshiftTableBday = userSettings.get("redshift_table_bday");
 
     private static final long sleepDelayMillis = 120_000L;
 
@@ -74,9 +76,9 @@ public class RedshiftIntegTest extends IntegrationTestBase
     {
         lambdaFunctionName = getLambdaFunctionName();
         clusterName = "redshift-" + UUID.randomUUID();
-        clusterEndpoint = clusterName + ".c9afbdb0synx.us-east-1.redshift.amazonaws.com";
+        clusterEndpoint = clusterName + userSettings.get("redshift_db_domain_suffix");
         String connectionString = String.format("redshift://jdbc:redshift://%s:%s/%s?user=%s&password=%s",
-                clusterEndpoint, REDSHIFT_DB_PORT, REDSHIFT_DB_NAME, REDSHIFT_DB_USERNAME, REDSHIFT_DB_PASSWORD);
+                clusterEndpoint, redshiftDbPort, redshiftDbName, redshiftDbUsername, redshiftDbPassword);
         String connectionStringTag = lambdaFunctionName + "_connection_string";
         environmentVars = ImmutableMap.of("default", connectionString, connectionStringTag, connectionString);
     }
@@ -109,21 +111,22 @@ public class RedshiftIntegTest extends IntegrationTestBase
     @Override
     protected void setUpStackData(final Stack stack)
     {
-        ConnectorVpcAttributes vpcAttributes = getVpcAttributes();
+        ConnectorVpcAttributes vpcAttributes = getVpcAttributes()
+                .orElseThrow(() -> new RuntimeException("vpc_configuration must be specified in test-config.json"));
 
         Cluster.Builder.create(stack, "RedshiftCluster")
                 .publiclyAccessible(Boolean.TRUE)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .encrypted(Boolean.FALSE)
-                .port(Integer.parseInt(REDSHIFT_DB_PORT))
+                .port(Integer.parseInt(redshiftDbPort))
                 .clusterName(clusterName)
                 .clusterType(ClusterType.SINGLE_NODE)
                 .nodeType(NodeType.DC2_LARGE)
                 .numberOfNodes(1)
-                .defaultDatabaseName(REDSHIFT_DB_NAME)
+                .defaultDatabaseName(redshiftDbName)
                 .masterUser(Login.builder()
-                        .masterUsername(REDSHIFT_DB_USERNAME)
-                        .masterPassword(SecretValue.plainText(REDSHIFT_DB_PASSWORD))
+                        .masterUsername(redshiftDbUsername)
+                        .masterPassword(SecretValue.plainText(redshiftDbPassword))
                         .build())
                 .vpc(Vpc.fromVpcAttributes(stack, "RedshiftVpcConfig", VpcAttributes.builder()
                         .vpcId(vpcAttributes.getVpcId())
@@ -158,11 +161,10 @@ public class RedshiftIntegTest extends IntegrationTestBase
     private void setUpMoviesTable()
     {
         logger.info("----------------------------------------------------");
-        logger.info("Setting up DB table: {}", REDSHIFT_TABLE_MOVIES);
+        logger.info("Setting up DB table: {}", redshiftTableMovies);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, REDSHIFT_TABLE_MOVIES,
-                environmentVars);
+        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, redshiftTableMovies, environmentVars);
         moviesTable.createTable("year int, title varchar, director varchar, lead varchar");
         moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', 'Matthew McConaughey'");
         moviesTable.insertRow("1986, 'Aliens', 'James Cameron', 'Sigourney Weaver'");
@@ -175,11 +177,10 @@ public class RedshiftIntegTest extends IntegrationTestBase
     private void setUpBdayTable()
     {
         logger.info("----------------------------------------------------");
-        logger.info("Setting up DB table: {}", REDSHIFT_TABLE_BDAY);
+        logger.info("Setting up DB table: {}", redshiftTableBday);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName, REDSHIFT_TABLE_BDAY,
-                environmentVars);
+        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName, redshiftTableBday, environmentVars);
         bdayTable.createTable("first_name varchar, last_name varchar, birthday date");
         bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')");
         bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')");
@@ -195,7 +196,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         List dbNames = listDatabases();
         logger.info("Databases: {}", dbNames);
-        assertTrue("DB not found.", dbNames.contains(REDSHIFT_DB_NAME));
+        assertTrue("DB not found.", dbNames.contains(redshiftDbName));
     }
 
     @Test
@@ -205,13 +206,13 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Executing listTablesIntegTest");
         logger.info("-----------------------------------");
 
-        List tableNames = listTables(REDSHIFT_DB_NAME);
+        List tableNames = listTables(redshiftDbName);
         logger.info("Tables: {}", tableNames);
         assertEquals("Incorrect number of tables found.", 2, tableNames.size());
-        assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_MOVIES),
-                tableNames.contains(REDSHIFT_TABLE_MOVIES));
-        assertTrue(String.format("Table not found: %s.", REDSHIFT_TABLE_BDAY),
-                tableNames.contains(REDSHIFT_TABLE_BDAY));
+        assertTrue(String.format("Table not found: %s.", redshiftTableMovies),
+                tableNames.contains(redshiftTableMovies));
+        assertTrue(String.format("Table not found: %s.", redshiftTableBday),
+                tableNames.contains(redshiftTableBday));
     }
 
     @Test
@@ -221,7 +222,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Executing listTableSchemaIntegTest");
         logger.info("--------------------------------------");
 
-        Map schema = describeTable(REDSHIFT_DB_NAME, REDSHIFT_TABLE_MOVIES);
+        Map schema = describeTable(redshiftDbName, redshiftTableMovies);
         schema.remove("partition_name");
         schema.remove("partition_schema_name");
         logger.info("Schema: {}", schema);
@@ -244,7 +245,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
-                lambdaFunctionName, REDSHIFT_DB_NAME, REDSHIFT_TABLE_MOVIES);
+                lambdaFunctionName, redshiftDbName, redshiftTableMovies);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -266,7 +267,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         String query = String.format(
                 "select first_name from %s.%s.%s where birthday between date('2003-1-1') and date('2005-12-31');",
-                lambdaFunctionName, REDSHIFT_DB_NAME, REDSHIFT_TABLE_BDAY);
+                lambdaFunctionName, redshiftDbName, redshiftTableBday);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row

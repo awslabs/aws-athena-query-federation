@@ -53,7 +53,10 @@ Review the "Policies" section of the athena-dynamodb.yaml file for full details 
 
 ### Running Integration Tests
 
-See [Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests).
+Integration tests can be executed by specifying the following command: `mvn failsafe:integration-test`
+(see [Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests)).
+In order for the tests to run successfully, however, some test configuration attributes must be provided in the `etc/test-config.json`
+JSON file (for additional information see the README in the [Integration-Test Module](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md)).
 
 ### Deploying The Connector
 
@@ -61,7 +64,8 @@ To use this connector in your queries, navigate to AWS Serverless Application Re
 source follow the below steps or use the more detailed tutorial in the athena-example module:
 
 1. From the **athena-federation-sdk** dir, run `mvn clean install` if you haven't already.
-2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't already.
+2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't already
+   (**Note: failure to follow this step will result in compilation errors**).
 3. From the **athena-dynamodb** dir, run `mvn clean install`.
 4. From the **athena-dynamodb** dir, run  `../tools/publish.sh S3_BUCKET_NAME athena-dynamodb` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command
 is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the

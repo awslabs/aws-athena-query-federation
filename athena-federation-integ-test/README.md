@@ -1,17 +1,17 @@
-# Integration-Test Module
+# Integration-Test Framework
 
-The Integration-Test module provides end-to-end testing capabilities, and is available
+The Integration-Test framework provides end-to-end testing capabilities, and is available
 to all lambda connectors developed using the Athena Federation SDK.
 
 ## How It Works
 
 In order to test the connectors end-to-end, several infrastructure resources need to be
-provisioned and deployed (e.g. DB instance, Lambda function, etc...) This module accomplishes
+provisioned and deployed (e.g. DB instance, Lambda function, etc...) This framework accomplishes
 that by allowing AWS CloudFormation to manage the infrastructure resources. All an
 integration-test writer needs to do is provide an implementation for a handful of functions,
-and the Integration-Test module will do the rest.
+and the Integration-Test framework will do the rest.
 
-This module provides the following benefits:
+This framework provides the following benefits:
 * Automatically provisions all infrastructure resources prior to testing, and de-provisions
 them immediately after.
 * Provides a set of public APIs that can be used to send queries via Athena using the lambda
@@ -20,12 +20,12 @@ connector.
 ## Writing Integration Tests
 
 This section explains the steps necessary to create integration tests using the
-Integration-Test module. For an actual code example, see the DynamoDB connector
+Integration-Test framework. For an actual code example, see the DynamoDB connector
 [DynamoDbIntegTest integration-test class](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDbIntegTest.java).
 
 ### Dependencies
 
-Add the Integration-Test module as a test dependency in the specific connector's `pom.xml` file (replace `2020.46.1`
+Add the Integration-Test framework as a test dependency in the specific connector's `pom.xml` file (replace `2020.46.1`
 with current version):
 
 ```xml
@@ -76,10 +76,10 @@ Provide implementation for the following 4 abstract methods in the test class:
     protected abstract void setUpStackData(final Stack stack);
 
     /**
-     * Must be overridden in the extending class to set the lambda function's environment variables key-value pairs
-     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables. This method
-     * can be a no-op in the extending class since some environment variables are set by default (spill_bucket,
-     * spill_prefix, and disable_spill_encryption).
+     * Must be overridden in the extending class (can be a no-op) to set the lambda function's environment variables
+     * key-value pairs (e.g. "connection_string":"redshift://jdbc:redshift://..."). See individual connector for the
+     * expected environment variables. This method is intended to supplement the test-config.json file environment_vars
+     * attribute (see below) for cases where the environment variable cannot be hardcoded.
      */
     protected abstract void setConnectorEnvironmentVars(final Map<String, String> environmentVars);
 
@@ -94,22 +94,54 @@ Provide implementation for the following 4 abstract methods in the test class:
 ### Test Configuration
 
 The Integration-Test framework uses several configurable attributes to set up the test resources (e.g. a spill bucket,
-Athena work-group, etc...) Those attributes must be placed in the connectors' root directory in the `test-config.json`
-JSON file:
+Athena work-group, etc...) Those attributes must be placed in the connectors' `etc/test-config.json` JSON file:
 ```json
 {
   "athena_work_group" : "FederationIntegrationTests",
-  "spill_bucket" : "my-spill-bucket",
-  "vpc_id" : "vpc-xxx",
-  "security_group_id" : "sg-xxx",
-  "subnet_ids" : ["subnet-xxx", "subnet-xxx", "subnet-xxx"],
-  "availability_zones" : ["us-east-1a", "us-east-1b", "us-east-1c"]
+  "environment_vars" : {
+    "spill_bucket" : "",
+    "spill_prefix" : "athena-spill",
+    "disable_spill_encryption" : "false"
+  },
+  "vpc_configuration" : {
+    "vpc_id": "",
+    "security_group_id": "",
+    "subnet_ids": [],
+    "availability_zones": []
+  },
+  "user_settings" : {}
 }
 ```
-By default `athena_work_group` is set to `FederationIntegrationTests`, but can be overridden to the user's
-specific work group in the config file. If the value is left empty or is removed, the integration test framework will
-throw a `RuntimeException`. The same is true for the `spill_bucket` attribute. The VPC attributes are optional and will
-be discussed in the next section.
+**Test configuration**:
+* **athena_work_group** - The name of the Workgroup associated with the Athena account (default:
+  `FederationIntegrationTests`).
+
+**Environment variables**:
+* **spill_bucket** - The S3 bucket used for spilling excess data.
+* **spill_prefix** - The prefix within the S3 spill bucket (default: `athena-spill`).
+* **disable_spill_encryption** - If set to `true` encryption for spilled data is disabled (default: `false`).
+
+**VPC configuration** (Optional - see additional information in the **VPC Configuration** section):
+* **vpc_id** - The VPC Id (e.g. `"vpc_id": "vpc-xxx"`).
+* **security_group_id** - The Security Group Id (e.g. `"security_group_id": "sg-xxx"`).
+* **subnet_ids** - A list consisting of at least one Subnet Id (e.g. `"subnet_ids": ["subnet-xxx1", "subnet-xxx2"]`).
+* **availability_zones** - A list consisting of at least one AZ (e.g. `"availability_zones": ["us-east-1a", "us-east-1b"]`).
+
+**User settings**: (Optional)
+User customizable Map that contains user-specific attributes (e.g. `"user_settings": {"redshift_table_movies": "movies"}`). Because the Map
+is constructed from a JSON structure and returned as Map<String, Object>, it can contain different type of attributes
+ranging from a single value, a list of values, to even a nested structure. the Integration-Test framework provides the
+following public API allowing access to the `user_settings` attribute:
+
+```java
+    /**
+     * Public accessor for the user_settings attribute (stored in the test-config.json file) that are customizable to
+     * any user-specific purpose.
+     * @return Optional Map(String, Object) containing all the user attributes as defined in the test configuration file,
+     * or an empty Optional if the user_settings attribute does not exist in the file.
+     */
+    public Optional<Map> getUserSettings()
+```
 
 ### VPC Configuration
 
@@ -120,25 +152,21 @@ to the data source, however, the same VPC configuration must be set when provisi
 the Integration-Test framework provides the following public API allowing access to the VPC attributes:
 
 ```java
-/**
- * Gets the VPC attributes used in generating the lambda function.
- * @return The VPC attributes object.
- * @throws RuntimeException The VPC attributes are no present in test-config.json
- */
-public ConnectorVpcAttributes getVpcAttributes()
-        throws RuntimeException
+    /**
+     * Public accessor for the VPC attributes used in generating the lambda function.
+     * @return Optional VPC attributes object.
+     */
+    public Optional<ConnectorVpcAttributes> getVpcAttributes()
 ```
-**Note**: If the VPC attributes have not been set in `test-config.json`, the method above will generate a
-`RuntimeException`.
 
 ### Integration-Test Public APIs
 
-The Integration-Test module provides the following 5 public APIs that can be used to send DB
+The Integration-Test framework provides the following 5 public APIs that can be used to send DB
 queries as part of the tests' execution:
 
 ```java
     /**
-     * Gets the name of the lambda function generated by the Integration-Test module.
+     * Gets the name of the lambda function generated by the Integration-Test framework.
      * @return The name of the lambda function.
      */
     public String getLambdaFunctionName()
@@ -186,7 +214,8 @@ The following commands should be sent after cloning the Federation GitHub reposi
 the first time, and each time the connector's code changes:
 
 1. From the **athena-federation-sdk** dir, run `mvn clean install` if you haven't done so already.
-2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't done so already.
+2. From the **athena-federation-integ-test** dir, run `mvn clean install` if you haven't done so already
+   (**Note: failure to follow this step will result in compilation errors**).
 3. From your connector's dir, run `mvn clean install`.
 4. Export the IAM credentials for the AWS account used for testing purposes.
 5. Package the connector (from the connector's directory):

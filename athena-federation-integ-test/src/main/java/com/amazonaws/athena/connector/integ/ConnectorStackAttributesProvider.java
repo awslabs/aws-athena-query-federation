@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.integ;
 import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
+import com.amazonaws.athena.connector.integ.providers.ConnectorEnvironmentVarsProvider;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
 import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
 import software.amazon.awscdk.core.Construct;
@@ -35,10 +36,6 @@ import java.util.Optional;
  */
 public class ConnectorStackAttributesProvider
 {
-    private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
-    private static final String LAMBDA_SPILL_PREFIX_TAG = "spill_prefix";
-    private static final String LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG = "disable_spill_encryption";
-
     private final Construct scope;
     private final String id;
     private final String lambdaFunctionName;
@@ -58,44 +55,10 @@ public class ConnectorStackAttributesProvider
         this.lambdaFunctionName = lambdaFunctionName;
         this.testConfig = testConfig;
         this.connectorAccessPolicy = connectorAccessPolicy;
-        this.environmentVariables = environmentVariables;
         this.connectorPackagingAttributes = ConnectorPackagingAttributesProvider.getAttributes();
         this.connectorVpcAttributes = ConnectorVpcAttributesProvider.getAttributes(testConfig);
-
-        setUpEnvironmentVars();
-    }
-
-    /**
-     * Sets defaults for environment variables (spill_bucket, spill_prefix, disable_spill_encryption) if not provided
-     * by connector.
-     * @return A Map containing the environment variables key-value pairs.
-     * @throws RuntimeException The spill_bucket is neither specified in the environment vars nor the test config file.
-     */
-    private void setUpEnvironmentVars()
-            throws RuntimeException
-    {
-        // Check for missing spill_bucket
-        if (!environmentVariables.containsKey(LAMBDA_SPILL_BUCKET_TAG)) {
-            // Add missing spill_bucket environment variable from test config file
-            Object spillBucket = testConfig.get(LAMBDA_SPILL_BUCKET_TAG);
-            if (!(spillBucket instanceof String) || ((String) spillBucket).isEmpty()) {
-                throw new RuntimeException(
-                        "spill_bucket must be specified in environment var or test-config.json.");
-            }
-            environmentVariables.put(LAMBDA_SPILL_BUCKET_TAG, (String) spillBucket);
-        }
-
-        // Check for missing spill_prefix
-        if (!environmentVariables.containsKey(LAMBDA_SPILL_PREFIX_TAG)) {
-            // Add missing spill_prefix environment variable
-            environmentVariables.put(LAMBDA_SPILL_PREFIX_TAG, "athena-spill");
-        }
-
-        // Check for missing disable_spill_encryption environment variable
-        if (!environmentVariables.containsKey(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG)) {
-            // Add missing disable_spill_encryption environment variable
-            environmentVariables.put(LAMBDA_DISABLE_SPILL_ENCRYPTION_TAG, "false");
-        }
+        this.environmentVariables = ConnectorEnvironmentVarsProvider.getVars(testConfig);
+        this.environmentVariables.putAll(environmentVariables);
     }
 
     /**

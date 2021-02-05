@@ -53,8 +53,9 @@ public abstract class IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
 
-    private static final String TEST_CONFIG_FILE_NAME = "test-config.json";
+    private static final String TEST_CONFIG_FILE_NAME = "etc/test-config.json";
     private static final String TEST_CONFIG_WORK_GROUP = "athena_work_group";
+    private static final String TEST_CONFIG_USER_SETTINGS = "user_settings";
     private static final String ATHENA_FEDERATION_WORK_GROUP = "FederationIntegrationTests";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
@@ -124,14 +125,22 @@ public abstract class IntegrationTestBase
 
     /**
      * Public accessor for the VPC attributes used in generating the lambda function.
-     * @return The VPC attributes object.
-     * @throws RuntimeException The VPC attributes are not present in test-config.json
+     * @return Optional VPC attributes object.
      */
-    public ConnectorVpcAttributes getVpcAttributes()
-            throws RuntimeException
+    public Optional<ConnectorVpcAttributes> getVpcAttributes()
     {
-        return vpcAttributes
-                .orElseThrow(() -> new RuntimeException("VPC configuration must be specified in test-config.json"));
+        return vpcAttributes;
+    }
+
+    /**
+     * Public accessor for the user_settings attribute (stored in the test-config.json file) that are customizable to
+     * any user-specific purpose.
+     * @return Optional Map(String, Object) containing all the user attributes as defined in the test configuration file,
+     * or an empty Optional if the user_settings attribute does not exist in the file.
+     */
+    public Optional<Map> getUserSettings()
+    {
+        return Optional.ofNullable((Map) testConfig.get(TEST_CONFIG_USER_SETTINGS));
     }
 
     /**
@@ -147,10 +156,10 @@ public abstract class IntegrationTestBase
     protected abstract void setUpStackData(final Stack stack);
 
     /**
-     * Must be overridden in the extending class to set the lambda function's environment variables key-value pairs
-     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables. This method
-     * can be a no-op in the extending class since some environment variables are set by default (spill_bucket,
-     * spill_prefix, and disable_spill_encryption).
+     * Must be overridden in the extending class (can be a no-op) to set the lambda function's environment variables
+     * key-value pairs (e.g. "connection_string":"redshift://jdbc:redshift://..."). See individual connector for the
+     * expected environment variables. This method is intended to supplement the test-config.json file environment_vars
+     * attribute (see below) for cases where the environment variable cannot be hardcoded.
      */
     protected abstract void setConnectorEnvironmentVars(final Map<String, String> environmentVars);
 

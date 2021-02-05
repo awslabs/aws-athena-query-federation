@@ -1,8 +1,0 @@
-{
-  "athena_work_group" : "FederationIntegrationTests",
-  "spill_bucket" : "",
-  "vpc_id" : "",
-  "security_group_id" : "",
-  "subnet_ids" : [],
-  "availability_zones" : []
-}

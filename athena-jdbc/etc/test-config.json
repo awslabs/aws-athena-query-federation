@@ -1,0 +1,23 @@
+{
+  "athena_work_group" : "FederationIntegrationTests",
+  "environment_vars" : {
+    "spill_bucket" : "",
+    "spill_prefix" : "athena-spill",
+    "disable_spill_encryption" : "false"
+  },
+  "vpc_configuration" : {
+    "vpc_id": "",
+    "security_group_id": "",
+    "subnet_ids": [],
+    "availability_zones": []
+  },
+  "user_settings" : {
+    "redshift_db_name": "public",
+    "redshift_db_port": "5439",
+    "redshift_db_domain_suffix": ".c9afbdb0synx.us-east-1.redshift.amazonaws.com",
+    "redshift_db_username": "integusername",
+    "redshift_db_password": "IntegPassword1",
+    "redshift_table_movies": "movies",
+    "redshift_table_bday": "bday"
+  }
+}

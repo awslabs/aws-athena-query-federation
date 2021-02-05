@@ -69,9 +69,8 @@ public abstract class CloudFormationTemplateProvider
 
     /**
      * Must be overridden to facilitate the setting of the lambda function's environment variables key-value pairs
-     * (e.g. "spill_bucket":"myspillbucket"). See individual connector for expected environment variables. This method
-     * can be a no-op in the extending class since some environment variables are set by default (spill_bucket,
-     * spill_prefix, and disable_spill_encryption).
+     * (e.g. "connection_string":"redshift://jdbc:redshift://..."). See individual connector for the expected list of
+     * environment variables.
      */
     protected abstract void setEnvironmentVars(final Map environmentVars);
 

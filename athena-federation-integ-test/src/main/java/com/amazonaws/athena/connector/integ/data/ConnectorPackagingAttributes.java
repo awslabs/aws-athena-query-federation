@@ -20,7 +20,12 @@
 package com.amazonaws.athena.connector.integ.data;
 
 /**
- * Contains the the connector's packaging attributes.
+ * The Lambda's executable is packaged in an S3 bucket ready to be deployed by the CloudFormation stack (a result of
+ * running `sam package` - see README). This class contains the attributes needed by CloudFormation to find and deploy
+ * the Lambda function.
+ * s3Bucket - The S3 bucket where the packaged Lambda resides.
+ * s3Key - The folder within the s3Bucket.
+ * lambdaFunctionHandler - the handler class for the Lambda (e.g. com.amazonaws.athena.connectors.dynamodb.DynamoDBCompositeHandler).
  */
 public class ConnectorPackagingAttributes
 {

@@ -29,12 +29,14 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Responsible for providing the Connector's VPC attributes used in creating the Connector's stack attributes.
+ * Responsible for providing the Connector's VPC attributes added to the Connector's stack attributes and used
+ * in the creation of the Lambda.
  */
 public class ConnectorVpcAttributesProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(ConnectorVpcAttributesProvider.class);
 
+    private static final String TEST_CONFIG_VPC_CONFIGURATION = "vpc_configuration";
     private static final String TEST_CONFIG_VPC_ID = "vpc_id";
     private static final String TEST_CONFIG_SECURITY_GROUP_ID = "security_group_id";
     private static final String TEST_CONFIG_SUBNET_IDS = "subnet_ids";
@@ -45,35 +47,41 @@ public class ConnectorVpcAttributesProvider
     /**
      * Gets the VPC attributes used for configuring the Lambda function.
      * @param testConfig A Map containing the test configuration attributes extracted from a config file.
-     * @return VPC attributes (VPC Id, Security group Id, Subnet Ids, and Availability zones) if a VPC configuration is
-     * supported for this connector.
-     * @throws RuntimeException Errors were encountered obtaining the VPC configuration.
+     * @return Optional VPC attributes (VPC Id, Security group Id, Subnet Ids, and Availability zones) if the VPC
+     * configurations are included in test-config.json.
      */
     public static Optional<ConnectorVpcAttributes> getAttributes(Map<String, Object> testConfig)
     {
+        // Get VPC configuration.
+        Object vpcConfig = testConfig.get(TEST_CONFIG_VPC_CONFIGURATION);
+        if (!(vpcConfig instanceof Map) || ((Map) vpcConfig).isEmpty()) {
+            logger.info("VPC configuration is not set in test-config.json");
+            return Optional.empty();
+        }
+
         // Get VPC Id.
-        Object vpcId = testConfig.get(TEST_CONFIG_VPC_ID);
+        Object vpcId = ((Map) vpcConfig).get(TEST_CONFIG_VPC_ID);
         if (!(vpcId instanceof String) || ((String) vpcId).isEmpty()) {
             logger.info("VPC Id is not set in test-config.json");
             return Optional.empty();
         }
 
         // Get Security Group Id.
-        Object securityGroupId = testConfig.get(TEST_CONFIG_SECURITY_GROUP_ID);
+        Object securityGroupId = ((Map) vpcConfig).get(TEST_CONFIG_SECURITY_GROUP_ID);
         if (!(securityGroupId instanceof String) || ((String) securityGroupId).isEmpty()) {
             logger.info("Security Group Id is not set in test-config.json");
             return Optional.empty();
         }
 
         // Get Subnet Ids.
-        Object subnetIds = testConfig.get(TEST_CONFIG_SUBNET_IDS);
+        Object subnetIds = ((Map) vpcConfig).get(TEST_CONFIG_SUBNET_IDS);
         if (!(subnetIds instanceof List) || ((List) subnetIds).isEmpty()) {
             logger.info("Subnet Ids are not set in test-config.json");
             return Optional.empty();
         }
 
         // Get Availability Zones.
-        Object availabilityZones = testConfig.get(TEST_CONFIG_AVAILABILITY_ZONES);
+        Object availabilityZones = ((Map) vpcConfig).get(TEST_CONFIG_AVAILABILITY_ZONES);
         if (!(availabilityZones instanceof List) || ((List) availabilityZones).isEmpty()) {
             logger.info("Availability Zones are not set in test-config.json");
             return Optional.empty();

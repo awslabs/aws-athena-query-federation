@@ -1,0 +1,17 @@
+{
+  "athena_work_group" : "FederationIntegrationTests",
+  "environment_vars" : {
+    "spill_bucket" : "",
+    "spill_prefix" : "athena-spill",
+    "disable_spill_encryption" : "false"
+  },
+  "vpc_configuration" : {
+    "vpc_id": "",
+    "security_group_id": "",
+    "subnet_ids": [],
+    "availability_zones": []
+  },
+  "user_settings" : {
+    "dynamodb_db_name": "default"
+  }
+}

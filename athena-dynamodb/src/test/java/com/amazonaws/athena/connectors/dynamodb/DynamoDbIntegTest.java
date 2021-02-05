@@ -44,8 +44,10 @@ import static org.junit.Assert.assertTrue;
  */
 public class DynamoDbIntegTest extends IntegrationTestBase {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDbIntegTest.class);
-    private static final String DATABASE_NAME = "default";
 
+    Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
+            new RuntimeException("user_settings attribute must be provided in test-config.json."));
+    private final String dynamodbDbName = userSettings.get("dynamodb_db_name");
     private final String lambdaFunctionName;
     private final String tableName;
     private final DdbTableUtils ddbTableUtils;
@@ -127,7 +129,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
         logger.info("Executing listTablesIntegTest");
         logger.info("-----------------------------------");
 
-        List tableNames = listTables(DATABASE_NAME);
+        List tableNames = listTables(dynamodbDbName);
         logger.info("Tables: {}", tableNames);
         assertTrue(String.format("Table not found: %s.", tableName), tableNames.contains(tableName));
     }
@@ -139,7 +141,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
         logger.info("Executing describeTableIntegTest");
         logger.info("--------------------------------------");
 
-        Map schema = describeTable(DATABASE_NAME, tableName);
+        Map schema = describeTable(dynamodbDbName, tableName);
         logger.info("Schema: {}", schema);
         assertEquals("Wrong number of columns found.", 3, schema.size());
         assertTrue("Column not found: title", schema.containsKey("title"));
@@ -159,7 +161,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
         logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
-                lambdaFunctionName, DATABASE_NAME, tableName);
+                lambdaFunctionName, dynamodbDbName, tableName);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
