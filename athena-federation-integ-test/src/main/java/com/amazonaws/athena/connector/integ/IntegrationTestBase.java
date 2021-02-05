@@ -56,7 +56,6 @@ public abstract class IntegrationTestBase
     private static final String TEST_CONFIG_FILE_NAME = "etc/test-config.json";
     private static final String TEST_CONFIG_WORK_GROUP = "athena_work_group";
     private static final String TEST_CONFIG_USER_SETTINGS = "user_settings";
-    private static final String ATHENA_FEDERATION_WORK_GROUP = "FederationIntegrationTests";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
     private static final String ATHENA_QUERY_FAILED_STATE = "FAILED";
@@ -69,6 +68,7 @@ public abstract class IntegrationTestBase
     private final AmazonAthena athenaClient;
     private final Map<String, Object> testConfig;
     private final Optional<ConnectorVpcAttributes> vpcAttributes;
+    private final String athenaWorkGroup;
 
     public IntegrationTestBase()
     {
@@ -97,6 +97,7 @@ public abstract class IntegrationTestBase
         lambdaFunctionName = templateProvider.getLambdaFunctionName();
         cloudFormationClient = new CloudFormationClient(templateProvider.getStackName());
         athenaClient = AmazonAthenaClientBuilder.defaultClient();
+        athenaWorkGroup = getAthenaWorkgroup();
     }
 
     /**
@@ -112,6 +113,24 @@ public abstract class IntegrationTestBase
             throw new RuntimeException(String.format("Unable to access or parse test configuration file (%s): %s",
                     TEST_CONFIG_FILE_NAME, e.getMessage()), e);
         }
+    }
+
+    /**
+     * Gets the athena_work_group from the test-config.json JSON file.
+     * @return A String containing the name of the workgroup.
+     * @throws RuntimeException The athena_work_group is missing from test-config.json, or its value is empty.
+     */
+    private String getAthenaWorkgroup()
+            throws RuntimeException
+    {
+        Object athenaWorkgroup = testConfig.get(TEST_CONFIG_WORK_GROUP);
+        if (!(athenaWorkgroup instanceof String) || ((String) athenaWorkgroup).isEmpty()) {
+            throw new RuntimeException("athena_work_group must be specified in test-config.json.");
+        }
+
+        logger.info("Athena Workgroup: {}", athenaWorkgroup);
+
+        return (String) athenaWorkgroup;
     }
 
     /**
@@ -267,17 +286,6 @@ public abstract class IntegrationTestBase
     public GetQueryResultsResult startQueryExecution(String query)
             throws RuntimeException
     {
-        String athenaWorkGroup;
-        Object workGroup = testConfig.get(TEST_CONFIG_WORK_GROUP);
-        // Get the Work Group.
-        if (!(workGroup instanceof String) || ((String) workGroup).isEmpty()) {
-            // Set default Work Group.
-            athenaWorkGroup = ATHENA_FEDERATION_WORK_GROUP;
-        }
-        else {
-            athenaWorkGroup = (String) workGroup;
-        }
-
         StartQueryExecutionRequest startQueryExecutionRequest = new StartQueryExecutionRequest()
                 .withWorkGroup(athenaWorkGroup)
                 .withQueryString(query);
