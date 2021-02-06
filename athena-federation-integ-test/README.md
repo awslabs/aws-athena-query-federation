@@ -6,12 +6,12 @@ to all lambda connectors developed using the Athena Federation SDK.
 ## How It Works
 
 In order to test the connectors end-to-end, several infrastructure resources need to be
-provisioned and deployed (e.g. DB instance, Lambda function, etc...) This framework accomplishes
+provisioned and deployed (e.g. DB instance, Lambda function, etc...) The framework accomplishes
 that by allowing AWS CloudFormation to manage the infrastructure resources. All an
 integration-test writer needs to do is provide an implementation for a handful of functions,
 and the Integration-Test framework will do the rest.
 
-This framework provides the following benefits:
+The framework provides the following benefits:
 * Automatically provisions all infrastructure resources prior to testing, and de-provisions
 them immediately after.
 * Provides a set of public APIs that can be used to send queries via Athena using the lambda
@@ -20,13 +20,15 @@ connector.
 ## Writing Integration Tests
 
 This section explains the steps necessary to create integration tests using the
-Integration-Test framework. For an actual code example, see the DynamoDB connector
-[DynamoDbIntegTest integration-test class](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDbIntegTest.java).
+Integration-Test framework. For actual code examples, see the DynamoDB connector
+([DynamoDbIntegTest](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-dynamodb/src/test/java/com/amazonaws/athena/connectors/dynamodb/DynamoDbIntegTest.java)),
+and the Redshift (JDBC) connector
+([RedshiftIntegTest](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-jdbc/src/test/java/com/amazonaws/connectors/athena/jdbc/integ/RedshiftIntegTest.java)).
 
 ### Dependencies
 
-Add the Integration-Test framework as a test dependency in the specific connector's `pom.xml` file (replace `2020.46.1`
-with current version):
+Add the Integration-Test module (athena-federation-integ-test) as a test dependency in the specific connector's
+`pom.xml` file (replace `2020.46.1` with current version):
 
 ```xml
         <dependency>

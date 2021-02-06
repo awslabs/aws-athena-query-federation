@@ -68,7 +68,7 @@ public abstract class IntegrationTestBase
     private final AmazonAthena athenaClient;
     private final Map<String, Object> testConfig;
     private final Optional<ConnectorVpcAttributes> vpcAttributes;
-    private final String athenaWorkGroup;
+    private final String athenaWorkgroup;
 
     public IntegrationTestBase()
     {
@@ -97,7 +97,7 @@ public abstract class IntegrationTestBase
         lambdaFunctionName = templateProvider.getLambdaFunctionName();
         cloudFormationClient = new CloudFormationClient(templateProvider.getStackName());
         athenaClient = AmazonAthenaClientBuilder.defaultClient();
-        athenaWorkGroup = getAthenaWorkgroup();
+        athenaWorkgroup = getAthenaWorkgroup();
     }
 
     /**
@@ -287,7 +287,7 @@ public abstract class IntegrationTestBase
             throws RuntimeException
     {
         StartQueryExecutionRequest startQueryExecutionRequest = new StartQueryExecutionRequest()
-                .withWorkGroup(athenaWorkGroup)
+                .withWorkGroup(athenaWorkgroup)
                 .withQueryString(query);
 
         String queryExecutionId = sendAthenaQuery(startQueryExecutionRequest);
