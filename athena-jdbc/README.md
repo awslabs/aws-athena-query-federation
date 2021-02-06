@@ -181,7 +181,7 @@ A partition is represented by two partition columns of type varchar. We leverage
 ### Running Integration Tests
 
 Integration tests can be executed by specifying the following command: `mvn failsafe:integration-test` from the
-connectors' root directory
+connector's root directory
 (see [Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests)).
 In order for the tests to run successfully, however, some test configuration attributes must be provided in the
 [test-config.json](./etc/test-config.json) JSON file. For additional information about the test configuration file, see the
