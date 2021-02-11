@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.redis;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -41,6 +42,7 @@ public class JedisPoolFactory
     //connections that are dying / starting to avoid impacting getting a connection quickly.
     private static final int MAX_CONS = 4;
     private static final int CONNECTION_TIMEOUT_MS = 2_000;
+    private static final String ENCRYPTED_REDISS_PREFIX = "rediss://";
 
     private final Map<String, JedisPool> clientCache = new HashMap<>();
 
@@ -51,14 +53,25 @@ public class JedisPoolFactory
      */
     public synchronized Jedis getOrCreateConn(String conStr)
     {
+        boolean ssl;
         JedisPool pool = clientCache.get(conStr);
+        String formattedString;
         if (pool == null) {
-            String[] endpointParts = conStr.split(":");
+            if (conStr.startsWith(ENCRYPTED_REDISS_PREFIX)) {
+                formattedString = StringUtils.removeStart(conStr, ENCRYPTED_REDISS_PREFIX);
+                ssl = true;
+            }
+            else {
+                formattedString = conStr;
+                ssl = false;
+            }
+
+            String[] endpointParts = formattedString.split(":");
             if (endpointParts.length == 2) {
-                pool = getOrCreateCon(endpointParts[0], Integer.valueOf(endpointParts[1]));
+                pool = getOrCreateCon(endpointParts[0], Integer.valueOf(endpointParts[1]), ssl);
             }
             else if (endpointParts.length == 3) {
-                pool = getOrCreateCon(endpointParts[0], Integer.valueOf(endpointParts[1]), endpointParts[2]);
+                pool = getOrCreateCon(endpointParts[0], Integer.valueOf(endpointParts[1]), endpointParts[2], ssl);
             }
             else {
                 throw new IllegalArgumentException("Redis endpoint format error.");
@@ -69,19 +82,19 @@ public class JedisPoolFactory
         return pool.getResource();
     }
 
-    private JedisPool getOrCreateCon(String host, int port)
+    private JedisPool getOrCreateCon(String host, int port, boolean ssl)
     {
-        logger.info("getOrCreateCon: Creating connection pool.");
+        logger.info(String.format("getOrCreateCon: Creating connection pool with ssl %s.", ssl ? "enabled" : "disabled"));
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(MAX_CONS);
-        return new JedisPool(poolConfig, host, port, CONNECTION_TIMEOUT_MS);
+        return new JedisPool(poolConfig, host, port, CONNECTION_TIMEOUT_MS, ssl);
     }
 
-    private JedisPool getOrCreateCon(String host, int port, String passwordToken)
+    private JedisPool getOrCreateCon(String host, int port, String passwordToken, boolean ssl)
     {
-        logger.info("getOrCreateCon: Creating connection pool with password.");
+        logger.info(String.format("getOrCreateCon: Creating connection pool with password with ssl %s.", ssl ? "enabled" : "disabled"));
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(MAX_CONS);
-        return new JedisPool(poolConfig, host, port, CONNECTION_TIMEOUT_MS, passwordToken);
+        return new JedisPool(poolConfig, host, port, CONNECTION_TIMEOUT_MS, passwordToken, ssl);
     }
 }
