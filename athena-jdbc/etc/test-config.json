@@ -1,23 +1,23 @@
 {
-  "athena_work_group" : "FederationIntegrationTests",
-  "environment_vars" : {
-    "spill_bucket" : "",
-    "spill_prefix" : "athena-spill",
-    "disable_spill_encryption" : "false"
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "environment_vars" : {                  /* Parameters used by the connector's internal logic */
+    "spill_bucket" : "<spill bucket>",    /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false"  /* If set to true encryption for spilled data is disabled (default: false) */
   },
-  "vpc_configuration" : {
-    "vpc_id": "",
-    "security_group_id": "",
-    "subnet_ids": [],
-    "availability_zones": []
+  "vpc_configuration" : {                 /* VPC configuration for DB instances within a VPC */
+    "vpc_id": "<VPC Id>",                 /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": "<SG Id>",       /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
   },
-  "user_settings" : {
-    "redshift_db_name": "public",
-    "redshift_db_port": "5439",
+  "user_settings" : {                     /* User customizable settings */
+    "redshift_db_name": "public",         /* Name of the Db instance used by the integration tests */
+    "redshift_db_port": "5439",           /* Port number */
     "redshift_db_domain_suffix": ".c9afbdb0synx.us-east-1.redshift.amazonaws.com",
     "redshift_db_username": "integusername",
     "redshift_db_password": "IntegPassword1",
-    "redshift_table_movies": "movies",
-    "redshift_table_bday": "bday"
+    "redshift_table_movies": "movies",    /* Table name */
+    "redshift_table_bday": "bday"         /* Table name */
   }
 }

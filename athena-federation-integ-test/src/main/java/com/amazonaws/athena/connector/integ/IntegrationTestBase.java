@@ -30,6 +30,7 @@ import com.amazonaws.services.athena.model.GetQueryResultsResult;
 import com.amazonaws.services.athena.model.ListDatabasesRequest;
 import com.amazonaws.services.athena.model.ListDatabasesResult;
 import com.amazonaws.services.athena.model.StartQueryExecutionRequest;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +108,9 @@ public abstract class IntegrationTestBase
     private Map<String, Object> setUpTestConfig()
     {
         try {
-            return new ObjectMapper().readValue(new File(TEST_CONFIG_FILE_NAME), HashMap.class);
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
+            return objectMapper.readValue(new File(TEST_CONFIG_FILE_NAME), HashMap.class);
         }
         catch (IOException e) {
             throw new RuntimeException(String.format("Unable to access or parse test configuration file (%s): %s",

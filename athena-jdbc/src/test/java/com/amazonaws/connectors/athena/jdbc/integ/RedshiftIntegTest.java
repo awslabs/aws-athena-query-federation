@@ -56,14 +56,12 @@ public class RedshiftIntegTest extends IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftIntegTest.class);
 
-    Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
-            new RuntimeException("user_settings attribute must be provided in test-config.json."));
-    private final String redshiftDbName = userSettings.get("redshift_db_name");
-    private final String redshiftDbPort = userSettings.get("redshift_db_port");
-    private final String redshiftDbUsername = userSettings.get("redshift_db_username");
-    private final String redshiftDbPassword = userSettings.get("redshift_db_password");
-    private final String redshiftTableMovies = userSettings.get("redshift_table_movies");
-    private final String redshiftTableBday = userSettings.get("redshift_table_bday");
+    private final String redshiftDbName;
+    private final String redshiftDbPort;
+    private final String redshiftDbUsername;
+    private final String redshiftDbPassword;
+    private final String redshiftTableMovies;
+    private final String redshiftTableBday;
 
     private static final long sleepDelayMillis = 120_000L;
 
@@ -74,6 +72,14 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
     public RedshiftIntegTest()
     {
+        Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
+                new RuntimeException("user_settings attribute must be provided in test-config.json."));
+        redshiftDbName = userSettings.get("redshift_db_name");
+        redshiftDbPort = userSettings.get("redshift_db_port");
+        redshiftDbUsername = userSettings.get("redshift_db_username");
+        redshiftDbPassword = userSettings.get("redshift_db_password");
+        redshiftTableMovies = userSettings.get("redshift_table_movies");
+        redshiftTableBday = userSettings.get("redshift_table_bday");
         lambdaFunctionName = getLambdaFunctionName();
         clusterName = "redshift-" + UUID.randomUUID();
         clusterEndpoint = clusterName + userSettings.get("redshift_db_domain_suffix");

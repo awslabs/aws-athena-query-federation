@@ -28,13 +28,13 @@ and the Redshift (JDBC) connector
 ### Dependencies
 
 Add the Integration-Test module (athena-federation-integ-test) as a test dependency in the specific connector's
-`pom.xml` file (replace `2020.46.1` with current version):
+`pom.xml` file (replace `version` with current version on the module):
 
 ```xml
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2020.46.1</version>
+            <version>version</version>
             <scope>test</scope>
         </dependency>
 ```
@@ -115,10 +115,10 @@ Athena work-group, etc...) Those attributes must be placed in the connectors' `e
 }
 ```
 **Test configuration**:
-* **athena_work_group** - The name of the Workgroup associated with the Athena account (default:
+* **athena_work_group** - The Athena Workgroup used for running integration tests (default:
   `FederationIntegrationTests`).
 
-**Environment variables**:
+**Environment variables** - Parameters used by the connectors' internal logic:
 * **spill_bucket** - The S3 bucket used for spilling excess data.
 * **spill_prefix** - The prefix within the S3 spill bucket (default: `athena-spill`).
 * **disable_spill_encryption** - If set to `true` encryption for spilled data is disabled (default: `false`).

@@ -45,15 +45,16 @@ import static org.junit.Assert.assertTrue;
 public class DynamoDbIntegTest extends IntegrationTestBase {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDbIntegTest.class);
 
-    Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
-            new RuntimeException("user_settings attribute must be provided in test-config.json."));
-    private final String dynamodbDbName = userSettings.get("dynamodb_db_name");
+    private final String dynamodbDbName;
     private final String lambdaFunctionName;
     private final String tableName;
     private final DdbTableUtils ddbTableUtils;
 
     public DynamoDbIntegTest()
     {
+        Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
+                new RuntimeException("user_settings attribute must be provided in test-config.json."));
+        dynamodbDbName = userSettings.get("dynamodb_db_name");
         lambdaFunctionName = getLambdaFunctionName();
         tableName = String.format("dynamodbit_%s", UUID.randomUUID().toString().replace('-', '_'));
         ddbTableUtils = new DdbTableUtils(tableName);

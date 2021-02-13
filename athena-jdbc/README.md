@@ -180,13 +180,15 @@ A partition is represented by two partition columns of type varchar. We leverage
 
 ### Running Integration Tests
 
-Integration tests can be executed by specifying the following command: `mvn failsafe:integration-test` from the
-connector's root directory
-(see [Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests)).
-In order for the tests to run successfully, however, some test configuration attributes must be provided in the
-[test-config.json](./etc/test-config.json) JSON file. For additional information about the test configuration file, see the
-[README](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md)
-in the **athena-federation-integ-test** module.
+The integration tests in this module are designed to run without the prior need for deploying the connector. Nevertheless,
+the integration tests will not run straight out-of-the-box. Certain build-dependencies are required for them to execute correctly.
+For build commands and step-by-step instructions on building and running the integration tests see the
+[Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests) README section in the **athena-federation-integ-test** module.
+
+In addition to the build-dependencies, certain test configuration attributes must also be provided in the connector's [test-config.json](./etc/test-config.json) JSON file.
+For additional information about the test configuration file, see the [Test Configuration](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#test-configuration) README section in the **athena-federation-integ-test** module.
+
+Once all prerequisites have been satisfied, the integration tests can be executed by specifying the following command: `mvn failsafe:integration-test` from the connector's root directory.
 
 ### Deploying The Connector
 
