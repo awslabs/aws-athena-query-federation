@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.integ;
 import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
+import com.amazonaws.athena.connector.integ.data.TestConfig;
 import com.amazonaws.athena.connector.integ.providers.ConnectorEnvironmentVarsProvider;
 import com.amazonaws.athena.connector.integ.providers.ConnectorPackagingAttributesProvider;
 import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
@@ -32,21 +33,22 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Responsible for providing the Connector's stack attributes used in creating the Connector's stack.
+ * Responsible for providing the Connector's stack attributes used in creating the Connector's stack (Lambda function,
+ * Athena catalog, etc...)
  */
 public class ConnectorStackAttributesProvider
 {
     private final Construct scope;
     private final String id;
     private final String lambdaFunctionName;
-    private final Map<String, Object> testConfig;
+    private final TestConfig testConfig;
     private final Optional<PolicyDocument> connectorAccessPolicy;
     private final Map<String, String> environmentVariables;
     private final ConnectorPackagingAttributes connectorPackagingAttributes;
     private final Optional<ConnectorVpcAttributes> connectorVpcAttributes;
 
     protected ConnectorStackAttributesProvider(final Construct scope, final String id, final String lambdaFunctionName,
-                                               final Map<String, Object> testConfig,
+                                               final TestConfig testConfig,
                                                final Optional<PolicyDocument> connectorAccessPolicy,
                                                final Map<String, String> environmentVariables)
     {
@@ -63,6 +65,7 @@ public class ConnectorStackAttributesProvider
 
     /**
      * Provides the Connector's attributes needed to create the connector's CloudFormation stack template.
+     * @return Connector attributes object.
      */
     protected ConnectorStackAttributes getAttributes()
     {

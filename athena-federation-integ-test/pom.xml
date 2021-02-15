@@ -82,6 +82,12 @@
             <artifactId>aws-java-sdk-cloudformation</artifactId>
             <version>${aws-sdk.version}</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-secretsmanager -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-secretsmanager</artifactId>
+            <version>${aws-sdk.version}</version>
+        </dependency>
         <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/core -->
         <dependency>
             <groupId>software.amazon.awscdk</groupId>

@@ -19,10 +19,10 @@
  */
 package com.amazonaws.athena.connector.integ.providers;
 
+import com.amazonaws.athena.connector.integ.data.TestConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -43,19 +43,11 @@ public class ConnectorEnvironmentVarsProvider
      * @return Map containing the Lambda's environment variables and their associated values if the vars
      * are included in test-config.json.
      */
-    public static Map<String, String> getVars(Map<String, Object> testConfig)
+    public static Map<String, String> getVars(TestConfig testConfig)
     {
-        Map<String, String> environmentVars = new HashMap<>();
-
-        // Get VPC configuration.
-        Object envVars = testConfig.get(TEST_CONFIG_ENVIRONMENT_VARS);
-        if (envVars instanceof Map) {
-            ((Map) envVars).forEach((key, value) -> {
-                if ((key instanceof String) && (value instanceof String)) {
-                    environmentVars.put((String) key, (String) value);
-                }
-            });
-        }
+        // Get environment vars.
+        Map<String, String> environmentVars = testConfig.getStringMap(TEST_CONFIG_ENVIRONMENT_VARS).orElseThrow(() ->
+                new RuntimeException(TEST_CONFIG_ENVIRONMENT_VARS + " must be specified in test-config.json"));
 
         logger.info("Environment vars: {}", environmentVars);
 

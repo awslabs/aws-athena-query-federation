@@ -1,5 +1,6 @@
 {
   "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "<secret name>",         /* Secret name used to retrieve user credentials from SecretsManager. */
   "environment_vars" : {                  /* Parameters used by the connector's internal logic */
     "spill_bucket" : "<spill bucket>",    /* The S3 bucket used for spilling excess data */
     "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
@@ -14,9 +15,6 @@
   "user_settings" : {                     /* User customizable settings */
     "redshift_db_name": "public",         /* Name of the Db instance used by the integration tests */
     "redshift_db_port": "5439",           /* Port number */
-    "redshift_db_domain_suffix": ".c9afbdb0synx.us-east-1.redshift.amazonaws.com",
-    "redshift_db_username": "integusername",
-    "redshift_db_password": "IntegPassword1",
     "redshift_table_movies": "movies",    /* Table name */
     "redshift_table_bday": "bday"         /* Table name */
   }

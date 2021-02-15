@@ -19,14 +19,22 @@
  */
 package com.amazonaws.connectors.athena.jdbc.integ;
 
+import com.amazonaws.athena.connector.integ.clients.CloudFormationClient;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
-import com.amazonaws.athena.connector.integ.stacks.ConnectorWithVpcStack;
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
+import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.services.athena.model.Row;
-import com.google.common.collect.ImmutableMap;
+import com.amazonaws.services.redshift.AmazonRedshift;
+import com.amazonaws.services.redshift.AmazonRedshiftClientBuilder;
+import com.amazonaws.services.redshift.model.DescribeClustersRequest;
+import com.amazonaws.services.redshift.model.DescribeClustersResult;
+import com.amazonaws.services.redshift.model.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
+import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.RemovalPolicy;
 import software.amazon.awscdk.core.SecretValue;
 import software.amazon.awscdk.core.Stack;
@@ -41,6 +49,7 @@ import software.amazon.awscdk.services.redshift.NodeType;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,37 +65,123 @@ public class RedshiftIntegTest extends IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(RedshiftIntegTest.class);
 
+    private static final long sleepDelayMillis = 60_000L;
+
+    private final App theApp;
+    private final String username;
+    private final String password;
     private final String redshiftDbName;
     private final String redshiftDbPort;
-    private final String redshiftDbUsername;
-    private final String redshiftDbPassword;
     private final String redshiftTableMovies;
     private final String redshiftTableBday;
-
-    private static final long sleepDelayMillis = 120_000L;
-
     private final String lambdaFunctionName;
     private final String clusterName;
-    private final String clusterEndpoint;
     private final Map<String, String> environmentVars;
+
+    private CloudFormationClient cloudFormationClient;
 
     public RedshiftIntegTest()
     {
-        Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
-                new RuntimeException("user_settings attribute must be provided in test-config.json."));
-        redshiftDbName = userSettings.get("redshift_db_name");
-        redshiftDbPort = userSettings.get("redshift_db_port");
-        redshiftDbUsername = userSettings.get("redshift_db_username");
-        redshiftDbPassword = userSettings.get("redshift_db_password");
-        redshiftTableMovies = userSettings.get("redshift_table_movies");
-        redshiftTableBday = userSettings.get("redshift_table_bday");
+        theApp = new App();
+        SecretsManagerCredentials secretsManagerCredentials = getSecretCredentials().orElseThrow(() ->
+                new RuntimeException("secrets_manager_secret must be provided in test-config.json file."));
+        username = secretsManagerCredentials.getUsername();
+        password = secretsManagerCredentials.getPassword();
+        Map<String, Object> userSettings = getUserSettings().orElseThrow(() ->
+                new RuntimeException("user_settings attribute must be provided in test-config.json file."));
+        redshiftDbName = (String) userSettings.get("redshift_db_name");
+        redshiftDbPort = (String) userSettings.get("redshift_db_port");
+        redshiftTableMovies = (String) userSettings.get("redshift_table_movies");
+        redshiftTableBday = (String) userSettings.get("redshift_table_bday");
         lambdaFunctionName = getLambdaFunctionName();
-        clusterName = "redshift-" + UUID.randomUUID();
-        clusterEndpoint = clusterName + userSettings.get("redshift_db_domain_suffix");
-        String connectionString = String.format("redshift://jdbc:redshift://%s:%s/%s?user=%s&password=%s",
-                clusterEndpoint, redshiftDbPort, redshiftDbName, redshiftDbUsername, redshiftDbPassword);
-        String connectionStringTag = lambdaFunctionName + "_connection_string";
-        environmentVars = ImmutableMap.of("default", connectionString, connectionStringTag, connectionString);
+        clusterName = "integ-redshift-cluster-" + UUID.randomUUID();
+        environmentVars = new HashMap<>();
+    }
+
+    /**
+     * Creates a Redshift cluster used for the integration tests.
+     */
+    @BeforeSuite
+    private void CreateRedshiftCluster()
+    {
+        cloudFormationClient = new CloudFormationClient(theApp, getRedshiftStack());
+        try {
+            cloudFormationClient.createStack();
+            getClusterData();
+        }
+        catch (Exception e) {
+            // Delete the partially formed CloudFormation stack.
+            deleteRedshiftCluster();
+            throw e;
+        }
+    }
+
+    /**
+     * Deletes a CloudFormation stack for the Redshift cluster.
+     */
+    @AfterSuite
+    protected void deleteRedshiftCluster()
+    {
+        cloudFormationClient.deleteStack();
+    }
+
+    /**
+     * Gets the CloudFormation stack for the Redshift cluster.
+     * @return Stack object for the Redshift cluster.
+     */
+    private Stack getRedshiftStack()
+    {
+        Stack stack = Stack.Builder.create(theApp, clusterName).build();
+
+        ConnectorVpcAttributes vpcAttributes = getVpcAttributes()
+                .orElseThrow(() -> new RuntimeException("vpc_configuration must be specified in test-config.json"));
+
+        Cluster.Builder.create(stack, "RedshiftCluster")
+                .publiclyAccessible(Boolean.TRUE)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .encrypted(Boolean.FALSE)
+                .port(Integer.parseInt(redshiftDbPort))
+                .clusterName(clusterName)
+                .clusterType(ClusterType.SINGLE_NODE)
+                .nodeType(NodeType.DC2_LARGE)
+                .numberOfNodes(1)
+                .defaultDatabaseName(redshiftDbName)
+                .masterUser(Login.builder()
+                        .masterUsername(username)
+                        .masterPassword(SecretValue.plainText(password))
+                        .build())
+                .vpc(Vpc.fromVpcAttributes(stack, "RedshiftVpcConfig", VpcAttributes.builder()
+                        .vpcId(vpcAttributes.getVpcId())
+                        .privateSubnetIds(vpcAttributes.getPrivateSubnetIds())
+                        .availabilityZones(vpcAttributes.getAvailabilityZones())
+                        .build()))
+                .securityGroups(Collections.singletonList(SecurityGroup
+                        .fromSecurityGroupId(stack, "RedshiftVpcSecurityGroup", vpcAttributes.getSecurityGroupId())))
+                .build();
+
+        return stack;
+    }
+
+    /**
+     * Gets the Redshift cluster endpoint information and generates the environment variables needed for the Lambda.
+     * All exceptions thrown here will be caught in the calling function.
+     */
+    private void getClusterData()
+    {
+        AmazonRedshift redshiftClient = AmazonRedshiftClientBuilder.defaultClient();
+        try {
+            DescribeClustersResult clustersResult = redshiftClient.describeClusters(new DescribeClustersRequest()
+                    .withClusterIdentifier(clusterName));
+            Endpoint endpoint = clustersResult.getClusters().get(0).getEndpoint();
+            String connectionString = String.format("redshift://jdbc:redshift://%s:%s/%s?user=%s&password=%s",
+                    endpoint.getAddress(), endpoint.getPort(), redshiftDbName, username, password);
+            String connectionStringTag = lambdaFunctionName + "_connection_string";
+            environmentVars.put("default", connectionString);
+            environmentVars.put(connectionStringTag, connectionString);
+        }
+        finally {
+            redshiftClient.shutdown();
+        }
     }
 
     /**
@@ -111,37 +206,13 @@ public class RedshiftIntegTest extends IntegrationTestBase
     }
 
     /**
-     * Sets up the Redshift Table's CloudFormation stack.
+     * Sets up connector-specific Cloud Formation resource.
      * @param stack The current CloudFormation stack.
      */
     @Override
     protected void setUpStackData(final Stack stack)
     {
-        ConnectorVpcAttributes vpcAttributes = getVpcAttributes()
-                .orElseThrow(() -> new RuntimeException("vpc_configuration must be specified in test-config.json"));
-
-        Cluster.Builder.create(stack, "RedshiftCluster")
-                .publiclyAccessible(Boolean.TRUE)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .encrypted(Boolean.FALSE)
-                .port(Integer.parseInt(redshiftDbPort))
-                .clusterName(clusterName)
-                .clusterType(ClusterType.SINGLE_NODE)
-                .nodeType(NodeType.DC2_LARGE)
-                .numberOfNodes(1)
-                .defaultDatabaseName(redshiftDbName)
-                .masterUser(Login.builder()
-                        .masterUsername(redshiftDbUsername)
-                        .masterPassword(SecretValue.plainText(redshiftDbPassword))
-                        .build())
-                .vpc(Vpc.fromVpcAttributes(stack, "RedshiftVpcConfig", VpcAttributes.builder()
-                        .vpcId(vpcAttributes.getVpcId())
-                        .privateSubnetIds(vpcAttributes.getPrivateSubnetIds())
-                        .availabilityZones(vpcAttributes.getAvailabilityZones())
-                        .build()))
-                .securityGroups(Collections.singletonList(SecurityGroup
-                        .fromSecurityGroupId(stack, "RedshiftVpcSecurityGroup", vpcAttributes.getSecurityGroupId())))
-                .build();
+        // No-op.
     }
 
     /**
@@ -151,7 +222,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
     protected void setUpTableData()
     {
         try {
-            logger.info("Allowing Redshift cluster to fully warm up - Sleeping for 2 min...");
+            logger.info("Allowing Redshift cluster to fully warm up - Sleeping for 1 min...");
             Thread.sleep(sleepDelayMillis);
         }
         catch (InterruptedException e) {

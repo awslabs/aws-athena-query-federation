@@ -19,8 +19,12 @@
  */
 package com.amazonaws.athena.connector.integ;
 
+import com.amazonaws.athena.connector.integ.clients.CloudFormationClient;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
+import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
+import com.amazonaws.athena.connector.integ.data.TestConfig;
 import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProvider;
+import com.amazonaws.athena.connector.integ.providers.SecretsManagerCredentialsProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
@@ -30,8 +34,6 @@ import com.amazonaws.services.athena.model.GetQueryResultsResult;
 import com.amazonaws.services.athena.model.ListDatabasesRequest;
 import com.amazonaws.services.athena.model.ListDatabasesResult;
 import com.amazonaws.services.athena.model.StartQueryExecutionRequest;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -39,8 +41,6 @@ import org.testng.annotations.BeforeClass;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,7 +54,6 @@ public abstract class IntegrationTestBase
 {
     private static final Logger logger = LoggerFactory.getLogger(IntegrationTestBase.class);
 
-    private static final String TEST_CONFIG_FILE_NAME = "etc/test-config.json";
     private static final String TEST_CONFIG_WORK_GROUP = "athena_work_group";
     private static final String TEST_CONFIG_USER_SETTINGS = "user_settings";
     private static final String ATHENA_QUERY_QUEUED_STATE = "QUEUED";
@@ -63,19 +62,21 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_QUERY_CANCELLED_STATE = "CANCELLED";
     private static final long sleepTimeMillis = 5000L;
 
-    private final CloudFormationTemplateProvider templateProvider;
+    private final ConnectorStackProvider connectorStackProvider;
     private final String lambdaFunctionName;
-    private final CloudFormationClient cloudFormationClient;
     private final AmazonAthena athenaClient;
-    private final Map<String, Object> testConfig;
+    private final TestConfig testConfig;
     private final Optional<ConnectorVpcAttributes> vpcAttributes;
+    private final Optional<SecretsManagerCredentials> secretCredentials;
     private final String athenaWorkgroup;
+    private CloudFormationClient cloudFormationClient;
 
     public IntegrationTestBase()
     {
-        testConfig = setUpTestConfig();
+        testConfig = new TestConfig();
         vpcAttributes = ConnectorVpcAttributesProvider.getAttributes(testConfig);
-        templateProvider = new CloudFormationTemplateProvider(this.getClass().getSimpleName(), testConfig) {
+        secretCredentials = SecretsManagerCredentialsProvider.getCredentials(testConfig);
+        connectorStackProvider = new ConnectorStackProvider(this.getClass().getSimpleName(), testConfig) {
             @Override
             protected Optional<PolicyDocument> getAccessPolicy()
             {
@@ -95,27 +96,9 @@ public abstract class IntegrationTestBase
             }
         };
 
-        lambdaFunctionName = templateProvider.getLambdaFunctionName();
-        cloudFormationClient = new CloudFormationClient(templateProvider.getStackName());
+        lambdaFunctionName = connectorStackProvider.getLambdaFunctionName();
         athenaClient = AmazonAthenaClientBuilder.defaultClient();
         athenaWorkgroup = getAthenaWorkgroup();
-    }
-
-    /**
-     * Loads the test configuration attributes from a file into a Map.
-     * @return Map containing test configuration attributes.
-     */
-    private Map<String, Object> setUpTestConfig()
-    {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.configure(JsonParser.Feature.ALLOW_COMMENTS, true);
-            return objectMapper.readValue(new File(TEST_CONFIG_FILE_NAME), HashMap.class);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(String.format("Unable to access or parse test configuration file (%s): %s",
-                    TEST_CONFIG_FILE_NAME, e.getMessage()), e);
-        }
     }
 
     /**
@@ -126,14 +109,12 @@ public abstract class IntegrationTestBase
     private String getAthenaWorkgroup()
             throws RuntimeException
     {
-        Object athenaWorkgroup = testConfig.get(TEST_CONFIG_WORK_GROUP);
-        if (!(athenaWorkgroup instanceof String) || ((String) athenaWorkgroup).isEmpty()) {
-            throw new RuntimeException("athena_work_group must be specified in test-config.json.");
-        }
+        String athenaWorkgroup = testConfig.getStringItem(TEST_CONFIG_WORK_GROUP).orElseThrow(() ->
+                new RuntimeException(TEST_CONFIG_WORK_GROUP + " must be specified in test-config.json."));
 
         logger.info("Athena Workgroup: {}", athenaWorkgroup);
 
-        return (String) athenaWorkgroup;
+        return athenaWorkgroup;
     }
 
     /**
@@ -160,9 +141,19 @@ public abstract class IntegrationTestBase
      * @return Optional Map(String, Object) containing all the user attributes as defined in the test configuration file,
      * or an empty Optional if the user_settings attribute does not exist in the file.
      */
-    public Optional<Map> getUserSettings()
+    public Optional<Map<String, Object>> getUserSettings()
     {
-        return Optional.ofNullable((Map) testConfig.get(TEST_CONFIG_USER_SETTINGS));
+        return testConfig.getMap(TEST_CONFIG_USER_SETTINGS);
+    }
+
+    /**
+     * Public accessor for the SecretsManager credentials obtained using the secrets_manager_secret attribute entered
+     * in the config file.
+     * @return Optional SecretsManager credentials object.
+     */
+    public Optional<SecretsManagerCredentials> getSecretCredentials()
+    {
+        return secretCredentials;
     }
 
     /**
@@ -201,7 +192,8 @@ public abstract class IntegrationTestBase
     protected void setUp()
     {
         try {
-            cloudFormationClient.createStack(templateProvider.getTemplate());
+            cloudFormationClient = new CloudFormationClient(connectorStackProvider.getStack());
+            cloudFormationClient.createStack();
             setUpTableData();
         }
         catch (Exception e) {

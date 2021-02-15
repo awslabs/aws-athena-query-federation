@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.integ;
+package com.amazonaws.athena.connector.integ.clients;
 
 import com.amazonaws.services.cloudformation.AmazonCloudFormation;
 import com.amazonaws.services.cloudformation.AmazonCloudFormationClientBuilder;
@@ -28,8 +28,13 @@ import com.amazonaws.services.cloudformation.model.DeleteStackRequest;
 import com.amazonaws.services.cloudformation.model.DescribeStackEventsRequest;
 import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
 import com.amazonaws.services.cloudformation.model.StackEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import javafx.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awscdk.core.App;
+import software.amazon.awscdk.core.Stack;
 
 import java.util.List;
 
@@ -46,11 +51,21 @@ public class CloudFormationClient
     private static final long sleepTimeMillis = 5000L;
 
     private final String stackName;
+    private final String stackTemplate;
     private final AmazonCloudFormation cloudFormationClient;
 
-    public CloudFormationClient(String stackName)
+    public CloudFormationClient(Pair<App, Stack> stackPair)
     {
-        this.stackName = stackName;
+        this(stackPair.getKey(), stackPair.getValue());
+    }
+
+    public CloudFormationClient(App theApp, Stack theStack)
+    {
+        stackName = theStack.getStackName();
+        ObjectMapper objectMapper = new ObjectMapper().configure(SerializationFeature.INDENT_OUTPUT, true);
+        stackTemplate = objectMapper
+                .valueToTree(theApp.synth().getStackArtifact(theStack.getArtifactId()).getTemplate())
+                .toPrettyString();
         this.cloudFormationClient = AmazonCloudFormationClientBuilder.defaultClient();
     }
 
@@ -58,17 +73,17 @@ public class CloudFormationClient
      * Creates a CloudFormation stack to build the infrastructure needed to run the integration tests (e.g., Database
      * instance, Lambda function, etc...). Once the stack is created successfully, the lambda function is registered
      * with Athena.
-     * @param template
      */
-    protected void createStack(String template)
+    public void createStack()
     {
         logger.info("------------------------------------------------------");
         logger.info("Create CloudFormation stack: {}", stackName);
         logger.info("------------------------------------------------------");
+        // logger.info(stackTemplate);
 
         CreateStackRequest createStackRequest = new CreateStackRequest()
                 .withStackName(stackName)
-                .withTemplateBody(template)
+                .withTemplateBody(stackTemplate)
                 .withDisableRollback(true)
                 .withCapabilities(Capability.CAPABILITY_NAMED_IAM);
         processCreateStackRequest(createStackRequest);
@@ -138,7 +153,7 @@ public class CloudFormationClient
     /**
      * Deletes a CloudFormation stack, and the lambda function registered with Athena.
      */
-    protected void deleteStack()
+    public void deleteStack()
     {
         logger.info("------------------------------------------------------");
         logger.info("Delete CloudFormation stack: {}", stackName);
