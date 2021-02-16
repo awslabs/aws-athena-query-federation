@@ -30,9 +30,9 @@ import com.amazonaws.services.cloudformation.model.DescribeStackEventsResult;
 import com.amazonaws.services.cloudformation.model.StackEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import javafx.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.internal.collections.Pair;
 import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
 
@@ -56,7 +56,7 @@ public class CloudFormationClient
 
     public CloudFormationClient(Pair<App, Stack> stackPair)
     {
-        this(stackPair.getKey(), stackPair.getValue());
+        this(stackPair.first(), stackPair.second());
     }
 
     public CloudFormationClient(App theApp, Stack theStack)

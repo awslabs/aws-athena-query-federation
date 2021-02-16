@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connector.integ;
 
 import com.amazonaws.athena.connector.integ.data.TestConfig;
-import javafx.util.Pair;
+import org.testng.internal.collections.Pair;
 import software.amazon.awscdk.core.App;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.PolicyDocument;
