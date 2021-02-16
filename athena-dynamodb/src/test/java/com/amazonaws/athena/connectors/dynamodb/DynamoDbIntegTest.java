@@ -52,9 +52,9 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
 
     public DynamoDbIntegTest()
     {
-        Map<String, String> userSettings = getUserSettings().orElseThrow(() ->
+        Map<String, Object> userSettings = getUserSettings().orElseThrow(() ->
                 new RuntimeException("user_settings attribute must be provided in test-config.json."));
-        dynamodbDbName = userSettings.get("dynamodb_db_name");
+        dynamodbDbName = (String) userSettings.get("dynamodb_db_name");
         lambdaFunctionName = getLambdaFunctionName();
         tableName = String.format("dynamodbit_%s", UUID.randomUUID().toString().replace('-', '_'));
         ddbTableUtils = new DdbTableUtils(tableName);
