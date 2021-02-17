@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connector.integ.data;
 
+import org.apache.commons.lang3.Validate;
+
 /**
  * Holds the credentials retrieved from SecretsManager.
  */
@@ -31,10 +33,10 @@ public class SecretsManagerCredentials
 
     public SecretsManagerCredentials(String secretName, String username, String password, String arn)
     {
-        this.secretName = secretName;
-        this.username = username;
-        this.password = password;
-        this.arn = arn;
+        this.secretName = Validate.notNull(secretName, "secretName is null.");
+        this.username = Validate.notNull(username, "username is null.");
+        this.password = Validate.notNull(password, "password is null.");
+        this.arn = Validate.notNull(arn, "arn is null.");
     }
 
     /**
