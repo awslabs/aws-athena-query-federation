@@ -213,6 +213,10 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
+                    <forkCount>3C</forkCount>
+                    <reuseForks>false</reuseForks>
+                    <parallel>classes</parallel>
+                    <threadCount>5</threadCount>
                     <includes>
                         <include>*IntegTest</include>
                     </includes>

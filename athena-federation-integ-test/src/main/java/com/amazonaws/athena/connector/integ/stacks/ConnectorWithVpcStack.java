@@ -143,7 +143,7 @@ public class ConnectorWithVpcStack extends ConnectorStack
             super.withAttributes(attributes);
 
             ConnectorVpcAttributes vpcAttributes = attributes.getConnectorVpcAttributes()
-                .orElseThrow(() -> new RuntimeException("VPC configuration must be provided in test-config.json"));
+                .orElseThrow(() -> new RuntimeException("vpc_configuration must be provided in test-config.json"));
             vpcId = vpcAttributes.getVpcId();
             securityGroupId = vpcAttributes.getSecurityGroupId();
             subnetIds = vpcAttributes.getPrivateSubnetIds();

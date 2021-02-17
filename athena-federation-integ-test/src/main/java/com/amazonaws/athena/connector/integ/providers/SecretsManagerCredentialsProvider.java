@@ -63,7 +63,7 @@ public class SecretsManagerCredentialsProvider
                 Map<String, String> credentials = objectMapper.readValue(secretValueResult.getSecretString(),
                         HashMap.class);
                 return Optional.of(new SecretsManagerCredentials(secret, credentials.get("username"),
-                        credentials.get("password")));
+                        credentials.get("password"),  secretValueResult.getARN()));
             }
             catch (IOException e) {
                 throw new RuntimeException(String.format("Unable to parse SecretsManager secret (%s): %s",

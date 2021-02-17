@@ -110,6 +110,19 @@
             <version>${aws-cdk.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-rds</artifactId>
+            <version>${aws-sdk.version}</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/rds -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>rds</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

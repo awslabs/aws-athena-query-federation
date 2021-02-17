@@ -27,12 +27,14 @@ public class SecretsManagerCredentials
     private final String secretName;
     private final String username;
     private final String password;
+    private final String arn;
 
-    public SecretsManagerCredentials(String secretName, String username, String password)
+    public SecretsManagerCredentials(String secretName, String username, String password, String arn)
     {
         this.secretName = secretName;
         this.username = username;
         this.password = password;
+        this.arn = arn;
     }
 
     /**
@@ -60,5 +62,14 @@ public class SecretsManagerCredentials
     public String getPassword()
     {
         return password;
+    }
+
+    /**
+     * Public accessor to the arn associated with the secret retrieved from SecretsManager.
+     * @return Arn (String).
+     */
+    public String getArn()
+    {
+        return arn;
     }
 }

@@ -40,12 +40,19 @@ public class JdbcTableUtils
 
     private final String catalog;
     private final String tableName;
+    private final Map environmentVars;
     private final Map properties;
 
-    public JdbcTableUtils(String catalog, String tableName, Map properties)
+    public JdbcTableUtils(String catalog, String tableName, Map environmentVars)
+    {
+        this(catalog, tableName, environmentVars, null);
+    }
+
+    public JdbcTableUtils(String catalog, String tableName, Map environmentVars, Map properties)
     {
         this.catalog = catalog;
         this.tableName = tableName;
+        this.environmentVars = environmentVars;
         this.properties = properties;
     }
 
@@ -103,7 +110,7 @@ public class JdbcTableUtils
     protected Connection getDbConnection()
     {
         DatabaseConnectionConfig connectionConfig = getDbConfig();
-        JdbcConnectionFactory connectionFactory = new GenericJdbcConnectionFactory(connectionConfig, null);
+        JdbcConnectionFactory connectionFactory = new GenericJdbcConnectionFactory(connectionConfig, properties);
         return connectionFactory.getConnection(null);
     }
 
@@ -111,13 +118,13 @@ public class JdbcTableUtils
      * Gets the DB connection configuration used to create a DB connection.
      * @return Connection Config object.
      * @throws RuntimeException If a configuration with the catalog (lambda function name) cannot be found in the
-     * properties map.
+     * environmentVars map.
      */
     protected DatabaseConnectionConfig getDbConfig()
             throws RuntimeException
     {
         DatabaseConnectionConfigBuilder configBuilder = new DatabaseConnectionConfigBuilder();
-        for (DatabaseConnectionConfig config : configBuilder.properties(properties).build()) {
+        for (DatabaseConnectionConfig config : configBuilder.properties(environmentVars).build()) {
             if (config.getCatalog().equals(catalog)) {
                 return config;
             }

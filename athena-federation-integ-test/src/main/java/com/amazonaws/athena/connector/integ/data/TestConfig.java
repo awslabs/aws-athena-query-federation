@@ -52,6 +52,7 @@ public class TestConfig
      * @throws RuntimeException Error encountered while trying to access or parse the config file.
      */
     private Map<String, Object> setUpTestConfig()
+            throws RuntimeException
     {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
