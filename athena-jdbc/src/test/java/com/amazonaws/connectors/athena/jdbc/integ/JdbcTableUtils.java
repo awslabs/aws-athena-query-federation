@@ -57,6 +57,29 @@ public class JdbcTableUtils
     }
 
     /**
+     * Creates a DB schema.
+     * @param dbSchemaName The name of the DB schema.
+     * @throws RuntimeException The SQL statement failed.
+     */
+    public void createDbSchema(String dbSchemaName)
+            throws RuntimeException
+    {
+        try (Connection connection = getDbConnection()) {
+            // Prepare create schema statement
+            String createStatement = String.format("create schema %s;", dbSchemaName);
+            PreparedStatement createSchema = connection.prepareStatement(createStatement);
+            logger.info("Statement prepared: {}", createStatement);
+            // Execute statement
+            createSchema.execute();
+            logger.info("Created the DB schema: {}", dbSchemaName);
+        }
+        catch(SQLException e) {
+            throw new RuntimeException(String.format("Unable to create DB schema (%s): %s",
+                    dbSchemaName, e.getMessage()), e);
+        }
+    }
+
+    /**
      * Creates a DB table.
      * @param schema String representing the table's schema (e.g. "year int, first_name varchar").
      * @throws RuntimeException The SQL statement failed.

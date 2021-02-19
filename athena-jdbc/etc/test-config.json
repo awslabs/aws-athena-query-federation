@@ -21,5 +21,9 @@
     "postgres_db_port": 5432,             /* Port number associated with the PostGreSql instance endpoint */
     "postgres_table_movies": "movies",    /* PostGreSql table name */
     "postgres_table_bday": "bday"         /* PostGreSql table name */
+    "mysql_db_name": "mysqlinteg",        /* Name of the Db used by the MySql integration tests */
+    "mysql_db_port": 3306,                /* Port number associated with the MySql instance endpoint */
+    "mysql_table_movies": "movies",       /* MySql table name */
+    "mysql_table_bday": "bday"            /* MySql table name */
   }
 }
