@@ -215,8 +215,6 @@
                 <configuration>
                     <forkCount>3C</forkCount>
                     <reuseForks>false</reuseForks>
-                    <parallel>classes</parallel>
-                    <threadCount>5</threadCount>
                     <includes>
                         <include>*IntegTest</include>
                     </includes>

@@ -47,8 +47,8 @@ import software.amazon.awscdk.services.iam.PolicyDocument;
 import software.amazon.awscdk.services.rds.Credentials;
 import software.amazon.awscdk.services.rds.DatabaseInstance;
 import software.amazon.awscdk.services.rds.DatabaseInstanceEngine;
-import software.amazon.awscdk.services.rds.PostgresInstanceEngineProps;
-import software.amazon.awscdk.services.rds.PostgresEngineVersion;
+import software.amazon.awscdk.services.rds.MySqlInstanceEngineProps;
+import software.amazon.awscdk.services.rds.MysqlEngineVersion;
 import software.amazon.awscdk.services.rds.StorageType;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 
@@ -64,20 +64,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Integration-tests for the PostGreSql (JDBC) connector using the Integration-test module.
+ * Integration-tests for the MySql (JDBC) connector using the Integration-test module.
  */
-public class PostGreSqlIntegTest extends IntegrationTestBase
+public class MySqlIntegTest extends IntegrationTestBase
 {
-    private static final Logger logger = LoggerFactory.getLogger(PostGreSqlIntegTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(MySqlIntegTest.class);
 
     private final App theApp;
     private final String secretArn;
     private final String username;
     private final String password;
-    private final String postgresDbName;
-    private final Number postgresDbPort;
-    private final String postgresTableMovies;
-    private final String postgresTableBday;
+    private final String mysqlDbName;
+    private final Number mysqlDbPort;
+    private final String mysqlTableMovies;
+    private final String mysqlTableBday;
     private final String lambdaFunctionName;
     private final String dbInstanceName;
     private final Map<String, String> environmentVars;
@@ -85,7 +85,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
     private CloudFormationClient cloudFormationClient;
 
-    public PostGreSqlIntegTest()
+    public MySqlIntegTest()
     {
         theApp = new App();
         SecretsManagerCredentials secretsManagerCredentials = getSecretCredentials().orElseThrow(() ->
@@ -95,26 +95,26 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         password = secretsManagerCredentials.getPassword();
         Map<String, Object> userSettings = getUserSettings().orElseThrow(() ->
                 new RuntimeException("user_settings attribute must be provided in test-config.json file."));
-        postgresDbName = (String) userSettings.get("postgres_db_name");
-        postgresDbPort = (Number) userSettings.get("postgres_db_port");
-        postgresTableMovies = (String) userSettings.get("postgres_table_movies");
-        postgresTableBday = (String) userSettings.get("postgres_table_bday");
+        mysqlDbName = (String) userSettings.get("mysql_db_name");
+        mysqlDbPort = (Number) userSettings.get("mysql_db_port");
+        mysqlTableMovies = (String) userSettings.get("mysql_table_movies");
+        mysqlTableBday = (String) userSettings.get("mysql_table_bday");
         lambdaFunctionName = getLambdaFunctionName();
-        dbInstanceName = "integ-postgres-instance-" + UUID.randomUUID();
+        dbInstanceName = "integ-mysql-instance-" + UUID.randomUUID();
         environmentVars = new HashMap<>();
         jdbcProperties = ImmutableMap.of("databaseTerm", "SCHEMA");
     }
 
     /**
-     * Creates a PostGreSql RDS Instance used for the integration tests.
+     * Creates a MySql RDS Instance used for the integration tests.
      */
     @BeforeClass
     @Override
     protected void setUp()
     {
-        cloudFormationClient = new CloudFormationClient(theApp, getPostGreSqlStack());
+        cloudFormationClient = new CloudFormationClient(theApp, getMySqlStack());
         try {
-            // Create the CloudFormation stack for the PostGreSql DB instance.
+            // Create the CloudFormation stack for the MySql DB instance.
             cloudFormationClient.createStack();
             // Get DB instance's host and port information and set the environment variables needed for the Lambda.
             setEnvironmentVars(getInstanceData());
@@ -131,7 +131,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     }
 
     /**
-     * Deletes a CloudFormation stack for the PostGreSql RDS Instance.
+     * Deletes a CloudFormation stack for the MySql RDS Instance.
      */
     @AfterClass
     @Override
@@ -139,43 +139,43 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     {
         // Invoke the framework's cleanUp().
         super.cleanUp();
-        // Delete the CloudFormation stack for the PostGreSql DB instance.
+        // Delete the CloudFormation stack for the MySql DB instance.
         cloudFormationClient.deleteStack();
     }
 
     /**
-     * Gets the CloudFormation stack for the PostGreSql RDS Instance.
-     * @return Stack object for the PostGreSql RDS Instance.
+     * Gets the CloudFormation stack for the MySql RDS Instance.
+     * @return Stack object for the MySql RDS Instance.
      */
-    private Stack getPostGreSqlStack()
+    private Stack getMySqlStack()
     {
         Stack stack = Stack.Builder.create(theApp, dbInstanceName).build();
 
         ConnectorVpcAttributes vpcAttributes = getVpcAttributes()
                 .orElseThrow(() -> new RuntimeException("vpc_configuration must be specified in test-config.json"));
 
-        DatabaseInstance.Builder.create(stack, "PostGreSqlInstance")
+        DatabaseInstance.Builder.create(stack, "MySqlInstance")
                 .publiclyAccessible(Boolean.TRUE)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .deleteAutomatedBackups(Boolean.TRUE)
                 .storageEncrypted(Boolean.FALSE)
-                .port(postgresDbPort)
+                .port(mysqlDbPort)
                 .instanceIdentifier(dbInstanceName)
-                .engine(DatabaseInstanceEngine.postgres(PostgresInstanceEngineProps.builder()
-                        .version(PostgresEngineVersion.VER_12_4)
+                .engine(DatabaseInstanceEngine.mysql(MySqlInstanceEngineProps.builder()
+                        .version(MysqlEngineVersion.VER_8_0_20)
                         .build()))
                 .storageType(StorageType.GP2)
                 .allocatedStorage(20)
                 .instanceType(new InstanceType("t2.micro"))
                 .credentials(Credentials.fromSecret(Secret
-                        .fromSecretCompleteArn(stack, "PostGreSqlSecret", secretArn)))
-                .vpc(Vpc.fromVpcAttributes(stack, "PostGreSqlVpcConfig", VpcAttributes.builder()
+                        .fromSecretCompleteArn(stack, "MySqlSecret", secretArn)))
+                .vpc(Vpc.fromVpcAttributes(stack, "MySqlVpcConfig", VpcAttributes.builder()
                         .vpcId(vpcAttributes.getVpcId())
                         .privateSubnetIds(vpcAttributes.getPrivateSubnetIds())
                         .availabilityZones(vpcAttributes.getAvailabilityZones())
                         .build()))
                 .securityGroups(Collections.singletonList(SecurityGroup
-                        .fromSecurityGroupId(stack, "PostGreSqlVpcSecurityGroup",
+                        .fromSecurityGroupId(stack, "MySqlVpcSecurityGroup",
                                 vpcAttributes.getSecurityGroupId())))
                 .build();
 
@@ -183,8 +183,9 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     }
 
     /**
-     * Gets the PostGreSql RDS Instance endpoint information and generates the environment variables needed for the
-     * Lambda. All exceptions thrown here will be caught in the calling function.
+     * Gets the MySql RDS Instance endpoint information. All exceptions thrown here will be caught in the
+     * calling function.
+     * @return Endpoint object containing the DB instance's domain and port information.
      */
     private Endpoint getInstanceData()
     {
@@ -205,7 +206,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      */
     private void setEnvironmentVars(Endpoint endpoint)
     {
-        String connectionString = String.format("postgres://jdbc:postgresql://%s:%s/postgres?user=%s&password=%s",
+        String connectionString = String.format("mysql://jdbc:mysql://%s:%s/mysql?user=%s&password=%s",
                 endpoint.getAddress(), endpoint.getPort(), username, password);
         String connectionStringTag = lambdaFunctionName + "_connection_string";
         environmentVars.put("default", connectionString);
@@ -218,11 +219,11 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     private void createDbSchema()
     {
         logger.info("----------------------------------------------------");
-        logger.info("Setting up DB Schema: {}", postgresDbName);
+        logger.info("Setting up DB Schema: {}", mysqlDbName);
         logger.info("----------------------------------------------------");
 
         JdbcTableUtils jdbcUtils =
-                new JdbcTableUtils(lambdaFunctionName, new TableName(postgresDbName, postgresTableMovies),
+                new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableMovies),
                         environmentVars, jdbcProperties);
         jdbcUtils.createDbSchema();
     }
@@ -274,19 +275,15 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     private void setUpMoviesTable()
     {
         logger.info("----------------------------------------------------");
-        logger.info("Setting up DB table: {}", postgresTableMovies);
+        logger.info("Setting up DB table: {}", mysqlTableMovies);
         logger.info("----------------------------------------------------");
 
         JdbcTableUtils moviesTable =
-                new JdbcTableUtils(lambdaFunctionName, new TableName(postgresDbName, postgresTableMovies),
+                new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableMovies),
                         environmentVars, jdbcProperties);
-        moviesTable.createTable("year int, title varchar, director varchar, actors varchar[]");
-        moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', " +
-                "'{Matthew McConaughey, John Lithgow, Ann Hathaway, David Gyasi, Michael Caine, " +
-                "Jessica Chastain, Matt Damon, Casey Affleck}'");
-        moviesTable.insertRow("1986, 'Aliens', 'James Cameron', " +
-                "'{Sigourney Weaver, Paul Reiser, Lance Henriksen, Bill Paxton}'");
-
+        moviesTable.createTable("year INTEGER, title VARCHAR(25), director VARCHAR(25), lead_actor VARCHAR(25)");
+        moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', 'Matthew McConaughey'");
+        moviesTable.insertRow("1986, 'Aliens', 'James Cameron', 'Sigourney Weaver'");
     }
 
     /**
@@ -295,16 +292,16 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     private void setUpBdayTable()
     {
         logger.info("----------------------------------------------------");
-        logger.info("Setting up DB table: {}", postgresTableBday);
+        logger.info("Setting up DB table: {}", mysqlTableBday);
         logger.info("----------------------------------------------------");
 
         JdbcTableUtils bdayTable =
-                new JdbcTableUtils(lambdaFunctionName, new TableName(postgresDbName, postgresTableBday),
+                new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableBday),
                         environmentVars, jdbcProperties);
-        bdayTable.createTable("first_name varchar, last_name varchar, birthday date");
-        bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')");
-        bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')");
-        bdayTable.insertRow("'John', 'Smith', date('2006-02-10')");
+        bdayTable.createTable("first_name VARCHAR(10), last_name VARCHAR(10), birthday DATE");
+        bdayTable.insertRow("'Joe', 'Schmoe', '2002-05-05'");
+        bdayTable.insertRow("'Jane', 'Doe', '2005-10-12'");
+        bdayTable.insertRow("'John', 'Smith', '2006-02-10'");
     }
 
     @Test
@@ -316,7 +313,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
         List dbNames = listDatabases();
         logger.info("Databases: {}", dbNames);
-        assertTrue("DB not found.", dbNames.contains(postgresDbName));
+        assertTrue("DB not found.", dbNames.contains(mysqlDbName));
     }
 
     @Test
@@ -326,13 +323,13 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         logger.info("Executing listTablesIntegTest");
         logger.info("-----------------------------------");
 
-        List tableNames = listTables(postgresDbName);
+        List tableNames = listTables(mysqlDbName);
         logger.info("Tables: {}", tableNames);
         assertEquals("Incorrect number of tables found.", 2, tableNames.size());
-        assertTrue(String.format("Table not found: %s.", postgresTableMovies),
-                tableNames.contains(postgresTableMovies));
-        assertTrue(String.format("Table not found: %s.", postgresTableBday),
-                tableNames.contains(postgresTableBday));
+        assertTrue(String.format("Table not found: %s.", mysqlTableMovies),
+                tableNames.contains(mysqlTableMovies));
+        assertTrue(String.format("Table not found: %s.", mysqlTableBday),
+                tableNames.contains(mysqlTableBday));
     }
 
     @Test
@@ -342,7 +339,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         logger.info("Executing listTableSchemaIntegTest");
         logger.info("--------------------------------------");
 
-        Map schema = describeTable(postgresDbName, postgresTableMovies);
+        Map schema = describeTable(mysqlDbName, mysqlTableMovies);
         schema.remove("partition_name");
         schema.remove("partition_schema_name");
         logger.info("Schema: {}", schema);
@@ -353,8 +350,8 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         assertEquals("Wrong column type for title.", "varchar", schema.get("title"));
         assertTrue("Column not found: director", schema.containsKey("director"));
         assertEquals("Wrong column type for director.", "varchar", schema.get("director"));
-        assertTrue("Column not found: actors", schema.containsKey("actors"));
-        assertEquals("Wrong column type for actors.", "array<varchar>", schema.get("actors"));
+        assertTrue("Column not found: lead_actor", schema.containsKey("lead_actor"));
+        assertEquals("Wrong column type for lead_actor.", "varchar", schema.get("lead_actor"));
     }
 
     @Test
@@ -365,7 +362,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2010;",
-                lambdaFunctionName, postgresDbName, postgresTableMovies);
+                lambdaFunctionName, mysqlDbName, mysqlTableMovies);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -379,15 +376,14 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     }
 
     @Test
-    public void selectColumnBetweenDatesIntegTest()
-    {
+    public void selectColumnBetweenDatesIntegTest() {
         logger.info("--------------------------------------------------");
         logger.info("Executing selectColumnBetweenDatesIntegTest");
         logger.info("--------------------------------------------------");
 
         String query = String.format(
                 "select first_name from %s.%s.%s where birthday between date('2005-10-01') and date('2005-10-31');",
-                lambdaFunctionName, postgresDbName, postgresTableBday);
+                lambdaFunctionName, mysqlDbName, mysqlTableBday);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row

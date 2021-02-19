@@ -279,9 +279,3 @@ describe `lambda:<function_name>`.schema1.table1;
 *note that the <function_name> corresponds to the name of your Lambda function.*
 
 Don't forget to try out [Amazon Athena ML](https://github.com/awslabs/aws-athena-query-federation/wiki/AthenaML-Tutorial) to apply SageMaker model inference right from your Amazon Athena queries.
-
-## Integration Tests
-
-Although the topic of integration tests is not covered in this example, you can learn more about how to create and
-run integration tests for your connector by referring to the [README](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md)
-in the **athena-federation-integ-test** module.

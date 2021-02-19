@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.integ.clients.CloudFormationClient;
 import com.amazonaws.athena.connector.integ.data.ConnectorVpcAttributes;
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.redshift.AmazonRedshift;
 import com.amazonaws.services.redshift.AmazonRedshiftClientBuilder;
@@ -109,8 +110,10 @@ public class RedshiftIntegTest extends IntegrationTestBase
         try {
             // Create the CloudFormation stack for the Redshift cluster.
             cloudFormationClient.createStack();
-            // Get Cluster's endpoint/port information and set environment variables for Lambda.
-            getClusterData();
+            // Get DB cluster's host and port information and set the environment variables needed for the Lambda.
+            setEnvironmentVars(getClusterData());
+            // Create the DB schema in the newly created DB cluster used for the integration tests.
+            createDbSchema();
             // Invoke the framework's setUp().
             super.setUp();
         }
@@ -154,7 +157,7 @@ public class RedshiftIntegTest extends IntegrationTestBase
                 .clusterType(ClusterType.SINGLE_NODE)
                 .nodeType(NodeType.DC2_LARGE)
                 .numberOfNodes(1)
-                .defaultDatabaseName(redshiftDbName)
+                .defaultDatabaseName("public")
                 .masterUser(Login.builder()
                         .masterUsername(username)
                         .masterPassword(SecretValue.plainText(password))
@@ -172,25 +175,48 @@ public class RedshiftIntegTest extends IntegrationTestBase
     }
 
     /**
-     * Gets the Redshift cluster endpoint information and generates the environment variables needed for the Lambda.
+     * Gets the Redshift cluster endpoint information needed for the Lambda.
      * All exceptions thrown here will be caught in the calling function.
      */
-    private void getClusterData()
+    private Endpoint getClusterData()
     {
         AmazonRedshift redshiftClient = AmazonRedshiftClientBuilder.defaultClient();
         try {
             DescribeClustersResult clustersResult = redshiftClient.describeClusters(new DescribeClustersRequest()
                     .withClusterIdentifier(clusterName));
-            Endpoint endpoint = clustersResult.getClusters().get(0).getEndpoint();
-            String connectionString = String.format("redshift://jdbc:redshift://%s:%s/%s?user=%s&password=%s",
-                    endpoint.getAddress(), endpoint.getPort(), redshiftDbName, username, password);
-            String connectionStringTag = lambdaFunctionName + "_connection_string";
-            environmentVars.put("default", connectionString);
-            environmentVars.put(connectionStringTag, connectionString);
+            return clustersResult.getClusters().get(0).getEndpoint();
         }
         finally {
             redshiftClient.shutdown();
         }
+    }
+
+    /**
+     * Sets the environment variables needed for the Lambda.
+     * @param endpoint Contains the DB hostname and port information.
+     */
+    private void setEnvironmentVars(Endpoint endpoint)
+    {
+        String connectionString = String.format("redshift://jdbc:redshift://%s:%s/public?user=%s&password=%s",
+                endpoint.getAddress(), endpoint.getPort(), username, password);
+        String connectionStringTag = lambdaFunctionName + "_connection_string";
+        environmentVars.put("default", connectionString);
+        environmentVars.put(connectionStringTag, connectionString);
+    }
+
+    /**
+     * Creates the DB schema used for the integration tests.
+     */
+    private void createDbSchema()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB Schema: {}", redshiftDbName);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils jdbcUtils =
+                new JdbcTableUtils(lambdaFunctionName, new TableName(redshiftDbName, redshiftTableMovies),
+                        environmentVars);
+        jdbcUtils.createDbSchema();
     }
 
     /**
@@ -250,7 +276,8 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", redshiftTableMovies);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName, redshiftTableMovies, environmentVars);
+        JdbcTableUtils moviesTable = new JdbcTableUtils(lambdaFunctionName,
+                new TableName(redshiftDbName, redshiftTableMovies), environmentVars);
         moviesTable.createTable("year int, title varchar, director varchar, lead varchar");
         moviesTable.insertRow("2014, 'Interstellar', 'Christopher Nolan', 'Matthew McConaughey'");
         moviesTable.insertRow("1986, 'Aliens', 'James Cameron', 'Sigourney Weaver'");
@@ -266,7 +293,8 @@ public class RedshiftIntegTest extends IntegrationTestBase
         logger.info("Setting up DB table: {}", redshiftTableBday);
         logger.info("----------------------------------------------------");
 
-        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName, redshiftTableBday, environmentVars);
+        JdbcTableUtils bdayTable = new JdbcTableUtils(lambdaFunctionName,
+                new TableName(redshiftDbName, redshiftTableBday), environmentVars);
         bdayTable.createTable("first_name varchar, last_name varchar, birthday date");
         bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')");
         bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')");

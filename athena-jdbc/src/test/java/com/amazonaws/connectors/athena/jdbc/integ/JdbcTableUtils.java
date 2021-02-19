@@ -19,6 +19,7 @@
  */
 package com.amazonaws.connectors.athena.jdbc.integ;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.amazonaws.connectors.athena.jdbc.connection.GenericJdbcConnectionFactory;
@@ -39,34 +40,58 @@ public class JdbcTableUtils
     private static final Logger logger = LoggerFactory.getLogger(JdbcTableUtils.class);
 
     private final String catalog;
+    private final String schemaName;
     private final String tableName;
     private final Map environmentVars;
     private final Map properties;
 
-    public JdbcTableUtils(String catalog, String tableName, Map environmentVars)
+    public JdbcTableUtils(String catalog, TableName table, Map environmentVars)
     {
-        this(catalog, tableName, environmentVars, null);
+        this(catalog, table, environmentVars, null);
     }
 
-    public JdbcTableUtils(String catalog, String tableName, Map environmentVars, Map properties)
+    public JdbcTableUtils(String catalog, TableName table, Map environmentVars, Map properties)
     {
         this.catalog = catalog;
-        this.tableName = tableName;
+        this.schemaName = table.getSchemaName();
+        this.tableName = table.getTableName();
         this.environmentVars = environmentVars;
         this.properties = properties;
     }
 
     /**
-     * Creates a DB table.
-     * @param schema String representing the table's schema (e.g. "year int, first_name varchar").
+     * Creates a DB schema.
      * @throws RuntimeException The SQL statement failed.
      */
-    public void createTable(String schema)
+    public void createDbSchema()
+            throws RuntimeException
+    {
+        try (Connection connection = getDbConnection()) {
+            // Prepare create schema statement
+            String createStatement = String.format("create schema %s;", schemaName);
+            PreparedStatement createSchema = connection.prepareStatement(createStatement);
+            logger.info("Statement prepared: {}", createStatement);
+            // Execute statement
+            createSchema.execute();
+            logger.info("Created the DB schema: {}", schemaName);
+        }
+        catch(SQLException e) {
+            throw new RuntimeException(String.format("Unable to create DB schema (%s): %s",
+                    schemaName, e.getMessage()), e);
+        }
+    }
+
+    /**
+     * Creates a DB table.
+     * @param tableSchema String representing the table's schema (e.g. "year int, first_name varchar").
+     * @throws RuntimeException The SQL statement failed.
+     */
+    public void createTable(String tableSchema)
             throws RuntimeException
     {
         try (Connection connection = getDbConnection()) {
             // Prepare create table statement
-            String createStatement = String.format("create table %s (%s);", tableName, schema);
+            String createStatement = String.format("create table %s.%s (%s);", schemaName, tableName, tableSchema);
             PreparedStatement createTable = connection.prepareStatement(createStatement);
             logger.info("Statement prepared: {}", createStatement);
             // Execute statement
@@ -74,23 +99,23 @@ public class JdbcTableUtils
             logger.info("Created the '{}' table.", tableName);
         }
         catch(SQLException e) {
-            throw new RuntimeException(String.format("Unable to create table '%s' in DB: %s",
-                    tableName, e.getMessage()), e);
+            throw new RuntimeException(String.format("Unable to create table '%s' in DB '%s': %s",
+                    tableName, schemaName, e.getMessage()), e);
         }
     }
 
     /**
      * Inserts a row into a DB table.
-     * @param values String representing the row's values (e.g. "1992, 'James'").
+     * @param tableValues String representing the row's values (e.g. "1992, 'James'").
      * @throws RuntimeException The SQL statement failed.
      */
-    public void insertRow(String values)
+    public void insertRow(String tableValues)
             throws RuntimeException
     {
         try (Connection connection = getDbConnection()) {
 
             // Prepare insert values statements
-            String insertStatement = String.format("insert into %s values(%s);", tableName, values);
+            String insertStatement = String.format("insert into %s.%s values(%s);", schemaName, tableName, tableValues);
             PreparedStatement insertValues = connection.prepareStatement(insertStatement);
             logger.info("Statement prepared: {}", insertStatement);
             // Execute statement

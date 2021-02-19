@@ -13,13 +13,17 @@
     "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
   },
   "user_settings" : {                     /* User customizable settings */
-    "redshift_db_name": "public",         /* Name of the Db used by the Redshift integration tests */
-    "redshift_db_port": "5439",           /* Port number associated with the Redshift cluster endpoint */
-    "redshift_table_movies": "movies",    /* Redshift table name */
-    "redshift_table_bday": "bday",        /* Redshift table name */
-    "postgres_db_name": "public",         /* Name of the Db used by the PostGreSql integration tests */
-    "postgres_db_port": 5432,             /* Port number associated with the PostGreSql instance endpoint */
-    "postgres_table_movies": "movies",    /* PostGreSql table name */
-    "postgres_table_bday": "bday"         /* PostGreSql table name */
+    "redshift_db_name": "<DB Name>",      /* Name of the Db used by the Redshift integration tests */
+    "redshift_db_port": "<DB Port>",      /* Port number associated with the Redshift cluster endpoint */
+    "redshift_table_movies": "<Table Name>",    /* Redshift table name */
+    "redshift_table_bday": "<Table Name>",      /* Redshift table name */
+    "postgres_db_name": "<DB Name>",      /* Name of the Db used by the PostGreSql integration tests */
+    "postgres_db_port": <Port (Integer)>, /* Port number associated with the PostGreSql instance endpoint */
+    "postgres_table_movies": "<Table Name>",    /* PostGreSql table name */
+    "postgres_table_bday": "<Table Name>",      /* PostGreSql table name */
+    "mysql_db_name": "<DB Name>",         /* Name of the Db used by the MySql integration tests */
+    "mysql_db_port": <Port (Integer)>,    /* Port number associated with the MySql instance endpoint */
+    "mysql_table_movies": "<Table Name>",       /* MySql table name */
+    "mysql_table_bday": "<Table Name>"          /* MySql table name */
   }
 }
