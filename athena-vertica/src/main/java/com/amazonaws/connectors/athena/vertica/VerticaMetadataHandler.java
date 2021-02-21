@@ -41,12 +41,14 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import io.netty.util.internal.StringUtil;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.stringtemplate.v4.ST;
 
 import java.sql.*;
 import java.util.*;
@@ -69,6 +71,7 @@ public class VerticaMetadataHandler
     private static  final String TABLE_SCHEMA = "TABLE_SCHEM";
     private static final String[] TABLE_TYPES = {"TABLE"};
     private static final String EXPORT_BUCKET_KEY = "export_bucket";
+    private static final String EMPTY_STRING = StringUtil.EMPTY_STRING;
     private final VerticaConnectionFactory connectionFactory;
     private final QueryFactory queryFactory = new QueryFactory();
     private final VerticaSchemaUtils verticaSchemaUtils;
@@ -307,6 +310,9 @@ public class VerticaMetadataHandler
         String exportBucket = getS3ExportBucket();
         String queryId = request.getQueryId().replace("-","");
 
+        //testing if the user has access to the requested table
+        testAccess(connection, request.getTableName());
+
         //get the SQL statement which was created in getPartitions
         FieldReader fieldReaderPS = request.getPartitions().getFieldReader("preparedStmt");
         String sqlStatement  = fieldReaderPS.readText().toString();
@@ -327,19 +333,38 @@ public class VerticaMetadataHandler
           */
         Split split;
         List<S3ObjectSummary> s3ObjectSummaries = getlistExportedObjects(exportBucket, queryId);
-        for (S3ObjectSummary objectSummary : s3ObjectSummaries)
-        {
-            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                    .add("query_id", queryID)
-                    .add(VERTICA_CONN_STR, getConnStr(request))
-                    .add("exportBucket", exportBucket)
-                    .add("s3ObjectKey", objectSummary.getKey())
-                    .build();
-            splits.add(split);
 
+        if(!s3ObjectSummaries.isEmpty())
+        {
+            for (S3ObjectSummary objectSummary : s3ObjectSummaries)
+            {
+                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                        .add("query_id", queryID)
+                        .add(VERTICA_CONN_STR, getConnStr(request))
+                        .add("exportBucket", exportBucket)
+                        .add("s3ObjectKey", objectSummary.getKey())
+                        .build();
+                splits.add(split);
+
+            }
+            logger.info("doGetSplits: exit - " + splits.size());
+            return new GetSplitsResponse(catalogName, splits);
         }
-        logger.info("doGetSplits: exit - " + splits.size());
-        return new GetSplitsResponse(catalogName, splits);
+        else
+            {
+                //No records were exported by Vertica for the issued query, creating a "empty" split
+                logger.info("No records were exported by Vertica");
+                split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
+                        .add("query_id", queryID)
+                        .add(VERTICA_CONN_STR, getConnStr(request))
+                        .add("exportBucket", exportBucket)
+                        .add("s3ObjectKey", EMPTY_STRING)
+                        .build();
+                splits.add(split);
+                logger.info("doGetSplits: exit - " + splits.size());
+                return new GetSplitsResponse(catalogName,split);
+            }
+
     }
 
     /*
@@ -375,17 +400,34 @@ public class VerticaMetadataHandler
         try
         {
             objectListing = amazonS3.listObjects(new ListObjectsRequest().withBucketName(s3ExportBucket).withPrefix(queryId));
-            if(objectListing.getObjectSummaries().size() == 0)
-            {
-                logger.error("Export to S3 from Vertica was not successful");
-                throw new RuntimeException("Export to S3 from Vertica was not successful");
-            }
         }
         catch (SdkClientException e)
         {
-            throw new RuntimeException("Exception in connecting to S3 in isExportSuccessful: " + e.getMessage(), e);
+            throw new RuntimeException("Exception listing the exported objects : " + e.getMessage(), e);
         }
         return objectListing.getObjectSummaries();
+    }
+
+    private void testAccess(Connection conn, TableName table) {
+        ST simpleTestSqlST = new ST("SELECT * FROM <schemaName>.<tableName> Limit 1;");
+        simpleTestSqlST.add("schemaName", table.getSchemaName());
+        simpleTestSqlST.add("tableName", table.getTableName());
+        logger.info("Checking if the user has access to {}.{}", table.getSchemaName(), table.getTableName());
+        try {
+            PreparedStatement testAccessSql = conn.prepareStatement(simpleTestSqlST.render());
+            ResultSet resultSet = testAccessSql.executeQuery();
+        } catch (Exception e) {
+            if (e.getMessage().contains("Permission denied")) {
+                throw new RuntimeException("Permission Denied: " + e.getMessage());
+            } else if (e.getMessage().contains("Insufficient privilege")) {
+                throw new RuntimeException("Insufficient privilege" + e.getMessage());
+            } else {
+                throw new RuntimeException(e.getMessage());
+            }
+        }
+        logger.info("User has access to {}.{}", table.getSchemaName(), table.getTableName());
+
+
     }
 
     public String getS3ExportBucket()
