@@ -123,6 +123,10 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.connectors.athena.vertica.query">com.amazonaws.connectors.athena.vertica.query</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.timestream.query">com.amazonaws.connectors.timestream.query</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -456,6 +460,31 @@
              org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
              <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
              <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&nbsp;split)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.connectors.athena.vertica.query">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a> in <a href="../../../../../../../../com/amazonaws/connectors/athena/vertica/query/package-summary.html">com.amazonaws.connectors.athena.vertica.query</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../../com/amazonaws/connectors/athena/vertica/query/package-summary.html">com.amazonaws.connectors.athena.vertica.query</a> with parameters of type <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">PredicateBuilder.</span><code><span class="memberNameLink"><a href="../../../../../../../../com/amazonaws/connectors/athena/vertica/query/PredicateBuilder.html#toConjuncts-java.util.List-com.amazonaws.athena.connector.lambda.domain.predicate.Constraints-java.util.HashMap-">toConjuncts</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.arrow.vector.types.pojo.Field&gt;&nbsp;columns,
+           <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+           <a href="https://docs.oracle.com/javase/8/docs/api/java/util/HashMap.html?is-external=true" title="class or interface in java.util">HashMap</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="../../../../../../../../com/amazonaws/connectors/athena/vertica/query/PredicateBuilder.TypeAndValue.html" title="class in com.amazonaws.connectors.athena.vertica.query">PredicateBuilder.TypeAndValue</a>&gt;&nbsp;accumulator)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../../../../../com/amazonaws/connectors/athena/vertica/query/VerticaExportQueryBuilder.html" title="class in com.amazonaws.connectors.athena.vertica.query">VerticaExportQueryBuilder</a></code></td>
+<td class="colLast"><span class="typeNameLabel">VerticaExportQueryBuilder.</span><code><span class="memberNameLink"><a href="../../../../../../../../com/amazonaws/connectors/athena/vertica/query/VerticaExportQueryBuilder.html#withConstraints-com.amazonaws.athena.connector.lambda.domain.predicate.Constraints-org.apache.arrow.vector.types.pojo.Schema-">withConstraints</a></span>(<a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&nbsp;constraints,
+               org.apache.arrow.vector.types.pojo.Schema&nbsp;tableSchema)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
