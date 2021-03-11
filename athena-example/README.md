@@ -4,7 +4,7 @@ This module is meant to serve as a guided example for writing and deploying a co
 
 This tutorial also includes an an example of creating scalar User Defined Functions(UDFs) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as standalone Lambda functions completely independent of a connector.
 
-**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.**
+**Athena Federated Queries are now enabled as GA in us-east-1, us-east-2, us-west-2, eu-west-1, ap-northeast-1, ap-south-1, us-west-1, ap-southeast-1, ap-southeast-2, eu-west-2, ap-northeast-2, eu-west-3, ca-central-1, sa-east-1, and eu-central-1. To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.**
 
 ## What is a 'Connector'?
 
