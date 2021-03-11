@@ -4,7 +4,7 @@ This module is meant to serve as a guided example for writing and deploying a co
 
 This tutorial also includes an an example of creating scalar User Defined Functions(UDFs) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as standalone Lambda functions completely independent of a connector.
 
-**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.  To enable this feature in other regions, you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**Athena Federated Queries are now enabled as GA in US-East-1 (IAD), US-West-2 (PDX), and US-East-2 (CMH). To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.**
 
 ## What is a 'Connector'?
 
@@ -246,9 +246,7 @@ If everything worked as expected you should see the script generate useful debug
 
 ### Step 7: Run a Query!
 
-Ok, now we are ready to try running some queries using our new connector. To do so, create a new workgroup called "AmazonAthenaPreviewFunctionality" if you haven't already done so. This workgroup will ensure your queries are enabled for our Preview features (UDFs, Federation, Athena ML). Some good examples to try include (be sure to put in your actual database and table names):
-
-Dont forget to create and use an Athena workgroup called "AmazonAthenaPreviewFunctionality" in the us-east-1 region. When Athena sees a query come from a workgroup with this name, it will enable Federation, UDFs, and SageMaker capabilities for use by your query. Once this feature reaches General Availability this requirement will be lifted.
+Ok, now we are ready to try running some queries using our new connector. To do so, configure your workgroup to use Athena Engine Version 2. This feature is only available on the new Athena Engine. See documentation here for more info: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html. Some good examples to try include (be sure to put in your actual database and table names):
 
 ```sql
 USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
