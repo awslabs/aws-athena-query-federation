@@ -30,6 +30,12 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-integ-test</artifactId>
+            <version>2021.6.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4jVersion}</version>
@@ -62,6 +68,13 @@
             <artifactId>log4j-api</artifactId>
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/elasticsearch -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.elasticsearch.client/elasticsearch-rest-client -->
         <dependency>

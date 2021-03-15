@@ -1,0 +1,22 @@
+{
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "",          /* Not Used */
+  "environment_vars" : {                  /* Parameters used by the connector's internal logic */
+    "spill_bucket" : "<spill bucket>",    /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false"  /* If set to true encryption for spilled data is disabled (default: false) */
+    "auto_discover_endpoint" : "<true/false>", /* Set true to use Amazon Elasticsearch Service */
+    "query_timeout_cluster" : "<seconds>",     /* Set the Lambda's cluster info query timeout. */
+    "query_timeout_search" : "<seconds>"       /* Set the Lambda's search query timeout. */
+  },
+  "vpc_configuration" : {           /* This connector does not use a VPC configuration */
+    "vpc_id": "",                   /* Leave empty */
+    "security_group_id": "",        /* Leave empty */
+    "subnet_ids": [],               /* Leave empty */
+    "availability_zones": []        /* Leave empty */
+  },
+  "user_settings" : {               /* User customizable settings */
+    "domain_name" : "<domain>",     /* Domain name of the Elasticsearch cluster */
+    "index" : "<index>"             /* Index used for the integration tests */
+  }
+}
