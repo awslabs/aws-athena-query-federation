@@ -10,8 +10,6 @@ You can find a collection of ready made modules that allow Athena to connect to 
 
 For those seeking to write their own connectors, we recommend you being by going through the [tutorial in athena-example](https://github.com/awslabs/aws-athena-query-federation/tree/master/athena-example)
 
-**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
-
 ## Features
 
 * **Federated Metadata** - It is not always practical to centralize table metadata in a centralized meta-store. As such, this SDK allows Athena to delegate portions of its query planning to your connector in order to retrieve metadata about your data source.

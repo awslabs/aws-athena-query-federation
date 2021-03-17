@@ -2,7 +2,7 @@
 
 This connector extends Amazon Athena's capability by adding customizable UDFs via Lambda.
 
-**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to use a UDF or SageMaker inference from that workgroup.**
 
 ## Supported UDFs
 
