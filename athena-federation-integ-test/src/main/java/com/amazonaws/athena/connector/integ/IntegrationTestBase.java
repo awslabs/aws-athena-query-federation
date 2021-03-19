@@ -191,8 +191,8 @@ public abstract class IntegrationTestBase
     @BeforeClass
     protected void setUp()
     {
+        cloudFormationClient = new CloudFormationClient(connectorStackProvider.getStack());
         try {
-            cloudFormationClient = new CloudFormationClient(connectorStackProvider.getStack());
             cloudFormationClient.createStack();
             setUpTableData();
         }
