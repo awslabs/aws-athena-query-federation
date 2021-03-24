@@ -221,7 +221,7 @@ public class DDBPredicateUtils
                                 rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                rangeConjuncts.add(toPredicate(originalColumnName, "BETWEEN", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case BELOW:
                                 throw new IllegalArgumentException("Low marker should never use BELOW bound");
@@ -234,7 +234,10 @@ public class DDBPredicateUtils
                             case ABOVE:
                                 throw new IllegalArgumentException("High marker should never use ABOVE bound");
                             case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                String valueName = valueNameProducer.getNext();
+                                toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueName, recordMetadata);
+                                rangeConjuncts.add(valueName);
+//                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case BELOW:
                                 rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
@@ -283,7 +286,6 @@ public class DDBPredicateUtils
         if (disjuncts.size() == 1) {
             return disjuncts.get(0);
         }
-
         return "(" + OR_JOINER.join(disjuncts) + ")";
     }
 
