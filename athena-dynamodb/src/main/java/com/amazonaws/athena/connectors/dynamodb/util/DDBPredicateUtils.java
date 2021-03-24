@@ -237,7 +237,6 @@ public class DDBPredicateUtils
                                 String valueName = valueNameProducer.getNext();
                                 toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueName, recordMetadata);
                                 rangeConjuncts.add(valueName);
-//                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case BELOW:
                                 rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
