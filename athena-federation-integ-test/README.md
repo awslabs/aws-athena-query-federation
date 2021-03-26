@@ -27,14 +27,16 @@ and the Redshift (JDBC) connector
 
 ### Dependencies
 
-Add the Integration-Test module (athena-federation-integ-test) as a test dependency in the specific connector's
-`pom.xml` file (replace `version` with current version on the module):
+Add the Integration-Test module (athena-federation-integ-test) as a `test` dependency in the specific connector's
+**pom.xml** file, using the current version of the Athena Federation SDK (see below). The current version can be found
+in most **pom.xml** files (e.g.
+[athena-federation-sdk module - pom.xml](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/pom.xml#L15-L16)).
 
 ```xml
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>version</version>
+            <version>Current version of the SDK (e.g. 2021.6.1)</version>
             <scope>test</scope>
         </dependency>
 ```
