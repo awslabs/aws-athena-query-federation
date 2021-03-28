@@ -1,0 +1,21 @@
+{
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "",          /* Secret name used to retrieve user credentials from SecretsManager. */
+  "environment_vars" : {                  /* Parameters used by the connector's internal logic */
+    "spill_bucket" : "<Spill Bucket>",    /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false"  /* If set to true encryption for spilled data is disabled (default: false) */
+  },
+  "vpc_configuration" : {           /* This connector does not use a VPC configuration */
+    "vpc_id": "",                   /* Leave empty */
+    "security_group_id": "",        /* Leave empty */
+    "subnet_ids": [],               /* Leave empty */
+    "availability_zones": []        /* Leave empty */
+  },
+  "user_settings" : {                         /* User customizable settings */
+    "timestream_db_name": "<Enter Value>",    /* Name of the Timestream database used by the integration tests */
+    "timestream_table_name" : "<Enter Value>",/* Name of the Timestream table used by the integration tests */
+    "joke_protagonist" : "<Enter Value>",     /* Joke's Protagonist (e.g. "Man") */
+    "joke_punchline" : "<Enter Value>"        /* Joke's punchline (e.g. "Aha!!!")*/
+  }
+}
