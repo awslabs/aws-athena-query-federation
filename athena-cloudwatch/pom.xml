@@ -24,6 +24,18 @@
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-integ-test</artifactId>
+            <version>2021.6.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/logs -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>logs</artifactId>
+            <version>${aws-cdk.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-logs</artifactId>
             <version>${aws-sdk.version}</version>
             <exclusions>
