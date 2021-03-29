@@ -48,8 +48,7 @@
 <li><a href="com/amazonaws/athena/connector/lambda/data/BlockWriter.RowWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data"><span class="interfaceName">BlockWriter.RowWriter</span></a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security">CachableSecretsManager</a></li>
 <li><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></li>
-<li><a href="com/amazonaws/athena/connector/integ/CloudFormationClient.html" title="class in com.amazonaws.athena.connector.integ">CloudFormationClient</a></li>
-<li><a href="com/amazonaws/athena/connector/integ/CloudFormationTemplateProvider.html" title="class in com.amazonaws.athena.connector.integ">CloudFormationTemplateProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/clients/CloudFormationClient.html" title="class in com.amazonaws.athena.connector.integ.clients">CloudFormationClient</a></li>
 <li><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchCompositeHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchCompositeHandler</a></li>
 <li><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchExceptionFilter.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchExceptionFilter</a></li>
 <li><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchMetadataHandler.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchMetadataHandler</a></li>
@@ -58,8 +57,21 @@
 <li><a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableResolver.html" title="class in com.amazonaws.athena.connectors.cloudwatch">CloudwatchTableResolver</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/CollectionsUtils.html" title="class in com.amazonaws.athena.connector.lambda">CollectionsUtils</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a></li>
-<li><a href="com/amazonaws/athena/connector/integ/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integ">ConnectorStack</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/providers/ConnectorEnvironmentVarsProvider.html" title="class in com.amazonaws.athena.connector.integ.providers">ConnectorEnvironmentVarsProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/data/ConnectorPackagingAttributes.html" title="class in com.amazonaws.athena.connector.integ.data">ConnectorPackagingAttributes</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/providers/ConnectorPackagingAttributesProvider.html" title="class in com.amazonaws.athena.connector.integ.providers">ConnectorPackagingAttributesProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integ.stacks">ConnectorStack</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.Builder.html" title="class in com.amazonaws.athena.connector.integ.stacks">ConnectorStack.Builder</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/data/ConnectorStackAttributes.html" title="class in com.amazonaws.athena.connector.integ.data">ConnectorStackAttributes</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/ConnectorStackAttributesProvider.html" title="class in com.amazonaws.athena.connector.integ">ConnectorStackAttributesProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/ConnectorStackFactory.html" title="class in com.amazonaws.athena.connector.integ">ConnectorStackFactory</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/ConnectorStackProvider.html" title="class in com.amazonaws.athena.connector.integ">ConnectorStackProvider</a></li>
 <li><a href="com/amazonaws/athena/connector/validation/ConnectorValidator.html" title="class in com.amazonaws.athena.connector.validation">ConnectorValidator</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/data/ConnectorVpcAttributes.html" title="class in com.amazonaws.athena.connector.integ.data">ConnectorVpcAttributes</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/providers/ConnectorVpcAttributesProvider.html" title="class in com.amazonaws.athena.connector.integ.providers">ConnectorVpcAttributesProvider</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/data/ConnectorVpcSubnetAttributes.html" title="class in com.amazonaws.athena.connector.integ.data">ConnectorVpcSubnetAttributes</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/stacks/ConnectorWithVpcStack.html" title="class in com.amazonaws.athena.connector.integ.stacks">ConnectorWithVpcStack</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/stacks/ConnectorWithVpcStack.Builder.html" title="class in com.amazonaws.athena.connector.integ.stacks">ConnectorWithVpcStack.Builder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">ConstraintEvaluator</a></li>
 <li><a href="com/amazonaws/athena/connector/validation/ConstraintParser.html" title="class in com.amazonaws.athena.connector.validation">ConstraintParser</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/domain/predicate/ConstraintProjector.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="interfaceName">ConstraintProjector</span></a></li>
@@ -278,6 +290,8 @@
 <li><a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data">SchemaSerDe</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/serde/SchemaSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">SchemaSerializer</a></li>
 <li><a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb">SchemaUtils</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/data/SecretsManagerCredentials.html" title="class in com.amazonaws.athena.connector.integ.data">SecretsManagerCredentials</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/providers/SecretsManagerCredentialsProvider.html" title="class in com.amazonaws.athena.connector.integ.providers">SecretsManagerCredentialsProvider</a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SecurityGroupsTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2">SecurityGroupsTableProvider</a></li>
 <li><a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query">SelectQueryBuilder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/handlers/SerDeVersion.html" title="class in com.amazonaws.athena.connector.lambda.handlers">SerDeVersion</a></li>
@@ -306,6 +320,7 @@
 <li><a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/tables/TableProvider.html" title="interface in com.amazonaws.athena.connectors.aws.cmdb.tables"><span class="interfaceName">TableProvider</span></a></li>
 <li><a href="com/amazonaws/athena/connectors/aws/cmdb/TableProviderFactory.html" title="class in com.amazonaws.athena.connectors.aws.cmdb">TableProviderFactory</a></li>
+<li><a href="com/amazonaws/athena/connector/integ/data/TestConfig.html" title="class in com.amazonaws.athena.connector.integ.data">TestConfig</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></li>
 <li><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda"><span class="interfaceName">ThrottlingInvoker.ExceptionFilter</span></a></li>

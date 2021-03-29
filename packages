@@ -53,3 +53,7 @@ com.amazonaws.connectors.timestream
 com.amazonaws.connectors.timestream.query
 com.amazonaws.athena.connectors.neptune
 com.amazonaws.athena.connector.integ
+com.amazonaws.athena.connector.integ.clients
+com.amazonaws.athena.connector.integ.data
+com.amazonaws.athena.connector.integ.providers
+com.amazonaws.athena.connector.integ.stacks

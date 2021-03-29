@@ -74,6 +74,10 @@
 <span class="packageHierarchyLabel">Package Hierarchies:</span>
 <ul class="horizontal">
 <li><a href="com/amazonaws/athena/connector/integ/package-tree.html">com.amazonaws.athena.connector.integ</a>, </li>
+<li><a href="com/amazonaws/athena/connector/integ/clients/package-tree.html">com.amazonaws.athena.connector.integ.clients</a>, </li>
+<li><a href="com/amazonaws/athena/connector/integ/data/package-tree.html">com.amazonaws.athena.connector.integ.data</a>, </li>
+<li><a href="com/amazonaws/athena/connector/integ/providers/package-tree.html">com.amazonaws.athena.connector.integ.providers</a>, </li>
+<li><a href="com/amazonaws/athena/connector/integ/stacks/package-tree.html">com.amazonaws.athena.connector.integ.stacks</a>, </li>
 <li><a href="com/amazonaws/athena/connector/lambda/package-tree.html">com.amazonaws.athena.connector.lambda</a>, </li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/package-tree.html">com.amazonaws.athena.connector.lambda.data</a>, </li>
 <li><a href="com/amazonaws/athena/connector/lambda/data/projectors/package-tree.html">com.amazonaws.athena.connector.lambda.data.projectors</a>, </li>
@@ -157,8 +161,7 @@
 <li type="circle">com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockUtils.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">BlockUtils</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.security.<a href="com/amazonaws/athena/connector/lambda/security/CachableSecretsManager.html" title="class in com.amazonaws.athena.connector.lambda.security"><span class="typeNameLink">CachableSecretsManager</span></a></li>
 <li type="circle">com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch"><span class="typeNameLink">CacheableAwsRestHighLevelClient</span></a></li>
-<li type="circle">com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/CloudFormationClient.html" title="class in com.amazonaws.athena.connector.integ"><span class="typeNameLink">CloudFormationClient</span></a></li>
-<li type="circle">com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/CloudFormationTemplateProvider.html" title="class in com.amazonaws.athena.connector.integ"><span class="typeNameLink">CloudFormationTemplateProvider</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.clients.<a href="com/amazonaws/athena/connector/integ/clients/CloudFormationClient.html" title="class in com.amazonaws.athena.connector.integ.clients"><span class="typeNameLink">CloudFormationClient</span></a></li>
 <li type="circle">com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchExceptionFilter.html" title="class in com.amazonaws.athena.connectors.cloudwatch"><span class="typeNameLink">CloudwatchExceptionFilter</span></a> (implements com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.ExceptionFilter.html" title="interface in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.ExceptionFilter</a>)</li>
 <li type="circle">com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableName.html" title="class in com.amazonaws.athena.connectors.cloudwatch"><span class="typeNameLink">CloudwatchTableName</span></a></li>
 <li type="circle">com.amazonaws.athena.connectors.cloudwatch.<a href="com/amazonaws/athena/connectors/cloudwatch/CloudwatchTableResolver.html" title="class in com.amazonaws.athena.connectors.cloudwatch"><span class="typeNameLink">CloudwatchTableResolver</span></a></li>
@@ -184,7 +187,22 @@
 <li type="circle">com.amazonaws.connectors.athena.vertica.<a href="com/amazonaws/connectors/athena/vertica/VerticaCompositeHandler.html" title="class in com.amazonaws.connectors.athena.vertica"><span class="typeNameLink">VerticaCompositeHandler</span></a></li>
 </ul>
 </li>
+<li type="circle">com.amazonaws.athena.connector.integ.providers.<a href="com/amazonaws/athena/connector/integ/providers/ConnectorEnvironmentVarsProvider.html" title="class in com.amazonaws.athena.connector.integ.providers"><span class="typeNameLink">ConnectorEnvironmentVarsProvider</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/ConnectorPackagingAttributes.html" title="class in com.amazonaws.athena.connector.integ.data"><span class="typeNameLink">ConnectorPackagingAttributes</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.providers.<a href="com/amazonaws/athena/connector/integ/providers/ConnectorPackagingAttributesProvider.html" title="class in com.amazonaws.athena.connector.integ.providers"><span class="typeNameLink">ConnectorPackagingAttributesProvider</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.stacks.<a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.Builder.html" title="class in com.amazonaws.athena.connector.integ.stacks"><span class="typeNameLink">ConnectorStack.Builder</span></a>
+<ul>
+<li type="circle">com.amazonaws.athena.connector.integ.stacks.<a href="com/amazonaws/athena/connector/integ/stacks/ConnectorWithVpcStack.Builder.html" title="class in com.amazonaws.athena.connector.integ.stacks"><span class="typeNameLink">ConnectorWithVpcStack.Builder</span></a></li>
+</ul>
+</li>
+<li type="circle">com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/ConnectorStackAttributes.html" title="class in com.amazonaws.athena.connector.integ.data"><span class="typeNameLink">ConnectorStackAttributes</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/ConnectorStackAttributesProvider.html" title="class in com.amazonaws.athena.connector.integ"><span class="typeNameLink">ConnectorStackAttributesProvider</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/ConnectorStackFactory.html" title="class in com.amazonaws.athena.connector.integ"><span class="typeNameLink">ConnectorStackFactory</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/ConnectorStackProvider.html" title="class in com.amazonaws.athena.connector.integ"><span class="typeNameLink">ConnectorStackProvider</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/ConnectorValidator.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">ConnectorValidator</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/ConnectorVpcAttributes.html" title="class in com.amazonaws.athena.connector.integ.data"><span class="typeNameLink">ConnectorVpcAttributes</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.providers.<a href="com/amazonaws/athena/connector/integ/providers/ConnectorVpcAttributesProvider.html" title="class in com.amazonaws.athena.connector.integ.providers"><span class="typeNameLink">ConnectorVpcAttributesProvider</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/ConnectorVpcSubnetAttributes.html" title="class in com.amazonaws.athena.connector.integ.data"><span class="typeNameLink">ConnectorVpcSubnetAttributes</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ConstraintEvaluator.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">ConstraintEvaluator</span></a> (implements java.lang.<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html?is-external=true" title="class or interface in java.lang">AutoCloseable</a>)</li>
 <li type="circle">com.amazonaws.athena.connector.validation.<a href="com/amazonaws/athena/connector/validation/ConstraintParser.html" title="class in com.amazonaws.athena.connector.validation"><span class="typeNameLink">ConstraintParser</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.domain.predicate.<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate"><span class="typeNameLink">Constraints</span></a> (implements java.lang.<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html?is-external=true" title="class or interface in java.lang">AutoCloseable</a>)</li>
@@ -302,7 +320,11 @@
 <ul>
 <li type="circle">software.amazon.awscdk.core.Stack (implements software.amazon.awscdk.core.ITaggable)
 <ul>
-<li type="circle">com.amazonaws.athena.connector.integ.<a href="com/amazonaws/athena/connector/integ/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integ"><span class="typeNameLink">ConnectorStack</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.stacks.<a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integ.stacks"><span class="typeNameLink">ConnectorStack</span></a>
+<ul>
+<li type="circle">com.amazonaws.athena.connector.integ.stacks.<a href="com/amazonaws/athena/connector/integ/stacks/ConnectorWithVpcStack.html" title="class in com.amazonaws.athena.connector.integ.stacks"><span class="typeNameLink">ConnectorWithVpcStack</span></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -468,6 +490,8 @@
 <li type="circle">com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaBuilder.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">SchemaBuilder</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/SchemaSerDe.html" title="class in com.amazonaws.athena.connector.lambda.data"><span class="typeNameLink">SchemaSerDe</span></a></li>
 <li type="circle">com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/SchemaUtils.html" title="class in com.amazonaws.athena.connectors.docdb"><span class="typeNameLink">SchemaUtils</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/SecretsManagerCredentials.html" title="class in com.amazonaws.athena.connector.integ.data"><span class="typeNameLink">SecretsManagerCredentials</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.providers.<a href="com/amazonaws/athena/connector/integ/providers/SecretsManagerCredentialsProvider.html" title="class in com.amazonaws.athena.connector.integ.providers"><span class="typeNameLink">SecretsManagerCredentialsProvider</span></a></li>
 <li type="circle">com.amazonaws.athena.connectors.aws.cmdb.tables.ec2.<a href="com/amazonaws/athena/connectors/aws/cmdb/tables/ec2/SecurityGroupsTableProvider.html" title="class in com.amazonaws.athena.connectors.aws.cmdb.tables.ec2"><span class="typeNameLink">SecurityGroupsTableProvider</span></a> (implements com.amazonaws.athena.connectors.aws.cmdb.tables.<a href="com/amazonaws/athena/connectors/aws/cmdb/tables/TableProvider.html" title="interface in com.amazonaws.athena.connectors.aws.cmdb.tables">TableProvider</a>)</li>
 <li type="circle">com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/SelectQueryBuilder.html" title="class in com.amazonaws.connectors.timestream.query"><span class="typeNameLink">SelectQueryBuilder</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/SerDeVersion.html" title="class in com.amazonaws.athena.connector.lambda.handlers"><span class="typeNameLink">SerDeVersion</span></a></li>
@@ -493,6 +517,7 @@
 </li>
 <li type="circle">com.amazonaws.athena.connector.lambda.domain.<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain"><span class="typeNameLink">TableName</span></a></li>
 <li type="circle">com.amazonaws.athena.connectors.aws.cmdb.<a href="com/amazonaws/athena/connectors/aws/cmdb/TableProviderFactory.html" title="class in com.amazonaws.athena.connectors.aws.cmdb"><span class="typeNameLink">TableProviderFactory</span></a></li>
+<li type="circle">com.amazonaws.athena.connector.integ.data.<a href="com/amazonaws/athena/connector/integ/data/TestConfig.html" title="class in com.amazonaws.athena.connector.integ.data"><span class="typeNameLink">TestConfig</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.html" title="class in com.amazonaws.athena.connector.lambda"><span class="typeNameLink">ThrottlingInvoker</span></a></li>
 <li type="circle">com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda"><span class="typeNameLink">ThrottlingInvoker.Builder</span></a></li>
 <li type="circle">java.lang.<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Throwable.html?is-external=true" title="class or interface in java.lang"><span class="typeNameLink">Throwable</span></a> (implements java.io.<a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html?is-external=true" title="class or interface in java.io">Serializable</a>)
