@@ -19,7 +19,7 @@
         <junit.version>4.13.1</junit.version>
         <testng.version>7.0.0</testng.version>
         <fasterxml.jackson.version>2.11.3</fasterxml.jackson.version>
-        <aws-cdk.version>1.72.0</aws-cdk.version>
+        <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M5</surefire.failsafe.version>
     </properties>
 
@@ -213,6 +213,8 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
                 <configuration>
+                    <forkCount>3C</forkCount>
+                    <reuseForks>false</reuseForks>
                     <includes>
                         <include>*IntegTest</include>
                     </includes>

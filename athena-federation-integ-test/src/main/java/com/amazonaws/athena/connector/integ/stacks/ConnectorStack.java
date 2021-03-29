@@ -17,10 +17,14 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.integ;
+package com.amazonaws.athena.connector.integ.stacks;
 
+import com.amazonaws.athena.connector.integ.data.ConnectorPackagingAttributes;
+import com.amazonaws.athena.connector.integ.data.ConnectorStackAttributes;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.core.CfnParameter;
 import software.amazon.awscdk.core.Construct;
 import software.amazon.awscdk.core.Duration;
@@ -37,49 +41,71 @@ import software.amazon.awscdk.services.lambda.Function;
 import software.amazon.awscdk.services.lambda.Runtime;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Sets up the CloudFormation stack necessary for a Lambda Connector.
  */
 public class ConnectorStack extends Stack
 {
-    private final String spillBucket;
+    private static final Logger logger = LoggerFactory.getLogger(ConnectorStack.class);
+
+    private static final String LAMBDA_SPILL_BUCKET_TAG = "spill_bucket";
+
+    private final String s3Bucket;
     private final String s3Key;
-    private final String functionName;
     private final String functionHandler;
-    private final PolicyDocument connectorAccessPolicy;
-    private final Map environmentVariables;
+    private final String functionName;
+    private final Optional<PolicyDocument> connectorAccessPolicy;
+    private final Map<String, String> environmentVariables;
+    private final String spillBucket;
 
-    public ConnectorStack(final Construct scope, final String id, final String spillBucket, final String s3Key,
-                          final String functionName, final String functionHandler,
-                          final PolicyDocument connectorAccessPolicy, final Map environmentVariables)
+    public ConnectorStack(Builder builder)
     {
-        super(scope, id);
+        super(builder.scope, builder.id);
 
-        this.spillBucket = spillBucket;
-        this.s3Key = s3Key;
-        this.functionName = functionName;
-        this.functionHandler = functionHandler;
-        this.connectorAccessPolicy = connectorAccessPolicy;
-        this.environmentVariables = environmentVariables;
-
-        setupLambdaFunction();
-        setupAthenaDataCatalog();
+        s3Bucket = builder.connectorPackagingAttributes.getS3Bucket();
+        s3Key = builder.connectorPackagingAttributes.getS3Key();
+        functionHandler = builder.connectorPackagingAttributes.getLambdaFunctionHandler();
+        functionName = builder.functionName;
+        connectorAccessPolicy = builder.connectorAccessPolicy;
+        environmentVariables = builder.environmentVariables;
+        spillBucket = environmentVariables.get(LAMBDA_SPILL_BUCKET_TAG);
     }
 
     /**
-     * Sets up the Connector's CloudFormation stack for the lambda function.
+     * Initialize the stack by building the Lambda function and Athena data catalog.
      */
-    private void setupLambdaFunction()
+    protected void initialize()
     {
-        Function.Builder.create(this, "LambdaConnector")
+        logger.info("Initializing stack: {}", this.getClass().getSimpleName());
+        createLambdaFunction();
+        createAthenaDataCatalog();
+    }
+
+    /**
+     * Creates the Connector's CloudFormation stack for the lambda function.
+     */
+    private void createLambdaFunction()
+    {
+        lambdaFunctionBuilder().build();
+    }
+
+    /**
+     * Builds the Lambda function stack resource.
+     * @return Lambda function Builder.
+     */
+    protected Function.Builder lambdaFunctionBuilder()
+    {
+        return Function.Builder.create(this, "LambdaConnector")
                 .functionName(functionName)
-                .role(getIamRole())
+                .role(createIamRole())
                 .code(Code.fromCfnParameters(CfnParametersCodeProps.builder()
                         .bucketNameParam(CfnParameter.Builder.create(this, "BucketName")
-                                .defaultValue(spillBucket)
+                                .defaultValue(s3Bucket)
                                 .build())
                         .objectKeyParam(CfnParameter.Builder.create(this, "BucketKey")
                                 .defaultValue(s3Key)
@@ -89,35 +115,62 @@ public class ConnectorStack extends Stack
                 .runtime(new Runtime("java8"))
                 .memorySize(Integer.valueOf(3008))
                 .timeout(Duration.seconds(Integer.valueOf(900)))
-                .environment(environmentVariables)
-                .build();
+                .environment(environmentVariables);
     }
 
     /**
-     * Sets up the Connector's CloudFormation stack to register the lambda function with Athena.
+     * Creates the Connector's Athena data catalog stack resource, and registers the lambda function with Athena.
      */
-    private void setupAthenaDataCatalog()
+    private void createAthenaDataCatalog()
     {
-        CfnDataCatalog.Builder.create(this, "AthenaDataCatalog")
+        athenaDataCatalogBuilder().build();
+    }
+
+    /**
+     * Builds the Athena data catalog stack resource.
+     * @return Athena data catalog Builder.
+     */
+    protected CfnDataCatalog.Builder athenaDataCatalogBuilder()
+    {
+        return CfnDataCatalog.Builder.create(this, "AthenaDataCatalog")
                 .name(functionName)
                 .type("LAMBDA")
-                .parameters(ImmutableMap.of("function", "arn:aws:lambda:function:" + functionName))
-                .build();
+                .parameters(ImmutableMap.of("function", "arn:aws:lambda:function:" + functionName));
     }
 
     /**
-     * Sets up the IAM role for the Lambda function.
+     * Creates the IAM role for the Lambda function.
      * @return IAM Role object.
      */
-    private Role getIamRole()
+    private Role createIamRole()
     {
+        return iamRoleBuilder().build();
+    }
+
+    /**
+     * Builds the IAM role stack resource.
+     * @return IAM role Builder.
+     */
+    protected Role.Builder iamRoleBuilder()
+    {
+        Map<String, PolicyDocument> policies = new HashMap<>();
+
+        setAccessPolicies(policies);
+
         return Role.Builder.create(this, "ConnectorConfigRole")
                 .assumedBy(ServicePrincipal.Builder.create("lambda.amazonaws.com").build())
-                .inlinePolicies(ImmutableMap.of(
-                        "ConnectorAccessPolicy", connectorAccessPolicy,
-                        "GlueAthenaS3AccessPolicy", getGlueAthenaS3AccessPolicy(),
-                        "S3SpillBucketAccessPolicy", getS3SpillBucketAccessPolicy()))
-                .build();
+                .inlinePolicies(policies);
+    }
+
+    /**
+     * Sets the access policies used by the Lambda function.
+     * @param policies A map of access policies.
+     */
+    protected void setAccessPolicies(Map<String, PolicyDocument> policies)
+    {
+        policies.put("GlueAthenaS3AccessPolicy", getGlueAthenaS3AccessPolicy());
+        policies.put("S3SpillBucketAccessPolicy", getS3SpillBucketAccessPolicy());
+        connectorAccessPolicy.ifPresent(policyDocument -> policies.put("ConnectorAccessPolicy", policyDocument));
     }
 
     /**
@@ -173,5 +226,44 @@ public class ConnectorStack extends Stack
                         .effect(Effect.ALLOW)
                         .build()))
                 .build();
+    }
+
+    public static Stack buildWithAttributes(ConnectorStackAttributes attributes)
+    {
+        return builder().withAttributes(attributes).build();
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
+    public static class Builder
+    {
+        private Construct scope;
+        private String id;
+        private String functionName;
+        private Optional<PolicyDocument> connectorAccessPolicy;
+        private Map<String, String> environmentVariables;
+        private ConnectorPackagingAttributes connectorPackagingAttributes;
+
+        public Builder withAttributes(ConnectorStackAttributes attributes)
+        {
+            scope = attributes.getScope();
+            id = attributes.getId();
+            functionName = attributes.getLambdaFunctionName();
+            connectorAccessPolicy = attributes.getConnectorAccessPolicy();
+            environmentVariables = attributes.getEnvironmentVariables();
+            connectorPackagingAttributes = attributes.getConnectorPackagingAttributes();
+
+            return this;
+        }
+
+        public Stack build()
+        {
+            ConnectorStack stack = new ConnectorStack(this);
+            stack.initialize();
+            return stack;
+        }
     }
 }
