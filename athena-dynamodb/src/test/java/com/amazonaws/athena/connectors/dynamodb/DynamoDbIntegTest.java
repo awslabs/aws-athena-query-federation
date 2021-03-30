@@ -33,6 +33,7 @@ import software.amazon.awscdk.services.iam.PolicyStatement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -43,14 +44,17 @@ import static org.junit.Assert.assertTrue;
  */
 public class DynamoDbIntegTest extends IntegrationTestBase {
     private static final Logger logger = LoggerFactory.getLogger(DynamoDbIntegTest.class);
-    private static final String DATABASE_NAME = "default";
 
+    private final String dynamodbDbName;
     private final String lambdaFunctionName;
     private final String tableName;
     private final DdbTableUtils ddbTableUtils;
 
     public DynamoDbIntegTest()
     {
+        Map<String, Object> userSettings = getUserSettings().orElseThrow(() ->
+                new RuntimeException("user_settings attribute must be provided in test-config.json."));
+        dynamodbDbName = (String) userSettings.get("dynamodb_db_name");
         lambdaFunctionName = getLambdaFunctionName();
         tableName = String.format("dynamodbit_%s", UUID.randomUUID().toString().replace('-', '_'));
         ddbTableUtils = new DdbTableUtils(tableName);
@@ -62,21 +66,23 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
      * Elasticsearch etc...)
      * @return A policy document object.
      */
-    protected PolicyDocument getConnectorAccessPolicy()
+    @Override
+    protected Optional<PolicyDocument> getConnectorAccessPolicy()
     {
-        return PolicyDocument.Builder.create()
+        return Optional.of(PolicyDocument.Builder.create()
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()
                         .actions(ImmutableList.of("dynamodb:DescribeTable", "dynamodb:ListSchemas",
                                 "dynamodb:ListTables", "dynamodb:Query", "dynamodb:Scan"))
                         .resources(ImmutableList.of("*"))
                         .effect(Effect.ALLOW)
                         .build()))
-                .build();
+                .build());
     }
 
     /**
      * Sets the environment variables for the Lambda function.
      */
+    @Override
     protected void setConnectorEnvironmentVars(final Map environmentVars)
     {
         // This is a no-op for this connector.
@@ -86,6 +92,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
      * Sets up the DDB Table's CloudFormation stack.
      * @param stack The current CloudFormation stack.
      */
+    @Override
     protected void setUpStackData(final Stack stack)
     {
         ddbTableUtils.setupTableStack(stack);
@@ -94,6 +101,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
     /**
      * Insert rows into the newly created DDB table.
      */
+    @Override
     protected void setUpTableData()
     {
         logger.info("----------------------------------------------------");
@@ -122,7 +130,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
         logger.info("Executing listTablesIntegTest");
         logger.info("-----------------------------------");
 
-        List tableNames = listTables(DATABASE_NAME);
+        List tableNames = listTables(dynamodbDbName);
         logger.info("Tables: {}", tableNames);
         assertTrue(String.format("Table not found: %s.", tableName), tableNames.contains(tableName));
     }
@@ -134,7 +142,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
         logger.info("Executing describeTableIntegTest");
         logger.info("--------------------------------------");
 
-        Map schema = describeTable(DATABASE_NAME, tableName);
+        Map schema = describeTable(dynamodbDbName, tableName);
         logger.info("Schema: {}", schema);
         assertEquals("Wrong number of columns found.", 3, schema.size());
         assertTrue("Column not found: title", schema.containsKey("title"));
@@ -154,7 +162,7 @@ public class DynamoDbIntegTest extends IntegrationTestBase {
         logger.info("--------------------------------------------------");
 
         String query = String.format("select title from %s.%s.%s where year > 2000;",
-                lambdaFunctionName, DATABASE_NAME, tableName);
+                lambdaFunctionName, dynamodbDbName, tableName);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
