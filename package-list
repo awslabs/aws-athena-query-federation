@@ -33,6 +33,7 @@ com.amazonaws.athena.connectors.cloudwatch
 com.amazonaws.athena.connectors.cloudwatch.metrics
 com.amazonaws.athena.connectors.cloudwatch.metrics.tables
 com.amazonaws.athena.connectors.docdb
+com.amazonaws.athena.connectors.docdb.integ
 com.amazonaws.athena.connectors.dynamodb
 com.amazonaws.athena.connectors.dynamodb.constants
 com.amazonaws.athena.connectors.dynamodb.model
