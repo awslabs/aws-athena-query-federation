@@ -39,7 +39,7 @@ import java.util.Map;
  * to create the map. When auto_discover_endpoint=false, the map will be derived from the domainMapping string
  * passed in as an argument.
  */
-class ElasticsearchDomainMapProvider
+public class ElasticsearchDomainMapProvider
 {
     // Splitter for inline map properties extracted from the domain_mapping environment variable.
     private static final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
@@ -52,7 +52,7 @@ class ElasticsearchDomainMapProvider
     private final boolean autoDiscoverEndpoint;
     private final AwsElasticsearchFactory awsElasticsearchFactory;
 
-    protected ElasticsearchDomainMapProvider(boolean autoDiscoverEndpoint)
+    public ElasticsearchDomainMapProvider(boolean autoDiscoverEndpoint)
     {
         this(autoDiscoverEndpoint, new AwsElasticsearchFactory());
     }
@@ -75,7 +75,7 @@ class ElasticsearchDomainMapProvider
      * @throws RuntimeException The domain map cannot be created due to an error with the AWS ES SDK or an invalid
      * domainMapping variable (empty, null, or contain invalid information that cannot be parsed successfully).
      */
-    protected Map<String, String> getDomainMap(String domainMapping)
+    public Map<String, String> getDomainMap(String domainMapping)
             throws RuntimeException
     {
         if (autoDiscoverEndpoint) {

@@ -165,6 +165,18 @@ nearest millisecond. Valid values for date and date_nanos include but are not li
 * An Elasticsearch **binary** is a string representation of a binary value encoded using Base64,
 and will be converted to a **VARCHAR**.
 
+## Running Integration Tests
+
+The integration tests in this module are designed to run without the prior need for deploying the connector. Nevertheless,
+the integration tests will not run straight out-of-the-box. Certain build-dependencies are required for them to execute correctly.
+For build commands and step-by-step instructions on building and running the integration tests see the
+[Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests) README section in the **athena-federation-integ-test** module.
+
+In addition to the build-dependencies, certain test configuration attributes must also be provided in the connector's [test-config.json](./etc/test-config.json) JSON file.
+For additional information about the test configuration file, see the [Test Configuration](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#test-configuration) README section in the **athena-federation-integ-test** module.
+
+Once all prerequisites have been satisfied, the integration tests can be executed by specifying the following command: `mvn failsafe:integration-test` from the connector's root directory.
+
 ## Deploying The Connector
 
 To use this connector in your queries, navigate to AWS Serverless Application Repository and 
@@ -173,8 +185,10 @@ connector from source. To do so, follow the steps below, or use the more detaile
 athena-example module:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-2. From the athena-elasticsearch dir, run `mvn clean install`.
-3. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
+2. From the athena-federation-integ-test dir, run `mvn clean install` if you haven't already
+   (**Note: failure to follow this step will result in compilation errors**).
+3. From the athena-elasticsearch dir, run `mvn clean install`.
+4. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
 private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of 
 the connector's code will be stored and retrieved by the Serverless Application Repository. This 
 will allow users with permission the ability to deploy instances of the connector via a
