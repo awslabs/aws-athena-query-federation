@@ -240,7 +240,7 @@ public abstract class IntegrationTestBase
     public List<String> listTables(String databaseName)
             throws RuntimeException
     {
-        String query = String.format("show tables in %s.%s;", lambdaFunctionName, databaseName);
+        String query = String.format("show tables in `%s`.`%s`;", lambdaFunctionName, databaseName);
         List<String> tableNames = new ArrayList<>();
         startQueryExecution(query).getResultSet().getRows()
                 .forEach(row -> tableNames.add(row.getData().get(0).getVarCharValue()));
@@ -258,7 +258,7 @@ public abstract class IntegrationTestBase
     public Map<String, String> describeTable(String databaseName, String tableName)
             throws RuntimeException
     {
-        String query = String.format("describe %s.%s.%s;", lambdaFunctionName, databaseName, tableName);
+        String query = String.format("describe `%s`.`%s`.`%s`;", lambdaFunctionName, databaseName, tableName);
         Map<String, String> schema = new HashMap<>();
         startQueryExecution(query).getResultSet().getRows()
                 .forEach(row -> {
