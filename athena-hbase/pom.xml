@@ -30,6 +30,25 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-integ-test</artifactId>
+            <version>2021.6.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/emr -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>emr</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-emr -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-emr</artifactId>
+            <version>${aws-sdk.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
             <version>1.4.10</version>
