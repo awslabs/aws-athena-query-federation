@@ -1,0 +1,21 @@
+{
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "<secret name>",         /* Secret name used to retrieve user credentials from SecretsManager. */
+  "environment_vars" : {                  /* Parameters used by the connector's internal logic */
+    "spill_bucket" : "<Enter Value>",     /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false"  /* If set to true encryption for spilled data is disabled (default: false) */
+  },
+  "vpc_configuration" : {                 /* VPC configuration for DB instances within a VPC */
+    "vpc_id": "<Enter Value>",                      /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": "<Enter Value>",           /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
+  },
+  "user_settings" : {                   /* User customizable settings */
+    "hbase_db_name": "<Enter Value>",   /* Name of the HBase database used for integration tests */
+    "hbase_db_port": "<Enter Value>",   /* HBase Port number associated with the cluster endpoint (e.g. 50075) */
+    "zookeeper_port": "<Enter Value>",  /* Zookeeper Port number (e.g. 2181) */
+    "hbase_table_name": "<Enter Value>" /* HBase table name */
+  }
+}
