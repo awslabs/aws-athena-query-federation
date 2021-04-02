@@ -120,6 +120,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#addClientEntry-java.lang.String-com.amazonaws.connectors.athena.elasticsearch.AwsRestHighLevelClient-long-">addClientEntry(String, AwsRestHighLevelClient, long)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html#addColumn-java.lang.String-java.lang.String-java.lang.String-">addColumn(String, String, String)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseRowBuilder</a></dt>
+<dd>
+<div class="block">Adds a single column to the row.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html#addConnection-java.lang.String-com.mongodb.client.MongoClient-">addConnection(String, MongoClient)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.<a href="com/amazonaws/athena/connectors/docdb/DocDBConnectionFactory.html" title="class in com.amazonaws.athena.connectors.docdb">DocDBConnectionFactory</a></dt>
 <dd>
 <div class="block">Injects a connection into the client cache.</div>
@@ -543,6 +547,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html#build--">build()</a></span> - Method in class com.amazonaws.athena.connector.lambda.<a href="com/amazonaws/athena/connector/lambda/ThrottlingInvoker.Builder.html" title="class in com.amazonaws.athena.connector.lambda">ThrottlingInvoker.Builder</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html#build--">build()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseRowBuilder</a></dt>
+<dd>
+<div class="block">Returns the built row.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html#build--">build()</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/AwsRestHighLevelClient.Builder.html" title="class in com.amazonaws.connectors.athena.elasticsearch">AwsRestHighLevelClient.Builder</a></dt>
 <dd>
 <div class="block">Builds the client.</div>
@@ -730,6 +738,10 @@
 <dd>
 <div class="block">Used to close this connection by closing the underlying HBase Connection.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html#close--">close()</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseTableUtils</a></dt>
+<dd>
+<div class="block">Closes the connection to the HBase instance.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html#closeBatches--">closeBatches()</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockAllocatorImpl</a></dt>
 <dd>
 <div class="block">Attempts to close all batches allocated by this BlockAllocator.</div>
@@ -909,6 +921,8 @@
 <dt><a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a> - package com.amazonaws.athena.connectors.hbase</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/connection/package-summary.html">com.amazonaws.athena.connectors.hbase.connection</a> - package com.amazonaws.athena.connectors.hbase.connection</dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/integ/package-summary.html">com.amazonaws.athena.connectors.hbase.integ</a> - package com.amazonaws.athena.connectors.hbase.integ</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/neptune/package-summary.html">com.amazonaws.athena.connectors.neptune</a> - package com.amazonaws.athena.connectors.neptune</dt>
 <dd>&nbsp;</dd>
@@ -1224,6 +1238,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html#createBuffer-int-">createBuffer(int)</a></span> - Method in class com.amazonaws.athena.connector.lambda.data.<a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorImpl.html" title="class in com.amazonaws.athena.connector.lambda.data">BlockAllocatorImpl</a></dt>
 <dd>
 <div class="block">Creates an ArrowBuf and registers it for later clean up if the ArrowBuff isn't explicitly closed by the caller.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html#createDbAndTable-java.util.List-">createDbAndTable(List&lt;String&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseTableUtils</a></dt>
+<dd>
+<div class="block">Creates the database/namespace and table in the HBase instance.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/timestream/query/QueryFactory.html#createDescribeTableQueryBuilder--">createDescribeTableQueryBuilder()</a></span> - Method in class com.amazonaws.connectors.timestream.query.<a href="com/amazonaws/connectors/timestream/query/QueryFactory.html" title="class in com.amazonaws.connectors.timestream.query">QueryFactory</a></dt>
 <dd>&nbsp;</dd>
@@ -3903,6 +3921,8 @@
 <dl>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/integ/DocDbIntegTestHandler.html#HANDLER">HANDLER</a></span> - Static variable in class com.amazonaws.athena.connectors.docdb.integ.<a href="com/amazonaws/athena/connectors/docdb/integ/DocDbIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.docdb.integ">DocDbIntegTestHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html#HANDLER">HANDLER</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseIntegTestHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html#handleRequest-java.io.InputStream-java.io.OutputStream-com.amazonaws.services.lambda.runtime.Context-">handleRequest(InputStream, OutputStream, Context)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a></dt>
 <dd>
 <div class="block">Required by Lambda's RequestStreamHandler interface.</div>
@@ -3918,6 +3938,8 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.html#handleRequest-java.io.InputStream-java.io.OutputStream-com.amazonaws.services.lambda.runtime.Context-">handleRequest(InputStream, OutputStream, Context)</a></span> - Method in class com.amazonaws.athena.connector.lambda.handlers.<a href="com/amazonaws/athena/connector/lambda/handlers/UserDefinedFunctionHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">UserDefinedFunctionHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/docdb/integ/DocDbIntegTestHandler.html#handleRequest-java.io.InputStream-java.io.OutputStream-com.amazonaws.services.lambda.runtime.Context-">handleRequest(InputStream, OutputStream, Context)</a></span> - Method in class com.amazonaws.athena.connectors.docdb.integ.<a href="com/amazonaws/athena/connectors/docdb/integ/DocDbIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.docdb.integ">DocDbIntegTestHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html#handleRequest-java.io.InputStream-java.io.OutputStream-com.amazonaws.services.lambda.runtime.Context-">handleRequest(InputStream, OutputStream, Context)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseIntegTestHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html#hasContinuationToken--">hasContinuationToken()</a></span> - Method in class com.amazonaws.athena.connector.lambda.metadata.<a href="com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></dt>
 <dd>
@@ -4054,6 +4076,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html#HbaseFieldResolver-boolean-byte:A-">HbaseFieldResolver(boolean, byte[])</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseFieldResolver.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseFieldResolver</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.hbase.integ"><span class="typeNameLink">HbaseIntegTestHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/integ/package-summary.html">com.amazonaws.athena.connectors.hbase.integ</a></dt>
+<dd>
+<div class="block">This Lambda function handler is only used within the HBase integration tests.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html#HbaseIntegTestHandler--">HbaseIntegTestHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseIntegTestHandler.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseIntegTestHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
 <dd>
 <div class="block">Handles metadata requests for the Athena HBase Connector.</div>
@@ -4070,9 +4098,25 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseRecordHandler.html#HbaseRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.hbase.connection.HbaseConnectionFactory-">HbaseRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, HbaseConnectionFactory)</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseRecordHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseRecordHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html" title="class in com.amazonaws.athena.connectors.hbase.integ"><span class="typeNameLink">HbaseRowBuilder</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/integ/package-summary.html">com.amazonaws.athena.connectors.hbase.integ</a></dt>
+<dd>
+<div class="block">This class constructs a row that can be inserted into an HBase table.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html#HbaseRowBuilder-java.lang.String-">HbaseRowBuilder(String)</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseRowBuilder.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseRowBuilder</a></dt>
+<dd>
+<div class="block">The constructor instantiates the row with the row designation (usually the row number).</div>
+</dd>
 <dt><a href="com/amazonaws/athena/connectors/hbase/HbaseSchemaUtils.html" title="class in com.amazonaws.athena.connectors.hbase"><span class="typeNameLink">HbaseSchemaUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/package-summary.html">com.amazonaws.athena.connectors.hbase</a></dt>
 <dd>
 <div class="block">Collection of helpful utilities that handle HBase schema inference, type, and naming conversion.</div>
+</dd>
+<dt><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html" title="class in com.amazonaws.athena.connectors.hbase.integ"><span class="typeNameLink">HbaseTableUtils</span></a> - Class in <a href="com/amazonaws/athena/connectors/hbase/integ/package-summary.html">com.amazonaws.athena.connectors.hbase.integ</a></dt>
+<dd>
+<div class="block">This class can be used to establish a connection to a HBase instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html#HbaseTableUtils-java.lang.String-java.lang.String-java.lang.String-">HbaseTableUtils(String, String, String)</a></span> - Constructor for class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseTableUtils</a></dt>
+<dd>
+<div class="block">The constructor establishes a connection to the HBase instance.</div>
 </dd>
 </dl>
 <a name="I:I">
@@ -4135,6 +4179,10 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.html#initialize--">initialize()</a></span> - Method in class com.amazonaws.athena.connector.integ.stacks.<a href="com/amazonaws/athena/connector/integ/stacks/ConnectorStack.html" title="class in com.amazonaws.athena.connector.integ.stacks">ConnectorStack</a></dt>
 <dd>
 <div class="block">Initialize the stack by building the Lambda function and Athena data catalog.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html#insertRows-java.util.List-">insertRows(List&lt;Put&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.integ.<a href="com/amazonaws/athena/connectors/hbase/integ/HbaseTableUtils.html" title="class in com.amazonaws.athena.connectors.hbase.integ">HbaseTableUtils</a></dt>
+<dd>
+<div class="block">Inserts rows into the newly created database table.</div>
 </dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/splits/IntegerSplitter.html" title="class in com.amazonaws.connectors.athena.jdbc.splits"><span class="typeNameLink">IntegerSplitter</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/splits/package-summary.html">com.amazonaws.connectors.athena.jdbc.splits</a></dt>
 <dd>
