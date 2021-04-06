@@ -8,13 +8,13 @@ This connector extends Amazon Athena's capability by adding customizable UDFs vi
 
 Example query:
 
-`USING FUNCTION compress(col1 VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT compress('StringToBeCompressed');`
+`USING EXTERNAL FUNCTION compress(col1 VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT compress('StringToBeCompressed');`
 
 This would return result 'eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w=='.
 
 2. "decompress": Decompresses a String
 
-`USING FUNCTION decompress(col1 VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT decompress('eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w==');`
+`USING EXTERNAL FUNCTION decompress(col1 VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decompress('eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w==');`
 
 This would return result 'StringToBeCompressed'.
 
@@ -24,13 +24,13 @@ Before testing this query, you would need to create a secret in AWS Secrets Mana
 
 Example query:
 
-`USING FUNCTION encrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT encrypt('plaintext', 'my_secret_name');`
+`USING EXTERNAL FUNCTION encrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT encrypt('plaintext', 'my_secret_name');`
 
 3. "decrypt": decrypt the data with a data key stored in AWS Secrets Manager
 
 Example query:
 
-`USING FUNCTION decyprt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR TYPE LAMBDA_INVOKE WITH (lambda_name = '<lambda name>') SELECT decyprt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
+`USING EXTERNAL FUNCTION decyprt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decyprt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
 
 
 ### Deploying The Connector
