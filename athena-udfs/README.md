@@ -30,10 +30,18 @@ Example query:
 
 Example query:
 
-`USING EXTERNAL FUNCTION decyprt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decyprt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
+`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decyprt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
 
+## AWS built UDFs
+For an example that uses UDFs with Athena to translate and analyze text, see the AWS
+                                    Machine Learning Blog article <a href="http://aws.amazon.com/blogs/machine-learning/translate-and-analyze-text-using-sql-functions-with-amazon-athena-amazon-translate-and-amazon-comprehend/" rel="noopener noreferrer" target="_blank"><span>Translate and analyze text using SQL functions with Amazon Athena, Amazon Translate,
+                                          and Amazon Comprehend</span></a>, or watch the <a href="#udf-videos-xlate">video</a>
 
-### Deploying The Connector
+### Repo's for AWS built UDF's
+
+1. https://github.com/aws-samples/aws-athena-udfs-textanalytics
+
+## Deploying The Connector
 
 To use this connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps or use the more detailed tutorial in the athena-example module:
 
