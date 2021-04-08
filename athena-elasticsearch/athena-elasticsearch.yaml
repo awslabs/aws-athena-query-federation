@@ -59,6 +59,12 @@ Parameters:
     Description: "timeout period (in seconds) for Search queries used in the retrieval of documents from an index (default is 12 minutes)."
     Default: 720
     Type: Number
+  ListTablesPageSize:
+    Description: 'Page size used for the pagination of the ListTableMetadata API (min 1 - 50 max).'
+    Type: Number
+    MinValue: 1
+    MaxValue: 50
+    Default: 50
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -72,6 +78,7 @@ Resources:
           domain_mapping: !Ref DomainMapping
           query_timeout_cluster: !Ref QueryTimeoutCluster
           query_timeout_search: !Ref QueryTimeoutSearch
+          list_tables_page_size: !Ref ListTablesPageSize
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-1.0.jar"

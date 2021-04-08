@@ -14,6 +14,10 @@ The Athena TPC-DS Connector exposes several configuration options via Lambda env
 2. **spill_prefix** - (Optional) Defaults to sub-folder in your bucket called 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the above bucket that large responses are spilled to. You should configure an S3 lifecycle on this location to delete old spills after X days/Hours.
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
+5. **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
+   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
+   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
+   in the SDK's README.
 
 ### Databases & Tables
 

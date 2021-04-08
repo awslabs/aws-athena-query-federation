@@ -48,6 +48,12 @@ Parameters:
   HBaseConnectionString:
     Description: 'The HBase connection details to use by default in the format: master_hostname:zookeeper_port:hbase_port and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
+  ListTablesPageSize:
+    Description: 'Page size used for the pagination of the ListTableMetadata API (min 1 - 50 max).'
+    Type: Number
+    MinValue: 1
+    MaxValue: 50
+    Default: 50
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -58,6 +64,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default_hbase: !Ref HBaseConnectionString
+          list_tables_page_size: !Ref ListTablesPageSize
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.hbase.HbaseCompositeHandler"
       CodeUri: "./target/athena-hbase-1.0.jar"

@@ -49,6 +49,12 @@ Parameters:
     Description: 'The DocDB connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
     Default: "e.g. mongodb://<username>:<password>@<hostname>:<port>/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0"
+  ListTablesPageSize:
+    Description: 'Page size used for the pagination of the ListTableMetadata API (min 1 - 50 max).'
+    Type: Number
+    MinValue: 1
+    MaxValue: 50
+    Default: 50
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -59,6 +65,7 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default_docdb: !Ref DocDBConnectionString
+          list_tables_page_size: !Ref ListTablesPageSize
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler"
       CodeUri: "./target/athena-docdb-1.0.jar"

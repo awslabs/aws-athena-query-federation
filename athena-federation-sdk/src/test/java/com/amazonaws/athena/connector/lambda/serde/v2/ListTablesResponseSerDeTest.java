@@ -41,22 +41,16 @@ public class ListTablesResponseSerDeTest extends TypedSerDeTest<FederationRespon
 {
     private static final Logger logger = LoggerFactory.getLogger(ListTablesResponseSerDeTest.class);
 
-    @Before
-    public void beforeTest()
+    @Test
+    public void serialize()
             throws IOException
     {
         expected = new ListTablesResponse("test-catalog", ImmutableList.of(
                 new TableName("schema1", "table1"),
                 new TableName("schema1", "table2")));
-
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
-    }
 
-    @Test
-    public void serialize()
-            throws IOException
-    {
         logger.info("serialize: enter");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -74,6 +68,57 @@ public class ListTablesResponseSerDeTest extends TypedSerDeTest<FederationRespon
     public void deserialize()
             throws IOException
     {
+        expected = new ListTablesResponse("test-catalog", ImmutableList.of(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2")));
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesResponse.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
+        logger.info("deserialize: enter");
+        InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
+
+        ListTablesResponse actual = (ListTablesResponse) mapper.readValue(input, FederationResponse.class);
+
+        logger.info("deserialize: deserialized[{}]", actual);
+
+        assertEquals(expected, actual);
+
+        logger.info("deserialize: exit");
+    }
+
+    @Test
+    public void serializeWithNextToken()
+            throws IOException
+    {
+        expected = new ListTablesResponse("test-catalog", ImmutableList.of(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2")), "table3");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesResponsePage.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
+        logger.info("serialize: enter");
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        mapper.writeValue(outputStream, expected);
+
+        String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
+        logger.info("serialize: serialized text[{}]", actual);
+
+        assertEquals(expectedSerDeText, actual);
+
+        logger.info("serialize: exit");
+    }
+
+    @Test
+    public void deserializeWithNextToken()
+            throws IOException
+    {
+        expected = new ListTablesResponse("test-catalog", ImmutableList.of(
+                new TableName("schema1", "table1"),
+                new TableName("schema1", "table2")), "table3");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesResponsePage.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 

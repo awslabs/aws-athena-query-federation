@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,20 +38,15 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
 {
     private static final Logger logger = LoggerFactory.getLogger(ListTablesRequestSerDeTest.class);
 
-    @Before
-    public void beforeTest()
-            throws IOException
-    {
-        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog", "test-schema");
-
-        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequest.json");
-        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
-    }
-
     @Test
     public void serialize()
             throws IOException
     {
+        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "test-schema");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequest.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
         logger.info("serialize: enter");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -70,6 +64,54 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
     public void deserialize()
             throws IOException
     {
+        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "test-schema");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequest.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
+        logger.info("deserialize: enter");
+        InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
+
+        ListTablesRequest actual = (ListTablesRequest) mapper.readValue(input, FederationRequest.class);
+
+        logger.info("deserialize: deserialized[{}]", actual);
+
+        assertEquals(expected, actual);
+
+        logger.info("deserialize: exit");
+    }
+
+    @Test
+    public void serializeWithNextToken()
+            throws IOException
+    {
+        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "test-schema", "table3");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequestPage.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
+        logger.info("serialize: enter");
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        mapper.writeValue(outputStream, expected);
+
+        String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
+        logger.info("serialize: serialized text[{}]", actual);
+
+        assertEquals(expectedSerDeText, actual);
+
+        logger.info("serialize: exit");
+    }
+
+    @Test
+    public void deserializeWithNextToken()
+            throws IOException
+    {
+        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "test-schema", "table3");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequestPage.json");
+        expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 

@@ -28,6 +28,7 @@ import com.google.common.base.Objects;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -38,6 +39,7 @@ public class ListTablesResponse
         extends MetadataResponse
 {
     private final Collection<TableName> tables;
+    private final Optional<String> nextToken;
 
     /**
      * Constructs a new ListTablesResponse object.
@@ -49,9 +51,27 @@ public class ListTablesResponse
     public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
             @JsonProperty("tables") Collection<TableName> tables)
     {
+        this(catalogName, tables, null);
+    }
+
+    /**
+     * Constructs a new ListTablesResponse object that could contain a paginated list of tables. A non-null nextToken
+     * indicates that the response from the Lambda was paginated based on the nextToken value (passed in from the
+     * request) in conjunction with the page-size environment variable (list_tables_page_size) passed in from the Lambda.
+     *
+     * @param catalogName The catalog name that tables were listed for.
+     * @param tables The list of table names (they all must be lowercase).
+     * @param nextToken The pagination starting point for the next page (i.e. the starting table for the next request).
+     */
+    @JsonCreator
+    public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
+                              @JsonProperty("tables") Collection<TableName> tables,
+                              @JsonProperty("nextToken") String nextToken)
+    {
         super(MetadataRequestType.LIST_TABLES, catalogName);
         requireNonNull(tables, "tables is null");
         this.tables = Collections.unmodifiableCollection(tables);
+        this.nextToken = Optional.ofNullable(nextToken);
     }
 
     /**
@@ -62,6 +82,16 @@ public class ListTablesResponse
     public Collection<TableName> getTables()
     {
         return tables;
+    }
+
+    /**
+     * Returns the nextToken (the starting table for the next request).
+     * @return Optional String representing the starting table for the next request (if the Optional is present). If
+     * The Optional is empty, the response was not paginated.
+     */
+    public Optional<String> getNextToken()
+    {
+        return nextToken;
     }
 
     @Override
@@ -76,6 +106,7 @@ public class ListTablesResponse
     {
         return "ListTablesResponse{" +
                 "tables=" + tables +
+                nextToken.map(table -> ", nextToken=" + table).orElse("") +
                 '}';
     }
 
@@ -93,12 +124,13 @@ public class ListTablesResponse
 
         return CollectionsUtils.equals(this.tables, that.tables) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
-                Objects.equal(this.getCatalogName(), that.getCatalogName());
+                Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
+                Objects.equal(this.getNextToken(), that.getNextToken());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(tables, getRequestType(), getCatalogName());
+        return Objects.hashCode(tables, getRequestType(), getCatalogName(), getNextToken());
     }
 }

@@ -128,6 +128,13 @@ spill_bucket    Spill bucket name. Required.
 spill_prefix    Spill bucket key prefix. Required.
 ```
 
+### Other parameters:
+
+* **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
+   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
+   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
+   in the SDK's README.
+
 # Data types support
 
 |Jdbc|*PostGreSQL[]|Arrow|

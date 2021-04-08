@@ -19,6 +19,10 @@ The Athena HBase Connector supports several configuration options via Lambda env
 5. **disable_glue** - (Optional) If present, with any valye, the connector will no longer attempt to retrieve supplemental metadata from Glue.
 6. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
 7. **default_hbase** If present, this HBase connection string (e.g. master_hostname:hbase_port:zookeeper_port) is used when there is not a catalog specific environment variable (as explained below).
+8. **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
+   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
+   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
+   in the SDK's README.
 
 You can also provide one or more properties which define the HBase connection details for the HBase instance(s) you'd like this connector to use. You can do this by setting a Lambda environment variable that corresponds to the catalog name you'd like to use in Athena. For example, if I'd like to query two different HBase instances from Athena in the below queries:
 
