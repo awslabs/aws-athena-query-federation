@@ -37,7 +37,7 @@ For an example that uses UDFs with Athena to translate and analyze text, see the
                                     Machine Learning Blog article <a href="http://aws.amazon.com/blogs/machine-learning/translate-and-analyze-text-using-sql-functions-with-amazon-athena-amazon-translate-and-amazon-comprehend/" rel="noopener noreferrer" target="_blank"><span>Translate and analyze text using SQL functions with Amazon Athena, Amazon Translate,
                                           and Amazon Comprehend</span></a>, or watch the <a href="#udf-videos-xlate">video</a>
 
-### Repo's for AWS built UDF's
+### Repositories for AWS built UDFs
 
 1. https://github.com/aws-samples/aws-athena-udfs-textanalytics
 
