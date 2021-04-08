@@ -30,7 +30,7 @@ Example query:
 
 Example query:
 
-`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decyprt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
+`USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decrypt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
 
 ## AWS built UDFs
 For an example that uses UDFs with Athena to translate and analyze text, see the AWS
