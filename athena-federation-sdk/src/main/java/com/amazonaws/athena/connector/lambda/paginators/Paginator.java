@@ -19,12 +19,12 @@
  */
 package com.amazonaws.athena.connector.lambda.paginators;
 
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.function.Function;
 
@@ -47,14 +47,14 @@ public class Paginator<T>
      */
     public Paginator(Collection<T> items, String startName, int pageSize, Function<T, String> getNameFromItem)
     {
-        this.nameQueue = new PriorityQueue<>(Comparator.comparing(Pair::getKey));
+        this.nameQueue = new PriorityQueue<>(Entry.comparingByKey());
         this.pageSize = pageSize;
 
         items.forEach(item -> {
             String name = getNameFromItem.apply(item);
             if (startName == null || name.compareTo(startName) >= 0) {
                 // If startName exists, only strings that are equal or are higher in value than it will be added.
-                nameQueue.add(new Pair<>(name, item));
+                nameQueue.add(Pair.of(name, item));
             }
         });
     }
