@@ -40,10 +40,6 @@ The Amazon Athena Vertica Connector exposes several configuration options via La
 * **SecretNameOrPrefix:** The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. vertica-*)
 * **VerticaConnectionString:** The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).
 * **VPC ID:** The VPC Id to be attached to the Lambda function
-* **ListTablesPageSize** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
-   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
-   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
-   in the SDK's README.
 
 ### Terms
 

@@ -56,12 +56,6 @@ Parameters:
     Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
     Default: "jdbc:vertica://<host_name>:<port>/<database>?user=${vertica-username}&password=${vertica-password}"
-  ListTablesPageSize:
-    Description: 'Page size used for the pagination of the ListTableMetadata API (min 1 - 50 max).'
-    Type: Number
-    MinValue: 1
-    MaxValue: 50
-    Default: 50
 
 Resources:
   LambdaSecurityGroup:
@@ -79,7 +73,6 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           export_bucket: !Ref VerticaExportBucket
           default_vertica: !Ref VerticaConnectionString
-          list_tables_page_size: !Ref ListTablesPageSize
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler"

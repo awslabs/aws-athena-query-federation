@@ -45,12 +45,6 @@ Parameters:
   SecretNameOrPrefix:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. redis-*).'
     Type: String
-  ListTablesPageSize:
-    Description: 'Page size used for the pagination of the ListTableMetadata API (min 1 - 50 max).'
-    Type: Number
-    MinValue: 1
-    MaxValue: 50
-    Default: 50
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -60,7 +54,6 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
-          list_tables_page_size: !Ref ListTablesPageSize
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.redis.RedisCompositeHandler"
       CodeUri: "./target/athena-redis-1.0.jar"

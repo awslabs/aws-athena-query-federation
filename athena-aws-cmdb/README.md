@@ -15,10 +15,6 @@ The Athena AWS CMDB Connector provides several configuration options via Lambda 
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
 4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 5. **default_ec2_image_owner** - (Optional) When set, this controls the default ec2 image (aka AMI) owner used to filter AMIs. When this isn't set and your query against the ec2 images table does not include a filter for owner you will get a large number of results since the response will include all public images.
-6. **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
-   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
-   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
-   in the SDK's README.
 
 ### Databases & Tables
 

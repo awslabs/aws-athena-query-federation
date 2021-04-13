@@ -37,10 +37,6 @@ The Amazon Athena Neptune Connector exposes several configuration options via La
 5. **spill_bucket** - When the data returned by your Lambda function exceeds Lambda’s limits, this is the bucket that the data will be written to for Athena to read the excess from. (e.g. my_bucket)
 6. **spill_prefix** - (Optional) Defaults to 'athena-neptune-spill'. Used in conjunction with spill_bucket, this is the path within the above bucket that large responses are spilled to. *You should configure an S3 lifecycle on this location to delete old spills after X days/Hours.*
 7. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. true or false)
-8. **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
-   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
-   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
-   in the SDK's README.
 
 <br/>
 

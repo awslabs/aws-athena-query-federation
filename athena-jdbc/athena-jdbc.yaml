@@ -48,12 +48,6 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
-  ListTablesPageSize:
-    Description: 'Page size used for the pagination of the ListTableMetadata API (min 1 - 50 max).'
-    Type: Number
-    MinValue: 1
-    MaxValue: 50
-    Default: 50
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -64,7 +58,6 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
-          list_tables_page_size: !Ref ListTablesPageSize
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-1.0.jar"

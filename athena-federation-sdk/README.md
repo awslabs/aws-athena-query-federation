@@ -139,40 +139,6 @@ You can find example MetadataHandlers by looking at some of the connectors in th
 
 Alternatively, if you wish to use AWS Glue DataCatalog as the authoritative (or supplemental) source of meta-data for your connector you can extend com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler instead of com.amazonaws.athena.connector.lambda.handlers.MetadataHandler. GlueMetadataHandler comes with implementations for doListSchemas(...), doListTables(...), and doGetTable(...) leaving you to implemented only 2 methods. The Amazon Athena DocumentDB Connector in the athena-docdb module is an example of using GlueMetadataHandler.
 
-### ListTableMetadata Pagination
-
-The Federation SDK's MetadataHandler provides pagination support for the
-[ListTableMetadata API](https://docs.aws.amazon.com/athena/latest/APIReference/API_ListTableMetadata.html). The SDK's
-default implementation takes the list of tables returned by the connectors' implementation of **doListTables**() and
-uses the `nextToken` provided in the request in conjunction with the `list_tables_page_size` variable set via the
-connectors' YAML template to generate a paginated response. This of-course relies on the individual connectors to
-provide a full list of tables for each paginated request. However, if your specific data-source provides an API for
-processing a paginated request directly at the source, the SDK's logic can be overridden to implement your own
-pagination logic:
-
-```java
-public class MyMetadataHandler extends MetadataHandler
-{
-    @Override
-    public ListTablesResponse doPaginatedListTables(final BlockAllocator allocator, final ListTablesRequest request)
-    {
-        // This will get the starting point for the paginated request.
-        String startToken = request.getNextToken().orElse("");
-        // This will get the pagination page size set via the connector's YAML template (1-50, default: 50).
-        int pageSize = getListTablesPageSize();
-
-        /**
-         * TODO: Your logic must derive the paginated list of tables (Collection<TableName> paginatedList) and the
-         *       starting point for the next paginated request (String nextToken). If there are no more tables to
-         *       paginate over, return an empty String ("") for nextToken rather than a null.
-         */
-
-        // Return a paginated list of tables and the starting point for the next paginated request.
-        return new ListTablesResponse(request.getCatalogName(), paginatedList, nextToken);
-    }
-}
-```
-
 ### RecordHandler Details
 
 Lets take a closer look at what is required for a RecordHandler. Below we have the basic functions we need to implement when using the Amazon Athena Query Federation SDK's MetadataHandler to satisfy the boiler plate work of serialization and initialization. The abstract class we are extending takes care of all the Lambda interface bits and delegates on the discrete operations that are relevant to the task at hand, querying our new data source.

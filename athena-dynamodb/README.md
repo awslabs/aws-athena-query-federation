@@ -19,10 +19,6 @@ generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2
 Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 5. **disable_glue** - (Optional) If set to false, the connector will no longer attempt to retrieve supplemental metadata from Glue.
 6. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
-7. **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
-   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
-   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
-   in the SDK's README.
 
 ### Setting Up Databases & Tables in Glue
 

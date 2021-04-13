@@ -83,11 +83,6 @@ my_bucket).
 above bucket where large responses spill. You should configure an S3 lifecycle on this 
 location to delete old spills after X days/hours.
 
-8. **list_tables_page_size** - Page size used for the pagination of the ListTableMetadata API (1-50, Default: 50).
-   This specifies the maximum number of tables for which metadata will be retrieved by each paginated request.
-   For additional information, see [ListTableMetadata Pagination](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-sdk/README.md#ListTableMetadata-Pagination)
-   in the SDK's README.
-
 ## Setting Up Databases & Tables
 
 A Glue table can be set up as a supplemental metadata definition source. To enable
