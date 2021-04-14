@@ -63,13 +63,7 @@ final class ListTablesRequestSerDe
 
             jgen.writeStringField(SCHEMA_NAME_FIELD, listTablesRequest.getSchemaName());
 
-            String nextToken = listTablesRequest.getNextToken();
-            if (nextToken == null) {
-                jgen.writeNullField(NEXT_TOKEN_FIELD);
-            }
-            else {
-                jgen.writeStringField(NEXT_TOKEN_FIELD, nextToken);
-            }
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listTablesRequest.getNextToken());
 
             jgen.writeNumberField(PAGE_SIZE_FIELD, listTablesRequest.getPageSize());
         }

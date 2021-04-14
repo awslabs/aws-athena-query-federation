@@ -67,13 +67,7 @@ final class ListTablesResponseSerDe
 
             jgen.writeStringField(CATALOG_NAME_FIELD, listTablesResponse.getCatalogName());
 
-            String nextToken = listTablesResponse.getNextToken();
-            if (nextToken == null) {
-                jgen.writeNullField(NEXT_TOKEN_FIELD);
-            }
-            else {
-                jgen.writeStringField(NEXT_TOKEN_FIELD, nextToken);
-            }
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listTablesResponse.getNextToken());
         }
     }
 

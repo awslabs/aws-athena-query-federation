@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.google.common.collect.ImmutableList;
-import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
