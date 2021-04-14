@@ -55,7 +55,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.mockito.ArgumentCaptor;
 import org.mockito.internal.util.reflection.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +62,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.Matchers.any;
@@ -108,10 +106,6 @@ public class CompositeHandlerTest
                         BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
 
         when(mockMetadataHandler.doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
-                .thenReturn(new ListTablesResponse("catalog",
-                        Collections.singletonList(new TableName("schema", "table"))));
-
-        when(mockMetadataHandler.doPaginatedListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
                 .thenReturn(new ListTablesResponse("catalog",
                         Collections.singletonList(new TableName("schema", "table"))));
 
@@ -184,21 +178,8 @@ public class CompositeHandlerTest
     {
         ListTablesRequest req = mock(ListTablesRequest.class);
         when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
-        when(req.getNextToken()).thenReturn(Optional.empty());
         compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
         verify(mockMetadataHandler, times(1)).doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class));
-    }
-
-    @Test
-    public void doPaginatedListTables()
-            throws Exception
-    {
-        ListTablesRequest listTablesRequest = mock(ListTablesRequest.class);
-        when(listTablesRequest.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
-        when(listTablesRequest.getNextToken()).thenReturn(Optional.of(""));
-        compositeHandler.handleRequest(allocator, listTablesRequest, new ByteArrayOutputStream(), objectMapper);
-        verify(mockMetadataHandler, times(1)).doPaginatedListTables(any(BlockAllocatorImpl.class),
-                any(ListTablesRequest.class));
     }
 
     @Test

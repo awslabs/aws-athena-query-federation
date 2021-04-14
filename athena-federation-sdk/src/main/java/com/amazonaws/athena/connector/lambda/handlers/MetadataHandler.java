@@ -30,7 +30,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SimpleBlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
@@ -47,8 +46,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.paginators.PaginatedResponse;
-import com.amazonaws.athena.connector.lambda.paginators.Paginator;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
@@ -68,7 +65,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -78,7 +74,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Optional;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
@@ -101,11 +96,6 @@ public abstract class MetadataHandler
         implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetadataHandler.class);
-
-    // Page size used in the pagination of the LIST_TABLES request for the ListTableMetadata API.
-    private static final String LIST_TABLES_PAGE_SIZE = "list_tables_page_size";
-    private static final int LIST_TABLES_PAGE_DEFAULT_SIZE = 50;
-
     //name of the default column used when a default single-partition response is required for connectors that
     //do not support robust partitioning. In such cases Athena requires at least 1 partition in order indicate
     //there is indeed data to be read vs. queries that were able to fully partition prune and thus decide there
@@ -128,7 +118,6 @@ public abstract class MetadataHandler
     private final String spillPrefix;
     private final String sourceType;
     private final SpillLocationVerifier verifier;
-    private final int listTablesPageSize;
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
@@ -149,9 +138,6 @@ public abstract class MetadataHandler
             encryptionKeyFactory = null;
         }
 
-        listTablesPageSize = Optional.ofNullable(System.getenv(LIST_TABLES_PAGE_SIZE)).map(Integer::parseInt)
-                .orElse(LIST_TABLES_PAGE_DEFAULT_SIZE);
-
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
         this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
@@ -160,29 +146,12 @@ public abstract class MetadataHandler
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    @VisibleForTesting
     public MetadataHandler(EncryptionKeyFactory encryptionKeyFactory,
             AWSSecretsManager secretsManager,
             AmazonAthena athena,
             String sourceType,
             String spillBucket,
             String spillPrefix)
-    {
-        this(encryptionKeyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix,
-                LIST_TABLES_PAGE_DEFAULT_SIZE);
-    }
-
-    /**
-     * @param sourceType Used to aid in logging diagnostic info when raising a support case.
-     */
-    @VisibleForTesting
-    public MetadataHandler(EncryptionKeyFactory encryptionKeyFactory,
-                           AWSSecretsManager secretsManager,
-                           AmazonAthena athena,
-                           String sourceType,
-                           String spillBucket,
-                           String spillPrefix,
-                           int listTablesPageSize)
     {
         this.encryptionKeyFactory = encryptionKeyFactory;
         this.secretsManager = new CachableSecretsManager(secretsManager);
@@ -191,7 +160,6 @@ public abstract class MetadataHandler
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
         this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
-        this.listTablesPageSize = listTablesPageSize;
     }
 
     /**
@@ -227,15 +195,6 @@ public abstract class MetadataHandler
                 .withQueryId(request.getQueryId())
                 .withSplitId(UUID.randomUUID().toString())
                 .build();
-    }
-
-    /**
-     * Returns the page size used in the pagination of the LIST_TABLES request.
-     * @return An integer representing the page size used in the pagination of the LIST_TABLES request.
-     */
-    protected int getListTablesPageSize()
-    {
-        return listTablesPageSize;
     }
 
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
@@ -281,20 +240,10 @@ public abstract class MetadataHandler
                 }
                 return;
             case LIST_TABLES:
-                if (((ListTablesRequest) req).getNextToken().isPresent()) {
-                    // Process paginated LIST_TABLES request.
-                    try (ListTablesResponse response = doPaginatedListTables(allocator, (ListTablesRequest) req)) {
-                        logger.info("doHandleRequest (w/pagination): response[{}]", response);
-                        assertNotNull(response);
-                        objectMapper.writeValue(outputStream, response);
-                    }
-                }
-                else {
-                    try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
-                        logger.info("doHandleRequest: response[{}]", response);
-                        assertNotNull(response);
-                        objectMapper.writeValue(outputStream, response);
-                    }
+                try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
                 }
                 return;
             case GET_TABLE:
@@ -346,30 +295,6 @@ public abstract class MetadataHandler
      */
     public abstract ListTablesResponse doListTables(final BlockAllocator allocator, final ListTablesRequest request)
             throws Exception;
-
-    /**
-     * Used to get a paginated list of tables that this source contains. The default implementation calls
-     * doListTables to retrieve the list of tables, then uses a paginator to generate a paginated response object.
-     *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details on who made the request and which Athena catalog and database they are querying.
-     *                It also contains a nextToken designating the pagination starting point (table name) for this request.
-     * @return A ListTablesResponse which primarily contains a paginated List<TableName> and a nextToken designating the
-     * starting point (table name) for the next request. It also contains the catalog name corresponding the Athena
-     * catalog that was queried.
-     */
-    public ListTablesResponse doPaginatedListTables(final BlockAllocator allocator, final ListTablesRequest request)
-            throws Exception
-    {
-        try (ListTablesResponse listTablesResponse = doListTables(allocator, request)) {
-            Paginator<TableName> tablePaginator = new Paginator<>(listTablesResponse.getTables(),
-                    request.getNextToken().orElse(""), getListTablesPageSize(), TableName::getTableName);
-            PaginatedResponse<TableName> paginatedResponse = tablePaginator.getNextPage();
-
-            return new ListTablesResponse(listTablesResponse.getCatalogName(), paginatedResponse.getResults(),
-                    paginatedResponse.getNextName());
-        }
-    }
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.

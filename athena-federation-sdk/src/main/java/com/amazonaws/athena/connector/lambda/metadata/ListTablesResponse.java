@@ -28,7 +28,6 @@ import com.google.common.base.Objects;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -39,7 +38,7 @@ public class ListTablesResponse
         extends MetadataResponse
 {
     private final Collection<TableName> tables;
-    private final Optional<String> nextToken;
+    private final String nextToken;
 
     /**
      * Constructs a new ListTablesResponse object.
@@ -49,19 +48,17 @@ public class ListTablesResponse
      */
     @JsonCreator
     public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
-            @JsonProperty("tables") Collection<TableName> tables)
+                              @JsonProperty("tables") Collection<TableName> tables)
     {
         this(catalogName, tables, null);
     }
 
     /**
-     * Constructs a new ListTablesResponse object that could contain a paginated list of tables. A non-null nextToken
-     * indicates that the response from the Lambda was paginated based on the nextToken value (passed in from the
-     * request) in conjunction with the page-size environment variable (list_tables_page_size) passed in from the Lambda.
+     * Constructs a new ListTablesResponse object.
      *
      * @param catalogName The catalog name that tables were listed for.
      * @param tables The list of table names (they all must be lowercase).
-     * @param nextToken The pagination starting point for the next page (i.e. the starting table for the next request).
+     * @param nextToken The pagination starting point for the next request (null indicates the end of the pagination).
      */
     @JsonCreator
     public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
@@ -71,7 +68,7 @@ public class ListTablesResponse
         super(MetadataRequestType.LIST_TABLES, catalogName);
         requireNonNull(tables, "tables is null");
         this.tables = Collections.unmodifiableCollection(tables);
-        this.nextToken = Optional.ofNullable(nextToken);
+        this.nextToken = nextToken;
     }
 
     /**
@@ -86,10 +83,9 @@ public class ListTablesResponse
 
     /**
      * Returns the nextToken (the starting table for the next request).
-     * @return Optional String representing the starting table for the next request (if the Optional is present). If
-     * The Optional is empty, the response was not paginated.
+     * @return The pagination starting point for the next request (null indicates the end of the pagination).
      */
-    public Optional<String> getNextToken()
+    public String getNextToken()
     {
         return nextToken;
     }
@@ -106,7 +102,6 @@ public class ListTablesResponse
     {
         return "ListTablesResponse{" +
                 "tables=" + tables +
-                nextToken.map(table -> ", nextToken=" + table).orElse("") +
                 '}';
     }
 

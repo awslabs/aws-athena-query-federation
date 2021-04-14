@@ -25,8 +25,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
-import java.util.Optional;
-
 /**
  * Represents the input of a <code>ListTables</code> operation.
  */
@@ -34,7 +32,8 @@ public class ListTablesRequest
         extends MetadataRequest
 {
     private final String schemaName;
-    private final Optional<String> nextToken;
+    private final String nextToken;
+    private final int pageSize;
 
     /**
      * Constructs a new ListTablesRequest object.
@@ -42,40 +41,41 @@ public class ListTablesRequest
      * @param identity The identity of the caller.
      * @param queryId The ID of the query requesting metadata.
      * @param catalogName The catalog name that tables should be listed for.
-     * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is requested.
+     * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is
+     *                   requested.
      */
     @JsonCreator
     public ListTablesRequest(@JsonProperty("identity") FederatedIdentity identity,
-            @JsonProperty("queryId") String queryId,
-            @JsonProperty("catalogName") String catalogName,
-            @JsonProperty("schemaName") String schemaName)
+                             @JsonProperty("queryId") String queryId,
+                             @JsonProperty("catalogName") String catalogName,
+                             @JsonProperty("schemaName") String schemaName)
     {
-        this(identity, queryId, catalogName, schemaName, null);
+        this(identity, queryId, catalogName, schemaName, null, -1);
     }
 
     /**
-     * Constructs a new ListTablesRequest object that can be used to paginate the response from the Lambda based on
-     * the value of nextToken. A non-null nextToken indicates that the response should be paginated based on the
-     * nextToken value in conjunction with the page-size environment variable (list_tables_page_size) passed in from
-     * the Lambda.
+     * Constructs a new ListTablesRequest object.
      *
      * @param identity The identity of the caller.
      * @param queryId The ID of the query requesting metadata.
      * @param catalogName The catalog name that tables should be listed for.
      * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is
      *                   requested.
-     * @param nextToken The pagination starting point for the next page (i.e. the next table in the paginated response).
+     * @param nextToken The pagination starting point for the next page (null indicates the first paginated request).
+     * @param pageSize The page size used for pagination (-1 indicates the request should not be paginated).
      */
     @JsonCreator
     public ListTablesRequest(@JsonProperty("identity") FederatedIdentity identity,
                              @JsonProperty("queryId") String queryId,
                              @JsonProperty("catalogName") String catalogName,
                              @JsonProperty("schemaName") String schemaName,
-                             @JsonProperty("nextToken") String nextToken)
+                             @JsonProperty("nextToken") String nextToken,
+                             @JsonProperty("pageSize") int pageSize)
     {
         super(identity, MetadataRequestType.LIST_TABLES, queryId, catalogName);
         this.schemaName = schemaName;
-        this.nextToken = Optional.ofNullable(nextToken);
+        this.nextToken = nextToken;
+        this.pageSize = pageSize;
     }
 
     /**
@@ -89,13 +89,21 @@ public class ListTablesRequest
     }
 
     /**
-     * Returns the nextToken (next table in the paginated response).
-     * @return Optional String representing the next table in the paginated response (if the Optional is present). If
-     * The Optional is empty, the response should not be paginated.
+     * Gets the pagination starting point for the next page.
+     * @return The pagination starting point for the next page (null indicates the first paginated request).
      */
-    public Optional<String> getNextToken()
+    public String getNextToken()
     {
         return nextToken;
+    }
+
+    /**
+     * Gets the page size used for pagination.
+     * @return The page size used for pagination (-1 indicates the request should not be paginated).
+     */
+    public int getPageSize()
+    {
+        return pageSize;
     }
 
     @Override
@@ -111,7 +119,7 @@ public class ListTablesRequest
         return "ListTablesRequest{" +
                 "queryId=" + getQueryId() +
                 ", schemaName='" + schemaName + '\'' +
-                nextToken.map(table -> ", nextToken=" + table).orElse("") +
+                ", pageSize=" + pageSize +
                 '}';
     }
 
@@ -130,12 +138,13 @@ public class ListTablesRequest
         return Objects.equal(this.schemaName, that.schemaName) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
                 Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
-                Objects.equal(this.getNextToken(), that.getNextToken());
+                Objects.equal(this.getNextToken(), that.getNextToken()) &&
+                Objects.equal(this.getPageSize(), that.getPageSize());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(schemaName, getRequestType(), getCatalogName(), getNextToken());
+        return Objects.hashCode(schemaName, getRequestType(), getCatalogName(), getNextToken(), getPageSize());
     }
 }

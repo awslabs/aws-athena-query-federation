@@ -86,7 +86,7 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
             throws IOException
     {
         expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
-                "test-schema", "table3");
+                "test-schema", "table3", 25);
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequestPage.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
 
@@ -108,7 +108,7 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
             throws IOException
     {
         expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
-                "test-schema", "table3");
+                "test-schema", "table3", 25);
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequestPage.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
 
