@@ -191,7 +191,7 @@ public class CloudwatchMetadataHandler
         //you have your logs organized.
         tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
 
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
     }
 
     /**

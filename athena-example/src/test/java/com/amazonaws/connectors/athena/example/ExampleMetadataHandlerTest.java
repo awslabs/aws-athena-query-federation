@@ -62,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
@@ -129,7 +130,8 @@ public class ExampleMetadataHandlerTest
         }
 
         logger.info("doListTables - enter");
-        ListTablesRequest req = new ListTablesRequest(fakeIdentity(), "queryId", "default", "schema1");
+        ListTablesRequest req = new ListTablesRequest(fakeIdentity(), "queryId", "default",
+                "schema1", null, NULL_PAGE_SIZE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
         assertFalse(res.getTables().isEmpty());

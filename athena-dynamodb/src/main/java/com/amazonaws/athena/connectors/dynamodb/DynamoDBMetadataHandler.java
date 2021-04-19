@@ -213,7 +213,7 @@ public class DynamoDBMetadataHandler
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
             combinedTables.addAll(tableResolver.listTables());
         }
-        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables));
+        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), null);
     }
 
     /**

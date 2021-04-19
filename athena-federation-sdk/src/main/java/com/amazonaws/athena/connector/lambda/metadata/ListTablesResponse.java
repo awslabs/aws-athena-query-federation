@@ -45,19 +45,6 @@ public class ListTablesResponse
      *
      * @param catalogName The catalog name that tables were listed for.
      * @param tables The list of table names (they all must be lowercase).
-     */
-    @JsonCreator
-    public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
-                              @JsonProperty("tables") Collection<TableName> tables)
-    {
-        this(catalogName, tables, null);
-    }
-
-    /**
-     * Constructs a new ListTablesResponse object.
-     *
-     * @param catalogName The catalog name that tables were listed for.
-     * @param tables The list of table names (they all must be lowercase).
      * @param nextToken The pagination starting point for the next request (null indicates the end of the pagination).
      */
     @JsonCreator

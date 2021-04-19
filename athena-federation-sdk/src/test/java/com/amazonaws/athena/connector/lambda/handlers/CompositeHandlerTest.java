@@ -107,7 +107,7 @@ public class CompositeHandlerTest
 
         when(mockMetadataHandler.doListTables(any(BlockAllocatorImpl.class), any(ListTablesRequest.class)))
                 .thenReturn(new ListTablesResponse("catalog",
-                        Collections.singletonList(new TableName("schema", "table"))));
+                        Collections.singletonList(new TableName("schema", "table")), null));
 
         when(mockMetadataHandler.doGetTable(any(BlockAllocatorImpl.class), any(GetTableRequest.class)))
                 .thenReturn(new GetTableResponse("catalog",

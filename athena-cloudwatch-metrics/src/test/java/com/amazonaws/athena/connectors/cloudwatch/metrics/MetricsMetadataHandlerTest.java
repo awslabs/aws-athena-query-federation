@@ -67,6 +67,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
@@ -132,7 +133,8 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema);
+        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema,
+                null, NULL_PAGE_SIZE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 

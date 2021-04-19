@@ -66,6 +66,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandler.MAX_SPLITS_PER_REQUEST;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
@@ -112,7 +113,8 @@ public class ExampleMetadataHandlerTest
     public void doListTables()
     {
         logger.info("doListTables - enter");
-        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(), "queryId", "default", null);
+        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                "queryId", "default", null, null, NULL_PAGE_SIZE);
         ObjectMapperUtil.assertSerialization(req);
         ListTablesResponse res = metadataHandler.doListTables(allocator, req);
         ObjectMapperUtil.assertSerialization(res);

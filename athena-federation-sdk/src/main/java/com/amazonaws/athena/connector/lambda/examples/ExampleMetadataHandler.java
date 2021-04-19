@@ -199,7 +199,7 @@ public class ExampleMetadataHandler
         return new ListTablesResponse(request.getCatalogName(),
                 tables.stream()
                         .filter(table -> request.getSchemaName() == null || request.getSchemaName().equals(table.getSchemaName()))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList()), null);
     }
 
     /**

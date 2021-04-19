@@ -59,6 +59,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_TOTAL_NUMBER_FIELD;
@@ -112,7 +113,8 @@ public class TPCDSMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", "tpcds1");
+        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
+                "tpcds1", null, NULL_PAGE_SIZE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 

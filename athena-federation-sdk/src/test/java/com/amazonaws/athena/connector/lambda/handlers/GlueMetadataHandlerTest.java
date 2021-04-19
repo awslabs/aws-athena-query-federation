@@ -78,6 +78,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -214,7 +215,8 @@ public class GlueMetadataHandlerTest
                     return mockResult;
                 });
 
-        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(), queryId, catalog, schema);
+        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                queryId, catalog, schema, null, NULL_PAGE_SIZE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 

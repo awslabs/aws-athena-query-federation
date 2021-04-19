@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
@@ -210,7 +211,8 @@ public class CloudwatchMetadataHandlerTest
             return result;
         });
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", "schema-1");
+        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default",
+                "schema-1", null, NULL_PAGE_SIZE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 

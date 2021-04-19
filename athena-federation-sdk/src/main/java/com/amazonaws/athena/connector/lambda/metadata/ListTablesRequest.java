@@ -31,6 +31,8 @@ import com.google.common.base.Objects;
 public class ListTablesRequest
         extends MetadataRequest
 {
+    public static final int NULL_PAGE_SIZE = -1;
+
     private final String schemaName;
     private final String nextToken;
     private final int pageSize;
@@ -43,26 +45,8 @@ public class ListTablesRequest
      * @param catalogName The catalog name that tables should be listed for.
      * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is
      *                   requested.
-     */
-    @JsonCreator
-    public ListTablesRequest(@JsonProperty("identity") FederatedIdentity identity,
-                             @JsonProperty("queryId") String queryId,
-                             @JsonProperty("catalogName") String catalogName,
-                             @JsonProperty("schemaName") String schemaName)
-    {
-        this(identity, queryId, catalogName, schemaName, null, -1);
-    }
-
-    /**
-     * Constructs a new ListTablesRequest object.
-     *
-     * @param identity The identity of the caller.
-     * @param queryId The ID of the query requesting metadata.
-     * @param catalogName The catalog name that tables should be listed for.
-     * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is
-     *                   requested.
      * @param nextToken The pagination starting point for the next page (null indicates the first paginated request).
-     * @param pageSize The page size used for pagination (-1 indicates the request should not be paginated).
+     * @param pageSize The page size used for pagination (NULL_PAGE_SIZE indicates the request should not be paginated).
      */
     @JsonCreator
     public ListTablesRequest(@JsonProperty("identity") FederatedIdentity identity,
@@ -99,7 +83,7 @@ public class ListTablesRequest
 
     /**
      * Gets the page size used for pagination.
-     * @return The page size used for pagination (-1 indicates the request should not be paginated).
+     * @return The page size used for pagination (NULL_PAGE_SIZE indicates the request should not be paginated).
      */
     public int getPageSize()
     {
@@ -119,6 +103,7 @@ public class ListTablesRequest
         return "ListTablesRequest{" +
                 "queryId=" + getQueryId() +
                 ", schemaName='" + schemaName + '\'' +
+                ", nextToken='" + nextToken + '\'' +
                 ", pageSize=" + pageSize +
                 '}';
     }

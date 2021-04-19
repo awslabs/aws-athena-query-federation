@@ -290,7 +290,7 @@ public abstract class GlueMetadataHandler
         }
         while (nextToken != null);
 
-        return new ListTablesResponse(request.getCatalogName(), tables);
+        return new ListTablesResponse(request.getCatalogName(), tables, null);
     }
 
     /**

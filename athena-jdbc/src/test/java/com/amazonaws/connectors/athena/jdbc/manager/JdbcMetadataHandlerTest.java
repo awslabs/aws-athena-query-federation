@@ -55,6 +55,8 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+
 public class JdbcMetadataHandlerTest
         extends TestBase
 {
@@ -135,7 +137,8 @@ public class JdbcMetadataHandlerTest
         Mockito.when(connection.getMetaData().getTables("testCatalog", "testSchema", null, new String[] {"TABLE", "VIEW"})).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
-                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId", "testCatalog", "testSchema"));
+                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "testSchema", null, NULL_PAGE_SIZE));
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 
@@ -152,7 +155,8 @@ public class JdbcMetadataHandlerTest
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("\\");
         ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
-                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId", "testCatalog", "test_Schema"));
+                this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
+                        "testCatalog", "test_Schema", null, NULL_PAGE_SIZE));
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 
@@ -161,7 +165,8 @@ public class JdbcMetadataHandlerTest
             throws SQLException
     {
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("_");
-        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId", "testCatalog", "test_Schema"));
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
+                "testQueryId", "testCatalog", "test_Schema", null, NULL_PAGE_SIZE));
     }
 
     @Test
@@ -225,6 +230,7 @@ public class JdbcMetadataHandlerTest
             throws SQLException
     {
         Mockito.when(this.connection.getMetaData().getTables(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any())).thenThrow(new SQLException());
-        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId", "testCatalog", "testSchema"));
+        this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
+                "testQueryId", "testCatalog", "testSchema", null, NULL_PAGE_SIZE));
     }
 }

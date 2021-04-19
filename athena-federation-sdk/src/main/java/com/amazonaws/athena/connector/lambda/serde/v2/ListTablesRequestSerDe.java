@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static java.util.Objects.requireNonNull;
 
 final class ListTablesRequestSerDe
@@ -85,8 +86,14 @@ final class ListTablesRequestSerDe
         {
             String schemaName = getNextStringField(jparser, SCHEMA_NAME_FIELD);
 
+            /**
+             * TODO: This logic must be modified in V3 of the SDK to enforce the presence of nextToken and pageSize in
+             *       the JSON contract.
+             *       For backwards compatibility with V2 of the SDK, we will first verify that the JSON contract
+             *       contains the nextToken and pageSize arguments, and if not, set the default values for them.
+             */
             String nextToken = null;
-            int pageSize = -1;
+            int pageSize = NULL_PAGE_SIZE;
             if (!JsonToken.END_OBJECT.equals(jparser.nextToken()) &&
                     jparser.getCurrentName().equals(NEXT_TOKEN_FIELD)) {
                 jparser.nextToken();

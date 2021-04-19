@@ -96,6 +96,12 @@ final class ListTablesResponseSerDe
 
             String catalogName = getNextStringField(jparser, CATALOG_NAME_FIELD);
 
+            /**
+             * TODO: This logic must be modified in V3 of the SDK to enforce the presence of nextToken in the JSON
+             *       contract.
+             *       For backwards compatibility with V2 of the SDK, we will first verify that the JSON contract
+             *       contains the nextToken argument, and if not, set the default value for it.
+             */
             String nextToken = null;
             if (!JsonToken.END_OBJECT.equals(jparser.nextToken()) &&
                     jparser.getCurrentName().equals(NEXT_TOKEN_FIELD)) {

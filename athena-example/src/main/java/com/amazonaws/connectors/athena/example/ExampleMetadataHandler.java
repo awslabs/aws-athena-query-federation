@@ -137,7 +137,7 @@ public class ExampleMetadataHandler
          *
          */
 
-        return new ListTablesResponse(request.getCatalogName(), tables);
+        return new ListTablesResponse(request.getCatalogName(), tables, null);
     }
 
     /**
