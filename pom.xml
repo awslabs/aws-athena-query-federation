@@ -8,6 +8,9 @@
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
     <version>1.0</version>
+    <name>AWS Athena Query Federation</name>
+    <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
+    <url>https://github.com/awslabs/aws-athena-query-federation</url>
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -37,6 +40,17 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <developers>
+        <developer>
+            <id>amazonwebservices</id>
+            <organization>Amazon Web Services</organization>
+            <organizationUrl>https://aws.amazon.com</organizationUrl>
+            <roles>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
 
     <scm>
         <connection>scm:git@github.com:awslabs/aws-athena-query-federation.git</connection>
