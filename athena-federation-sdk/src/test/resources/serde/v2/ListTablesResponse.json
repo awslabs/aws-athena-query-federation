@@ -8,5 +8,5 @@
     "tableName" : "table2"
   } ],
   "catalogName" : "test-catalog",
-  "nextToken" : null
+  "nextToken" : "table3"
 }

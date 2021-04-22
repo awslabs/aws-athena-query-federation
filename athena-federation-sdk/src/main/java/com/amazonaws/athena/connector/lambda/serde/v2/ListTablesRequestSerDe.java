@@ -32,7 +32,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static java.util.Objects.requireNonNull;
 
 final class ListTablesRequestSerDe
@@ -93,7 +93,7 @@ final class ListTablesRequestSerDe
              *       contains the nextToken and pageSize arguments, and if not, set the default values for them.
              */
             String nextToken = null;
-            int pageSize = NULL_PAGE_SIZE;
+            int pageSize = UNLIMITED_PAGE_SIZE_VALUE;
             if (!JsonToken.END_OBJECT.equals(jparser.nextToken()) &&
                     jparser.getCurrentName().equals(NEXT_TOKEN_FIELD)) {
                 jparser.nextToken();

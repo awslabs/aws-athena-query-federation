@@ -59,7 +59,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
@@ -185,7 +185,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                                                                         "testQueryId",
                                                                         "testCatalog",
                                                                         tableName.getSchemaName(),
-                                                                        null, NULL_PAGE_SIZE));
+                                                                        null, UNLIMITED_PAGE_SIZE_VALUE));
 
         Assert.assertArrayEquals(expectedTables.toArray(), listTablesResponse.getTables().toArray());
 

@@ -33,7 +33,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
 import static org.junit.Assert.assertEquals;
 
 public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest>
@@ -45,7 +44,7 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
             throws IOException
     {
         expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
-                "test-schema", null, NULL_PAGE_SIZE);
+                "test-schema", "table4", 25);
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();

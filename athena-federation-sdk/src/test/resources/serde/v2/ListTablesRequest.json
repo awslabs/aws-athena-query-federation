@@ -11,6 +11,6 @@
   "queryId" : "test-query-id",
   "catalogName" : "test-catalog",
   "schemaName" : "test-schema",
-  "nextToken" : null,
-  "pageSize" : -1
+  "nextToken" : "table4",
+  "pageSize" : 25
 }

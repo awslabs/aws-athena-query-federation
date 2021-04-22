@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Set;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connector.validation.FederationServiceProvider.generateQueryId;
 import static com.amazonaws.athena.connector.validation.FederationServiceProvider.getService;
 
@@ -101,7 +101,7 @@ public class LambdaMetadataProvider
     log.info("Submitting ListTablesRequest with ID " + queryId);
 
     try (ListTablesRequest request =
-                 new ListTablesRequest(identity, queryId, catalog, schema, null, NULL_PAGE_SIZE)) {
+                 new ListTablesRequest(identity, queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE)) {
       log.info("Submitting request: {}", request);
       ListTablesResponse response = (ListTablesResponse) getService(metadataFunction, identity, catalog).call(request);
       log.info("Received response: {}", response);

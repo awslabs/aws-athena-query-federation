@@ -72,7 +72,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
@@ -178,7 +178,7 @@ public class HbaseMetadataHandlerTest
 
         when(mockClient.listTableNamesByNamespace(eq(schema))).thenReturn(tables);
         ListTablesRequest req = new ListTablesRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG, schema,
-                null, NULL_PAGE_SIZE);
+                null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 

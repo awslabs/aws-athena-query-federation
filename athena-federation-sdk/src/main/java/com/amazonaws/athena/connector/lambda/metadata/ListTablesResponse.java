@@ -89,6 +89,7 @@ public class ListTablesResponse
     {
         return "ListTablesResponse{" +
                 "tables=" + tables +
+                ", nextToken='" + nextToken + '\'' +
                 '}';
     }
 

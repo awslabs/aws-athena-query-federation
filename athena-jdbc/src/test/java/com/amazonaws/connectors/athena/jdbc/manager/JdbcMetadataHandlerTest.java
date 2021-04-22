@@ -55,7 +55,7 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 public class JdbcMetadataHandlerTest
         extends TestBase
@@ -138,7 +138,7 @@ public class JdbcMetadataHandlerTest
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
         ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
                 this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "testSchema", null, NULL_PAGE_SIZE));
+                        "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 
@@ -156,7 +156,7 @@ public class JdbcMetadataHandlerTest
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("\\");
         ListTablesResponse listTablesResponse = this.jdbcMetadataHandler.doListTables(
                 this.blockAllocator, new ListTablesRequest(this.federatedIdentity, "testQueryId",
-                        "testCatalog", "test_Schema", null, NULL_PAGE_SIZE));
+                        "testCatalog", "test_Schema", null, UNLIMITED_PAGE_SIZE_VALUE));
         Assert.assertArrayEquals(expected, listTablesResponse.getTables().toArray());
     }
 
@@ -166,7 +166,7 @@ public class JdbcMetadataHandlerTest
     {
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("_");
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
-                "testQueryId", "testCatalog", "test_Schema", null, NULL_PAGE_SIZE));
+                "testQueryId", "testCatalog", "test_Schema", null, UNLIMITED_PAGE_SIZE_VALUE));
     }
 
     @Test
@@ -231,6 +231,6 @@ public class JdbcMetadataHandlerTest
     {
         Mockito.when(this.connection.getMetaData().getTables(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any())).thenThrow(new SQLException());
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
-                "testQueryId", "testCatalog", "testSchema", null, NULL_PAGE_SIZE));
+                "testQueryId", "testCatalog", "testSchema", null, UNLIMITED_PAGE_SIZE_VALUE));
     }
 }

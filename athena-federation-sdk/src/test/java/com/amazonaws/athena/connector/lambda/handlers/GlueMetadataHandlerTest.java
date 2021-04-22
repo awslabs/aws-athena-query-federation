@@ -50,6 +50,7 @@ import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -66,19 +67,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.COLUMN_NAME_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.GET_TABLES_REQUEST_MAX_RESULTS;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.NULL_PAGE_SIZE;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -193,39 +195,96 @@ public class GlueMetadataHandlerTest
             throws Exception
     {
         List<Table> tables = new ArrayList<>();
-        tables.add(new Table().withName("table1"));
+        tables.add(new Table().withName("table3"));
         tables.add(new Table().withName("table2"));
+        tables.add(new Table().withName("table5"));
+        tables.add(new Table().withName("table4"));
+        tables.add(new Table().withName("table1"));
+
+        ListTablesResponse fullListResponse = new ListTablesResponse(catalog,
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName(schema, "table1"))
+                        .add(new TableName(schema, "table2"))
+                        .add(new TableName(schema, "table3"))
+                        .add(new TableName(schema, "table4"))
+                        .add(new TableName(schema, "table5"))
+                        .build(), null);
 
         when(mockGlue.getTables(any(GetTablesRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
+                    String nextToken = request.getNextToken();
+                    int pageSize = request.getMaxResults() == null ? UNLIMITED_PAGE_SIZE_VALUE : request.getMaxResults();
                     assertEquals(accountId, request.getCatalogId());
                     assertEquals(schema, request.getDatabaseName());
                     GetTablesResult mockResult = mock(GetTablesResult.class);
-                    if (request.getNextToken() == null) {
+                    if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+                        // Simulate full list of tables returned from Glue.
                         when(mockResult.getTableList()).thenReturn(tables);
-                        when(mockResult.getNextToken()).thenReturn("next");
+                        when(mockResult.getNextToken()).thenReturn(null);
                     }
                     else {
-                        //only return real info on 1st call
-                        when(mockResult.getTableList()).thenReturn(new ArrayList<>());
-                        when(mockResult.getNextToken()).thenReturn(null);
+                        // Simulate paginated list of tables returned from Glue.
+                        List<Table> paginatedTables = tables.stream()
+                                .sorted(Comparator.comparing(Table::getName))
+                                .filter(table -> nextToken == null || table.getName().compareTo(nextToken) >= 0)
+                                .limit(pageSize + 1)
+                                .collect(Collectors.toList());
+                        if (paginatedTables.size() > pageSize) {
+                            when(mockResult.getNextToken()).thenReturn(paginatedTables.get(pageSize).getName());
+                            when(mockResult.getTableList()).thenReturn(paginatedTables.subList(0, pageSize));
+                        }
+                        else {
+                            when(mockResult.getNextToken()).thenReturn(null);
+                            when(mockResult.getTableList()).thenReturn(paginatedTables);
+                        }
                     }
                     return mockResult;
                 });
 
+        logger.info("doListTables - Unlimited page size");
         ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
-                queryId, catalog, schema, null, NULL_PAGE_SIZE);
-        ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
+                queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE);
+        logger.info("doListTables - {}", req);
+        ListTablesResponse actualResponse = handler.doListTables(allocator, req);
+        logger.info("doListTables - {}", actualResponse);
+        assertEquals("Lists do not match.", fullListResponse, actualResponse);
 
-        Set<String> tableNames = tables.stream().map(next -> next.getName()).collect(Collectors.toSet());
-        for (TableName next : res.getTables()) {
-            assertEquals(schema, next.getSchemaName());
-            assertTrue(tableNames.contains(next.getTableName()));
-        }
-        assertEquals(tableNames.size(), res.getTables().size());
+        logger.info("doListTables - Large page-size request");
+        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                queryId, catalog, schema, null, GET_TABLES_REQUEST_MAX_RESULTS + 50);
+        logger.info("doListTables - {}", req);
+        actualResponse = handler.doListTables(allocator, req);
+        logger.info("doListTables - {}", actualResponse);
+        assertEquals("Lists do not match.", fullListResponse, actualResponse);
+
+        logger.info("doListTables - First paginated request");
+        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                queryId, catalog, schema, null, 3);
+        logger.info("doListTables - {}", req);
+        ListTablesResponse expectedResponse = new ListTablesResponse(req.getCatalogName(),
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName(req.getSchemaName(), "table1"))
+                        .add(new TableName(req.getSchemaName(), "table2"))
+                        .add(new TableName(req.getSchemaName(), "table3"))
+                        .build(), "table4");
+        actualResponse = handler.doListTables(allocator, req);
+        logger.info("doListTables - {}", actualResponse);
+        assertEquals("Lists do not match.", expectedResponse, actualResponse);
+
+        logger.info("doListTables - Second paginated request");
+        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                queryId, catalog, schema, actualResponse.getNextToken(), 3);
+        logger.info("doListTables - {}", req);
+        expectedResponse = new ListTablesResponse(req.getCatalogName(),
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName(req.getSchemaName(), "table4"))
+                        .add(new TableName(req.getSchemaName(), "table5"))
+                        .build(), null);
+        actualResponse = handler.doListTables(allocator, req);
+        logger.info("doListTables - {}", actualResponse);
+        assertEquals("Lists do not match.", expectedResponse, actualResponse);
     }
 
     @Test

@@ -31,7 +31,10 @@ import com.google.common.base.Objects;
 public class ListTablesRequest
         extends MetadataRequest
 {
-    public static final int NULL_PAGE_SIZE = -1;
+    /**
+     * Value used to indicate that the page size is unlimited, and therefore, the request should NOT be paginated.
+     */
+    public static final int UNLIMITED_PAGE_SIZE_VALUE = -1;
 
     private final String schemaName;
     private final String nextToken;
@@ -46,7 +49,8 @@ public class ListTablesRequest
      * @param schemaName The schema name that tables should be listed for. This may be null if no specific schema is
      *                   requested.
      * @param nextToken The pagination starting point for the next page (null indicates the first paginated request).
-     * @param pageSize The page size used for pagination (NULL_PAGE_SIZE indicates the request should not be paginated).
+     * @param pageSize The page size used for pagination (UNLIMITED_PAGE_SIZE_VALUE indicates the request should not be
+     *                 paginated).
      */
     @JsonCreator
     public ListTablesRequest(@JsonProperty("identity") FederatedIdentity identity,
@@ -83,7 +87,7 @@ public class ListTablesRequest
 
     /**
      * Gets the page size used for pagination.
-     * @return The page size used for pagination (NULL_PAGE_SIZE indicates the request should not be paginated).
+     * @return The page size used for pagination (UNLIMITED_PAGE_SIZE_VALUE indicates the request should not be paginated).
      */
     public int getPageSize()
     {
