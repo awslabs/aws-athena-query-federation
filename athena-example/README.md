@@ -37,7 +37,18 @@ public class MyMetadataHandler extends MetadataHandler
 
     /**
      * Used to get the list of tables that this source contains.
-     *
+     * The request (ListTablesRequest) includes a nextToken (String) and pageSize (int) attributes that can
+     * be used to paginate the response. The nextToken (request.getNextToken()) will be null if this is the first
+     * paginated request, or will contain a value of the starting point for the current request. pageSize (request
+     * .getPageSize()) will be -1 (ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE) for non-paginated requests (full
+     * list of tables should be returned), or it will be an integer value > 0. The latter indicates the maximum
+     * number of tables to return in the response (ListTablesResponse).
+     * The response (ListTablesResponse) also has a nextToken (String) attribute used for pagination. Its value
+     * should be set with the starting point for the next paginated request. If all tables have been processed, the
+     * value returned for nextToken should be null.
+     * It is noteworthy to mention that the nextToken value should be obfuscated by the connector implementing the
+     * pagination logic via some encryption algorithm.
+     * 
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
