@@ -31,7 +31,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.MetadataVersion;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -57,8 +59,11 @@ public final class ArrowRecordBatchSerDe
                 throws IOException
         {
             try {
+                IpcOption option = new IpcOption();
+                option.write_legacy_ipc_format = true;
+                option.metadataVersion = MetadataVersion.V4;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch);
+                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch, option);
                 jgen.writeBinary(out.toByteArray());
             }
             finally {

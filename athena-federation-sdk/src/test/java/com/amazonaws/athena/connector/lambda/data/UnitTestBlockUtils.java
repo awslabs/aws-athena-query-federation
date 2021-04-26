@@ -52,8 +52,8 @@ public class UnitTestBlockUtils
                 if (Objects.isNull(fieldReader.readLocalDateTime())) {
                     return null;
                 }
-                long millis = fieldReader.readLocalDateTime().toDateTime(org.joda.time.DateTimeZone.UTC).getMillis();
-                return Instant.ofEpochMilli(millis).atZone(UTC_ZONE_ID).toLocalDateTime();
+                long millis = fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli();
+                return Instant.ofEpochMilli(millis).atZone(BlockUtils.UTC_ZONE_ID).toLocalDateTime();
             case TINYINT:
             case UINT1:
                 return fieldReader.readByte();
