@@ -23,8 +23,10 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliEx
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import org.apache.arrow.vector.DateMilliVector;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Used to write a value and apply constraints for a particular column to the row currently being processed.
@@ -56,7 +58,7 @@ public class DateMilliFieldWriter
         this.extractor = extractor;
         this.vector = vector;
         if (rawConstraint != null) {
-            constraint = (NullableDateMilliHolder value) -> rawConstraint.apply(value.isSet == 0 ? null : new LocalDateTime(value.value, DateTimeZone.UTC));
+            constraint = (NullableDateMilliHolder value) -> rawConstraint.apply(value.isSet == 0 ? null : LocalDateTime.ofInstant(Instant.ofEpochMilli(value.value), ZoneOffset.UTC));
         }
         else {
             constraint = (NullableDateMilliHolder value) -> true;
