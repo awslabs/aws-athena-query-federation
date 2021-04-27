@@ -130,11 +130,46 @@ public class ExampleMetadataHandlerTest
         }
 
         logger.info("doListTables - enter");
+
+        // Test request with unlimited page size
+        logger.info("doListTables - Test unlimited page size");
         ListTablesRequest req = new ListTablesRequest(fakeIdentity(), "queryId", "default",
                 "schema1", null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res.getTables());
-        assertFalse(res.getTables().isEmpty());
+        ListTablesResponse expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema1", "table1"))
+                        .add(new TableName("schema1", "table2"))
+                        .add(new TableName("schema1", "table3"))
+                        .build(), null);
+        logger.info("doListTables - {}", res);
+        assertEquals("Expecting a different response", expectedResponse, res);
+
+        // Test first paginated request with pageSize: 2, nextToken: null
+        logger.info("doListTables - Test first pagination request");
+        req = new ListTablesRequest(fakeIdentity(), "queryId", "default", "schema1",
+                null, 2);
+        expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema1", "table1"))
+                        .add(new TableName("schema1", "table2"))
+                        .build(), "table3");
+        res = handler.doListTables(allocator, req);
+        logger.info("doListTables - {}", res);
+        assertEquals("Expecting a different response", expectedResponse, res);
+
+        // Test second paginated request with pageSize: 2, nextToken: res.getNextToken()
+        logger.info("doListTables - Test second pagination request");
+        req = new ListTablesRequest(fakeIdentity(), "queryId", "default", "schema1",
+                res.getNextToken(), 2);
+        expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema1", "table3"))
+                        .build(), null);
+        res = handler.doListTables(allocator, req);
+        logger.info("doListTables - {}", res);
+        assertEquals("Expecting a different response", expectedResponse, res);
+
         logger.info("doListTables - exit");
     }
 

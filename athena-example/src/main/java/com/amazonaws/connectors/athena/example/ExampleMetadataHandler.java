@@ -48,9 +48,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -116,12 +120,14 @@ public class ExampleMetadataHandler
     }
 
     /**
-     * Used to get the list of tables that this source contains.
+     * Used to get a paginated list of tables that this source contains.
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
+     * @implNote A complete (un-paginated) list of tables should be returned if the request's pageSize is set to
+     * ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE.
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
@@ -134,10 +140,46 @@ public class ExampleMetadataHandler
          * TODO: Add tables for the requested schema, example below
          *
          tables.add(new TableName(request.getSchemaName(), "table1"));
+         tables.add(new TableName(request.getSchemaName(), "table2"));
+         tables.add(new TableName(request.getSchemaName(), "table3"));
          *
          */
 
-        return new ListTablesResponse(request.getCatalogName(), tables, null);
+        String nextToken = null;
+        int pageSize = request.getPageSize();
+
+        /**
+         * TODO: Add logic to paginate the response when the request's pageSize is not UNLIMITED_PAGE_SIZE_VALUE.
+         *
+         if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
+            // Get the stating table for this page (if null, then this is the first page).
+            String startToken = request.getNextToken();
+            // Sort the list. Include all tables if the startToken is null, or only the tables whose names are equal to
+            // or higher in value than startToken. Limit the number of tables in the list to the pageSize + 1 (the
+            // nextToken).
+            List<TableName> paginatedTables = tables.stream()
+                    .sorted(Comparator.comparing(TableName::getTableName))
+                    .filter(table -> startToken == null || table.getTableName().compareTo(startToken) >= 0)
+                    .limit(pageSize + 1)
+                    .collect(Collectors.toList());
+
+            if (paginatedTables.size() > pageSize) {
+                // Paginated list contains full page of results + nextToken.
+                // nextToken is the last element in the paginated list.
+                // In an actual connector, the nextToken's value should be obfuscated.
+                nextToken = paginatedTables.get(pageSize).getTableName();
+                // nextToken is removed to include only the paginated results.
+                tables = paginatedTables.subList(0, pageSize);
+            }
+            else {
+                // Paginated list contains all remaining tables - end of the pagination.
+                tables = paginatedTables;
+            }
+         }
+         *
+         */
+
+        return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
     }
 
     /**

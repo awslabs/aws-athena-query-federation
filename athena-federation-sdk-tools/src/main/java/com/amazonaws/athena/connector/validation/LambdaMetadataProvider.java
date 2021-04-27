@@ -100,6 +100,9 @@ public class LambdaMetadataProvider
     String queryId = generateQueryId();
     log.info("Submitting ListTablesRequest with ID " + queryId);
 
+    /**
+     * TODO: Add logic to ensure that the connector supports pagination.
+     */
     try (ListTablesRequest request =
                  new ListTablesRequest(identity, queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE)) {
       log.info("Submitting request: {}", request);

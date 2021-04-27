@@ -103,6 +103,28 @@ public class GlueMetadataHandlerTest
 
     private BlockAllocatorImpl allocator;
 
+    // The following list is purposely unordered to demonstrate that the doListTables pagination logic does not
+    // consider the order of the tables deterministic (i.e. pagination will work irrespective of the order that the
+    // tables are returned from the source).
+    private final List<Table> unPaginatedTables = new ImmutableList.Builder<Table>()
+            .add(new Table().withName("table3"))
+            .add(new Table().withName("table2"))
+            .add(new Table().withName("table5"))
+            .add(new Table().withName("table4"))
+            .add(new Table().withName("table1"))
+            .build();
+
+    // The following response is expected be returned from doListTables when the pagination pageSize is greater than
+    // the number of tables in the unPaginatedTables list (or pageSize has UNLIMITED_PAGE_SIZE_VALUE).
+    private final ListTablesResponse fullListResponse = new ListTablesResponse(catalog,
+            new ImmutableList.Builder<TableName>()
+                    .add(new TableName(schema, "table1"))
+                    .add(new TableName(schema, "table2"))
+                    .add(new TableName(schema, "table3"))
+                    .add(new TableName(schema, "table4"))
+                    .add(new TableName(schema, "table5"))
+                    .build(), null);
+
     @Rule
     public TestName testName = new TestName();
 
@@ -143,6 +165,40 @@ public class GlueMetadataHandlerTest
             }
         };
         allocator = new BlockAllocatorImpl();
+
+        // doListTables pagination.
+        when(mockGlue.getTables(any(GetTablesRequest.class)))
+                .thenAnswer((InvocationOnMock invocationOnMock) ->
+                {
+                    GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
+                    String nextToken = request.getNextToken();
+                    int pageSize = request.getMaxResults() == null ? UNLIMITED_PAGE_SIZE_VALUE : request.getMaxResults();
+                    assertEquals(accountId, request.getCatalogId());
+                    assertEquals(schema, request.getDatabaseName());
+                    GetTablesResult mockResult = mock(GetTablesResult.class);
+                    if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+                        // Simulate full list of tables returned from Glue.
+                        when(mockResult.getTableList()).thenReturn(unPaginatedTables);
+                        when(mockResult.getNextToken()).thenReturn(null);
+                    }
+                    else {
+                        // Simulate paginated list of tables returned from Glue.
+                        List<Table> paginatedTables = unPaginatedTables.stream()
+                                .sorted(Comparator.comparing(Table::getName))
+                                .filter(table -> nextToken == null || table.getName().compareTo(nextToken) >= 0)
+                                .limit(pageSize + 1)
+                                .collect(Collectors.toList());
+                        if (paginatedTables.size() > pageSize) {
+                            when(mockResult.getNextToken()).thenReturn(paginatedTables.get(pageSize).getName());
+                            when(mockResult.getTableList()).thenReturn(paginatedTables.subList(0, pageSize));
+                        }
+                        else {
+                            when(mockResult.getNextToken()).thenReturn(null);
+                            when(mockResult.getTableList()).thenReturn(paginatedTables);
+                        }
+                    }
+                    return mockResult;
+                });
     }
 
     @After
@@ -194,55 +250,6 @@ public class GlueMetadataHandlerTest
     public void doListTables()
             throws Exception
     {
-        List<Table> tables = new ArrayList<>();
-        tables.add(new Table().withName("table3"));
-        tables.add(new Table().withName("table2"));
-        tables.add(new Table().withName("table5"));
-        tables.add(new Table().withName("table4"));
-        tables.add(new Table().withName("table1"));
-
-        ListTablesResponse fullListResponse = new ListTablesResponse(catalog,
-                new ImmutableList.Builder<TableName>()
-                        .add(new TableName(schema, "table1"))
-                        .add(new TableName(schema, "table2"))
-                        .add(new TableName(schema, "table3"))
-                        .add(new TableName(schema, "table4"))
-                        .add(new TableName(schema, "table5"))
-                        .build(), null);
-
-        when(mockGlue.getTables(any(GetTablesRequest.class)))
-                .thenAnswer((InvocationOnMock invocationOnMock) ->
-                {
-                    GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
-                    String nextToken = request.getNextToken();
-                    int pageSize = request.getMaxResults() == null ? UNLIMITED_PAGE_SIZE_VALUE : request.getMaxResults();
-                    assertEquals(accountId, request.getCatalogId());
-                    assertEquals(schema, request.getDatabaseName());
-                    GetTablesResult mockResult = mock(GetTablesResult.class);
-                    if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
-                        // Simulate full list of tables returned from Glue.
-                        when(mockResult.getTableList()).thenReturn(tables);
-                        when(mockResult.getNextToken()).thenReturn(null);
-                    }
-                    else {
-                        // Simulate paginated list of tables returned from Glue.
-                        List<Table> paginatedTables = tables.stream()
-                                .sorted(Comparator.comparing(Table::getName))
-                                .filter(table -> nextToken == null || table.getName().compareTo(nextToken) >= 0)
-                                .limit(pageSize + 1)
-                                .collect(Collectors.toList());
-                        if (paginatedTables.size() > pageSize) {
-                            when(mockResult.getNextToken()).thenReturn(paginatedTables.get(pageSize).getName());
-                            when(mockResult.getTableList()).thenReturn(paginatedTables.subList(0, pageSize));
-                        }
-                        else {
-                            when(mockResult.getNextToken()).thenReturn(null);
-                            when(mockResult.getTableList()).thenReturn(paginatedTables);
-                        }
-                    }
-                    return mockResult;
-                });
-
         logger.info("doListTables - Unlimited page size");
         ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
                 queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE);

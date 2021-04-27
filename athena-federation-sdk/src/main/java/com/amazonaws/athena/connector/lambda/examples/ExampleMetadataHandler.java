@@ -184,23 +184,14 @@ public class ExampleMetadataHandler
     }
 
     /**
-     * Returns a static list of TableNames and a nextToken String used for pagination. The nextToken can be null if
-     * there are no more tables to paginate, but otherwise its value should be obfuscated. A connector for a read data
-     * source would likely query that source's metadata to create a real list of TableNames for the requested schema name.
-     * The request (ListTablesRequest) includes a nextToken (String) and pageSize (int) attributes that can
-     * be used to paginate the response. The nextToken (request.getNextToken()) will be null if this is the first
-     * paginated request, or will contain a value of the starting point for the current request. pageSize (request
-     * .getPageSize()) will be -1 (ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE) for non-paginated requests (full
-     * list of tables should be returned), or it will be an integer value > 0. The latter indicates the maximum
-     * number of tables to return in the response (ListTablesResponse).
-     * The response (ListTablesResponse) also has a nextToken (String) attribute used for pagination. Its value
-     * should be set with the starting point for the next paginated request. If all tables have been processed, the
-     * value returned for nextToken should be null.
+     * Returns a paginated list of TableNames.
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse containing the list of available TableNames and a nextToken String for the start of
      * the next pagination (may be null if there are no more tables to paginate).
+     * @implNote A complete (un-paginated) list of tables should be returned if the request's pageSize is set to
+     * ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE.
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
@@ -208,12 +199,15 @@ public class ExampleMetadataHandler
         logCaller(request);
         String nextToken = null;
         int pageSize = request.getPageSize();
+        // The following list is purposely unordered to demonstrate that the pagination logic does not consider the
+        // order of the tables deterministic (i.e. pagination will work irrespective of the order that the tables are
+        // returned from the source).
         List<TableName> tables = new ImmutableList.Builder<TableName>()
-                .add(new TableName("catlog", "table4"))
-                .add(new TableName("catlog", "table3"))
-                .add(new TableName("catlog", "table5"))
-                .add(new TableName("catlog", "table1"))
-                .add(new TableName("catlog", "table2"))
+                .add(new TableName("schema", "table4"))
+                .add(new TableName("schema", "table3"))
+                .add(new TableName("schema", "table5"))
+                .add(new TableName("schema", "table1"))
+                .add(new TableName("schema", "table2"))
                 .build();
 
         // Check if request has unlimited page size. If not, then list of tables will be paginated.
@@ -232,6 +226,7 @@ public class ExampleMetadataHandler
             if (paginatedTables.size() > pageSize) {
                 // Paginated list contains full page of results + nextToken.
                 // nextToken is the last element in the paginated list.
+                // In an actual connector, the nextToken's value should be obfuscated.
                 nextToken = paginatedTables.get(pageSize).getTableName();
                 // nextToken is removed to include only the paginated results.
                 tables = paginatedTables.subList(0, pageSize);

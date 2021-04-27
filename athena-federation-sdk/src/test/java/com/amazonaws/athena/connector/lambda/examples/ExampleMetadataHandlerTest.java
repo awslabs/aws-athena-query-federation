@@ -117,23 +117,30 @@ public class ExampleMetadataHandlerTest
         // Test request with unlimited page size
         logger.info("doListTables - Test unlimited page size");
         ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
-                "queryId", "default", null, null, UNLIMITED_PAGE_SIZE_VALUE);
+                "queryId", "default", "schema", null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesResponse expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema", "table1"))
+                        .add(new TableName("schema", "table2"))
+                        .add(new TableName("schema", "table3"))
+                        .add(new TableName("schema", "table4"))
+                        .add(new TableName("schema", "table5"))
+                        .build(), null);
         ObjectMapperUtil.assertSerialization(req);
         ListTablesResponse res = metadataHandler.doListTables(allocator, req);
         ObjectMapperUtil.assertSerialization(res);
         logger.info("doListTables - {}", res);
-        assertEquals("Expected different value for list size.", 5, res.getTables().size());
-        assertNull("Expecting null nextToken value.", res.getNextToken());
+        assertEquals("Expecting a different response", expectedResponse, res);
 
         // Test first paginated request with pageSize: 3, nextToken: null
         logger.info("doListTables - Test first pagination request");
         req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
-                "queryId", "default", null, null, 3);
-        ListTablesResponse expectedResponse = new ListTablesResponse("default",
+                "queryId", "default", "schema", null, 3);
+        expectedResponse = new ListTablesResponse("default",
                 new ImmutableList.Builder<TableName>()
-                        .add(new TableName("catlog", "table1"))
-                        .add(new TableName("catlog", "table2"))
-                        .add(new TableName("catlog", "table3"))
+                        .add(new TableName("schema", "table1"))
+                        .add(new TableName("schema", "table2"))
+                        .add(new TableName("schema", "table3"))
                         .build(), "table4");
         ObjectMapperUtil.assertSerialization(req);
         res = metadataHandler.doListTables(allocator, req);
@@ -144,11 +151,11 @@ public class ExampleMetadataHandlerTest
         // Test second paginated request with pageSize: 3, nextToken: res.getNextToken()
         logger.info("doListTables - Test second pagination request");
         req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
-                "queryId", "default", null, res.getNextToken(), 3);
+                "queryId", "default", "schema", res.getNextToken(), 3);
         expectedResponse = new ListTablesResponse("default",
                 new ImmutableList.Builder<TableName>()
-                        .add(new TableName("catlog", "table4"))
-                        .add(new TableName("catlog", "table5"))
+                        .add(new TableName("schema", "table4"))
+                        .add(new TableName("schema", "table5"))
                         .build(), null);
         ObjectMapperUtil.assertSerialization(req);
         res = metadataHandler.doListTables(allocator, req);
