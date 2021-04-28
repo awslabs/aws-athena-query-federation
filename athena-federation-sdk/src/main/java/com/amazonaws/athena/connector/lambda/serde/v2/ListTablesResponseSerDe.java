@@ -64,9 +64,7 @@ final class ListTablesResponseSerDe
                 tableNameSerializer.serialize(tableName, jgen, provider);
             }
             jgen.writeEndArray();
-
             jgen.writeStringField(CATALOG_NAME_FIELD, listTablesResponse.getCatalogName());
-
             jgen.writeStringField(NEXT_TOKEN_FIELD, listTablesResponse.getNextToken());
         }
     }

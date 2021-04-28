@@ -247,50 +247,58 @@ public class GlueMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTablesWithUnlimitedPageSize()
             throws Exception
     {
-        logger.info("doListTables - Unlimited page size");
         ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
                 queryId, catalog, schema, null, UNLIMITED_PAGE_SIZE_VALUE);
-        logger.info("doListTables - {}", req);
+        logger.info("Request - {}", req);
         ListTablesResponse actualResponse = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", actualResponse);
+        logger.info("Response - {}", actualResponse);
         assertEquals("Lists do not match.", fullListResponse, actualResponse);
+    }
 
-        logger.info("doListTables - Large page-size request");
-        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+    @Test
+    public void doListTablesWithLargePageSize()
+            throws Exception
+    {
+        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
                 queryId, catalog, schema, null, GET_TABLES_REQUEST_MAX_RESULTS + 50);
-        logger.info("doListTables - {}", req);
-        actualResponse = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", actualResponse);
+        logger.info("Request - {}", req);
+        ListTablesResponse actualResponse = handler.doListTables(allocator, req);
+        logger.info("Response - {}", actualResponse);
         assertEquals("Lists do not match.", fullListResponse, actualResponse);
+    }
 
-        logger.info("doListTables - First paginated request");
-        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+    @Test
+    public void doListTablesWithPagination()
+            throws Exception
+    {
+        logger.info("First paginated request");
+        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
                 queryId, catalog, schema, null, 3);
-        logger.info("doListTables - {}", req);
+        logger.info("Request - {}", req);
         ListTablesResponse expectedResponse = new ListTablesResponse(req.getCatalogName(),
                 new ImmutableList.Builder<TableName>()
                         .add(new TableName(req.getSchemaName(), "table1"))
                         .add(new TableName(req.getSchemaName(), "table2"))
                         .add(new TableName(req.getSchemaName(), "table3"))
                         .build(), "table4");
-        actualResponse = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", actualResponse);
+        ListTablesResponse actualResponse = handler.doListTables(allocator, req);
+        logger.info("Response - {}", actualResponse);
         assertEquals("Lists do not match.", expectedResponse, actualResponse);
 
-        logger.info("doListTables - Second paginated request");
+        logger.info("Second paginated request");
         req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
                 queryId, catalog, schema, actualResponse.getNextToken(), 3);
-        logger.info("doListTables - {}", req);
+        logger.info("Request - {}", req);
         expectedResponse = new ListTablesResponse(req.getCatalogName(),
                 new ImmutableList.Builder<TableName>()
                         .add(new TableName(req.getSchemaName(), "table4"))
                         .add(new TableName(req.getSchemaName(), "table5"))
                         .build(), null);
         actualResponse = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", actualResponse);
+        logger.info("Response - {}", actualResponse);
         assertEquals("Lists do not match.", expectedResponse, actualResponse);
     }
 

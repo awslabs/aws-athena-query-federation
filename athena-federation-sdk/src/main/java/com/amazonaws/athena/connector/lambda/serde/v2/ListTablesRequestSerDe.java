@@ -63,9 +63,7 @@ final class ListTablesRequestSerDe
             ListTablesRequest listTablesRequest = (ListTablesRequest) federationRequest;
 
             jgen.writeStringField(SCHEMA_NAME_FIELD, listTablesRequest.getSchemaName());
-
             jgen.writeStringField(NEXT_TOKEN_FIELD, listTablesRequest.getNextToken());
-
             jgen.writeNumberField(PAGE_SIZE_FIELD, listTablesRequest.getPageSize());
         }
     }
