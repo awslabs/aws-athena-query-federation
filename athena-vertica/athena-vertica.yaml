@@ -2,15 +2,15 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: VerticaAthenaConnector
-    Description: verticaAthenaConnector Description
+    Name: AthenaVerticaConnector
+    Description: 'This connector enables Amazon Athena to communicate with Vertica'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2021.35.10
+    SemanticVersion: 2021.18.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
