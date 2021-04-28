@@ -43,7 +43,8 @@ public class ListTablesRequestSerDeTest extends TypedSerDeTest<FederationRequest
     public void beforeTest()
             throws IOException
     {
-        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog", "test-schema");
+        expected = new ListTablesRequest(federatedIdentity, "test-query-id", "test-catalog",
+                "test-schema", "table4", 25);
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesRequest.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();

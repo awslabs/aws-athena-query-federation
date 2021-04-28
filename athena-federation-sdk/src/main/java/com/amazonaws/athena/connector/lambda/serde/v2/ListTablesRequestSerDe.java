@@ -26,11 +26,13 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static java.util.Objects.requireNonNull;
 
 final class ListTablesRequestSerDe
@@ -39,6 +41,8 @@ final class ListTablesRequestSerDe
     private static final String QUERY_ID_FIELD = "queryId";
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMA_NAME_FIELD = "schemaName";
+    private static final String PAGE_SIZE_FIELD = "pageSize";
+    private static final String NEXT_TOKEN_FIELD = "nextToken";
 
     private ListTablesRequestSerDe(){}
 
@@ -59,6 +63,8 @@ final class ListTablesRequestSerDe
             ListTablesRequest listTablesRequest = (ListTablesRequest) federationRequest;
 
             jgen.writeStringField(SCHEMA_NAME_FIELD, listTablesRequest.getSchemaName());
+            jgen.writeStringField(NEXT_TOKEN_FIELD, listTablesRequest.getNextToken());
+            jgen.writeNumberField(PAGE_SIZE_FIELD, listTablesRequest.getPageSize());
         }
     }
 
@@ -78,7 +84,22 @@ final class ListTablesRequestSerDe
         {
             String schemaName = getNextStringField(jparser, SCHEMA_NAME_FIELD);
 
-            return new ListTablesRequest(identity, queryId, catalogName, schemaName);
+            /**
+             * TODO: This logic must be modified in V3 of the SDK to enforce the presence of nextToken and pageSize in
+             *       the JSON contract.
+             *       For backwards compatibility with V2 of the SDK, we will first verify that the JSON contract
+             *       contains the nextToken and pageSize arguments, and if not, set the default values for them.
+             */
+            String nextToken = null;
+            int pageSize = UNLIMITED_PAGE_SIZE_VALUE;
+            if (!JsonToken.END_OBJECT.equals(jparser.nextToken()) &&
+                    jparser.getCurrentName().equals(NEXT_TOKEN_FIELD)) {
+                jparser.nextToken();
+                nextToken = jparser.getValueAsString();
+                pageSize = getNextIntField(jparser, PAGE_SIZE_FIELD);
+            }
+
+            return new ListTablesRequest(identity, queryId, catalogName, schemaName, nextToken, pageSize);
         }
     }
 }

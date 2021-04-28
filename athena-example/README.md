@@ -36,8 +36,10 @@ public class MyMetadataHandler extends MetadataHandler
     protected ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request) {}
 
     /**
-     * Used to get the list of tables that this source contains.
-     *
+     * Used to get a paginated list of tables that this source contains.
+     * A complete (un-paginated) list of tables should be returned if the request's pageSize is set to
+     * ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE.
+     * 
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this

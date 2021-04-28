@@ -101,7 +101,9 @@ public class MyMetadataHandler extends MetadataHandler
     @Override
     protected ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest request)
     {
-      //Return a list of tables (strings) for the requested catalog and schema
+      //Return a paginated list of tables (strings) for the requested catalog and schema.
+      //A complete (un-paginated) list of tables should be returned if the request's pageSize is set to
+      //ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE.
     }
 
     @Override

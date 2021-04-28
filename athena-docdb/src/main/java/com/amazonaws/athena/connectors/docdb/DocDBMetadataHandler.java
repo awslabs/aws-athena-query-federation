@@ -169,7 +169,7 @@ public class DocDBMetadataHandler
                 tables.add(new TableName(request.getSchemaName(), itr.next()));
             }
 
-            return new ListTablesResponse(request.getCatalogName(), tables);
+            return new ListTablesResponse(request.getCatalogName(), tables, null);
         }
     }
 
