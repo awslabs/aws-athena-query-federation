@@ -3,11 +3,12 @@ name: Release
 on:
   release:
     types: [ published ]
+  workflow_dispatch:
 
 jobs:
   release:
     name: Publish to maven central
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Codebase
