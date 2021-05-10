@@ -39,6 +39,7 @@ if [ "$#" -lt 2 ]; then
     echo "\n1. S3_BUCKET used for publishing artifacts to Lambda/Serverless App Repo.\n"
     echo "\n2. The connector module to publish (e.g. athena-exmaple or athena-cloudwatch) \n"
     echo "\n3. The AWS REGION to target (e.g. us-east-1 or us-east-2) \n"
+    echo "\n4. The AWS PARTITION to target (aws, aws-cn, aws-us-gov) Defaults to aws \n"
     echo "\n\n USAGE from the module's directory: ../tools/publish.sh my_s3_bucket athena-example \n"
     exit;
 fi
@@ -58,6 +59,14 @@ fi
 
 echo "Using AWS Region $REGION"
 
+PARTITION=$4
+if [ -z "$PARTITION" ]
+then
+      REGION="aws"
+fi
+
+echo "Using PARTITION $PARTITION"
+
 
 if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' ; then
     echo "No bucket policy is set on $1 , would you like to add a Serverless Application Repository Bucket Policy?"
@@ -75,7 +84,7 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         "Service":  "serverlessrepo.amazonaws.com"
       },
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::$1/*"
+      "Resource": "arn:$4:s3:::$1/*"
     }
   ]
 }

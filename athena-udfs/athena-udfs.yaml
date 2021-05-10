@@ -44,5 +44,5 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
           Version: '2012-10-17'
