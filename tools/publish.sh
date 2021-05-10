@@ -59,10 +59,12 @@ fi
 
 echo "Using AWS Region $REGION"
 
-PARTITION=$4
-if [ -z "$PARTITION" ]
-then
-      PARTITION="aws"
+if [[ $REGION == cn-* ]]; then
+    PARTITION="aws-cn"
+elif [[ $REGION == us-gov-* ]]; then
+    PARTITION="aws-us-gov"
+else
+  PARTITION="aws"
 fi
 
 echo "Using PARTITION $PARTITION"
@@ -105,4 +107,3 @@ mvn clean install -Dpublishing=true
 
 sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1 --region $REGION
 sam publish --template packaged.yaml --region $REGION
-
