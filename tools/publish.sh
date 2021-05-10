@@ -62,7 +62,7 @@ echo "Using AWS Region $REGION"
 PARTITION=$4
 if [ -z "$PARTITION" ]
 then
-      REGION="aws"
+      PARTITION="aws"
 fi
 
 echo "Using PARTITION $PARTITION"
@@ -84,7 +84,7 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         "Service":  "serverlessrepo.amazonaws.com"
       },
       "Action": "s3:GetObject",
-      "Resource": "arn:$4:s3:::$1/*"
+      "Resource": "arn:$PARTITION:s3:::$1/*"
     }
   ]
 }
