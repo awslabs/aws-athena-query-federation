@@ -36,7 +36,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class SortedRangeSetSerDe
+public final class SortedRangeSetSerDe
 {
     private static final String TYPE_FIELD = "type";
     private static final String RANGES_FIELD = "ranges";
@@ -44,12 +44,12 @@ final class SortedRangeSetSerDe
 
     private SortedRangeSetSerDe(){}
 
-    static final class Serializer extends TypedSerializer<ValueSet>
+    public static final class Serializer extends TypedSerializer<ValueSet>
     {
         private final ArrowTypeSerDe.Serializer arrowTypeSerializer;
         private final RangeSerDe.Serializer rangeSerializer;
 
-        Serializer(ArrowTypeSerDe.Serializer arrowTypeSerializer, RangeSerDe.Serializer rangeSerializer)
+        public Serializer(ArrowTypeSerDe.Serializer arrowTypeSerializer, RangeSerDe.Serializer rangeSerializer)
         {
             super(ValueSet.class, SortedRangeSet.class);
             this.arrowTypeSerializer = requireNonNull(arrowTypeSerializer, "arrowTypeSerializer is null");
@@ -76,12 +76,12 @@ final class SortedRangeSetSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<ValueSet>
+    public static final class Deserializer extends TypedDeserializer<ValueSet>
     {
         private final ArrowTypeSerDe.Deserializer arrowTypeDeserializer;
         private final RangeSerDe.Deserializer rangeDeserializer;
 
-        Deserializer(ArrowTypeSerDe.Deserializer arrowTypeDeserializer, RangeSerDe.Deserializer rangeDeserializer)
+        public Deserializer(ArrowTypeSerDe.Deserializer arrowTypeDeserializer, RangeSerDe.Deserializer rangeDeserializer)
         {
             super(ValueSet.class, SortedRangeSet.class);
             this.arrowTypeDeserializer = requireNonNull(arrowTypeDeserializer, "arrowTypeDeserializer is null");

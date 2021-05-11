@@ -29,22 +29,22 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-final class EncryptionKeySerDe
+public final class EncryptionKeySerDe
 {
     private static final String KEY_FIELD = "key";
     private static final String NONCE_FIELD = "nonce";
 
     private EncryptionKeySerDe(){}
 
-    static final class Serializer extends BaseSerializer<EncryptionKey>
+    public static final class Serializer extends BaseSerializer<EncryptionKey>
     {
-        Serializer()
+        public Serializer()
         {
             super(EncryptionKey.class);
         }
 
         @Override
-        protected void doSerialize(EncryptionKey encryptionKey, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(EncryptionKey encryptionKey, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeBinaryField(KEY_FIELD, encryptionKey.getKey());
@@ -52,15 +52,15 @@ final class EncryptionKeySerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<EncryptionKey>
+    public static final class Deserializer extends BaseDeserializer<EncryptionKey>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(EncryptionKey.class);
         }
 
         @Override
-        protected EncryptionKey doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public EncryptionKey doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             byte[] key = getNextBinaryField(jparser, KEY_FIELD);

@@ -35,7 +35,7 @@ import java.io.IOException;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static java.util.Objects.requireNonNull;
 
-final class ListTablesRequestSerDe
+public final class ListTablesRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String QUERY_ID_FIELD = "queryId";
@@ -46,11 +46,11 @@ final class ListTablesRequestSerDe
 
     private ListTablesRequestSerDe(){}
 
-    static final class Serializer extends MetadataRequestSerializer
+    public static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
 
-        Serializer(FederatedIdentitySerDe.Serializer identitySerializer)
+        public Serializer(FederatedIdentitySerDe.Serializer identitySerializer)
         {
             super(ListTablesRequest.class, identitySerializer);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
@@ -68,11 +68,11 @@ final class ListTablesRequestSerDe
         }
     }
 
-    static final class Deserializer extends MetadataRequestDeserializer
+    public static final class Deserializer extends MetadataRequestDeserializer
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
 
-        Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer)
+        public Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer)
         {
             super(ListTablesRequest.class, identityDeserializer);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");

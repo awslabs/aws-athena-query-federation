@@ -24,21 +24,21 @@ import com.amazonaws.athena.connector.lambda.serde.DelegatingDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingSerializer;
 import com.google.common.collect.ImmutableSet;
 
-final class SpillLocationSerDe
+public final class SpillLocationSerDe
 {
     private SpillLocationSerDe(){}
 
-    static final class Serializer extends DelegatingSerializer<SpillLocation>
+    public static final class Serializer extends DelegatingSerializer<SpillLocation>
     {
-        Serializer(S3SpillLocationSerDe.Serializer s3SpillLocationSerializer)
+        public Serializer(S3SpillLocationSerDe.Serializer s3SpillLocationSerializer)
         {
             super(SpillLocation.class, ImmutableSet.of(s3SpillLocationSerializer));
         }
     }
 
-    static final class Deserializer extends DelegatingDeserializer<SpillLocation>
+    public static final class Deserializer extends DelegatingDeserializer<SpillLocation>
     {
-        Deserializer(S3SpillLocationSerDe.Deserializer s3SpillLocationDeserializer)
+        public Deserializer(S3SpillLocationSerDe.Deserializer s3SpillLocationDeserializer)
         {
             super(SpillLocation.class, ImmutableSet.of(s3SpillLocationDeserializer));
         }

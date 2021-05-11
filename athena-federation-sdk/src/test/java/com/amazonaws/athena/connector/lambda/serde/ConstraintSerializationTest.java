@@ -89,6 +89,8 @@ public class ConstraintSerializationTest
                         new HashSet<>())
         ) {
             ObjectMapperUtil.assertSerialization(req);
+            ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
+            ObjectMapperUtil.assertSerializationForwardsCompatible(req);
         }
 
         logger.info("serializationTest - exit");

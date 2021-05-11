@@ -36,7 +36,7 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-final class SplitSerDe
+public final class SplitSerDe
 {
     private static final String SPILL_LOCATION_FIELD = "spillLocation";
     private static final String ENCRYPTION_KEY_FIELD = "encryptionKey";
@@ -44,12 +44,12 @@ final class SplitSerDe
 
     private SplitSerDe(){}
 
-    static final class Serializer extends BaseSerializer<Split>
+    public static final class Serializer extends BaseSerializer<Split>
     {
         private final SpillLocationSerDe.Serializer spillLocationSerializer;
         private final EncryptionKeySerDe.Serializer encryptionKeySerializer;
 
-        Serializer(SpillLocationSerDe.Serializer spillLocationSerializer, EncryptionKeySerDe.Serializer encryptionKeySerializer)
+        public Serializer(SpillLocationSerDe.Serializer spillLocationSerializer, EncryptionKeySerDe.Serializer encryptionKeySerializer)
         {
             super(Split.class);
             this.spillLocationSerializer = requireNonNull(spillLocationSerializer, "spillLocationSerializer is null");
@@ -57,7 +57,7 @@ final class SplitSerDe
         }
 
         @Override
-        protected void doSerialize(Split split, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(Split split, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeFieldName(SPILL_LOCATION_FIELD);
@@ -80,12 +80,12 @@ final class SplitSerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<Split>
+    public static final class Deserializer extends BaseDeserializer<Split>
     {
         private final SpillLocationSerDe.Deserializer spillLocationDeserializer;
         private final EncryptionKeySerDe.Deserializer encryptionKeyDeserializer;
 
-        Deserializer(SpillLocationSerDe.Deserializer spillLocationDeserializer, EncryptionKeySerDe.Deserializer encryptionKeyDeserializer)
+        public Deserializer(SpillLocationSerDe.Deserializer spillLocationDeserializer, EncryptionKeySerDe.Deserializer encryptionKeyDeserializer)
         {
             super(Split.class);
             this.spillLocationDeserializer = requireNonNull(spillLocationDeserializer, "spillLocationDeserializer is null");
@@ -93,7 +93,7 @@ final class SplitSerDe
         }
 
         @Override
-        protected Split doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public Split doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             assertFieldName(jparser, SPILL_LOCATION_FIELD);
