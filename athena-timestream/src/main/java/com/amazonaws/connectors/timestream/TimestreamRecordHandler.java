@@ -117,29 +117,21 @@ public class TimestreamRecordHandler
         logger.info("readWithConstraint: query[{}]", query);
 
         GeneratedRowWriter rowWriter = buildRowWriter(recordsRequest);
-
-        QueryRequest queryRequest = new QueryRequest();
-        queryRequest.setQueryString(query);
-        QueryResult queryResult = tsQuery.query(queryRequest);
-        List<Row> data = queryResult.getRows();
-
+        String nextToken = null;
         long numRows = 0;
-        while (data != null && !data.isEmpty()) {
-            numRows += data.size();
-            for (Row nextRow : data) {
-                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, nextRow) ? 1 : 0);
-            }
 
-            if (queryResult.getNextToken() != null) {
-                queryResult = tsQuery.query(new QueryRequest().withNextToken(queryResult.getNextToken()));
-                data = queryResult.getRows();
+        do {
+            QueryResult queryResult = tsQuery.query(new QueryRequest().withQueryString(query).withNextToken(nextToken));
+            List<Row> data = queryResult.getRows();
+            if (data != null) {
+                numRows += data.size();
+                for (Row nextRow : data) {
+                    spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, nextRow) ? 1 : 0);
+                }
             }
-            else {
-                data = null;
-            }
-        }
-
-        logger.info("readWithConstraint: numRows[{}]", numRows);
+            nextToken = queryResult.getNextToken();
+            logger.info("readWithConstraint: numRows[{}]", numRows);
+        } while (nextToken != null && !nextToken.isEmpty());
     }
 
     private GeneratedRowWriter buildRowWriter(ReadRecordsRequest request)
