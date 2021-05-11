@@ -28,9 +28,9 @@ public class ValueSetSerDe
 {
     private ValueSetSerDe(){}
 
-    static final class Serializer extends DelegatingSerializer<ValueSet>
+    public static final class Serializer extends DelegatingSerializer<ValueSet>
     {
-        Serializer(
+        public Serializer(
                 EquatableValueSetSerDe.Serializer equatableValueSetSerializer,
                 SortedRangeSetSerDe.Serializer sortedRangeSetSerializer,
                 AllOrNoneValueSetSerDe.Serializer allOrNoneValueSetSerializer)
@@ -42,9 +42,9 @@ public class ValueSetSerDe
         }
     }
 
-    static final class Deserializer extends DelegatingDeserializer<ValueSet>
+    public static final class Deserializer extends DelegatingDeserializer<ValueSet>
     {
-        Deserializer(
+        public Deserializer(
                 EquatableValueSetSerDe.Deserializer equatableValueSetDeserializer,
                 SortedRangeSetSerDe.Deserializer sortedRangeSetDeserializer,
                 AllOrNoneValueSetSerDe.Deserializer allOrNoneValueSetDeserializer)

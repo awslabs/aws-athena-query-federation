@@ -17,10 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -28,9 +29,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
-import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayInputStream;
@@ -38,17 +37,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 
-/**
- * Used to serialize and deserialize Apache Arrow Schema objects.
- *
- * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
- */
-@Deprecated
-public final class SchemaSerDe
+public final class SchemaSerDeV3 implements VersionedSerDe
 {
-    private SchemaSerDe(){}
+    SchemaSerDeV3(){}
 
-    public static class Serializer extends BaseSerializer<Schema>
+    public static final class Serializer extends BaseSerializer<Schema> implements VersionedSerDe.Serializer<Schema>
     {
         public Serializer()
         {
@@ -67,16 +60,13 @@ public final class SchemaSerDe
         public void doSerialize(Schema schema, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            IpcOption option = new IpcOption();
-            option.metadataVersion = MetadataVersion.V4;
-            option.write_legacy_ipc_format = true;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
+            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema);
             jgen.writeBinary(out.toByteArray());
         }
     }
 
-    public static class Deserializer extends BaseDeserializer<Schema>
+    public static final class Deserializer extends BaseDeserializer<Schema>
     {
         public Deserializer()
         {
@@ -95,14 +85,12 @@ public final class SchemaSerDe
         public Schema doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
-            if (JsonToken.VALUE_STRING.equals(jparser.getCurrentToken()) || JsonToken.VALUE_STRING.equals(jparser.nextToken())) {
-                byte[] schemaBytes = jparser.getBinaryValue();
-                ByteArrayInputStream in = new ByteArrayInputStream(schemaBytes);
-                return MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)));
-            }
-            else {
+            if (!JsonToken.VALUE_STRING.equals(jparser.nextToken())) {
                 throw new IllegalStateException("Expected " + JsonToken.VALUE_STRING + " found " + jparser.getText());
             }
+            byte[] schemaBytes = jparser.getBinaryValue();
+            ByteArrayInputStream in = new ByteArrayInputStream(schemaBytes);
+            return MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)));
         }
     }
 }

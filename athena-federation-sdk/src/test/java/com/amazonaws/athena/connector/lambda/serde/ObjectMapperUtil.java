@@ -33,6 +33,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_THREE;
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 import static org.junit.Assert.assertEquals;
 
 public class ObjectMapperUtil
@@ -50,10 +52,54 @@ public class ObjectMapperUtil
         try (BlockAllocator allocator = new BlockAllocatorImpl()){
             // check SerDe write, SerDe read
             ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
-            ObjectMapper serDe = VersionedObjectMapperFactory.create(allocator);
+            ObjectMapper serDe = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
             serDe.writeValue(serDeOut, object);
             byte[] serDeOutput = serDeOut.toByteArray();
             assertEquals(object, serDe.readValue(new ByteArrayInputStream(serDeOutput), clazz));
+        }
+        catch (IOException | AssertionError ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static <T> void assertSerializationBackwardsCompatible(Object object)
+    {
+        Class<?> clazz = object.getClass();
+        if (object instanceof FederationRequest)
+            clazz = FederationRequest.class;
+        else if (object instanceof FederationResponse) {
+            clazz = FederationResponse.class;
+        }
+        try (BlockAllocator allocator = new BlockAllocatorImpl()){
+            // check SerDe write, SerDe read
+            ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
+            ObjectMapper serDeV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
+            ObjectMapper serDeV2 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
+            serDeV3.writeValue(serDeOut, object);
+            byte[] serDeOutput = serDeOut.toByteArray();
+            assertEquals(object, serDeV2.readValue(new ByteArrayInputStream(serDeOutput), clazz));
+        }
+        catch (IOException | AssertionError ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static <T> void assertSerializationForwardsCompatible(Object object)
+    {
+        Class<?> clazz = object.getClass();
+        if (object instanceof FederationRequest)
+            clazz = FederationRequest.class;
+        else if (object instanceof FederationResponse) {
+            clazz = FederationResponse.class;
+        }
+        try (BlockAllocator allocator = new BlockAllocatorImpl()){
+            // check SerDe write, SerDe read
+            ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
+            ObjectMapper serDeV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
+            ObjectMapper serDeV2 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
+            serDeV2.writeValue(serDeOut, object);
+            byte[] serDeOutput = serDeOut.toByteArray();
+            assertEquals(object, serDeV3.readValue(new ByteArrayInputStream(serDeOutput), clazz));
         }
         catch (IOException | AssertionError ex) {
             throw new RuntimeException(ex);

@@ -46,9 +46,9 @@ public class LambdaFunctionExceptionSerDe
 
     private LambdaFunctionExceptionSerDe(){}
 
-    static final class Deserializer extends BaseDeserializer<LambdaFunctionException>
+    public static final class Deserializer extends BaseDeserializer<LambdaFunctionException>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(LambdaFunctionException.class);
         }
@@ -63,7 +63,7 @@ public class LambdaFunctionExceptionSerDe
         }
 
         @Override
-        protected LambdaFunctionException doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public LambdaFunctionException doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             JsonNode root = jparser.getCodec().readTree(jparser);

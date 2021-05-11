@@ -35,7 +35,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class GetSplitsResponseSerDe
+public final class GetSplitsResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SPLITS_FIELD = "splits";
@@ -43,11 +43,11 @@ final class GetSplitsResponseSerDe
 
     private GetSplitsResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
         private final SplitSerDe.Serializer splitSerializer;
 
-        Serializer(SplitSerDe.Serializer splitSerializer)
+        public Serializer(SplitSerDe.Serializer splitSerializer)
         {
             super(FederationResponse.class, GetSplitsResponse.class);
             this.splitSerializer = requireNonNull(splitSerializer, "splitSerializer is null");
@@ -71,11 +71,11 @@ final class GetSplitsResponseSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
         private final SplitSerDe.Deserializer splitDeserializer;
 
-        Deserializer(SplitSerDe.Deserializer splitDeserializer)
+        public Deserializer(SplitSerDe.Deserializer splitDeserializer)
         {
             super(FederationResponse.class, GetSplitsResponse.class);
             this.splitDeserializer = requireNonNull(splitDeserializer, "splitDeserializer is null");

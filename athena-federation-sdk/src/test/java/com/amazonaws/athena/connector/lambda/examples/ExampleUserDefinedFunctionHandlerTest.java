@@ -202,6 +202,8 @@ public class ExampleUserDefinedFunctionHandlerTest
                 methodName,
                 UserDefinedFunctionType.SCALAR);
         ObjectMapperUtil.assertSerialization(request);
+        ObjectMapperUtil.assertSerializationBackwardsCompatible(request);
+        ObjectMapperUtil.assertSerializationForwardsCompatible(request);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         mapper.writeValue(out, request);
@@ -212,6 +214,8 @@ public class ExampleUserDefinedFunctionHandlerTest
 
         UserDefinedFunctionResponse udfResponse = (UserDefinedFunctionResponse) mapper.readValue(outputStream.toByteArray(), FederationResponse.class);
         ObjectMapperUtil.assertSerialization(udfResponse);
+        ObjectMapperUtil.assertSerializationBackwardsCompatible(udfResponse);
+        ObjectMapperUtil.assertSerializationForwardsCompatible(udfResponse);
 
         return udfResponse;
     }

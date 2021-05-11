@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -37,7 +38,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class RemoteReadRecordsResponseSerDe
+public final class RemoteReadRecordsResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMA_FIELD = "schema";
@@ -46,14 +47,14 @@ final class RemoteReadRecordsResponseSerDe
 
     private RemoteReadRecordsResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
-        private final SchemaSerDe.Serializer schemaSerializer;
+        private final VersionedSerDe.Serializer<Schema> schemaSerializer;
         private final SpillLocationSerDe.Serializer spillLocationSerializer;
         private final EncryptionKeySerDe.Serializer encryptionKeySerializer;
 
-        Serializer(
-                SchemaSerDe.Serializer schemaSerializer,
+        public Serializer(
+                VersionedSerDe.Serializer<Schema> schemaSerializer,
                 SpillLocationSerDe.Serializer spillLocationSerializer,
                 EncryptionKeySerDe.Serializer encryptionKeySerializer)
         {
@@ -85,14 +86,14 @@ final class RemoteReadRecordsResponseSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
-        private final SchemaSerDe.Deserializer schemaDeserializer;
+        private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
         private final SpillLocationSerDe.Deserializer spillLocationDeserializer;
         private final EncryptionKeySerDe.Deserializer encryptionKeyDeserializer;
 
-        Deserializer(
-                SchemaSerDe.Deserializer schemaDeserializer,
+        public Deserializer(
+                VersionedSerDe.Deserializer<Schema> schemaDeserializer,
                 SpillLocationSerDe.Deserializer spillLocationDeserializer,
                 EncryptionKeySerDe.Deserializer encryptionKeyDeserializer)
         {

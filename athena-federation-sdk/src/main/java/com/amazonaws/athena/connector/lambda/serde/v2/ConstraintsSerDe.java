@@ -35,24 +35,24 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-final class ConstraintsSerDe
+public final class ConstraintsSerDe
 {
     private static final String SUMMARY_FIELD = "summary";
 
     private ConstraintsSerDe(){}
 
-    static final class Serializer extends BaseSerializer<Constraints>
+    public static final class Serializer extends BaseSerializer<Constraints>
     {
         private final ValueSetSerDe.Serializer valueSetSerializer;
 
-        Serializer(ValueSetSerDe.Serializer valueSetSerializer)
+        public Serializer(ValueSetSerDe.Serializer valueSetSerializer)
         {
             super(Constraints.class);
             this.valueSetSerializer = requireNonNull(valueSetSerializer, "valueSetSerDe is null");
         }
 
         @Override
-        protected void doSerialize(Constraints constraints, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(Constraints constraints, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeObjectFieldStart(SUMMARY_FIELD);
@@ -64,18 +64,18 @@ final class ConstraintsSerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<Constraints>
+    public static final class Deserializer extends BaseDeserializer<Constraints>
     {
         private final ValueSetSerDe.Deserializer valueSetDeserializer;
 
-        Deserializer(ValueSetSerDe.Deserializer valueSetDeserializer)
+        public Deserializer(ValueSetSerDe.Deserializer valueSetDeserializer)
         {
             super(Constraints.class);
             this.valueSetDeserializer = requireNonNull(valueSetDeserializer, "valueSetSerDe is null");
         }
 
         @Override
-        protected Constraints doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public Constraints doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             assertFieldName(jparser, SUMMARY_FIELD);

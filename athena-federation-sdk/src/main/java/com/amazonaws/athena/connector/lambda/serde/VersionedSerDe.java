@@ -2,7 +2,7 @@
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 - 2020 Amazon Web Services
+ * Copyright (C) 2019 - 2021 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,35 +20,29 @@
 package com.amazonaws.athena.connector.lambda.serde;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-import static java.util.Objects.requireNonNull;
-
-public abstract class TypedSerializer<T> extends BaseSerializer<T>
+public interface VersionedSerDe
 {
-    private Class<? extends T> subType;
-
-    protected TypedSerializer(Class<T> superType, Class<? extends T> subType)
+    interface Serializer<T>
     {
-        super(superType);
-        this.subType = requireNonNull(subType, "subType is null");
+        void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
+                throws IOException;
+
+        void serialize(T value, JsonGenerator jgen, SerializerProvider provider)
+                throws IOException;
     }
 
-    public Class<? extends T> getSubType()
+    interface Deserializer<T>
     {
-        return subType;
-    }
+        T deserialize(JsonParser jparser, DeserializationContext ctxt)
+                throws IOException;
 
-    @Override
-    public void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
-            throws IOException
-    {
-        writeType(jgen, subType);
-        doTypedSerialize(value, jgen, provider);
+        T doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+                throws IOException;
     }
-
-    protected abstract void doTypedSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
-            throws IOException;
 }

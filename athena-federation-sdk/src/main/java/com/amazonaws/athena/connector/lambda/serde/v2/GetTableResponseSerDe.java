@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -35,7 +36,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class GetTableResponseSerDe
+public final class GetTableResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String TABLE_NAME_FIELD = "tableName";
@@ -44,12 +45,12 @@ final class GetTableResponseSerDe
 
     private GetTableResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
         private final TableNameSerDe.Serializer tableNameSerializer;
-        private final SchemaSerDe.Serializer schemaSerializer;
+        private final VersionedSerDe.Serializer<Schema> schemaSerializer;
 
-        Serializer(TableNameSerDe.Serializer tableNameSerializer, SchemaSerDe.Serializer schemaSerializer)
+        public Serializer(TableNameSerDe.Serializer tableNameSerializer, VersionedSerDe.Serializer<Schema> schemaSerializer)
         {
             super(FederationResponse.class, GetTableResponse.class);
             this.tableNameSerializer = requireNonNull(tableNameSerializer, "tableNameSerializer is null");
@@ -74,12 +75,12 @@ final class GetTableResponseSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
         private final TableNameSerDe.Deserializer tableNameDeserializer;
-        private final SchemaSerDe.Deserializer schemaDeserializer;
+        private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
 
-        Deserializer(TableNameSerDe.Deserializer tableNameDeserializer, SchemaSerDe.Deserializer schemaDeserializer)
+        public Deserializer(TableNameSerDe.Deserializer tableNameDeserializer, VersionedSerDe.Deserializer<Schema> schemaDeserializer)
         {
             super(FederationResponse.class, GetTableResponse.class);
             this.tableNameDeserializer = requireNonNull(tableNameDeserializer, "tableNameDeserializer is null");

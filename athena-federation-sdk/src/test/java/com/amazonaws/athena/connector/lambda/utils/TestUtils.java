@@ -35,6 +35,9 @@ public class TestUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestUtils.class);
 
+    public final static int SERDE_VERSION_TWO = 2;
+    public final static int SERDE_VERSION_THREE = 3;
+
     /**
      * Helper to retrieve resources from the class path and enforce they are found
      * @param locationHint Used to help find the resources if a classpath scan isn't working

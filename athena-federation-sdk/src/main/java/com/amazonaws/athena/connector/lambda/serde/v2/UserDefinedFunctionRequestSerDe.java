@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -37,7 +38,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class UserDefinedFunctionRequestSerDe
+public final class UserDefinedFunctionRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String INPUT_RECORDS_FIELD = "inputRecords";
@@ -47,16 +48,16 @@ final class UserDefinedFunctionRequestSerDe
 
     private UserDefinedFunctionRequestSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationRequest>
+    public static final class Serializer extends TypedSerializer<FederationRequest>
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
-        private final BlockSerDe.Serializer blockSerializer;
-        private final SchemaSerDe.Serializer schemaSerializer;
+        private final VersionedSerDe.Serializer<Block> blockSerializer;
+        private final VersionedSerDe.Serializer<Schema> schemaSerializer;
 
-        Serializer(
+        public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
-                BlockSerDe.Serializer blockSerializer,
-                SchemaSerDe.Serializer schemaSerializer)
+                VersionedSerDe.Serializer<Block> blockSerializer,
+                VersionedSerDe.Serializer<Schema> schemaSerializer)
         {
             super(FederationRequest.class, UserDefinedFunctionRequest.class);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
@@ -84,16 +85,16 @@ final class UserDefinedFunctionRequestSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationRequest>
+    public static final class Deserializer extends TypedDeserializer<FederationRequest>
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
-        private final BlockSerDe.Deserializer blockDeserializer;
-        private final SchemaSerDe.Deserializer schemaDeserializer;
+        private final VersionedSerDe.Deserializer<Block> blockDeserializer;
+        private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
 
-        Deserializer(
+        public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
-                BlockSerDe.Deserializer blockDeserializer,
-                SchemaSerDe.Deserializer schemaDeserializer)
+                VersionedSerDe.Deserializer<Block> blockDeserializer,
+                VersionedSerDe.Deserializer<Schema> schemaDeserializer)
         {
             super(FederationRequest.class, UserDefinedFunctionRequest.class);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");

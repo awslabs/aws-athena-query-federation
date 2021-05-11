@@ -32,25 +32,25 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class RangeSerDe
+public final class RangeSerDe
 {
     private static final String LOW_FIELD = "low";
     private static final String HIGH_FIELD = "high";
 
     private RangeSerDe(){}
 
-    static final class Serializer extends BaseSerializer<Range>
+    public static final class Serializer extends BaseSerializer<Range>
     {
         private final MarkerSerDe.Serializer markerSerializer;
 
-        Serializer(MarkerSerDe.Serializer markerSerializer)
+        public Serializer(MarkerSerDe.Serializer markerSerializer)
         {
             super(Range.class);
             this.markerSerializer = requireNonNull(markerSerializer, "markerSerializer is null");
         }
 
         @Override
-        protected void doSerialize(Range range, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(Range range, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeFieldName(LOW_FIELD);
@@ -61,18 +61,18 @@ final class RangeSerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<Range>
+    public static final class Deserializer extends BaseDeserializer<Range>
     {
         private final MarkerSerDe.Deserializer markerDeserializer;
 
-        Deserializer(MarkerSerDe.Deserializer markerDeserializer)
+        public Deserializer(MarkerSerDe.Deserializer markerDeserializer)
         {
             super(Range.class);
             this.markerDeserializer = requireNonNull(markerDeserializer, "markerDeserializer is null");
         }
 
         @Override
-        protected Range doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public Range doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             assertFieldName(jparser, LOW_FIELD);

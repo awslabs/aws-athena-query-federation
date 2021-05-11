@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -27,6 +27,37 @@ import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.AllOrNoneValueSetSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ArrowTypeSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.EquatableValueSetSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.FederationRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.FederationResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.GetTableRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.GetTableResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.LambdaFunctionExceptionSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ListTablesRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ListTablesResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.MarkerSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.RangeSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.RemoteReadRecordsResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.S3SpillLocationSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.SortedRangeSetSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.SpillLocationSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.SplitSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -53,8 +84,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-@Deprecated
-public class ObjectMapperFactoryV2
+public class ObjectMapperFactoryV3
 {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final String LAMDA_EXCEPTION_CLASS_NAME = LambdaFunctionException.class.getName();
@@ -69,7 +99,7 @@ public class ObjectMapperFactoryV2
         SERIALIZER_FACTORY = new StrictSerializerFactory(config);
     }
 
-    private ObjectMapperFactoryV2(){}
+    private ObjectMapperFactoryV3(){}
 
     /**
      * Custom SerializerFactory that *only* uses the custom serializers that we inject into the {@link ObjectMapper}.
@@ -171,8 +201,8 @@ public class ObjectMapperFactoryV2
     {
         FederatedIdentitySerDe.Serializer identity = new FederatedIdentitySerDe.Serializer();
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
-        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDe.Serializer();
-        VersionedSerDe.Serializer<Block> block = new BlockSerDe.Serializer(schema);
+        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV3.Serializer();
+        VersionedSerDe.Serializer<Block> block = new BlockSerDeV3.Serializer(schema);
         ArrowTypeSerDe.Serializer arrowType = new ArrowTypeSerDe.Serializer();
         MarkerSerDe.Serializer marker = new MarkerSerDe.Serializer(block);
         RangeSerDe.Serializer range = new RangeSerDe.Serializer(marker);
@@ -208,8 +238,8 @@ public class ObjectMapperFactoryV2
     {
         FederatedIdentitySerDe.Deserializer identity = new FederatedIdentitySerDe.Deserializer();
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
-        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDe.Deserializer();
-        VersionedSerDe.Deserializer<Block> block = new BlockSerDe.Deserializer(allocator, schema);
+        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV3.Deserializer();
+        VersionedSerDe.Deserializer<Block> block = new BlockSerDeV3.Deserializer(allocator, schema);
         ArrowTypeSerDe.Deserializer arrowType = new ArrowTypeSerDe.Deserializer();
         MarkerSerDe.Deserializer marker = new MarkerSerDe.Deserializer(block);
         RangeSerDe.Deserializer range = new RangeSerDe.Deserializer(marker);
@@ -246,8 +276,8 @@ public class ObjectMapperFactoryV2
     private static FederationResponseSerDe.Serializer createResponseSerializer()
     {
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
-        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDe.Serializer();
-        VersionedSerDe.Serializer<Block> block = new BlockSerDe.Serializer(schema);
+        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV3.Serializer();
+        VersionedSerDe.Serializer<Block> block = new BlockSerDeV3.Serializer(schema);
         S3SpillLocationSerDe.Serializer s3SpillLocation = new S3SpillLocationSerDe.Serializer();
         SpillLocationSerDe.Serializer spillLocation = new SpillLocationSerDe.Serializer(s3SpillLocation);
         EncryptionKeySerDe.Serializer encryptionKey = new EncryptionKeySerDe.Serializer();
@@ -278,8 +308,8 @@ public class ObjectMapperFactoryV2
     private static FederationResponseSerDe.Deserializer createResponseDeserializer(BlockAllocator allocator)
     {
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
-        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDe.Deserializer();
-        VersionedSerDe.Deserializer<Block> block = new BlockSerDe.Deserializer(allocator, schema);
+        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV3.Deserializer();
+        VersionedSerDe.Deserializer<Block> block = new BlockSerDeV3.Deserializer(allocator, schema);
         S3SpillLocationSerDe.Deserializer s3SpillLocation = new S3SpillLocationSerDe.Deserializer();
         SpillLocationSerDe.Deserializer spillLocation = new SpillLocationSerDe.Deserializer(s3SpillLocation);
         EncryptionKeySerDe.Deserializer encryptionKey = new EncryptionKeySerDe.Deserializer();

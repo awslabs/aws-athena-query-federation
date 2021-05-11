@@ -35,7 +35,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.serde.BaseSerializer.TYPE_FIELD;
 
-public abstract class BaseDeserializer<T> extends StdDeserializer<T>
+public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements VersionedSerDe.Deserializer<T>
 {
     protected BaseDeserializer(Class<T> clazz)
     {
@@ -65,7 +65,7 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T>
         return deserialize(jp, ctxt);
     }
 
-    protected abstract T doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+    public abstract T doDeserialize(JsonParser jparser, DeserializationContext ctxt)
             throws IOException;
 
     /**

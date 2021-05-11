@@ -208,9 +208,13 @@ public class ExampleRecordHandlerTest
                     100_000_000_000L
             );
             ObjectMapperUtil.assertSerialization(request);
+            ObjectMapperUtil.assertSerializationBackwardsCompatible(request);
+            ObjectMapperUtil.assertSerializationForwardsCompatible(request);
 
             RecordResponse rawResponse = recordService.readRecords(request);
             ObjectMapperUtil.assertSerialization(rawResponse);
+            ObjectMapperUtil.assertSerializationBackwardsCompatible(rawResponse);
+            ObjectMapperUtil.assertSerializationForwardsCompatible(rawResponse);
 
             assertTrue(rawResponse instanceof ReadRecordsResponse);
 
@@ -249,9 +253,13 @@ public class ExampleRecordHandlerTest
                     1000L
             );
             ObjectMapperUtil.assertSerialization(request);
+            ObjectMapperUtil.assertSerializationBackwardsCompatible(request);
+            ObjectMapperUtil.assertSerializationForwardsCompatible(request);
 
             RecordResponse rawResponse = recordService.readRecords(request);
             ObjectMapperUtil.assertSerialization(rawResponse);
+            ObjectMapperUtil.assertSerializationBackwardsCompatible(request);
+            ObjectMapperUtil.assertSerializationForwardsCompatible(request);
 
             assertTrue(rawResponse instanceof RemoteReadRecordsResponse);
 
