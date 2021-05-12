@@ -25,7 +25,6 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
 import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
 import com.amazonaws.athena.connector.lambda.data.SchemaSerDe;
-import com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -48,7 +47,7 @@ import java.io.IOException;
  * operations that are required to move a Block around. It also allows you to put tighter control around
  * which parts of your query execution get which memory pool / limit.
  *
- * @deprecated {@link BlockSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.BlockSerDeV3} should be used instead
  */
 @Deprecated
 public class BlockDeserializer

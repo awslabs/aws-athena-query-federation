@@ -102,12 +102,8 @@ public class ExampleMetadataHandlerTest
         logger.info("doListSchemas - enter");
         ListSchemasRequest req = new ListSchemasRequest(IdentityUtil.fakeIdentity(), "queryId", "default");
         ObjectMapperUtil.assertSerialization(req);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(req);
         ListSchemasResponse res = metadataHandler.doListSchemaNames(allocator, req);
         ObjectMapperUtil.assertSerialization(res);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(res);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(res);
         logger.info("doListSchemas - {}", res.getSchemas());
         assertFalse(res.getSchemas().isEmpty());
         logger.info("doListSchemas - exit");
@@ -131,12 +127,8 @@ public class ExampleMetadataHandlerTest
                         .add(new TableName("schema", "table5"))
                         .build(), null);
         ObjectMapperUtil.assertSerialization(req);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(req);
         ListTablesResponse res = metadataHandler.doListTables(allocator, req);
         ObjectMapperUtil.assertSerialization(res);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(res);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(res);
         logger.info("doListTables - {}", res);
         assertEquals("Expecting a different response", expectedResponse, res);
 
@@ -151,12 +143,8 @@ public class ExampleMetadataHandlerTest
                         .add(new TableName("schema", "table3"))
                         .build(), "table4");
         ObjectMapperUtil.assertSerialization(req);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(req);
         res = metadataHandler.doListTables(allocator, req);
         ObjectMapperUtil.assertSerialization(res);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(res);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(res);
         logger.info("doListTables - {}", res);
         assertEquals("Expecting a different response", expectedResponse, res);
 
@@ -185,12 +173,8 @@ public class ExampleMetadataHandlerTest
         GetTableRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
                 new TableName("custom_source", "fake_table"));
         ObjectMapperUtil.assertSerialization(req);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(req);
         GetTableResponse res = metadataHandler.doGetTable(allocator, req);
         ObjectMapperUtil.assertSerialization(res);
-        ObjectMapperUtil.assertSerializationBackwardsCompatible(res);
-        ObjectMapperUtil.assertSerializationForwardsCompatible(res);
         assertTrue(res.getSchema().getFields().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
         logger.info("doGetTable - {}", res);
@@ -255,13 +239,9 @@ public class ExampleMetadataHandlerTest
                     tableSchema,
                     partitionCols);
             ObjectMapperUtil.assertSerialization(req);
-            ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
-            ObjectMapperUtil.assertSerializationForwardsCompatible(req);
 
             res = metadataHandler.doGetTableLayout(allocator, req);
             ObjectMapperUtil.assertSerialization(res);
-            ObjectMapperUtil.assertSerializationBackwardsCompatible(res);
-            ObjectMapperUtil.assertSerializationForwardsCompatible(res);
 
             logger.info("doGetTableLayout - {}", res);
             Block partitions = res.getPartitions();
@@ -340,8 +320,6 @@ public class ExampleMetadataHandlerTest
         do {
             GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
             ObjectMapperUtil.assertSerialization(req);
-            ObjectMapperUtil.assertSerializationBackwardsCompatible(req);
-            ObjectMapperUtil.assertSerializationForwardsCompatible(req);
 
             logger.info("doGetSplits: req[{}]", req);
             metadataHandler.setEncryption(numContinuations % 2 == 0);
@@ -349,8 +327,7 @@ public class ExampleMetadataHandlerTest
 
             MetadataResponse rawResponse = metadataHandler.doGetSplits(allocator, req);
             ObjectMapperUtil.assertSerialization(rawResponse);
-            ObjectMapperUtil.assertSerializationBackwardsCompatible(rawResponse);
-            ObjectMapperUtil.assertSerializationForwardsCompatible(rawResponse);
+
             assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
             GetSplitsResponse response = (GetSplitsResponse) rawResponse;

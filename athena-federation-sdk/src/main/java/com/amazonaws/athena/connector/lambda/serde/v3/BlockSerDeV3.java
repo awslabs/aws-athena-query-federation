@@ -50,7 +50,7 @@ public class BlockSerDeV3
     private static final String SCHEMA_FIELD_NAME = "schema";
     private static final String BATCH_FIELD_NAME = "records";
 
-    public BlockSerDeV3(){}
+    public BlockSerDeV3() {}
 
     public static final class Serializer extends BaseSerializer<Block> implements VersionedSerDe.Serializer<Block>
     {
