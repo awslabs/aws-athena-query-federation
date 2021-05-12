@@ -24,15 +24,13 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_ONE;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_THREE;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 import static org.junit.Assert.assertEquals;
@@ -42,6 +40,13 @@ public class ObjectMapperUtil
     private ObjectMapperUtil() {}
 
     public static <T> void assertSerialization(Object object)
+    {
+        assertBaseSerialization(object);
+        assertSerializationForwardsCompatibleV2toV3(object);
+        assertSerializationBackwardsCompatibleV3toV2(object);
+    }
+
+    private static <T> void assertBaseSerialization(Object object)
     {
         Class<?> clazz = object.getClass();
         if (object instanceof FederationRequest)
@@ -62,7 +67,7 @@ public class ObjectMapperUtil
         }
     }
 
-    public static <T> void assertSerializationBackwardsCompatible(Object object)
+    private static <T> void assertSerializationBackwardsCompatibleV3toV2(Object object)
     {
         Class<?> clazz = object.getClass();
         if (object instanceof FederationRequest)
@@ -84,7 +89,7 @@ public class ObjectMapperUtil
         }
     }
 
-    public static <T> void assertSerializationForwardsCompatible(Object object)
+    private static <T> void assertSerializationForwardsCompatibleV2toV3(Object object)
     {
         Class<?> clazz = object.getClass();
         if (object instanceof FederationRequest)

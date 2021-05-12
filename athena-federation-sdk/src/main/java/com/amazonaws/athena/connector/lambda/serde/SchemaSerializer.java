@@ -20,7 +20,6 @@ package com.amazonaws.athena.connector.lambda.serde;
  * #L%
  */
 
-import com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
@@ -32,7 +31,7 @@ import java.io.IOException;
 /**
  * Used to enhance Jackson's stock ObjectMapper with the ability to serialize Apache Arrow Schema objects.
  *
- * @deprecated {@link SchemaSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
  */
 @Deprecated
 public class SchemaSerializer

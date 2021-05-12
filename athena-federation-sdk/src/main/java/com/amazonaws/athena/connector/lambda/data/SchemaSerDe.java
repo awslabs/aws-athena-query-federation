@@ -35,7 +35,7 @@ import java.nio.channels.Channels;
 /**
  * Used to serialize and deserialize Apache Arrow Schema objects.
  *
- * @deprecated {@link SchemaSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
  */
 @Deprecated
 public class SchemaSerDe

@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
 
 public final class ArrowRecordBatchSerDeV3
 {
-    private ArrowRecordBatchSerDeV3(){}
+    private ArrowRecordBatchSerDeV3() {}
 
     static final class Serializer extends BaseSerializer<ArrowRecordBatch>
     {
