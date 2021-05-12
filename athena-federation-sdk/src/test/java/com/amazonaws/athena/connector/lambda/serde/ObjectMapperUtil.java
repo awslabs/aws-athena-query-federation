@@ -30,7 +30,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_ONE;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_THREE;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 import static org.junit.Assert.assertEquals;
