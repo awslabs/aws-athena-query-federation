@@ -67,6 +67,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -378,12 +379,15 @@ public class GlueMetadataHandlerTest
     @Test
     public void populateSourceTableFromLocation() {
         Map<String, String> params = new HashMap<>();
-        StorageDescriptor storageDescriptor = new StorageDescriptor().withLocation("arn:aws:dynamodb:us-east-1:012345678910:table/My-Table");
-        Table table = new Table().withParameters(params).withStorageDescriptor(storageDescriptor);
-        SchemaBuilder schemaBuilder = new SchemaBuilder();
-        populateSourceTableNameIfAvailable(table, schemaBuilder);
-        Schema schema = schemaBuilder.build();
-        assertEquals("My-Table", getSourceTableName(schema));
+        List<String> partitions = Arrays.asList("aws", "aws-cn", "aws-us-gov");
+        for (String partition : partitions) {
+            StorageDescriptor storageDescriptor = new StorageDescriptor().withLocation(String.format("arn:%s:dynamodb:us-east-1:012345678910:table/My-Table", partition));
+            Table table = new Table().withParameters(params).withStorageDescriptor(storageDescriptor);
+            SchemaBuilder schemaBuilder = new SchemaBuilder();
+            populateSourceTableNameIfAvailable(table, schemaBuilder);
+            Schema schema = schemaBuilder.build();
+            assertEquals("My-Table", getSourceTableName(schema));
+        }
     }
 
     @Test
