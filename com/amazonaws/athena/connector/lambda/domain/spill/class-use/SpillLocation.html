@@ -102,6 +102,10 @@
 <td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.records">com.amazonaws.athena.connector.lambda.records</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
 </tbody>
 </table>
 </li>
@@ -292,6 +296,40 @@
                          <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&nbsp;encryptionKey)</code>
 <div class="block">Constructs a new RemoteReadRecordsResponse object.</div>
 </td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a> in <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> that return <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a></code></td>
+<td class="colLast"><span class="typeNameLabel">S3SpillLocationSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/S3SpillLocationSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> with parameters of type <a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">S3SpillLocationSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/S3SpillLocationSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&nbsp;spillLocation,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>

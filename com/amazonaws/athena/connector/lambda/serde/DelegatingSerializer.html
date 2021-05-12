@@ -124,7 +124,11 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <dl>
 <dt>All Implemented Interfaces:</dt>
-<dd>com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitable, com.fasterxml.jackson.databind.jsonschema.SchemaAware, <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html?is-external=true" title="class or interface in java.io">Serializable</a></dd>
+<dd><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;T&gt;, com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitable, com.fasterxml.jackson.databind.jsonschema.SchemaAware, <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html?is-external=true" title="class or interface in java.io">Serializable</a></dd>
+</dl>
+<dl>
+<dt>Direct Known Subclasses:</dt>
+<dd><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ArrowTypeSerDe.Serializer</a>, <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/FederationRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">FederationRequestSerDe.Serializer</a>, <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/FederationResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">FederationResponseSerDe.Serializer</a>, <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SpillLocationSerDe.Serializer</a>, <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe.Serializer</a></dd>
 </dl>
 <hr>
 <br>
@@ -284,6 +288,8 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/B
                         com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)
                  throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
 <dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="type parameter in DelegatingSerializer">T</a>&gt;</code></dd>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></code>&nbsp;in class&nbsp;<code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="type parameter in DelegatingSerializer">T</a>&gt;</code></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>

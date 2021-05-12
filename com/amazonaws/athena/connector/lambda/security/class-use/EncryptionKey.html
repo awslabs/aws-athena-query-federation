@@ -102,6 +102,10 @@
 <td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.security">com.amazonaws.athena.connector.lambda.security</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
 </tbody>
 </table>
 </li>
@@ -357,6 +361,40 @@
        <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&nbsp;block)</code>
 <div class="block">Used to encrypt the provided Block in its serialized form.</div>
 </td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a> in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> that return <a href="../../../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></code></td>
+<td class="colLast"><span class="typeNameLabel">EncryptionKeySerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Deserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+             com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">EncryptionKeySerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Serializer.html#doSerialize-com.amazonaws.athena.connector.lambda.security.EncryptionKey-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&nbsp;encryptionKey,
+           com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+           com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>

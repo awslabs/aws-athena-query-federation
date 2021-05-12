@@ -124,7 +124,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <dl>
 <dt>All Implemented Interfaces:</dt>
-<dd>com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitable, com.fasterxml.jackson.databind.jsonschema.SchemaAware, <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html?is-external=true" title="class or interface in java.io">Serializable</a></dd>
+<dd><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&gt;, com.fasterxml.jackson.databind.jsonFormatVisitors.JsonFormatVisitable, com.fasterxml.jackson.databind.jsonschema.SchemaAware, <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html?is-external=true" title="class or interface in java.io">Serializable</a></dd>
 </dl>
 <dl>
 <dt>Enclosing class:</dt>
@@ -204,7 +204,7 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/B
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>protected void</code></td>
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html#doSerialize-com.amazonaws.athena.connector.lambda.security.FederatedIdentity-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;federatedIdentity,
            com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
            com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
@@ -275,11 +275,13 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/B
 <ul class="blockListLast">
 <li class="blockList">
 <h4>doSerialize</h4>
-<pre>protected&nbsp;void&nbsp;doSerialize(<a href="../../../../../../com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;federatedIdentity,
-                           com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
-                           com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)
-                    throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
+<pre>public&nbsp;void&nbsp;doSerialize(<a href="../../../../../../com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&nbsp;federatedIdentity,
+                        com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                        com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)
+                 throws <a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html?is-external=true" title="class or interface in java.io">IOException</a></pre>
 <dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></code>&nbsp;in interface&nbsp;<code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&gt;</code></dd>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
 <dd><code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html#doSerialize-T-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></code>&nbsp;in class&nbsp;<code><a href="../../../../../../com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="../../../../../../com/amazonaws/athena/connector/lambda/security/FederatedIdentity.html" title="class in com.amazonaws.athena.connector.lambda.security">FederatedIdentity</a>&gt;</code></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>

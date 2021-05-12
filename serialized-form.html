@@ -306,6 +306,589 @@
 <li class="blockList">
 <h2 title="Package">Package&nbsp;com.amazonaws.athena.connector.lambda.serde.v2</h2>
 <ul class="blockList">
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.AllOrNoneValueSetSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/AllOrNoneValueSetSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.AllOrNoneValueSetSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>arrowTypeDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ArrowTypeSerDe.Deserializer</a> arrowTypeDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.AllOrNoneValueSetSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/AllOrNoneValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.AllOrNoneValueSetSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>arrowTypeSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ArrowTypeSerDe.Serializer</a> arrowTypeSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ArrowTypeSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ArrowTypeSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a>&lt;org.apache.arrow.vector.types.pojo.ArrowType&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ArrowTypeSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ArrowTypeSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a>&lt;org.apache.arrow.vector.types.pojo.ArrowType&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/BlockSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>allocator</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a> allocator</pre>
+</li>
+<li class="blockList">
+<h4>allocatorRegistry</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorRegistry.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocatorRegistry</a> allocatorRegistry</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/BlockSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>valueSetDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe.Deserializer</a> valueSetDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Constraints.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Constraints</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>valueSetSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ValueSetSerDe.Serializer</a> valueSetSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/security/EncryptionKey.html" title="class in com.amazonaws.athena.connector.lambda.security">EncryptionKey</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.EquatableValueSetSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/EquatableValueSetSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.EquatableValueSetSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.EquatableValueSetSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/EquatableValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.EquatableValueSetSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.FederationRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/FederationRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.FederationRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.FederationRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/FederationRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.FederationRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.FederationResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/FederationResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.FederationResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.FederationResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/FederationResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.FederationResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>constraintsDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Deserializer</a> constraintsDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+<li class="blockList">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+<li class="blockList">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>constraintsSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Serializer</a> constraintsSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>splitDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SplitSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SplitSerDe.Deserializer</a> splitDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>splitSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SplitSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SplitSerDe.Serializer</a> splitSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>constraintsDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Deserializer</a> constraintsDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+<li class="blockList">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+<li class="blockList">
+<h4>constraintsSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Serializer</a> constraintsSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.GetTableResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/GetTableResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.GetTableResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.LambdaFunctionExceptionSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/LambdaFunctionExceptionSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.LambdaFunctionExceptionSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;com.amazonaws.services.lambda.invoke.LambdaFunctionException&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListSchemasRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListSchemasRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListSchemasResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListSchemasResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListSchemasResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListTablesRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListTablesRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListTablesRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestDeserializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListTablesRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListTablesRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListTablesRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/v2/MetadataRequestSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MetadataRequestSerializer</a> implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListTablesResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListTablesResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListTablesResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ListTablesResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ListTablesResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ListTablesResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.MarkerSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/MarkerSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.MarkerSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.MarkerSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/MarkerSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.MarkerSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Marker.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Marker</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.MetadataRequestDeserializer">
 <!--   -->
 </a>
@@ -337,6 +920,447 @@
 </ul>
 </li>
 </ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.RangeSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/RangeSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.RangeSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>markerDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/MarkerSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MarkerSerDe.Deserializer</a> markerDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.RangeSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/RangeSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.RangeSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/Range.html" title="class in com.amazonaws.athena.connector.lambda.domain.predicate">Range</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>markerSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/MarkerSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">MarkerSerDe.Serializer</a> markerSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>tableNameDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a> tableNameDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>constraintsDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Deserializer</a> constraintsDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>splitDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SplitSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SplitSerDe.Deserializer</a> splitDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+<li class="blockList">
+<h4>tableNameSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a> tableNameSerializer</pre>
+</li>
+<li class="blockList">
+<h4>constraintsSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Serializer</a> constraintsSerializer</pre>
+</li>
+<li class="blockList">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>splitSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SplitSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SplitSerDe.Serializer</a> splitSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.RemoteReadRecordsResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.RemoteReadRecordsResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>spillLocationDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SpillLocationSerDe.Deserializer</a> spillLocationDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>encryptionKeyDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">EncryptionKeySerDe.Deserializer</a> encryptionKeyDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.RemoteReadRecordsResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.RemoteReadRecordsResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+<li class="blockList">
+<h4>spillLocationSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SpillLocationSerDe.Serializer</a> spillLocationSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>encryptionKeySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">EncryptionKeySerDe.Serializer</a> encryptionKeySerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.S3SpillLocationSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/S3SpillLocationSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.S3SpillLocationSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.S3SpillLocationSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/S3SpillLocationSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.S3SpillLocationSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SchemaSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;org.apache.arrow.vector.types.pojo.Schema&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SchemaSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;org.apache.arrow.vector.types.pojo.Schema&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SortedRangeSetSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SortedRangeSetSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SortedRangeSetSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>arrowTypeDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ArrowTypeSerDe.Deserializer</a> arrowTypeDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>rangeDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/RangeSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">RangeSerDe.Deserializer</a> rangeDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SortedRangeSetSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SortedRangeSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SortedRangeSetSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>arrowTypeSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ArrowTypeSerDe.Serializer</a> arrowTypeSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>rangeSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/RangeSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">RangeSerDe.Serializer</a> rangeSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SpillLocationSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SpillLocationSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SpillLocationSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SpillLocationSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SplitSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SplitSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SplitSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>spillLocationDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SpillLocationSerDe.Deserializer</a> spillLocationDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>encryptionKeyDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">EncryptionKeySerDe.Deserializer</a> encryptionKeyDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.SplitSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/SplitSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.SplitSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/Split.html" title="class in com.amazonaws.athena.connector.lambda.domain">Split</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>spillLocationSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/SpillLocationSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">SpillLocationSerDe.Serializer</a> spillLocationSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>encryptionKeySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/v2/EncryptionKeySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">EncryptionKeySerDe.Serializer</a> encryptionKeySerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/TableName.html" title="class in com.amazonaws.athena.connector.lambda.domain">TableName</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionRequestSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identityDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a> identityDeserializer</pre>
+</li>
+<li class="blockList">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionRequestSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationRequest.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationRequest</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>identitySerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a> identitySerializer</pre>
+</li>
+<li class="blockList">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionResponseSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; blockDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionResponseSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/TypedSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">TypedSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>blockSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; blockSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v2/ValueSetSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2.ValueSetSerDe.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/DelegatingSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">DelegatingSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/domain/predicate/ValueSet.html" title="interface in com.amazonaws.athena.connector.lambda.domain.predicate">ValueSet</a>&gt; implements Serializable</h3>
+</li>
+</ul>
+</li>
+<li class="blockList">
+<h2 title="Package">Package&nbsp;com.amazonaws.athena.connector.lambda.serde.v3</h2>
+<ul class="blockList">
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v3.BlockSerDeV3.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v3/BlockSerDeV3.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v3">com.amazonaws.athena.connector.lambda.serde.v3.BlockSerDeV3.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockList">
+<h4>allocator</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a> allocator</pre>
+</li>
+<li class="blockList">
+<h4>allocatorRegistry</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/data/BlockAllocatorRegistry.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocatorRegistry</a> allocatorRegistry</pre>
+</li>
+<li class="blockListLast">
+<h4>schemaDeserializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="type parameter in VersionedSerDe.Deserializer">T</a>&gt; schemaDeserializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v3.BlockSerDeV3.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v3/BlockSerDeV3.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v3">com.amazonaws.athena.connector.lambda.serde.v3.BlockSerDeV3.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt; implements Serializable</h3>
+<ul class="blockList">
+<li class="blockList">
+<h3>Serialized Fields</h3>
+<ul class="blockList">
+<li class="blockListLast">
+<h4>schemaSerializer</h4>
+<pre><a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="type parameter in VersionedSerDe.Serializer">T</a>&gt; schemaSerializer</pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3.Deserializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v3/SchemaSerDeV3.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v3">com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3.Deserializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseDeserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseDeserializer</a>&lt;org.apache.arrow.vector.types.pojo.Schema&gt; implements Serializable</h3>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3.Serializer">
+<!--   -->
+</a>
+<h3>Class <a href="com/amazonaws/athena/connector/lambda/serde/v3/SchemaSerDeV3.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v3">com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3.Serializer</a> extends <a href="com/amazonaws/athena/connector/lambda/serde/BaseSerializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">BaseSerializer</a>&lt;org.apache.arrow.vector.types.pojo.Schema&gt; implements Serializable</h3>
 </li>
 </ul>
 </li>

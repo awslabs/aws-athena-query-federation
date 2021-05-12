@@ -99,10 +99,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.udf">com.amazonaws.athena.connector.lambda.udf</a></td>
+<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.udf">com.amazonaws.athena.connector.lambda.udf</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connector.validation">com.amazonaws.athena.connector.validation</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -247,6 +251,117 @@
 <tr class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><span class="typeNameLabel">PingResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/PingResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a> in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> that return <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">UserDefinedFunctionResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">RemoteReadRecordsResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ReadRecordsResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">GetSplitsResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">GetTableLayoutResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">GetTableResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetTableResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ListTablesResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ListTablesResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ListSchemasResponseSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ListSchemasResponseSerDe.Deserializer.html#doTypedDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doTypedDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+                  com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">UserDefinedFunctionResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">RemoteReadRecordsResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/RemoteReadRecordsResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">ReadRecordsResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">GetSplitsResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">GetTableLayoutResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">GetTableResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetTableResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">ListTablesResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ListTablesResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
+                com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+                com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><span class="typeNameLabel">ListSchemasResponseSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ListSchemasResponseSerDe.Serializer.html#doTypedSerialize-com.amazonaws.athena.connector.lambda.request.FederationResponse-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doTypedSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/request/FederationResponse.html" title="class in com.amazonaws.athena.connector.lambda.request">FederationResponse</a>&nbsp;federationResponse,
                 com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
                 com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
 </tr>

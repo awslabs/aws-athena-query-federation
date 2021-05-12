@@ -115,6 +115,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.serde.v2">com.amazonaws.athena.connector.lambda.serde.v2</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.serde.v3">com.amazonaws.athena.connector.lambda.serde.v3</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connector.lambda.udf">com.amazonaws.athena.connector.lambda.udf</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -587,6 +595,136 @@
          com.fasterxml.jackson.databind.SerializerProvider&nbsp;serializerProvider)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 &nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v2">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a> in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> that return <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></code></td>
+<td class="colLast"><span class="typeNameLabel">BlockSerDe.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/BlockSerDe.Deserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+             com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BlockSerDe.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/BlockSerDe.Serializer.html#doSerialize-com.amazonaws.athena.connector.lambda.data.Block-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&nbsp;block,
+           com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+           com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing constructors, and an explanation">
+<caption><span>Constructor parameters in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v2</a> with type arguments of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Constructor and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsRequestSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Deserializer-com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a>&nbsp;identityDeserializer,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a>&nbsp;tableNameDeserializer,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Deserializer</a>&nbsp;constraintsDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionRequestSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Deserializer</a>&nbsp;identityDeserializer,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;org.apache.arrow.vector.types.pojo.Schema&gt;&nbsp;schemaDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutResponseSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Deserializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Deserializer</a>&nbsp;tableNameDeserializer,
+            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/EquatableValueSetSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/MarkerSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionResponseSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsResponseSerDe.Deserializer.html#Deserializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Deserializer-">Deserializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Deserializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Deserializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockDeserializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetSplitsRequestSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Serializer-com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a>&nbsp;identitySerializer,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a>&nbsp;tableNameSerializer,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ConstraintsSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">ConstraintsSerDe.Serializer</a>&nbsp;constraintsSerializer)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionRequestSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe.Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/FederatedIdentitySerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde">FederatedIdentitySerDe.Serializer</a>&nbsp;identitySerializer,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;org.apache.arrow.vector.types.pojo.Schema&gt;&nbsp;schemaSerializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/GetTableLayoutResponseSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.v2.TableNameSerDe.Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/TableNameSerDe.Serializer.html" title="class in com.amazonaws.athena.connector.lambda.serde.v2">TableNameSerDe.Serializer</a>&nbsp;tableNameSerializer,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/EquatableValueSetSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/MarkerSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer)</code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/UserDefinedFunctionResponseSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer)</code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v2/ReadRecordsResponseSerDe.Serializer.html#Serializer-com.amazonaws.athena.connector.lambda.serde.VersionedSerDe.Serializer-">Serializer</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/VersionedSerDe.Serializer.html" title="interface in com.amazonaws.athena.connector.lambda.serde">VersionedSerDe.Serializer</a>&lt;<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&gt;&nbsp;blockSerializer)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connector.lambda.serde.v3">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a> in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v3/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v3</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v3/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v3</a> that return <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></code></td>
+<td class="colLast"><span class="typeNameLabel">BlockSerDeV3.Deserializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v3/BlockSerDeV3.Deserializer.html#doDeserialize-com.fasterxml.jackson.core.JsonParser-com.fasterxml.jackson.databind.DeserializationContext-">doDeserialize</a></span>(com.fasterxml.jackson.core.JsonParser&nbsp;jparser,
+             com.fasterxml.jackson.databind.DeserializationContext&nbsp;ctxt)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v3/package-summary.html">com.amazonaws.athena.connector.lambda.serde.v3</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">BlockSerDeV3.Serializer.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connector/lambda/serde/v3/BlockSerDeV3.Serializer.html#doSerialize-com.amazonaws.athena.connector.lambda.data.Block-com.fasterxml.jackson.core.JsonGenerator-com.fasterxml.jackson.databind.SerializerProvider-">doSerialize</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html" title="class in com.amazonaws.athena.connector.lambda.data">Block</a>&nbsp;block,
+           com.fasterxml.jackson.core.JsonGenerator&nbsp;jgen,
+           com.fasterxml.jackson.databind.SerializerProvider&nbsp;provider)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
