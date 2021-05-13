@@ -24,6 +24,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Types;
 import java.util.ArrayList;
@@ -84,6 +86,7 @@ public class IntegerSplitterTest
                         Collections.singletonList("(testColumn >= 1 AND testColumn <= 10)")},
                 {new SplitRange<>(1,10), 3, Arrays.asList(new SplitRange<>(1,4), new SplitRange<>(5, 7), new SplitRange<>(8, 10)),
                         Arrays.asList("(testColumn >= 1 AND testColumn <= 4)", "(testColumn >= 5 AND testColumn <= 7)", "(testColumn >= 8 AND testColumn <= 10)")},
+                {new SplitRange<>(1,1), 2, Collections.singletonList(new SplitRange<>(1,1)), Collections.singletonList("(testColumn >= 1 AND testColumn <= 1)")}
         };
         return Arrays.asList(data);
     }
