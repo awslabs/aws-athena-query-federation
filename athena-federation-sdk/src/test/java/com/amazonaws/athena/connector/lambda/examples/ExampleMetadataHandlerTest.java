@@ -327,6 +327,7 @@ public class ExampleMetadataHandlerTest
 
             MetadataResponse rawResponse = metadataHandler.doGetSplits(allocator, req);
             ObjectMapperUtil.assertSerialization(rawResponse);
+
             assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
             GetSplitsResponse response = (GetSplitsResponse) rawResponse;

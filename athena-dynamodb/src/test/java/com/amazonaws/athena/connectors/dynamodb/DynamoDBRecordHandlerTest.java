@@ -50,7 +50,6 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.joda.time.LocalDateTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -64,6 +63,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -337,7 +337,7 @@ public class DynamoDBRecordHandlerTest
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
         LocalDate expectedDate = LocalDate.of(2020, 02, 27);
-        LocalDateTime expectedDateTime = new LocalDateTime(2020, 2, 27, 9, 12, 27);
+        LocalDateTime expectedDateTime = LocalDateTime.of(2020, 2, 27, 9, 12, 27);
         assertEquals(1, response.getRecords().getRowCount());
         assertEquals(expectedDateTime, response.getRecords().getFieldReader("Col1").readLocalDateTime());
         assertEquals(expectedDateTime, response.getRecords().getFieldReader("Col2").readLocalDateTime());

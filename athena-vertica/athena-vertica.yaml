@@ -94,14 +94,14 @@ Resources:
                 - s3:ListBucket
               Effect: Allow
               Resource:
-                - !Sub 'arn:aws:s3:::${VerticaExportBucket}'
-                - !Sub 'arn:aws:s3:::${SpillBucket}'
+                - !Sub 'arn:${AWS::Partition}:s3:::${VerticaExportBucket}'
+                - !Sub 'arn:${AWS::Partition}:s3:::${SpillBucket}'
           Version: '2012-10-17'
         - Statement:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
         - S3ReadPolicy:
             BucketName:
               Ref: SpillBucket

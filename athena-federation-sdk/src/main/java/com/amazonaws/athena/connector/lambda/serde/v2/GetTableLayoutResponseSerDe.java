@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -34,7 +35,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class GetTableLayoutResponseSerDe
+public final class GetTableLayoutResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String TABLE_NAME_FIELD = "tableName";
@@ -42,12 +43,12 @@ final class GetTableLayoutResponseSerDe
 
     private GetTableLayoutResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
         private final TableNameSerDe.Serializer tableNameSerializer;
-        private final BlockSerDe.Serializer blockSerializer;
+        private final VersionedSerDe.Serializer<Block> blockSerializer;
 
-        protected Serializer(TableNameSerDe.Serializer tableNameSerializer, BlockSerDe.Serializer blockSerializer)
+        public Serializer(TableNameSerDe.Serializer tableNameSerializer, VersionedSerDe.Serializer<Block> blockSerializer)
         {
             super(FederationResponse.class, GetTableLayoutResponse.class);
             this.tableNameSerializer = requireNonNull(tableNameSerializer, "tableNameSerializer is null");
@@ -70,12 +71,12 @@ final class GetTableLayoutResponseSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
         private final TableNameSerDe.Deserializer tableNameDeserializer;
-        private final BlockSerDe.Deserializer blockDeserializer;
+        private final VersionedSerDe.Deserializer<Block> blockDeserializer;
 
-        Deserializer(TableNameSerDe.Deserializer tableNameDeserializer, BlockSerDe.Deserializer blockDeserializer)
+        public Deserializer(TableNameSerDe.Deserializer tableNameDeserializer, VersionedSerDe.Deserializer<Block> blockDeserializer)
         {
             super(FederationResponse.class, GetTableLayoutResponse.class);
             this.tableNameDeserializer = requireNonNull(tableNameDeserializer, "tableNameDeserializer is null");

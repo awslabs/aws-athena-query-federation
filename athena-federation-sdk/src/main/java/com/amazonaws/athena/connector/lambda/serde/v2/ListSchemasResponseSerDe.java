@@ -31,16 +31,16 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
 import java.util.Collection;
 
-final class ListSchemasResponseSerDe
+public final class ListSchemasResponseSerDe
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMAS_FIELD = "schemas";
 
     private ListSchemasResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
-        Serializer()
+        public Serializer()
         {
             super(FederationResponse.class, ListSchemasResponse.class);
         }
@@ -57,9 +57,9 @@ final class ListSchemasResponseSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(FederationResponse.class, ListSchemasResponse.class);
         }

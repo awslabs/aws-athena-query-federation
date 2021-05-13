@@ -20,7 +20,6 @@ package com.amazonaws.athena.connector.lambda.serde;
  * #L%
  */
 
-import com.amazonaws.athena.connector.lambda.data.SchemaSerDe;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -34,13 +33,13 @@ import java.io.IOException;
 /**
  * Used to enhance Jackson's stock ObjectMapper with the ability to deserialize Apache Arrow Schema objects.
  *
- * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
  */
 @Deprecated
 public class SchemaDeserializer
         extends StdDeserializer<Schema>
 {
-    private final SchemaSerDe serDe = new SchemaSerDe();
+    private final com.amazonaws.athena.connector.lambda.data.SchemaSerDe serDe = new com.amazonaws.athena.connector.lambda.data.SchemaSerDe();
 
     public SchemaDeserializer()
     {

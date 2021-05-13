@@ -55,7 +55,7 @@ public final class FederatedIdentitySerDe
         }
 
         @Override
-        protected void doSerialize(FederatedIdentity federatedIdentity, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(FederatedIdentity federatedIdentity, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeStringField(ID_FIELD, COMPATIBILITY_ID);
@@ -92,7 +92,7 @@ public final class FederatedIdentitySerDe
         }
 
         @Override
-        protected FederatedIdentity doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public FederatedIdentity doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             // First, read fields that we no longer care about.

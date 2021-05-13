@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -33,9 +33,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayInputStream;
@@ -46,21 +44,17 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- *  @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
- */
-@Deprecated
-public final class BlockSerDe
+public class BlockSerDeV3
 {
     private static final String ALLOCATOR_ID_FIELD_NAME = "aId";
     private static final String SCHEMA_FIELD_NAME = "schema";
     private static final String BATCH_FIELD_NAME = "records";
 
-    public BlockSerDe(){}
+    public BlockSerDeV3() {}
 
-    public static final class Serializer extends BaseSerializer<Block>
+    public static final class Serializer extends BaseSerializer<Block> implements VersionedSerDe.Serializer<Block>
     {
-        private VersionedSerDe.Serializer<Schema> schemaSerializer;
+        private final VersionedSerDe.Serializer<Schema> schemaSerializer;
 
         public Serializer(VersionedSerDe.Serializer<Schema> schemaSerializer)
         {
@@ -90,11 +84,8 @@ public final class BlockSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption();
-                option.metadataVersion = MetadataVersion.V4;
-                option.write_legacy_ipc_format = true;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch, option);
+                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch);
                 return out.toByteArray();
             }
             finally {

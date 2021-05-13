@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
-public abstract class BaseSerializer<T> extends StdSerializer<T>
+public abstract class BaseSerializer<T> extends StdSerializer<T> implements VersionedSerDe.Serializer<T>
 {
     static final String TYPE_FIELD = "@type";
 
@@ -59,7 +59,7 @@ public abstract class BaseSerializer<T> extends StdSerializer<T>
         serialize(value, gen, serializers);
     }
 
-    protected abstract void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
+    public abstract void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
             throws IOException;
 
     /**

@@ -35,7 +35,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class ListTablesResponseSerDe
+public final class ListTablesResponseSerDe
 {
     private static final String TABLES_FIELD = "tables";
     private static final String CATALOG_NAME_FIELD = "catalogName";
@@ -43,11 +43,11 @@ final class ListTablesResponseSerDe
 
     private ListTablesResponseSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationResponse>
+    public static final class Serializer extends TypedSerializer<FederationResponse>
     {
         private final TableNameSerDe.Serializer tableNameSerializer;
 
-        Serializer(TableNameSerDe.Serializer tableNameSerializer)
+        public Serializer(TableNameSerDe.Serializer tableNameSerializer)
         {
             super(FederationResponse.class, ListTablesResponse.class);
             this.tableNameSerializer = requireNonNull(tableNameSerializer, "tableNameSerializer is null");
@@ -69,11 +69,11 @@ final class ListTablesResponseSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationResponse>
+    public static final class Deserializer extends TypedDeserializer<FederationResponse>
     {
         private final TableNameSerDe.Deserializer tableNameDeserializer;
 
-        Deserializer(TableNameSerDe.Deserializer tableNameDeserializer)
+        public Deserializer(TableNameSerDe.Deserializer tableNameDeserializer)
         {
             super(FederationResponse.class, ListTablesResponse.class);
             this.tableNameDeserializer = requireNonNull(tableNameDeserializer, "tableNameDeserializer is null");

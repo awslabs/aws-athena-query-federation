@@ -21,7 +21,7 @@ Parameters:
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SecretNamePrefix:
-    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena Elasticsearch Federation secret names can be prefixed with "AthenaESFederation" and authorization policy will allow "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaESFederation*". Parameter value in this case should be "AthenaESFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena Elasticsearch Federation secret names can be prefixed with "AthenaESFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaESFederation*". Parameter value in this case should be "AthenaESFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
     Type: String
     Default: ""
   SpillBucket:
@@ -84,7 +84,7 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
           Version: '2012-10-17'
         - Statement:
             - Action:

@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.aws.cmdb.tables.s3;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.s3.AmazonS3;
@@ -30,7 +31,6 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.joda.time.DateTimeZone;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.Logger;
@@ -143,7 +143,7 @@ public class S3ObjectsTableProviderTest
                 }
                 break;
             case DATEMILLI:
-                assertEquals(100_000, fieldReader.readLocalDateTime().toDateTime(DateTimeZone.UTC).getMillis());
+                assertEquals(100_000, fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
                 break;
             case BIT:
                 assertTrue(fieldReader.readBoolean());

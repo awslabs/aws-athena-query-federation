@@ -111,7 +111,7 @@ public abstract class GlueMetadataHandler
     //Splitter for inline map properties
     private static final Splitter.MapSplitter MAP_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
     //Regex we expect for a table resource ARN
-    private static final Pattern TABLE_ARN_REGEX = Pattern.compile("^arn:aws:[a-z]+:[a-z1-9-]+:[0-9]{12}:table\\/(.+)$");
+    private static final Pattern TABLE_ARN_REGEX = Pattern.compile("^arn:(?:aws|aws-cn|aws-us-gov):[a-z]+:[a-z1-9-]+:[0-9]{12}:table\\/(.+)$");
     //Table property that we expect to contain the source table name
     public static final String SOURCE_TABLE_PROPERTY = "sourceTable";
     //Table property that we expect to contain the column name mapping

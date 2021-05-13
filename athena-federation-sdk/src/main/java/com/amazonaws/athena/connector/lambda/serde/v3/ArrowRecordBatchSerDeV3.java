@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v2;
+package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -31,9 +31,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -43,15 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * used to serialize and deserialize ArrowRecordBatch.
- *
- * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.ArrowRecordBatchSerDeV3} should be used instead
- */
-@Deprecated
-public final class ArrowRecordBatchSerDe
+public final class ArrowRecordBatchSerDeV3
 {
-    private ArrowRecordBatchSerDe(){}
+    private ArrowRecordBatchSerDeV3() {}
 
     static final class Serializer extends BaseSerializer<ArrowRecordBatch>
     {
@@ -65,11 +57,8 @@ public final class ArrowRecordBatchSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption();
-                option.write_legacy_ipc_format = true;
-                option.metadataVersion = MetadataVersion.V4;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch, option);
+                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch);
                 jgen.writeBinary(out.toByteArray());
             }
             finally {
