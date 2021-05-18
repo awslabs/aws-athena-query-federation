@@ -13,7 +13,7 @@
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
-        <log4j2Version>2.13.0</log4j2Version>
+        <log4j2Version>2.13.3</log4j2Version>
         <gremlinDriverVersion>3.4.6</gremlinDriverVersion>
     </properties>
 
@@ -21,7 +21,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>${aws-athena-federation-sdk.version}</version>
+            <version>2021.18.1</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>

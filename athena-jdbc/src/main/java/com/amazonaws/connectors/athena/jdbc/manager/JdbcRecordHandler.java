@@ -22,6 +22,8 @@ package com.amazonaws.connectors.athena.jdbc.manager;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
@@ -36,11 +38,14 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExt
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -51,6 +56,7 @@ import com.amazonaws.connectors.athena.jdbc.connection.RdsSecretsCredentialProvi
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateDayHolder;
@@ -61,21 +67,24 @@ import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableSmallIntHolder;
 import org.apache.arrow.vector.holders.NullableTinyIntHolder;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
-import org.joda.time.DateTime;
-import org.joda.time.Days;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Abstracts JDBC record handler and provides common reusable split records handling.
@@ -83,7 +92,6 @@ import java.util.Map;
 public abstract class JdbcRecordHandler
         extends RecordHandler
 {
-    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime();
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
@@ -130,8 +138,12 @@ public abstract class JdbcRecordHandler
 
                 GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(readRecordsRequest.getConstraints());
                 for (Field next : readRecordsRequest.getSchema().getFields()) {
-                    Extractor extractor = makeExtractor(next, resultSet, partitionValues);
-                    rowWriterBuilder.withExtractor(next.getName(), extractor);
+                    if (next.getType() instanceof ArrowType.List) {
+                        rowWriterBuilder.withFieldWriterFactory(next.getName(), makeFactory(next));
+                    }
+                    else {
+                        rowWriterBuilder.withExtractor(next.getName(), makeExtractor(next, resultSet, partitionValues));
+                    }
                 }
 
                 GeneratedRowWriter rowWriter = rowWriterBuilder.build();
@@ -151,6 +163,25 @@ public abstract class JdbcRecordHandler
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
+    }
+
+    /**
+     * Create a field extractor for complex List type.
+     * @param field Field's metadata information.
+     * @return Extractor for the List type.
+     */
+    protected FieldWriterFactory makeFactory(Field field)
+    {
+        return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                (FieldWriter) (Object context, int rowNum) ->
+                {
+                    Array arrayField = ((ResultSet) context).getArray(field.getName());
+                    if (!((ResultSet) context).wasNull()) {
+                        List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
+                        BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                    }
+                    return true;
+                };
     }
 
     /**
@@ -224,7 +255,7 @@ public abstract class JdbcRecordHandler
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
                     if (resultSet.getDate(fieldName) != null) {
-                        dst.value = Days.daysBetween(EPOCH, new DateTime(((Date) resultSet.getDate(fieldName)).getTime())).getDays();
+                        dst.value = (int) TimeUnit.MILLISECONDS.toDays(resultSet.getDate(fieldName).getTime());
                     }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };

@@ -20,7 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.BigIntVector;
@@ -200,7 +200,7 @@ public class BlockUtils
      *
      * @param vector The FieldVector into which we should write the provided value.
      * @param pos The row number that the value should be written to.
-     * @param rawValue The value to write.
+     * @param value The value to write.
      * @note This method incurs more Object overhead (heap churn) than using Arrow's native interface. Users of this Utility
      * should weigh their performance needs vs. the readability / ease of use.
      */
@@ -263,7 +263,7 @@ public class BlockUtils
                                 new org.joda.time.DateTime(((Date) value).getTime()));
                         ((DateDayVector) vector).setSafe(pos, days.getDays());
                     }
-                    if (value instanceof LocalDate) {
+                    else if (value instanceof LocalDate) {
                         int days = (int) ((LocalDate) value).toEpochDay();
                         ((DateDayVector) vector).setSafe(pos, days);
                     }
@@ -795,13 +795,13 @@ public class BlockUtils
                 case VARBINARY:
                     if (value instanceof ArrowBuf) {
                         ArrowBuf buf = (ArrowBuf) value;
-                        writer.varBinary().writeVarBinary(0, buf.capacity(), buf);
+                        writer.varBinary().writeVarBinary(0, (int) (buf.capacity()), buf);
                     }
                     else if (value instanceof byte[]) {
                         byte[] bytes = (byte[]) value;
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
-                            writer.varBinary().writeVarBinary(0, buf.readableBytes(), buf);
+                            writer.varBinary().writeVarBinary(0, (int) (buf.readableBytes()), buf);
                         }
                     }
                     break;
@@ -821,13 +821,13 @@ public class BlockUtils
                 case VARCHAR:
                     if (value instanceof ArrowBuf) {
                         ArrowBuf buf = (ArrowBuf) value;
-                        writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                        writer.varChar().writeVarChar(0, (int) (buf.readableBytes()), buf);
                     }
                     else if (value instanceof byte[]) {
                         byte[] bytes = (byte[]) value;
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
-                            writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                            writer.varChar().writeVarChar(0, (int) (buf.readableBytes()), buf);
                         }
                     }
                     else {
@@ -835,7 +835,7 @@ public class BlockUtils
                         byte[] bytes = value.toString().getBytes(Charsets.UTF_8);
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
-                            writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                            writer.varChar().writeVarChar(0, (int) (buf.readableBytes()), buf);
                         }
                     }
                     break;
@@ -968,13 +968,13 @@ public class BlockUtils
                 case VARBINARY:
                     if (value instanceof ArrowBuf) {
                         ArrowBuf buf = (ArrowBuf) value;
-                        writer.varBinary(field.getName()).writeVarBinary(0, buf.capacity(), buf);
+                        writer.varBinary(field.getName()).writeVarBinary(0, (int) (buf.capacity()), buf);
                     }
                     else if (value instanceof byte[]) {
                         byte[] bytes = (byte[]) value;
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
-                            writer.varBinary(field.getName()).writeVarBinary(0, buf.readableBytes(), buf);
+                            writer.varBinary(field.getName()).writeVarBinary(0, (int) (buf.readableBytes()), buf);
                         }
                     }
                     break;
@@ -996,18 +996,18 @@ public class BlockUtils
                         byte[] bytes = ((String) value).getBytes(Charsets.UTF_8);
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
-                            writer.varChar(field.getName()).writeVarChar(0, buf.readableBytes(), buf);
+                            writer.varChar(field.getName()).writeVarChar(0, (int) (buf.readableBytes()), buf);
                         }
                     }
                     else if (value instanceof ArrowBuf) {
                         ArrowBuf buf = (ArrowBuf) value;
-                        writer.varChar(field.getName()).writeVarChar(0, buf.readableBytes(), buf);
+                        writer.varChar(field.getName()).writeVarChar(0, (int) (buf.readableBytes()), buf);
                     }
                     else if (value instanceof byte[]) {
                         byte[] bytes = (byte[]) value;
                         try (ArrowBuf buf = allocator.buffer(bytes.length)) {
                             buf.writeBytes(bytes);
-                            writer.varChar(field.getName()).writeVarChar(0, buf.readableBytes(), buf);
+                            writer.varChar(field.getName()).writeVarChar(0, (int) (buf.readableBytes()), buf);
                         }
                     }
                     break;

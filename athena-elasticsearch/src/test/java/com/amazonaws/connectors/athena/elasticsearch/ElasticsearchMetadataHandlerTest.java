@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
@@ -187,7 +188,7 @@ public class ElasticsearchMetadataHandlerTest
         when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
 
         ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
-                "queryId", "elasticsearch", "movies");
+                "queryId", "elasticsearch", "movies", null, UNLIMITED_PAGE_SIZE_VALUE);
         Collection<TableName> realIndices = handler.doListTables(allocator, req).getTables();
 
         logger.info("doListTables - {}", realIndices);

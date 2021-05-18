@@ -975,7 +975,8 @@ public class BlockTest
         try {
             ByteArrayOutputStream jout = new ByteArrayOutputStream();
             JsonFactory factory = new JsonFactory();
-            JsonGenerator jsonGenerator = factory.createJsonGenerator(jout);
+            JsonGenerator jsonGenerator = factory.createGenerator(jout);
+            jsonGenerator.writeStartObject();
             jsonGenerator.writeBinaryField("field", serializedBlock.toByteArray());
             jsonGenerator.close();
             double overhead = 1 - (((double) serializedBlock.size()) / ((double) jout.size()));

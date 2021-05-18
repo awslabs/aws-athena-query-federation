@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -32,7 +33,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayInputStream;
@@ -43,26 +46,30 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
-final class BlockSerDe
+/**
+ *  @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
+ */
+@Deprecated
+public final class BlockSerDe
 {
     private static final String ALLOCATOR_ID_FIELD_NAME = "aId";
     private static final String SCHEMA_FIELD_NAME = "schema";
     private static final String BATCH_FIELD_NAME = "records";
 
-    private BlockSerDe(){}
+    public BlockSerDe(){}
 
-    static final class Serializer extends BaseSerializer<Block>
+    public static final class Serializer extends BaseSerializer<Block>
     {
-        private SchemaSerDe.Serializer schemaSerializer;
+        private VersionedSerDe.Serializer<Schema> schemaSerializer;
 
-        Serializer(SchemaSerDe.Serializer schemaSerializer)
+        public Serializer(VersionedSerDe.Serializer<Schema> schemaSerializer)
         {
             super(Block.class);
             this.schemaSerializer = requireNonNull(schemaSerializer, "schemaSerializer is null");
         }
 
         @Override
-        protected void doSerialize(Block block, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(Block block, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeStringField(ALLOCATOR_ID_FIELD_NAME, block.getAllocatorId());
@@ -83,8 +90,11 @@ final class BlockSerDe
                 throws IOException
         {
             try {
+                IpcOption option = new IpcOption();
+                option.metadataVersion = MetadataVersion.V4;
+                option.write_legacy_ipc_format = true;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch);
+                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch, option);
                 return out.toByteArray();
             }
             finally {
@@ -93,13 +103,13 @@ final class BlockSerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<Block>
+    public static final class Deserializer extends BaseDeserializer<Block> implements VersionedSerDe.Deserializer<Block>
     {
         private final BlockAllocator allocator;
         private final BlockAllocatorRegistry allocatorRegistry;
-        private SchemaSerDe.Deserializer schemaDeserializer;
+        private VersionedSerDe.Deserializer<Schema> schemaDeserializer;
 
-        Deserializer(BlockAllocator allocator, SchemaSerDe.Deserializer schemaDeserializer)
+        public Deserializer(BlockAllocator allocator, VersionedSerDe.Deserializer<Schema> schemaDeserializer)
         {
             super(Block.class);
             this.schemaDeserializer = requireNonNull(schemaDeserializer, "schemaDeserializer is null");
@@ -107,7 +117,7 @@ final class BlockSerDe
             this.allocatorRegistry = null;
         }
 
-        Deserializer(BlockAllocatorRegistry allocatorRegistry, SchemaSerDe.Deserializer schemaDeserializer)
+        Deserializer(BlockAllocatorRegistry allocatorRegistry, VersionedSerDe.Deserializer<Schema> schemaDeserializer)
         {
             super(Block.class);
             this.schemaDeserializer = requireNonNull(schemaDeserializer, "schemaDeserializer is null");
@@ -116,7 +126,7 @@ final class BlockSerDe
         }
 
         @Override
-        protected Block doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public Block doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             String allocatorId = getNextStringField(jparser, ALLOCATOR_ID_FIELD_NAME);

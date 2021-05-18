@@ -32,8 +32,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,10 +41,13 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -148,12 +149,12 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBoolean(i + 1, (boolean) typeAndValue.getValue());
                     break;
                 case DATEDAY:
-                    LocalDateTime dateTime = ((LocalDateTime) typeAndValue.getValue());
-                    statement.setDate(i + 1, new Date(dateTime.toDateTime(DateTimeZone.UTC).getMillis()));
+                    statement.setDate(i + 1,
+                            new Date(TimeUnit.DAYS.toMillis(((Number) typeAndValue.getValue()).longValue())));
                     break;
                 case DATEMILLI:
                     LocalDateTime timestamp = ((LocalDateTime) typeAndValue.getValue());
-                    statement.setTimestamp(i + 1, new Timestamp(timestamp.toDateTime(DateTimeZone.UTC).getMillis()));
+                    statement.setTimestamp(i + 1, new Timestamp(timestamp.toInstant(ZoneOffset.UTC).toEpochMilli()));
                     break;
                 case VARCHAR:
                     statement.setString(i + 1, String.valueOf(typeAndValue.getValue()));
@@ -162,8 +163,7 @@ public abstract class JdbcSplitQueryBuilder
                     statement.setBytes(i + 1, (byte[]) typeAndValue.getValue());
                     break;
                 case DECIMAL:
-                    ArrowType.Decimal decimalType = (ArrowType.Decimal) typeAndValue.getType();
-                    statement.setBigDecimal(i + 1, BigDecimal.valueOf((long) typeAndValue.getValue(), decimalType.getScale()));
+                    statement.setBigDecimal(i + 1, (BigDecimal) typeAndValue.getValue());
                     break;
                 default:
                     throw new UnsupportedOperationException(String.format("Can't handle type: %s, %s", typeAndValue.getType(), minorTypeForArrowType));

@@ -40,13 +40,12 @@ import com.teradata.tpcds.column.ColumnType;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.joda.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -195,7 +194,7 @@ public class TPCDSRecordHandler
                 };
             case DATE:
                 return (Block block, int rowNum, String rawValue) -> {
-                    Date value = (rawValue != null) ? LocalDate.parse(rawValue).toDate() : null;
+                    LocalDate value = (rawValue != null) ? LocalDate.parse(rawValue) : null;
                     return block.setValue(field.getName(), rowNum, value);
                 };
             case DECIMAL:

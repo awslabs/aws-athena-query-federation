@@ -7,5 +7,6 @@
     "schemaName" : "schema1",
     "tableName" : "table2"
   } ],
-  "catalogName" : "test-catalog"
+  "catalogName" : "test-catalog",
+  "nextToken" : "table3"
 }

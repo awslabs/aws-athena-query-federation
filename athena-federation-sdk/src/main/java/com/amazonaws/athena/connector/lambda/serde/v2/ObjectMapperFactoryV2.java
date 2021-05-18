@@ -19,12 +19,14 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.amazonaws.services.lambda.invoke.LambdaFunctionException;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.BeanDescription;
@@ -49,7 +51,9 @@ import com.fasterxml.jackson.databind.ser.SerializerFactory;
 import com.fasterxml.jackson.databind.ser.Serializers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.pojo.Schema;
 
+@Deprecated
 public class ObjectMapperFactoryV2
 {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
@@ -167,8 +171,8 @@ public class ObjectMapperFactoryV2
     {
         FederatedIdentitySerDe.Serializer identity = new FederatedIdentitySerDe.Serializer();
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
-        SchemaSerDe.Serializer schema = new SchemaSerDe.Serializer();
-        BlockSerDe.Serializer block = new BlockSerDe.Serializer(schema);
+        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDe.Serializer();
+        VersionedSerDe.Serializer<Block> block = new BlockSerDe.Serializer(schema);
         ArrowTypeSerDe.Serializer arrowType = new ArrowTypeSerDe.Serializer();
         MarkerSerDe.Serializer marker = new MarkerSerDe.Serializer(block);
         RangeSerDe.Serializer range = new RangeSerDe.Serializer(marker);
@@ -204,8 +208,8 @@ public class ObjectMapperFactoryV2
     {
         FederatedIdentitySerDe.Deserializer identity = new FederatedIdentitySerDe.Deserializer();
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
-        SchemaSerDe.Deserializer schema = new SchemaSerDe.Deserializer();
-        BlockSerDe.Deserializer block = new BlockSerDe.Deserializer(allocator, schema);
+        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDe.Deserializer();
+        VersionedSerDe.Deserializer<Block> block = new BlockSerDe.Deserializer(allocator, schema);
         ArrowTypeSerDe.Deserializer arrowType = new ArrowTypeSerDe.Deserializer();
         MarkerSerDe.Deserializer marker = new MarkerSerDe.Deserializer(block);
         RangeSerDe.Deserializer range = new RangeSerDe.Deserializer(marker);
@@ -242,8 +246,8 @@ public class ObjectMapperFactoryV2
     private static FederationResponseSerDe.Serializer createResponseSerializer()
     {
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
-        SchemaSerDe.Serializer schema = new SchemaSerDe.Serializer();
-        BlockSerDe.Serializer block = new BlockSerDe.Serializer(schema);
+        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDe.Serializer();
+        VersionedSerDe.Serializer<Block> block = new BlockSerDe.Serializer(schema);
         S3SpillLocationSerDe.Serializer s3SpillLocation = new S3SpillLocationSerDe.Serializer();
         SpillLocationSerDe.Serializer spillLocation = new SpillLocationSerDe.Serializer(s3SpillLocation);
         EncryptionKeySerDe.Serializer encryptionKey = new EncryptionKeySerDe.Serializer();
@@ -274,8 +278,8 @@ public class ObjectMapperFactoryV2
     private static FederationResponseSerDe.Deserializer createResponseDeserializer(BlockAllocator allocator)
     {
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
-        SchemaSerDe.Deserializer schema = new SchemaSerDe.Deserializer();
-        BlockSerDe.Deserializer block = new BlockSerDe.Deserializer(allocator, schema);
+        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDe.Deserializer();
+        VersionedSerDe.Deserializer<Block> block = new BlockSerDe.Deserializer(allocator, schema);
         S3SpillLocationSerDe.Deserializer s3SpillLocation = new S3SpillLocationSerDe.Deserializer();
         SpillLocationSerDe.Deserializer spillLocation = new SpillLocationSerDe.Deserializer(s3SpillLocation);
         EncryptionKeySerDe.Deserializer encryptionKey = new EncryptionKeySerDe.Deserializer();

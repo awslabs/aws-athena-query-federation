@@ -38,20 +38,24 @@ public class ListTablesResponse
         extends MetadataResponse
 {
     private final Collection<TableName> tables;
+    private final String nextToken;
 
     /**
      * Constructs a new ListTablesResponse object.
      *
      * @param catalogName The catalog name that tables were listed for.
      * @param tables The list of table names (they all must be lowercase).
+     * @param nextToken The pagination starting point for the next request (null indicates the end of the pagination).
      */
     @JsonCreator
     public ListTablesResponse(@JsonProperty("catalogName") String catalogName,
-            @JsonProperty("tables") Collection<TableName> tables)
+                              @JsonProperty("tables") Collection<TableName> tables,
+                              @JsonProperty("nextToken") String nextToken)
     {
         super(MetadataRequestType.LIST_TABLES, catalogName);
         requireNonNull(tables, "tables is null");
         this.tables = Collections.unmodifiableCollection(tables);
+        this.nextToken = nextToken;
     }
 
     /**
@@ -62,6 +66,15 @@ public class ListTablesResponse
     public Collection<TableName> getTables()
     {
         return tables;
+    }
+
+    /**
+     * Returns the nextToken (the starting table for the next request).
+     * @return The pagination starting point for the next request (null indicates the end of the pagination).
+     */
+    public String getNextToken()
+    {
+        return nextToken;
     }
 
     @Override
@@ -76,6 +89,7 @@ public class ListTablesResponse
     {
         return "ListTablesResponse{" +
                 "tables=" + tables +
+                ", nextToken='" + nextToken + '\'' +
                 '}';
     }
 
@@ -93,12 +107,13 @@ public class ListTablesResponse
 
         return CollectionsUtils.equals(this.tables, that.tables) &&
                 Objects.equal(this.getRequestType(), that.getRequestType()) &&
-                Objects.equal(this.getCatalogName(), that.getCatalogName());
+                Objects.equal(this.getCatalogName(), that.getCatalogName()) &&
+                Objects.equal(this.getNextToken(), that.getNextToken());
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(tables, getRequestType(), getCatalogName());
+        return Objects.hashCode(tables, getRequestType(), getCatalogName(), getNextToken());
     }
 }

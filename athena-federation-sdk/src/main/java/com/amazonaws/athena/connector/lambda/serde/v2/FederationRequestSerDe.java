@@ -27,13 +27,13 @@ import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.google.common.collect.ImmutableSet;
 
-final class FederationRequestSerDe
+public final class FederationRequestSerDe
 {
     private FederationRequestSerDe(){}
 
-    static final class Serializer extends DelegatingSerializer<FederationRequest>
+    public static final class Serializer extends DelegatingSerializer<FederationRequest>
     {
-        Serializer(
+        public Serializer(
                 PingRequestSerDe.Serializer pingSerializer,
                 ListSchemasRequestSerDe.Serializer listSchemasSerializer,
                 ListTablesRequestSerDe.Serializer listTablesSerializer,
@@ -56,9 +56,9 @@ final class FederationRequestSerDe
         }
     }
 
-    static final class Deserializer extends DelegatingDeserializer<FederationRequest>
+    public static final class Deserializer extends DelegatingDeserializer<FederationRequest>
     {
-        Deserializer(
+        public Deserializer(
                 PingRequestSerDe.Deserializer pingDeserializer,
                 ListSchemasRequestSerDe.Deserializer listSchemasDeserializer,
                 ListTablesRequestSerDe.Deserializer listTablesDeserializer,

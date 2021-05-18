@@ -34,18 +34,18 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class GetTableRequestSerDe
+public final class GetTableRequestSerDe
 {
     private static final String TABLE_NAME_FIELD = "tableName";
 
     private GetTableRequestSerDe(){}
 
-    static final class Serializer extends MetadataRequestSerializer
+    public static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
 
-        Serializer(FederatedIdentitySerDe.Serializer identitySerializer, TableNameSerDe.Serializer tableNameSerializer)
+        public Serializer(FederatedIdentitySerDe.Serializer identitySerializer, TableNameSerDe.Serializer tableNameSerializer)
         {
             super(GetTableRequest.class, identitySerializer);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
@@ -63,12 +63,12 @@ final class GetTableRequestSerDe
         }
     }
 
-    static final class Deserializer extends MetadataRequestDeserializer
+    public static final class Deserializer extends MetadataRequestDeserializer
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
 
-        Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer, TableNameSerDe.Deserializer tableNameDeserializer)
+        public Deserializer(FederatedIdentitySerDe.Deserializer identityDeserializer, TableNameSerDe.Deserializer tableNameDeserializer)
         {
             super(GetTableRequest.class, identityDeserializer);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");

@@ -56,7 +56,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.base.Charsets;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.ListVector;
@@ -369,7 +369,7 @@ public class ExampleRecordHandler
                                         byte[] bytes = String.valueOf(1000 + i).getBytes(Charsets.UTF_8);
                                         try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
                                             buf.writeBytes(bytes);
-                                            innerWriter.varChar().writeVarChar(0, buf.readableBytes(), buf);
+                                            innerWriter.varChar().writeVarChar(0, (int) (buf.readableBytes()), buf);
                                         }
                                     }
                                     innerWriter.endList();
@@ -390,7 +390,7 @@ public class ExampleRecordHandler
                                     byte[] bytes = "chars".getBytes(Charsets.UTF_8);
                                     try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
                                         buf.writeBytes(bytes);
-                                        structWriter.varChar("varchar").writeVarChar(0, buf.readableBytes(), buf);
+                                        structWriter.varChar("varchar").writeVarChar(0, (int) (buf.readableBytes()), buf);
                                     }
                                     structWriter.bigInt("bigint").writeBigInt(100L);
                                     structWriter.end();

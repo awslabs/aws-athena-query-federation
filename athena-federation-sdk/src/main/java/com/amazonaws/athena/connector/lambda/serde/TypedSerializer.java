@@ -42,7 +42,7 @@ public abstract class TypedSerializer<T> extends BaseSerializer<T>
     }
 
     @Override
-    protected void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
+    public void doSerialize(T value, JsonGenerator jgen, SerializerProvider provider)
             throws IOException
     {
         writeType(jgen, subType);

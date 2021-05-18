@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation','athena-neptune','neptune']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2020.5.1
+    SemanticVersion: 2021.18.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
@@ -98,7 +98,7 @@ Resources:
                 - neptune-db:*
               Effect: Allow
               #Dynamically construct Neptune Cluster Resource ARN to limit permissions to the specific cluster provided
-              Resource: !Sub 'arn:aws:neptune-db:${AWS::Region}:${AWS::AccountId}:${NeptuneClusterResourceID}/*'
+              Resource: !Sub 'arn:${AWS::Partition}:neptune-db:${AWS::Region}:${AWS::AccountId}:${NeptuneClusterResourceID}/*'
           Version: '2012-10-17'
         #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.

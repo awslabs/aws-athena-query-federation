@@ -38,7 +38,8 @@ if [ "$#" -lt 2 ]; then
     echo "\n\nERROR: Script requires 3 arguments \n"
     echo "\n1. S3_BUCKET used for publishing artifacts to Lambda/Serverless App Repo.\n"
     echo "\n2. The connector module to publish (e.g. athena-exmaple or athena-cloudwatch) \n"
-    echo "\n3. The AS REGION to target (e.g. us-east-1 or us-east-2) \n"
+    echo "\n3. The AWS REGION to target (e.g. us-east-1 or us-east-2) \n"
+    echo "\n4. The AWS PARTITION to target (aws, aws-cn, aws-us-gov) Defaults to aws \n"
     echo "\n\n USAGE from the module's directory: ../tools/publish.sh my_s3_bucket athena-example \n"
     exit;
 fi
@@ -58,6 +59,16 @@ fi
 
 echo "Using AWS Region $REGION"
 
+if [[ $REGION == cn-* ]]; then
+    PARTITION="aws-cn"
+elif [[ $REGION == us-gov-* ]]; then
+    PARTITION="aws-us-gov"
+else
+  PARTITION="aws"
+fi
+
+echo "Using PARTITION $PARTITION"
+
 
 if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' ; then
     echo "No bucket policy is set on $1 , would you like to add a Serverless Application Repository Bucket Policy?"
@@ -75,7 +86,7 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         "Service":  "serverlessrepo.amazonaws.com"
       },
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::$1/*"
+      "Resource": "arn:$PARTITION:s3:::$1/*"
     }
   ]
 }
@@ -96,4 +107,3 @@ mvn clean install -Dpublishing=true
 
 sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1 --region $REGION
 sam publish --template packaged.yaml --region $REGION
-

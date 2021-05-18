@@ -164,6 +164,11 @@ public class ElasticsearchMetadataHandler
     {
         logger.debug("doListSchemaNames: enter - " + request);
 
+        if (autoDiscoverEndpoint) {
+            // Refresh Domain Map as new domains could have been added (in Amazon ES), and/or old ones removed...
+            domainMap = domainMapProvider.getDomainMap(null);
+        }
+
         return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
     }
 
@@ -206,7 +211,7 @@ public class ElasticsearchMetadataHandler
             throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
         }
 
-        return new ListTablesResponse(request.getCatalogName(), indices);
+        return new ListTablesResponse(request.getCatalogName(), indices, null);
     }
 
     /**

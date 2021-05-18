@@ -5,6 +5,8 @@ making your Elasticsearch data accessible via SQL. This connector will work with
 Elasticsearch Service as well as any Elasticsearch compatible endpoint configured with 
 `Elasticsearch version 7.0` or higher.
 
+**Athena Federated Queries are now enabled as GA in us-east-1, us-east-2, us-west-2, eu-west-1, ap-northeast-1, ap-south-1, us-west-1, ap-southeast-1, ap-southeast-2, eu-west-2, ap-northeast-2, eu-west-3, ca-central-1, sa-east-1, and eu-central-1. To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.**
+
 ## Nomenclature
 
 This document includes descriptions and explanations using Elasticsearch concepts and
@@ -163,6 +165,18 @@ nearest millisecond. Valid values for date and date_nanos include but are not li
 * An Elasticsearch **binary** is a string representation of a binary value encoded using Base64,
 and will be converted to a **VARCHAR**.
 
+## Running Integration Tests
+
+The integration tests in this module are designed to run without the prior need for deploying the connector. Nevertheless,
+the integration tests will not run straight out-of-the-box. Certain build-dependencies are required for them to execute correctly.
+For build commands and step-by-step instructions on building and running the integration tests see the
+[Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests) README section in the **athena-federation-integ-test** module.
+
+In addition to the build-dependencies, certain test configuration attributes must also be provided in the connector's [test-config.json](./etc/test-config.json) JSON file.
+For additional information about the test configuration file, see the [Test Configuration](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#test-configuration) README section in the **athena-federation-integ-test** module.
+
+Once all prerequisites have been satisfied, the integration tests can be executed by specifying the following command: `mvn failsafe:integration-test` from the connector's root directory.
+
 ## Deploying The Connector
 
 To use this connector in your queries, navigate to AWS Serverless Application Repository and 
@@ -171,8 +185,10 @@ connector from source. To do so, follow the steps below, or use the more detaile
 athena-example module:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-2. From the athena-elasticsearch dir, run `mvn clean install`.
-3. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
+2. From the athena-federation-integ-test dir, run `mvn clean install` if you haven't already
+   (**Note: failure to follow this step will result in compilation errors**).
+3. From the athena-elasticsearch dir, run `mvn clean install`.
+4. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
 private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of 
 the connector's code will be stored and retrieved by the Serverless Application Repository. This 
 will allow users with permission the ability to deploy instances of the connector via a
@@ -195,7 +211,7 @@ where year >= 1955 and year <= 1962 or year = 1996;
 ```
 **Predicate:**
 ```
-(_exists_:year) AND year:((>=1955 AND <=1962) OR 1996)
+(_exists_:year) AND year:([1955 TO 1962] OR 1996)
 ```
 
 ## Executing SQL Queries

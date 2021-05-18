@@ -22,7 +22,9 @@ package com.amazonaws.athena.connector.lambda.data;
 
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.IOException;
@@ -33,7 +35,7 @@ import java.nio.channels.Channels;
 /**
  * Used to serialize and deserialize Apache Arrow Schema objects.
  *
- * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v2.SchemaSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
  */
 @Deprecated
 public class SchemaSerDe
@@ -48,7 +50,10 @@ public class SchemaSerDe
     public void serialize(Schema schema, OutputStream out)
             throws IOException
     {
-        MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema);
+        IpcOption option = new IpcOption();
+        option.metadataVersion = MetadataVersion.V4;
+        option.write_legacy_ipc_format = true;
+        MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
     }
 
     /**

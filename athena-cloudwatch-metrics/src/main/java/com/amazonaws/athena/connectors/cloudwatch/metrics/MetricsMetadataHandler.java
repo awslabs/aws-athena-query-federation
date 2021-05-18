@@ -168,7 +168,7 @@ public class MetricsMetadataHandler
     {
         List<TableName> tables = new ArrayList<>();
         TABLES.keySet().stream().forEach(next -> tables.add(new TableName(SCHEMA_NAME, next)));
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
     }
 
     /**

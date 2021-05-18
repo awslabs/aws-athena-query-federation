@@ -53,6 +53,7 @@ import java.util.Map;
 
 import static org.junit.Assert.*;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -125,7 +126,8 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         GetTablesResult tableResult = new GetTablesResult();
         tableResult.setTableList(tables);
 
-        ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default", "default");
+        ListTablesRequest req = new ListTablesRequest(IDENTITY, "queryId", "default",
+                "default", null, UNLIMITED_PAGE_SIZE_VALUE);
         when(glue.getTables(any(GetTablesRequest.class))).thenReturn(tableResult);
 
         ListTablesResponse res = handler.doListTables(allocator, req);

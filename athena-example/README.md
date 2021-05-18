@@ -4,7 +4,7 @@ This module is meant to serve as a guided example for writing and deploying a co
 
 This tutorial also includes an an example of creating scalar User Defined Functions(UDFs) that you can use in your Athena queries. This tutorial creates several UDFs as part of a connector but you can deploy UDFs as standalone Lambda functions completely independent of a connector.
 
-**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**Athena Federated Queries are now enabled as GA in us-east-1, us-east-2, us-west-2, eu-west-1, ap-northeast-1, ap-south-1, us-west-1, ap-southeast-1, ap-southeast-2, eu-west-2, ap-northeast-2, eu-west-3, ca-central-1, sa-east-1, and eu-central-1. To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.**
 
 ## What is a 'Connector'?
 
@@ -36,8 +36,10 @@ public class MyMetadataHandler extends MetadataHandler
     protected ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request) {}
 
     /**
-     * Used to get the list of tables that this source contains.
-     *
+     * Used to get a paginated list of tables that this source contains.
+     * A complete (un-paginated) list of tables should be returned if the request's pageSize is set to
+     * ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE.
+     * 
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
      * @return A ListTablesResponse which primarily contains a List<TableName> enumerating the tables in this
@@ -246,9 +248,7 @@ If everything worked as expected you should see the script generate useful debug
 
 ### Step 7: Run a Query!
 
-Ok, now we are ready to try running some queries using our new connector. To do so, create a new workgroup called "AmazonAthenaPreviewFunctionality" if you haven't already done so. This workgroup will ensure your queries are enabled for our Preview features (UDFs, Federation, Athena ML). Some good examples to try include (be sure to put in your actual database and table names):
-
-Dont forget to create and use an Athena workgroup called "AmazonAthenaPreviewFunctionality" in the us-east-1 region. When Athena sees a query come from a workgroup with this name, it will enable Federation, UDFs, and SageMaker capabilities for use by your query. Once this feature reaches General Availability this requirement will be lifted.
+Ok, now we are ready to try running some queries using our new connector. To do so, configure your workgroup to use Athena Engine Version 2. This feature is only available on the new Athena Engine. See documentation here for more info: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html. Some good examples to try include (be sure to put in your actual database and table names):
 
 ```sql
 USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 

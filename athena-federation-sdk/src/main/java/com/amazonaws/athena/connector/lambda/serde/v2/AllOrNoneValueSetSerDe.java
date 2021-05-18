@@ -33,7 +33,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class AllOrNoneValueSetSerDe
+public final class AllOrNoneValueSetSerDe
 {
     private static final String TYPE_FIELD = "type";
     private static final String ALL_FIELD = "all";
@@ -41,11 +41,11 @@ final class AllOrNoneValueSetSerDe
 
     private AllOrNoneValueSetSerDe(){}
 
-    static final class Serializer extends TypedSerializer<ValueSet>
+    public static final class Serializer extends TypedSerializer<ValueSet>
     {
         private final ArrowTypeSerDe.Serializer arrowTypeSerializer;
 
-        Serializer(ArrowTypeSerDe.Serializer arrowTypeSerialzer)
+        public Serializer(ArrowTypeSerDe.Serializer arrowTypeSerialzer)
         {
             super(ValueSet.class, AllOrNoneValueSet.class);
             this.arrowTypeSerializer = requireNonNull(arrowTypeSerialzer, "arrowTypeSerialzer is null");
@@ -64,11 +64,11 @@ final class AllOrNoneValueSetSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<ValueSet>
+    public static final class Deserializer extends TypedDeserializer<ValueSet>
     {
         private final ArrowTypeSerDe.Deserializer arrowTypeDeserializer;
 
-        Deserializer(ArrowTypeSerDe.Deserializer arrowTypeDeserializer)
+        public Deserializer(ArrowTypeSerDe.Deserializer arrowTypeDeserializer)
         {
             super(ValueSet.class, AllOrNoneValueSet.class);
             this.arrowTypeDeserializer = requireNonNull(arrowTypeDeserializer, "arrowTypeSerDe is null");

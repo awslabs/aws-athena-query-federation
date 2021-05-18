@@ -184,7 +184,7 @@ public class HbaseMetadataHandler
             tableNames.add(new com.amazonaws.athena.connector.lambda.domain.TableName(request.getSchemaName(),
                     tableName.getNameAsString().replace(request.getSchemaName() + ":", "")));
         }
-        return new ListTablesResponse(request.getCatalogName(), tableNames);
+        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
     }
 
     /**

@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -154,7 +155,8 @@ public class AwsCmdbMetadataHandlerTest
     @Test
     public void doListTables()
     {
-        ListTablesRequest request = new ListTablesRequest(identity, queryId, catalog, "schema1");
+        ListTablesRequest request = new ListTablesRequest(identity, queryId, catalog, "schema1",
+                null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse response = handler.doListTables(blockAllocator, request);
 
         assertEquals(2, response.getTables().size());

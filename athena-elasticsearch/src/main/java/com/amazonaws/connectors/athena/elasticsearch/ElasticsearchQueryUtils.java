@@ -22,6 +22,7 @@ package com.amazonaws.connectors.athena.elasticsearch;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.elasticsearch.common.Strings;
@@ -185,11 +186,21 @@ class ElasticsearchQueryUtils
         List<String> disjuncts = new ArrayList<>();
         for (Range range : constraint.getRanges().getOrderedRanges()) {
             if (range.isSingleValue()) {
-                singleValues.add(range.getSingleValue().toString());
+                String singleValue = range.getSingleValue().toString();
+                if (range.getType() instanceof ArrowType.Date) {
+                    // Wrap a single date in quotes, e.g. my-birthday:("2000-11-11T06:57:44.123")
+                    singleValues.add("\"" + singleValue + "\"");
+                }
+                else {
+                    singleValues.add(singleValue);
+                }
             }
             else {
                 String rangeConjuncts;
-                if (!range.getLow().isLowerUnbounded()) {
+                if (range.getLow().isLowerUnbounded()) {
+                    rangeConjuncts = LOWER_UNBOUNDED_RANGE;
+                }
+                else {
                     switch (range.getLow().getBound()) {
                         case EXACTLY:
                             rangeConjuncts = LOWER_INCLUSIVE_RANGE + range.getLow().getValue().toString();
@@ -205,11 +216,11 @@ class ElasticsearchQueryUtils
                             continue;
                     }
                 }
-                else {
-                    rangeConjuncts = LOWER_UNBOUNDED_RANGE;
-                }
                 rangeConjuncts += RANGE_OPER;
-                if (!range.getHigh().isUpperUnbounded()) {
+                if (range.getHigh().isUpperUnbounded()) {
+                    rangeConjuncts += UPPER_UNBOUNDED_RANGE;
+                }
+                else {
                     switch (range.getHigh().getBound()) {
                         case EXACTLY:
                             rangeConjuncts += range.getHigh().getValue().toString() + UPPER_INCLUSIVE_RANGE;
@@ -224,9 +235,6 @@ class ElasticsearchQueryUtils
                             logger.warn("Unhandled bound: " + range.getHigh().getBound());
                             continue;
                     }
-                }
-                else {
-                    rangeConjuncts += UPPER_UNBOUNDED_RANGE;
                 }
                 disjuncts.add(rangeConjuncts);
             }

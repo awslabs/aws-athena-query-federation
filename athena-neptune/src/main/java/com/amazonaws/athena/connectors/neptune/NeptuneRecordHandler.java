@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -64,7 +65,7 @@ import java.util.Set;
  * For more examples, please see the other connectors in this repository (e.g.
  * athena-cloudwatch, athena-docdb, etc...)
  */
-public class NeptuneRecordHandler extends RecordHandler
+public class NeptuneRecordHandler extends RecordHandler 
 {
     private static final Logger logger = LoggerFactory.getLogger(NeptuneRecordHandler.class);
 
@@ -75,7 +76,7 @@ public class NeptuneRecordHandler extends RecordHandler
     private static final String SOURCE_TYPE = "neptune";
     private final NeptuneConnection neptuneConnection;
 
-    public NeptuneRecordHandler()
+    public NeptuneRecordHandler() 
     {
         this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(),
@@ -84,7 +85,7 @@ public class NeptuneRecordHandler extends RecordHandler
 
     @VisibleForTesting
     protected NeptuneRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-            final AmazonAthena amazonAthena, final NeptuneConnection neptuneConnection)
+            final AmazonAthena amazonAthena, final NeptuneConnection neptuneConnection) 
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         this.neptuneConnection = neptuneConnection;
@@ -111,7 +112,7 @@ public class NeptuneRecordHandler extends RecordHandler
      */
     @Override
     protected void readWithConstraint(final BlockSpiller spiller, final ReadRecordsRequest recordsRequest,
-            final QueryStatusChecker queryStatusChecker) throws Exception
+            final QueryStatusChecker queryStatusChecker) throws Exception 
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
         TableName tableName = recordsRequest.getTableName();
@@ -140,7 +141,8 @@ public class NeptuneRecordHandler extends RecordHandler
             logger.info("readWithConstraint: enter - "
                     + GroovyTranslator.of("g").translate(graphTraversalFinal.asAdmin().getBytecode()));
 
-            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter
+                    .newBuilder(recordsRequest.getConstraints());
 
             for (final Field nextField : recordsRequest.getSchema().getFields()) {
                 TypeRowWriter.writeRowTemplate(builder, nextField);
@@ -150,23 +152,25 @@ public class NeptuneRecordHandler extends RecordHandler
 
             while (graphTraversalFinal.hasNext() && queryStatusChecker.isQueryRunning()) {
                 numRows++;
-               
+
                 spiller.writeRows((final Block block, final int rowNum) -> {
                     final Map<Object, Object> obj = graphTraversalFinal.next();
                     return (rowWriter.writeRow(block, rowNum, (Object) obj) ? 1 : 0);
                 });
             }
-            
+
             logger.info("readWithConstraint: numRows[{}]", numRows);
-        }
+        } 
         catch (final ClassCastException e) {
             logger.info("readWithContraint: Exception occured " + e);
-            throw new RuntimeException("Error occurred while fetching records, please refer to cloudwatch logs for more details");
-        }
-        catch (final IllegalArgumentException e) { 
+            throw new RuntimeException(
+                    "Error occurred while fetching records, please refer to cloudwatch logs for more details");
+        } 
+        catch (final IllegalArgumentException e) {
             logger.info("readWithContraint: Exception occured " + e);
-            throw new RuntimeException("Error occurred while fetching records, please refer to cloudwatch logs for more details");
-        }
+            throw new RuntimeException(
+                    "Error occurred while fetching records, please refer to cloudwatch logs for more details");
+        } 
         catch (final RuntimeException e) {
             logger.info("readWithContraint: Exception occured " + e);
             throw e;
@@ -174,48 +178,64 @@ public class NeptuneRecordHandler extends RecordHandler
         finally {
             if (client != null) {
                 client.close();
-            }           
+            }
         }
     }
 
     /**
      * Used to generate Gremlin Query part for Constraint Map
      * 
-     * @param traversal Gremlin Traversal, traversal is updated based on constraints map
-     * @param hasMap Constraint Hash Map
+     * @param traversal Gremlin Traversal, traversal is updated based on constraints
+     *                  map
+     * @param hasMap    Constraint Hash Map
      * 
      * @return A Gremlin Query Part equivalent to Contraint.
      */
     public GraphTraversal<Vertex, Vertex> getQueryPartForContraintsMap(GraphTraversal<Vertex, Vertex> traversal,
-            final Map hashMap)
+            final Map hashMap) 
     {
         final Set<String> setOfkeys = (Set<String>) (hashMap.keySet());
         for (final String key : setOfkeys) {
-            final List<Range> ranges = ((SortedRangeSet) hashMap.get(key)).getOrderedRanges();
+            if (hashMap.get(key) instanceof SortedRangeSet) {
+                final List<Range> ranges = ((SortedRangeSet) hashMap.get(key)).getOrderedRanges();
 
-            for (final Range range : ranges) {
-                if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
-                    if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
+                for (final Range range : ranges) {
+                    if (!range.getLow().isNullValue() && !range.getHigh().isNullValue()) {
+                        if (range.getLow().getValue().toString().equals(range.getHigh().getValue().toString())) {
+                            traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
+                                    range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
+                                    GremlinQueryPreProcessor.Operator.EQUALTO);
+                            break;
+                        }
+                    }
+
+                    if (!range.getLow().isNullValue()) {
+                        logger.info("inside flattenConstraintMap: " + range.getType().toString()
+                                .equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
+
                         traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                                range.getLow().getValue().toString(), range.getType(),
-                                range.getLow().getBound(), GremlinQueryPreProcessor.Operator.EQUALTO);
-                        break;
+                                range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
+                                GremlinQueryPreProcessor.Operator.GREATERTHAN);
+                    }
+
+                    if (!range.getHigh().isNullValue()) {
+                        traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
+                                range.getHigh().getValue().toString(), range.getType(), range.getHigh().getBound(),
+                                GremlinQueryPreProcessor.Operator.LESSTHAN);
                     }
                 }
+            }
 
-                if (!range.getLow().isNullValue()) {
-                    logger.info("inside flattenConstraintMap: "
-                            + range.getType().toString().equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
+            if (hashMap.get(key) instanceof EquatableValueSet) {
+                final EquatableValueSet valueSet = ((EquatableValueSet) hashMap.get(key));
 
-                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                            range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
-                            GremlinQueryPreProcessor.Operator.GREATERTHAN);
+                if (valueSet.isWhiteList()) {
+                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key, valueSet.getValue(0).toString(),
+                            valueSet.getType(), null, GremlinQueryPreProcessor.Operator.EQUALTO);
                 }
-
-                if (!range.getHigh().isNullValue()) {
-                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
-                            range.getHigh().getValue().toString(), range.getType(),
-                            range.getLow().getBound(), GremlinQueryPreProcessor.Operator.LESSTHAN);
+                else {
+                    traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key, valueSet.getValue(0).toString(),
+                            valueSet.getType(), null, GremlinQueryPreProcessor.Operator.NOTEQUALTO);
                 }
             }
         }

@@ -105,7 +105,8 @@ public class AwsCmdbMetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), schemas.get(listTablesRequest.getSchemaName()));
+        return new ListTablesResponse(listTablesRequest.getCatalogName(),
+                schemas.get(listTablesRequest.getSchemaName()), null);
     }
 
     /**

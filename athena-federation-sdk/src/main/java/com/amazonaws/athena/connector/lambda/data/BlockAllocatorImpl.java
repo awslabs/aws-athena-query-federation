@@ -20,7 +20,7 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.util.VisibleForTesting;

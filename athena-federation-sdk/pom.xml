@@ -13,16 +13,17 @@
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2020.35.1</version>
+    <version>2021.18.1</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
+    <description>The Athena Query Federation SDK defines a set of interfaces and wire protocols that you can implement to enable Athena to delegate portions of it's query execution plan to code that you deploy/write.</description>
+    <url>https://github.com/awslabs/aws-athena-query-federation</url>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <slf4jVersion>1.7.30</slf4jVersion>
         <log4j2Version>2.13.3</log4j2Version>
-        <aws-sdk.version>1.11.769</aws-sdk.version>
     </properties>
 
     <organization>
@@ -66,12 +67,17 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
-            <version>0.11.0</version>
+            <version>3.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-memory</artifactId>
-            <version>0.11.0</version>
+            <artifactId>arrow-memory-core</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-memory-netty</artifactId>
+            <version>3.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -96,7 +102,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>24.1.1-jre</version>
+            <version>29.0-jre</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
