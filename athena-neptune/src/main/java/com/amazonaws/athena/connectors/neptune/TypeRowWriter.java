@@ -62,6 +62,7 @@ public final class TypeRowWriter
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
+                            value.isSet = 0;
                             if (objValues != null && objValues.get(0) != null) {
                                 Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
                                 value.value = booleanValue ? 1 : 0;
