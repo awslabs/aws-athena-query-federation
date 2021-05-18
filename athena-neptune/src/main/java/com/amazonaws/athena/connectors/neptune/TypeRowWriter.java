@@ -38,19 +38,18 @@ import org.apache.arrow.vector.types.pojo.Field;
 
 import java.util.ArrayList;
 import java.util.Map;
-
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class TypeRowWriter 
+public final class TypeRowWriter
 {
     private TypeRowWriter() 
     {
-        // Empty private constructor
+        //Empty private constructor
     }
 
-    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) 
+    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field)
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
