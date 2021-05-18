@@ -38,18 +38,19 @@ import org.apache.arrow.vector.types.pojo.Field;
 
 import java.util.ArrayList;
 import java.util.Map;
+
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class TypeRowWriter
+public final class TypeRowWriter 
 {
-    private TypeRowWriter()
+    private TypeRowWriter() 
     {
-        //Empty private constructor
+        // Empty private constructor
     }
 
-    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field)
+    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) 
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
@@ -58,64 +59,84 @@ public final class TypeRowWriter
             case BIT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BitExtractor) (Object context, NullableBitHolder value) -> {
-                            value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
-                            Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
-                            value.value = booleanValue ? 1 : 0;
+                            if (objValues != null && objValues.get(0) != null) {
+                                Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
+                                value.value = booleanValue ? 1 : 0;
+                                value.isSet = 1;
+                            }
                         });
                 break;
 
             case VARCHAR:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-                            value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
-                            value.value = objValues.get(0).toString();
+                            value.isSet = 0;
+                            if (objValues != null && objValues.get(0) != null) {
+                                value.value = objValues.get(0).toString();
+                                value.isSet = 1;
+                            }
                         });
                 break;
 
             case INT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
-                            value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                            value.value = Integer.parseInt(objValues.get(0).toString());
+
+                            value.isSet = 0;
+                            if (objValues != null && objValues.get(0) != null) {
+                                value.value = Integer.parseInt(objValues.get(0).toString());
+                                value.isSet = 1;
+                            }
                         });
                 break;
 
             case BIGINT:
                 rowWriterBuilder.withExtractor(field.getName(),
-                    (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                        value.isSet = 1;
-                        Map<Object, Object> obj = (Map<Object, Object>) context;
-                        ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                        (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
+                            Map<Object, Object> obj = (Map<Object, Object>) context;
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
-                        value.value = Long.parseLong(objValues.get(0).toString());
-                    });
-            break;
+                            value.isSet = 0;
+                            if (objValues != null && objValues.get(0) != null) {
+                                value.value = Long.parseLong(objValues.get(0).toString());
+                                value.isSet = 1;
+                            }
+                        });
+                break;
 
             case FLOAT4:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
-                            value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                            value.value = (Float) (objValues.get(0));
+
+                            value.isSet = 0;
+                            if (objValues != null && objValues.get(0) != null) {
+                                value.value = Float.parseFloat(objValues.get(0).toString());
+                                value.isSet = 1;
+                            }
                         });
                 break;
 
             case FLOAT8:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                            value.isSet = 1;
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                            value.value = (Double) (objValues.get(0));
+
+                            value.isSet = 0;
+                            if (objValues != null && objValues.get(0) != null) {
+                                value.value = Double.parseDouble(objValues.get(0).toString());
+                                value.isSet = 1;
+                            }
                         });
 
                 break;

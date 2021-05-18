@@ -167,7 +167,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 Vertex vertex1 = tinkerGraph.addVertex(T.label, "default");
                 vertex1.property("property1", 10);
                 vertex1.property("property2", "string1");
-                vertex1.property("property3", 12.4);
+                vertex1.property("property3", 12);
                 vertex1.property("property4", true);
                 vertex1.property("property5", 12379878123l);
 
@@ -181,7 +181,6 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 Vertex vertex3 = tinkerGraph.addVertex(T.label, "default");
                 vertex3.property("property1", 9);
                 vertex3.property("property2", "string3");
-                vertex3.property("property3", 15.4);
                 vertex3.property("property4", true);
                 vertex3.property("property5", 12379878123l);
 
@@ -233,7 +232,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 constraintsMap4.put("property5", SortedRangeSet
                                 .of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
 
-                invokeAndAssert(constraintsMap4, 2);
+                invokeAndAssert(constraintsMap4, 1);
 
                 // String comparision
                 HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
