@@ -111,7 +111,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 logger.info("{}: enter", testName.getMethodName());
 
                 schemaForRead = SchemaBuilder.newBuilder().addIntField("property1").addStringField("property2")
-                                .addFloat8Field("property3").addBitField("property4").addBigIntField("property5")
+                                .addFloat8Field("property3").addBitField("property4").addBigIntField("property5").addFloat4Field("property6")
                                 .build();
 
                 allocator = new BlockAllocatorImpl();
@@ -167,9 +167,10 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 Vertex vertex1 = tinkerGraph.addVertex(T.label, "default");
                 vertex1.property("property1", 10);
                 vertex1.property("property2", "string1");
-                vertex1.property("property3", 12);
+                vertex1.property("property3", 12.4);
                 vertex1.property("property4", true);
                 vertex1.property("property5", 12379878123l);
+                vertex1.property("property6", 15.45);
 
                 Vertex vertex2 = tinkerGraph.addVertex(T.label, "default");
                 vertex2.property("property1", 5);
@@ -177,12 +178,23 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex2.property("property3", 20.4);
                 vertex2.property("property4", true);
                 vertex2.property("property5", 12379878123l);
+                vertex2.property("property6", 13.4523);
 
                 Vertex vertex3 = tinkerGraph.addVertex(T.label, "default");
                 vertex3.property("property1", 9);
                 vertex3.property("property2", "string3");
+                vertex3.property("property3", 15.4);
                 vertex3.property("property4", true);
                 vertex3.property("property5", 12379878123l);
+                vertex3.property("property6", 13.4523);
+
+                //add vertex with missing property values to check for nulls
+                tinkerGraph.addVertex(T.label, "default");
+
+                //add vertex to check for conversion from int to float,double.
+                Vertex vertex4 = tinkerGraph.addVertex(T.label, "default");
+                vertex4.property("property3", 15);
+                vertex4.property("property6", 13);
 
                 GraphTraversal<Vertex, Vertex> traversal = (GraphTraversal<Vertex, Vertex>) tinkerGraph.traversal().V();
                 when(graphTraversalSource.V()).thenReturn(traversal);
@@ -232,7 +244,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 constraintsMap4.put("property5", SortedRangeSet
                                 .of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
 
-                invokeAndAssert(constraintsMap4, 1);
+                invokeAndAssert(constraintsMap4, 2);
 
                 // String comparision
                 HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
@@ -270,6 +282,17 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 .newBuilder(allocator, Types.MinorType.INT.getType(), false, true).add(10).build());
 
                 invokeAndAssert(constraintsMap9, 2);
+
+                // Check for null values, expect all vertices to return as part of resultset
+                invokeAndAssert(new HashMap<>(), 5);
+
+                // Check for integer to float,double coversion
+                HashMap<String, ValueSet> constraintsMap10 = new HashMap<>();
+                constraintsMap10.put("property3", SortedRangeSet
+                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
+                constraintsMap10.put("property6", SortedRangeSet
+                                .of(Range.greaterThan(allocator, Types.MinorType.FLOAT4.getType(), 11.11f)));
+                invokeAndAssert(constraintsMap10, 3); 
         }
 
         /**
@@ -278,7 +301,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
          * @param constraintMap       Constraint Map for Gremlin Query
          * @param expectedRecordCount Expected Row Count as per Gremlin Query Response
          * 
-         * @return A Gremlin Query Part equivalent to Contraint.
+         * @return A Gremlin Query Part equivalent to Constraint.
          */
         private void invokeAndAssert(HashMap<String, ValueSet> constraintMap, Integer expectedRecordCount)
                         throws Exception {
@@ -302,7 +325,6 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 assertTrue(response.getRecords().getRowCount() == expectedRecordCount);
 
                 logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
-
         }
 
         @Test
