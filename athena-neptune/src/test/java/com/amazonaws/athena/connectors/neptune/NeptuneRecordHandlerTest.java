@@ -286,7 +286,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 // Check for null values, expect all vertices to return as part of resultset
                 invokeAndAssert(new HashMap<>(), 5);
 
-                // Check for integer to float,double coversion
+                // Check for integer to float,double conversion
                 HashMap<String, ValueSet> constraintsMap10 = new HashMap<>();
                 constraintsMap10.put("property3", SortedRangeSet
                                 .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
@@ -300,8 +300,6 @@ public class NeptuneRecordHandlerTest extends TestBase {
          * 
          * @param constraintMap       Constraint Map for Gremlin Query
          * @param expectedRecordCount Expected Row Count as per Gremlin Query Response
-         * 
-         * @return A Gremlin Query Part equivalent to Constraint.
          */
         private void invokeAndAssert(HashMap<String, ValueSet> constraintMap, Integer expectedRecordCount)
                         throws Exception {
