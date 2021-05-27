@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>athena-federation-integ-test</artifactId>
-    <version>2021.21.1</version>
+    <version>${aws-athena-federation-sdk.version}</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation Integ Test</name>
 

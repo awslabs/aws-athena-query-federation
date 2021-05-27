@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2021.21.1</version>
+            <version>${aws-athena-federation-sdk.version}</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>

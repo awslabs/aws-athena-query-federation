@@ -20,12 +20,12 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2021.21.1</version>
+            <version>${aws-athena-federation-sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2021.21.1</version>
+            <version>${aws-athena-federation-sdk.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
