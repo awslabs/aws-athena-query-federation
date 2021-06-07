@@ -181,7 +181,6 @@ public class TPCDSRecordHandler
     {
         ColumnType type = column.getType();
         switch (type.getBase()) {
-            case TIME:
             case IDENTIFIER:
                 return (Block block, int rowNum, String rawValue) -> {
                     Long value = (rawValue != null) ? Long.parseLong(rawValue) : null;
@@ -202,6 +201,7 @@ public class TPCDSRecordHandler
                     BigDecimal value = (rawValue != null) ? new BigDecimal(rawValue) : null;
                     return block.setValue(field.getName(), rowNum, value);
                 };
+            case TIME:
             case CHAR:
             case VARCHAR:
                 return (Block block, int rowNum, String rawValue) -> {
