@@ -61,7 +61,7 @@ Resources:
           default_docdb: !Ref DocDBConnectionString
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.docdb.DocDBCompositeHandler"
-      CodeUri: "./target/athena-docdb-1.0.jar"
+      CodeUri: "./target/athena-docdb-2021.21.1.jar"
       Description: "Enables Amazon Athena to communicate with DocumentDB, making your DocumentDB data accessible via SQL."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
