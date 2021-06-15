@@ -47,7 +47,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.connectors.timestream.TimestreamCompositeHandler"
-      CodeUri: "./target/athena-timestream-1.0.jar"
+      CodeUri: "./target/athena-timestream-2021.21.1.jar"
       Description: "Enables Amazon Athena to communicate with Amazon Timestream, making your time series data accessible from Athena."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
