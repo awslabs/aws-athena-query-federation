@@ -60,7 +60,7 @@ Resources:
           default_hbase: !Ref HBaseConnectionString
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.hbase.HbaseCompositeHandler"
-      CodeUri: "./target/athena-hbase-1.0.jar"
+      CodeUri: "./target/athena-hbase-2021.21.1.jar"
       Description: "Enables Amazon Athena to communicate with HBase, making your HBase data accessible via SQL"
       Runtime: java8
       Timeout: !Ref LambdaTimeout

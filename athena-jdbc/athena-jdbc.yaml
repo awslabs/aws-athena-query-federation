@@ -60,7 +60,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
-      CodeUri: "./target/athena-jdbc-1.0.jar"
+      CodeUri: "./target/athena-jdbc-2021.21.1.jar"
       Description: "Enables Amazon Athena to communicate with Databases using JDBC"
       Runtime: java8
       Timeout: !Ref LambdaTimeout
