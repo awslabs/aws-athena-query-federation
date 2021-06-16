@@ -101,6 +101,7 @@ public final class JDBCUtil
             case MYSQL:
                 return new MySqlMetadataHandler(databaseConnectionConfig);
             case REDSHIFT:
+            case SNOWFLAKE:
             case POSTGRES:
                 return new PostGreSqlMetadataHandler(databaseConnectionConfig);
             default:
