@@ -278,7 +278,9 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 </tr>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code>protected <a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#makeSpillLocation-com.amazonaws.athena.connector.lambda.metadata.MetadataRequest-">makeSpillLocation</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a>&nbsp;request)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/MetadataHandler.html#makeSpillLocation-com.amazonaws.athena.connector.lambda.metadata.MetadataRequest-">makeSpillLocation</a></span>(<a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a>&nbsp;request)</code>
+<div class="block">Used to make a spill location for a split.</div>
+</td>
 </tr>
 <tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
@@ -458,6 +460,14 @@ implements com.amazonaws.services.lambda.runtime.RequestStreamHandler</pre>
 <li class="blockList">
 <h4>makeSpillLocation</h4>
 <pre>protected&nbsp;<a href="../../../../../../com/amazonaws/athena/connector/lambda/domain/spill/SpillLocation.html" title="interface in com.amazonaws.athena.connector.lambda.domain.spill">SpillLocation</a>&nbsp;makeSpillLocation(<a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">MetadataRequest</a>&nbsp;request)</pre>
+<div class="block">Used to make a spill location for a split. Each split should have a unique spill location, so be sure
+ to call this method once per split!</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>request</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>A unique spill location.</dd>
+</dl>
 </li>
 </ul>
 <a name="handleRequest-java.io.InputStream-java.io.OutputStream-com.amazonaws.services.lambda.runtime.Context-">
