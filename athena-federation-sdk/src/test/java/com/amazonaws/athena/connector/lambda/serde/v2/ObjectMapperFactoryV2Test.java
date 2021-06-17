@@ -30,6 +30,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
+
 public class ObjectMapperFactoryV2Test
 {
     @Test(expected = JsonMappingException.class)
@@ -37,7 +39,7 @@ public class ObjectMapperFactoryV2Test
             throws JsonProcessingException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator);
+            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
             mapper.writeValueAsString(new ArrowType.Null());
         }
     }
@@ -47,7 +49,7 @@ public class ObjectMapperFactoryV2Test
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator);
+            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
             mapper.readValue("{\"@type\" : \"FloatingPoint\", \"precision\" : \"DOUBLE\"}", ArrowType.FloatingPoint.class);
         }
     }

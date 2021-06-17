@@ -29,22 +29,22 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-final class TableNameSerDe
+public final class TableNameSerDe
 {
     private static final String SCHEMA_NAME_FIELD = "schemaName";
     private static final String TABLE_NAME_FIELD = "tableName";
 
     private TableNameSerDe(){}
 
-    static final class Serializer extends BaseSerializer<TableName>
+    public static final class Serializer extends BaseSerializer<TableName>
     {
-        Serializer()
+        public Serializer()
         {
             super(TableName.class);
         }
 
         @Override
-        protected void doSerialize(TableName tableName, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(TableName tableName, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeStringField(SCHEMA_NAME_FIELD, tableName.getSchemaName());
@@ -52,15 +52,15 @@ final class TableNameSerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<TableName>
+    public static final class Deserializer extends BaseDeserializer<TableName>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(TableName.class);
         }
 
         @Override
-        protected TableName doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public TableName doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             String schemaName = getNextStringField(jparser, SCHEMA_NAME_FIELD);

@@ -47,7 +47,7 @@ import java.io.IOException;
  * operations that are required to move a Block around. It also allows you to put tighter control around
  * which parts of your query execution get which memory pool / limit.
  *
- * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.BlockSerDeV3} should be used instead
  */
 @Deprecated
 public class BlockDeserializer

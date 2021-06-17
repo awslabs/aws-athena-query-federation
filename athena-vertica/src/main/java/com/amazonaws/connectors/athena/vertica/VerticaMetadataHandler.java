@@ -187,7 +187,7 @@ public class VerticaMetadataHandler
         {
             throw new RuntimeException("SQL Exception in doListTables: " + e.getMessage(), e);
         }
-        return new ListTablesResponse(request.getCatalogName(), tables);
+        return new ListTablesResponse(request.getCatalogName(), tables, null);
 
     }
 

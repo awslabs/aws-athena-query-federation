@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-final class S3SpillLocationSerDe
+public final class S3SpillLocationSerDe
 {
     private static final String BUCKET_FIELD = "bucket";
     private static final String KEY_FIELD = "key";
@@ -38,9 +38,9 @@ final class S3SpillLocationSerDe
 
     private S3SpillLocationSerDe(){}
 
-    static final class Serializer extends TypedSerializer<SpillLocation>
+    public static final class Serializer extends TypedSerializer<SpillLocation>
     {
-        Serializer()
+        public Serializer()
         {
             super(SpillLocation.class, S3SpillLocation.class);
         }
@@ -57,9 +57,9 @@ final class S3SpillLocationSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<SpillLocation>
+    public static final class Deserializer extends TypedDeserializer<SpillLocation>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(SpillLocation.class, S3SpillLocation.class);
         }

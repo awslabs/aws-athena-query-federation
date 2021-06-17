@@ -156,7 +156,7 @@ public class TimestreamMetadataHandler
             }
         }
 
-        return new ListTablesResponse(request.getCatalogName(), tableNames);
+        return new ListTablesResponse(request.getCatalogName(), tableNames, null);
     }
 
     @Override

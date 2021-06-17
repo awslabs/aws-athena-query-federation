@@ -211,7 +211,7 @@ public class ElasticsearchMetadataHandler
             throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
         }
 
-        return new ListTablesResponse(request.getCatalogName(), indices);
+        return new ListTablesResponse(request.getCatalogName(), indices, null);
     }
 
     /**

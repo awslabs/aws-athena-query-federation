@@ -122,7 +122,7 @@ public class TPCDSMetadataHandler
                 .map(next -> new TableName(request.getSchemaName(), next.getName()))
                 .collect(Collectors.toList());
 
-        return new ListTablesResponse(request.getCatalogName(), tables);
+        return new ListTablesResponse(request.getCatalogName(), tables, null);
     }
 
     /**

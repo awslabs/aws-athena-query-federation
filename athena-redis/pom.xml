@@ -5,11 +5,12 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>1.0</version>
+        <version>1.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>athena-redis</artifactId>
+    <version>${aws-athena-federation-sdk.version}</version>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -22,7 +23,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2021.6.1</version>
+            <version>${aws-athena-federation-sdk.version}</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>

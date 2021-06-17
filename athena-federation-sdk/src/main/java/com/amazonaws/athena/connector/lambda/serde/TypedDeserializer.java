@@ -50,7 +50,7 @@ public abstract class TypedDeserializer<T> extends BaseDeserializer<T>
     }
 
     @Override
-    protected T doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+    public T doDeserialize(JsonParser jparser, DeserializationContext ctxt)
             throws IOException
     {
         // parse the type before delegating to implementation

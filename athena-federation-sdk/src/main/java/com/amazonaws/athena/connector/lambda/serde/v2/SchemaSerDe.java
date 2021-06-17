@@ -28,7 +28,9 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayInputStream;
@@ -36,13 +38,19 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 
-final class SchemaSerDe
+/**
+ * Used to serialize and deserialize Apache Arrow Schema objects.
+ *
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.SchemaSerDeV3} should be used instead
+ */
+@Deprecated
+public final class SchemaSerDe
 {
     private SchemaSerDe(){}
 
-    static final class Serializer extends BaseSerializer<Schema>
+    public static class Serializer extends BaseSerializer<Schema>
     {
-        Serializer()
+        public Serializer()
         {
             super(Schema.class);
         }
@@ -56,18 +64,21 @@ final class SchemaSerDe
         }
 
         @Override
-        protected void doSerialize(Schema schema, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(Schema schema, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
+            IpcOption option = new IpcOption();
+            option.metadataVersion = MetadataVersion.V4;
+            option.write_legacy_ipc_format = true;
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema);
+            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
             jgen.writeBinary(out.toByteArray());
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<Schema>
+    public static class Deserializer extends BaseDeserializer<Schema>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(Schema.class);
         }
@@ -81,15 +92,17 @@ final class SchemaSerDe
         }
 
         @Override
-        protected Schema doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public Schema doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
-            if (!JsonToken.VALUE_STRING.equals(jparser.nextToken())) {
+            if (JsonToken.VALUE_STRING.equals(jparser.getCurrentToken()) || JsonToken.VALUE_STRING.equals(jparser.nextToken())) {
+                byte[] schemaBytes = jparser.getBinaryValue();
+                ByteArrayInputStream in = new ByteArrayInputStream(schemaBytes);
+                return MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)));
+            }
+            else {
                 throw new IllegalStateException("Expected " + JsonToken.VALUE_STRING + " found " + jparser.getText());
             }
-            byte[] schemaBytes = jparser.getBinaryValue();
-            ByteArrayInputStream in = new ByteArrayInputStream(schemaBytes);
-            return MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(in)));
         }
     }
 }

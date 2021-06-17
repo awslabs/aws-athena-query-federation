@@ -66,6 +66,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.examples.ExampleMetadataHandler.MAX_SPLITS_PER_REQUEST;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
@@ -112,12 +113,56 @@ public class ExampleMetadataHandlerTest
     public void doListTables()
     {
         logger.info("doListTables - enter");
-        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(), "queryId", "default", null);
+
+        // Test request with unlimited page size
+        logger.info("doListTables - Test unlimited page size");
+        ListTablesRequest req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                "queryId", "default", "schema", null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesResponse expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema", "table1"))
+                        .add(new TableName("schema", "table2"))
+                        .add(new TableName("schema", "table3"))
+                        .add(new TableName("schema", "table4"))
+                        .add(new TableName("schema", "table5"))
+                        .build(), null);
         ObjectMapperUtil.assertSerialization(req);
         ListTablesResponse res = metadataHandler.doListTables(allocator, req);
         ObjectMapperUtil.assertSerialization(res);
-        logger.info("doListTables - {}", res.getTables());
-        assertFalse(res.getTables().isEmpty());
+        logger.info("doListTables - {}", res);
+        assertEquals("Expecting a different response", expectedResponse, res);
+
+        // Test first paginated request with pageSize: 3, nextToken: null
+        logger.info("doListTables - Test first pagination request");
+        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                "queryId", "default", "schema", null, 3);
+        expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema", "table1"))
+                        .add(new TableName("schema", "table2"))
+                        .add(new TableName("schema", "table3"))
+                        .build(), "table4");
+        ObjectMapperUtil.assertSerialization(req);
+        res = metadataHandler.doListTables(allocator, req);
+        ObjectMapperUtil.assertSerialization(res);
+        logger.info("doListTables - {}", res);
+        assertEquals("Expecting a different response", expectedResponse, res);
+
+        // Test second paginated request with pageSize: 3, nextToken: res.getNextToken()
+        logger.info("doListTables - Test second pagination request");
+        req = new ListTablesRequest(IdentityUtil.fakeIdentity(),
+                "queryId", "default", "schema", res.getNextToken(), 3);
+        expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName("schema", "table4"))
+                        .add(new TableName("schema", "table5"))
+                        .build(), null);
+        ObjectMapperUtil.assertSerialization(req);
+        res = metadataHandler.doListTables(allocator, req);
+        ObjectMapperUtil.assertSerialization(res);
+        logger.info("doListTables - {}", res);
+        assertEquals("Expecting a different response", expectedResponse, res);
+
         logger.info("doListTables - exit");
     }
 
@@ -282,6 +327,7 @@ public class ExampleMetadataHandlerTest
 
             MetadataResponse rawResponse = metadataHandler.doGetSplits(allocator, req);
             ObjectMapperUtil.assertSerialization(rawResponse);
+
             assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
             GetSplitsResponse response = (GetSplitsResponse) rawResponse;

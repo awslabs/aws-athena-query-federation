@@ -80,6 +80,7 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_VALUES_METADATA;
@@ -202,7 +203,10 @@ public class DynamoDBMetadataHandler
         if (glueClient != null) {
             try {
                 // does not validate that the tables are actually DDB tables
-                combinedTables.addAll(super.doListTables(allocator, request, TABLE_FILTER).getTables());
+                combinedTables.addAll(super.doListTables(allocator,
+                        new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
+                                request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
+                        TABLE_FILTER).getTables());
             }
             catch (RuntimeException e) {
                 logger.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
@@ -213,7 +217,7 @@ public class DynamoDBMetadataHandler
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
             combinedTables.addAll(tableResolver.listTables());
         }
-        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables));
+        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), null);
     }
 
     /**

@@ -24,7 +24,6 @@ import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.joda.time.LocalDate;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -166,7 +166,7 @@ public class BlockUtilsTest
                 .addField("col1", new ArrowType.Date(DateUnit.DAY))
                 .build();
 
-        Date date = LocalDate.parse("1998-1-1").toDate();
+        LocalDate date = LocalDate.parse("1998-01-01");
 
         Block block = allocator.createBlock(schema);
         BlockUtils.setValue(block.getFieldVector("col1"), 0, date);
