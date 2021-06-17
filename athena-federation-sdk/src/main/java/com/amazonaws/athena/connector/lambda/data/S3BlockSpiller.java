@@ -40,7 +40,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -139,8 +140,7 @@ public class S3BlockSpiller
         this.allocator = requireNonNull(allocator, "allocator was null");
         this.schema = requireNonNull(schema, "schema was null");
         this.blockCrypto = (spillConfig.getEncryptionKey() != null) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
-        asyncSpillPool = (spillConfig.getNumSpillThreads() <= 0) ? null :
-                Executors.newFixedThreadPool(spillConfig.getNumSpillThreads());
+        asyncSpillPool = (spillConfig.getNumSpillThreads() <= 0) ? null : makeAsyncSpillPool(spillConfig);
         this.maxRowsPerCall = maxRowsPerCall;
         this.constraintEvaluator = constraintEvaluator;
     }
@@ -432,5 +432,21 @@ public class S3BlockSpiller
         catch (Exception ex) {
             throw new RuntimeException(ex);
         }
+    }
+
+    /**
+     * Used to create a thread pool that will be used to service writes to S3 associated with spilling blocks.
+     * This pool should use a blocking, fixed size, pool for work in order to avoid a fast producer from overhwelming
+     * the Apache Arrow Allocator's memory pool.
+     *
+     * @return A fixed size thread pool with fixed size and blocking runnable queue.
+     */
+    private ThreadPoolExecutor makeAsyncSpillPool(SpillConfig config)
+    {
+        return new ThreadPoolExecutor(config.getNumSpillThreads(),
+                config.getNumSpillThreads(),
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(config.getNumSpillThreads()));
     }
 }
