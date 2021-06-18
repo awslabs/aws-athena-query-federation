@@ -56,7 +56,7 @@ public class GenericJdbcConnectionFactory
     private static final String REDSHIFT_DRIVER_CLASS = "com.amazon.redshift.jdbc.Driver";
     private static final int REDSHIFT_DEFAULT_PORT = 5439;
 
-    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9/_+=.@-]+})";
+    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@-]+})";
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private static final ImmutableMap<DatabaseEngine, DatabaseConnectionInfo> CONNECTION_INFO = ImmutableMap.of(
