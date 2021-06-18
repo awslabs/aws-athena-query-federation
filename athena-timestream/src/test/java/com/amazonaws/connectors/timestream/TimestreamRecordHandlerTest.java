@@ -198,9 +198,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(any(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            if (request.getNextToken() == null) {
-                                assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
-                            }
+                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -255,9 +253,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(any(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            if (request.getNextToken() == null) {
-                                assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
-                            }
+                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -331,9 +327,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(any(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            if (request.getNextToken() == null) {
-                                assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
-                            }
+                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
                             return mockResult;
                         }
                 );
@@ -400,9 +394,7 @@ public class TimestreamRecordHandlerTest
         when(mockClient.query(any(QueryRequest.class)))
                 .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
                             QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
-                            if (request.getNextToken() == null) {
-                                assertEquals("actual: " + request.getQueryString(), expectedQuery, request.getQueryString().replace("\n", ""));
-                            }
+                            assertEquals("actual: " + request.getQueryString(), expectedQuery, request.getQueryString().replace("\n", ""));
                             return mockResult;
                         }
                 );

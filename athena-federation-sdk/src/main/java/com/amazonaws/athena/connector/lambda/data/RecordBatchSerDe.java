@@ -20,12 +20,13 @@ package com.amazonaws.athena.connector.lambda.data;
  * #L%
  */
 
-import com.amazonaws.athena.connector.lambda.serde.v2.ArrowRecordBatchSerDe;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.MetadataVersion;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,7 +36,7 @@ import java.nio.channels.Channels;
 /**
  * used to serialize and deserialize ArrowRecordBatch.
  *
- * @deprecated {@link ArrowRecordBatchSerDe} should be used instead
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.ArrowRecordBatchSerDeV3} should be used instead
  */
 @Deprecated
 public class RecordBatchSerDe
@@ -59,7 +60,10 @@ public class RecordBatchSerDe
             throws IOException
     {
         try {
-            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), batch);
+            IpcOption option = new IpcOption();
+            option.metadataVersion = MetadataVersion.V4;
+            option.write_legacy_ipc_format = true;
+            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), batch, option);
         }
         finally {
             batch.close();

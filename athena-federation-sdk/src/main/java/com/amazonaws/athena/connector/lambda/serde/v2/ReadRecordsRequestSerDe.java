@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -38,7 +39,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class ReadRecordsRequestSerDe
+public final class ReadRecordsRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String QUERY_ID_FIELD = "queryId";
@@ -52,19 +53,19 @@ final class ReadRecordsRequestSerDe
 
     private ReadRecordsRequestSerDe(){}
 
-    static final class Serializer extends TypedSerializer<FederationRequest>
+    public static final class Serializer extends TypedSerializer<FederationRequest>
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
         private final ConstraintsSerDe.Serializer constraintsSerializer;
-        private final SchemaSerDe.Serializer schemaSerializer;
+        private final VersionedSerDe.Serializer<Schema> schemaSerializer;
         private final SplitSerDe.Serializer splitSerializer;
 
-        Serializer(
+        public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
                 TableNameSerDe.Serializer tableNameSerializer,
                 ConstraintsSerDe.Serializer constraintsSerializer,
-                SchemaSerDe.Serializer schemaSerializer,
+                VersionedSerDe.Serializer<Schema> schemaSerializer,
                 SplitSerDe.Serializer splitSerializer)
         {
             super(FederationRequest.class, ReadRecordsRequest.class);
@@ -104,19 +105,19 @@ final class ReadRecordsRequestSerDe
         }
     }
 
-    static final class Deserializer extends TypedDeserializer<FederationRequest>
+    public static final class Deserializer extends TypedDeserializer<FederationRequest>
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
         private final ConstraintsSerDe.Deserializer constraintsDeserializer;
-        private final SchemaSerDe.Deserializer schemaDeserializer;
+        private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
         private final SplitSerDe.Deserializer splitDeserializer;
 
-        Deserializer(
+        public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
                 TableNameSerDe.Deserializer tableNameDeserializer,
                 ConstraintsSerDe.Deserializer constraintsDeserializer,
-                SchemaSerDe.Deserializer schemaDeserializer,
+                VersionedSerDe.Deserializer<Schema> schemaDeserializer,
                 SplitSerDe.Deserializer splitDeserializer)
         {
             super(FederationRequest.class, ReadRecordsRequest.class);

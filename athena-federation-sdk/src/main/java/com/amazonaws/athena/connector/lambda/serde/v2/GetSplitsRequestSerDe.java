@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -37,7 +38,7 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-final class GetSplitsRequestSerDe
+public final class GetSplitsRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String QUERY_ID_FIELD = "queryId";
@@ -50,17 +51,17 @@ final class GetSplitsRequestSerDe
 
     private GetSplitsRequestSerDe(){}
 
-    static final class Serializer extends MetadataRequestSerializer
+    public static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
-        private final BlockSerDe.Serializer blockSerializer;
+        private final VersionedSerDe.Serializer<Block> blockSerializer;
         private final ConstraintsSerDe.Serializer constraintsSerializer;
 
-        Serializer(
+        public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
                 TableNameSerDe.Serializer tableNameSerializer,
-                BlockSerDe.Serializer blockSerializer,
+                VersionedSerDe.Serializer<Block> blockSerializer,
                 ConstraintsSerDe.Serializer constraintsSerializer)
         {
             super(GetSplitsRequest.class, identitySerializer);
@@ -91,17 +92,17 @@ final class GetSplitsRequestSerDe
         }
     }
 
-    static final class Deserializer extends MetadataRequestDeserializer
+    public static final class Deserializer extends MetadataRequestDeserializer
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
-        private final BlockSerDe.Deserializer blockDeserializer;
+        private final VersionedSerDe.Deserializer<Block> blockDeserializer;
         private final ConstraintsSerDe.Deserializer constraintsDeserializer;
 
-        Deserializer(
+        public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
                 TableNameSerDe.Deserializer tableNameDeserializer,
-                BlockSerDe.Deserializer blockDeserializer,
+                VersionedSerDe.Deserializer<Block> blockDeserializer,
                 ConstraintsSerDe.Deserializer constraintsDeserializer)
         {
             super(GetSplitsRequest.class, identityDeserializer);

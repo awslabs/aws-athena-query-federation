@@ -77,6 +77,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -211,7 +212,8 @@ public class TimestreamMetadataHandlerTest
                     return new ListTablesResult().withTables(tables).withNextToken(newNextToken);
                 });
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema);
+        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema,
+                null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 

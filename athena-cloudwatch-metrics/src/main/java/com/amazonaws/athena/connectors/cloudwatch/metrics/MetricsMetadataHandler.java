@@ -50,6 +50,7 @@ import com.amazonaws.services.cloudwatch.model.ListMetricsResult;
 import com.amazonaws.services.cloudwatch.model.Metric;
 import com.amazonaws.services.cloudwatch.model.MetricStat;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.amazonaws.util.CollectionUtils;
 import com.google.common.collect.Lists;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
@@ -168,7 +169,7 @@ public class MetricsMetadataHandler
     {
         List<TableName> tables = new ArrayList<>();
         TABLES.keySet().stream().forEach(next -> tables.add(new TableName(SCHEMA_NAME, next)));
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
     }
 
     /**
@@ -251,6 +252,11 @@ public class MetricsMetadataHandler
                                 .withStat(nextStatistic));
                     }
                 }
+            }
+
+            if (CollectionUtils.isNullOrEmpty(metricStats)) {
+                logger.info("No metric stats present after filtering predicates.");
+                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, null);
             }
 
             List<List<MetricStat>> partitions = Lists.partition(metricStats, calculateSplitSize(metricStats.size()));

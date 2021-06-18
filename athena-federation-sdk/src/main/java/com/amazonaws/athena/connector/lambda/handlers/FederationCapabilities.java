@@ -29,6 +29,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * Version history:
  * 23 - initial preview release
  * 24 - explicit, versioned serialization introduced
+ * 25 - upgraded Arrow to 3.0.0, addressed backwards incompatible changes
  */
 public class FederationCapabilities
 {

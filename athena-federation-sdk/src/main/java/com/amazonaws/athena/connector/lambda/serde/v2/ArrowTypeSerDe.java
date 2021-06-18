@@ -40,13 +40,13 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.io.IOException;
 
-final class ArrowTypeSerDe
+public final class ArrowTypeSerDe
 {
     private ArrowTypeSerDe(){}
 
-    static final class Serializer extends DelegatingSerializer<ArrowType>
+    public static final class Serializer extends DelegatingSerializer<ArrowType>
     {
-        Serializer()
+        public Serializer()
         {
             super(ArrowType.class, ImmutableSet.<TypedSerializer<ArrowType>>builder()
                     .add(new NullSerDe.Serializer())
@@ -69,9 +69,9 @@ final class ArrowTypeSerDe
         }
     }
 
-    static final class Deserializer extends DelegatingDeserializer<ArrowType>
+    public static final class Deserializer extends DelegatingDeserializer<ArrowType>
     {
-        Deserializer()
+        public Deserializer()
         {
             super(ArrowType.class, ImmutableSet.<TypedDeserializer<ArrowType>>builder()
                     .add(new NullSerDe.Deserializer())

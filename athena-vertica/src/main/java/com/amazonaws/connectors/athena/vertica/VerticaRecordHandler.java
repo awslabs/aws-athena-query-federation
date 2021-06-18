@@ -106,58 +106,54 @@ public class VerticaRecordHandler
         String exportBucket = split.getProperty("exportBucket");
         String s3ObjectKey = split.getProperty("s3ObjectKey");
 
-        //get column name and type from the Schema
-        HashMap<String, Types.MinorType> mapOfNamesAndTypes = new HashMap<>();
-        HashMap<String, Object> mapOfCols = new HashMap<>();
+        if(!s3ObjectKey.isEmpty()) {
+            //get column name and type from the Schema
+            HashMap<String, Types.MinorType> mapOfNamesAndTypes = new HashMap<>();
+            HashMap<String, Object> mapOfCols = new HashMap<>();
 
-        for(Field field : schemaName.getFields())
-        {
-            Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
-            mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
-            mapOfCols.put(field.getName(), null);
-        }
+            for (Field field : schemaName.getFields()) {
+                Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(field.getType());
+                mapOfNamesAndTypes.put(field.getName(), minorTypeForArrowType);
+                mapOfCols.put(field.getName(), null);
+            }
 
 
-        // creating a RowContext class to hold the column name and value.
-        final RowContext rowContext = new RowContext(id);
+            // creating a RowContext class to hold the column name and value.
+            final RowContext rowContext = new RowContext(id);
 
-        //Generating the RowWriter and Extractor
-        GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-        for (Field next : recordsRequest.getSchema().getFields())
-        {
-            Extractor extractor = makeExtractor(next,  mapOfNamesAndTypes, mapOfCols);
-            builder.withExtractor(next.getName(), extractor);
-        }
-        GeneratedRowWriter rowWriter = builder.build();
+            //Generating the RowWriter and Extractor
+            GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+            for (Field next : recordsRequest.getSchema().getFields()) {
+                Extractor extractor = makeExtractor(next, mapOfNamesAndTypes, mapOfCols);
+                builder.withExtractor(next.getName(), extractor);
+            }
+            GeneratedRowWriter rowWriter = builder.build();
 
         /*
          Using S3 Select to read the S3 Parquet file generated in the split
          */
-        //Creating the read Request
-        SelectObjectContentRequest request = generateBaseParquetRequest(exportBucket, s3ObjectKey);
-        try (SelectObjectContentResult result = amazonS3.selectObjectContent(request)) {
-            InputStream resultInputStream = result.getPayload().getRecordsInputStream();
-            BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, StandardCharsets.UTF_8));
-            String inputStr;
-            while ((inputStr = streamReader.readLine()) != null) {
-                HashMap<String, Object> map = new HashMap<>();
-                //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
-                ObjectMapper objectMapper = new ObjectMapper();
-                map = objectMapper.readValue(inputStr, HashMap.class);
-                rowContext.setNameValue(map);
+            //Creating the read Request
+            SelectObjectContentRequest request = generateBaseParquetRequest(exportBucket, s3ObjectKey);
+            try (SelectObjectContentResult result = amazonS3.selectObjectContent(request)) {
+                InputStream resultInputStream = result.getPayload().getRecordsInputStream();
+                BufferedReader streamReader = new BufferedReader(new InputStreamReader(resultInputStream, StandardCharsets.UTF_8));
+                String inputStr;
+                while ((inputStr = streamReader.readLine()) != null) {
+                    HashMap<String, Object> map = new HashMap<>();
+                    //we are reading the parquet files, but serializing the output it as JSON as SDK provides a Parquet InputSerialization, but only a JSON or CSV OutputSerializatio
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    map = objectMapper.readValue(inputStr, HashMap.class);
+                    rowContext.setNameValue(map);
 
-                //Passing the RowContext to BlockWriter;
-                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
+                    //Passing the RowContext to BlockWriter;
+                    spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, rowContext) ? 1 : 0);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
             }
-        }
-        
-         catch (Exception e)
-        {
-            throw new RuntimeException("Error in connecting to S3 and selecting the object content for object : " + s3ObjectKey, e);
         }
 
     }
-
 
 
     /**

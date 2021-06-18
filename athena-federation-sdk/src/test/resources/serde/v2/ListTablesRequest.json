@@ -10,5 +10,7 @@
   },
   "queryId" : "test-query-id",
   "catalogName" : "test-catalog",
-  "schemaName" : "test-schema"
+  "schemaName" : "test-schema",
+  "nextToken" : "table4",
+  "pageSize" : 25
 }

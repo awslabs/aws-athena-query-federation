@@ -8,14 +8,16 @@
     <parent>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-athena-query-federation</artifactId>
-        <version>1.0</version>
+        <version>1.1</version>
     </parent>
 
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2021.6.1</version>
+    <version>${aws-athena-federation-sdk.version}</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
+    <description>The Athena Query Federation SDK defines a set of interfaces and wire protocols that you can implement to enable Athena to delegate portions of it's query execution plan to code that you deploy/write.</description>
+    <url>https://github.com/awslabs/aws-athena-query-federation</url>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -65,12 +67,17 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
-            <version>0.11.0</version>
+            <version>3.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
-            <artifactId>arrow-memory</artifactId>
-            <version>0.11.0</version>
+            <artifactId>arrow-memory-core</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-memory-netty</artifactId>
+            <version>3.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>

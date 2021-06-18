@@ -92,7 +92,6 @@ import java.util.concurrent.TimeUnit;
 public abstract class JdbcRecordHandler
         extends RecordHandler
 {
-    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime();
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
     private final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;

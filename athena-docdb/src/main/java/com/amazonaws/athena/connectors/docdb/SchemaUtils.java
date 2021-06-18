@@ -76,7 +76,7 @@ public class SchemaUtils
         int docCount = 0;
         int fieldCount = 0;
         try (MongoCursor<Document> docs = db.getCollection(table.getTableName()).find().batchSize(numObjToSample)
-                .maxScan(numObjToSample).limit(numObjToSample).iterator()) {
+                .limit(numObjToSample).iterator()) {
             if (!docs.hasNext()) {
                 return SchemaBuilder.newBuilder().build();
             }

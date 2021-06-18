@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.aws.cmdb.tables.ec2;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.AbstractTableProviderTest;
 import com.amazonaws.athena.connectors.aws.cmdb.tables.TableProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
@@ -34,7 +35,6 @@ import com.amazonaws.services.ec2.model.UserIdGroupPair;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.joda.time.DateTimeZone;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -138,7 +138,7 @@ public class SecurityGroupsTableProviderTest
                 }
                 break;
             case DATEMILLI:
-                assertEquals(100_000, fieldReader.readLocalDateTime().toDateTime(DateTimeZone.UTC).getMillis());
+                assertEquals(100_000, fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
                 break;
             case BIT:
                 assertTrue(fieldReader.readBoolean());

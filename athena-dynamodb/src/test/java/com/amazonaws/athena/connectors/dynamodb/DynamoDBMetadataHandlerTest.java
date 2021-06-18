@@ -43,7 +43,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
@@ -62,9 +61,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.joda.time.Days;
-import org.joda.time.LocalDateTime;
-import org.joda.time.MutableDateTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -76,6 +72,10 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -89,6 +89,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DYNAMO_DB_FLAG;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
@@ -217,7 +218,8 @@ public class DynamoDBMetadataHandlerTest
         mockResult.setTableList(tableList);
         when(glueClient.getTables(any())).thenReturn(mockResult);
 
-        ListTablesRequest req = new ListTablesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, DEFAULT_SCHEMA);
+        ListTablesRequest req = new ListTablesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, DEFAULT_SCHEMA,
+                null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse res = handler.doListTables(allocator, req);
 
         logger.info("doListTables - {}", res.getTables());
@@ -319,14 +321,13 @@ public class DynamoDBMetadataHandlerTest
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         SortedRangeSet.Builder dateValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEDAY.getType(), false);
         SortedRangeSet.Builder timeValueSet = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
-        LocalDateTime dateTime = new LocalDateTime().withYear(2019).withMonthOfYear(9).withDayOfMonth(23).withHourOfDay(11).withMinuteOfHour(18).withSecondOfMinute(37);
-        MutableDateTime epoch = new MutableDateTime();
-        epoch.setDate(0); //Set to Epoch time
-        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), Days.daysBetween(epoch, dateTime.toDateTime()).getDays()));
+        LocalDateTime dateTime = LocalDateTime.of(2019, 9, 23, 11, 18, 37);
+        Instant epoch = Instant.MIN; //Set to Epoch time
+        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), ChronoUnit.DAYS.between(epoch, dateTime.toInstant(ZoneOffset.UTC))));
         LocalDateTime dateTime2 = dateTime.plusHours(26);
-        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), Days.daysBetween(epoch, dateTime2.toDateTime()).getDays()));
-        long startTime = dateTime.toDateTime().getMillis();
-        long endTime = dateTime2.toDateTime().getMillis();
+        dateValueSet.add(Range.equal(allocator, Types.MinorType.DATEDAY.getType(), ChronoUnit.DAYS.between(epoch, dateTime2.toInstant(ZoneOffset.UTC))));
+        long startTime = dateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
+        long endTime = dateTime2.toInstant(ZoneOffset.UTC).toEpochMilli();
         timeValueSet.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime, true,
                 endTime, true));
         constraintsMap.put("col_4", dateValueSet.build());
