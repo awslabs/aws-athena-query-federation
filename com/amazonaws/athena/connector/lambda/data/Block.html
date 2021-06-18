@@ -139,12 +139,10 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoClos
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Constructor Summary table, listing constructors, and an explanation">
 <caption><span>Constructors</span><span class="tabEnd">&nbsp;</span></caption>
 <tr>
-<th class="colFirst" scope="col">Modifier</th>
-<th class="colLast" scope="col">Constructor and Description</th>
+<th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html#Block-java.lang.String-org.apache.arrow.vector.types.pojo.Schema-org.apache.arrow.vector.VectorSchemaRoot-">Block</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;allocatorId,
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/Block.html#Block-java.lang.String-org.apache.arrow.vector.types.pojo.Schema-org.apache.arrow.vector.VectorSchemaRoot-">Block</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;allocatorId,
      org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
      org.apache.arrow.vector.VectorSchemaRoot&nbsp;vectorSchema)</code>
 <div class="block">Used by a BlockAllocator to construct a block by setting the key values that a Block 'holds'.</div>
@@ -349,9 +347,9 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoClos
 <ul class="blockListLast">
 <li class="blockList">
 <h4>Block</h4>
-<pre>protected&nbsp;Block(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;allocatorId,
-                org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
-                org.apache.arrow.vector.VectorSchemaRoot&nbsp;vectorSchema)</pre>
+<pre>public&nbsp;Block(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;allocatorId,
+             org.apache.arrow.vector.types.pojo.Schema&nbsp;schema,
+             org.apache.arrow.vector.VectorSchemaRoot&nbsp;vectorSchema)</pre>
 <div class="block">Used by a BlockAllocator to construct a block by setting the key values that a Block 'holds'. Most of the meaningful
  construction actually takes place within the BlockAllocator that calls this constructor.</div>
 <dl>
