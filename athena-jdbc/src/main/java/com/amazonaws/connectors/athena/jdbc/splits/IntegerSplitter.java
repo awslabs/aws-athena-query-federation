@@ -54,7 +54,7 @@ public class IntegerSplitter
         Validate.isTrue(splitInfo.getSplitRange().getHigh() >= splitInfo.getSplitRange().getLow(), "high is lower than low");
         if (splitInfo.getSplitRange().getHigh().equals(splitInfo.getSplitRange().getLow())) {
             this.step = 0;
-            this.remainder = 0;
+            this.remainder = 1;
         }
         else {
             int diff = splitInfo.getSplitRange().getHigh() - splitInfo.getSplitRange().getLow() + 1;
