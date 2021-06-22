@@ -15,7 +15,7 @@
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
         <log4j2Version>2.13.3</log4j2Version>
-        <gremlinDriverVersion>3.4.6</gremlinDriverVersion>
+        <gremlinDriverVersion>3.4.8</gremlinDriverVersion>
     </properties>
 
     <dependencies>
@@ -52,6 +52,16 @@
             <groupId>org.apache.tinkerpop</groupId>
             <artifactId>gremlin-groovy</artifactId>
             <version>3.4.6</version>
+        </dependency>
+        <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>amazon-neptune-sigv4-signer</artifactId>
+        <version>2.1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>amazon-neptune-gremlin-java-sigv4</artifactId>
+            <version>2.1.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
