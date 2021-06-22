@@ -98,10 +98,10 @@ public final class JDBCUtil
     private static JdbcMetadataHandler createJdbcMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         switch (databaseConnectionConfig.getType()) {
+            case SNOWFLAKE:
             case MYSQL:
                 return new MySqlMetadataHandler(databaseConnectionConfig);
             case REDSHIFT:
-            case SNOWFLAKE:
             case POSTGRES:
                 return new PostGreSqlMetadataHandler(databaseConnectionConfig);
             default:
@@ -148,10 +148,10 @@ public final class JDBCUtil
     private static JdbcRecordHandler createJdbcRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         switch (databaseConnectionConfig.getType()) {
+            case SNOWFLAKE:
             case MYSQL:
                 return new MySqlRecordHandler(databaseConnectionConfig);
             case REDSHIFT:
-            case SNOWFLAKE:
             case POSTGRES:
                 return new PostGreSqlRecordHandler(databaseConnectionConfig);
             default:
