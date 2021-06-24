@@ -274,7 +274,7 @@ public abstract class JdbcMetadataHandler
           '[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}',
           catalogName,
           escapeNamePattern(tableHandle.getSchemaName(), escape),
-          escapeNamePattern(tableHandle.getTableName(), escape),
+          escapeNamePattern(tableHandle.getTableName(), escape)
         )
         return metadata.getColumns(
                 catalogName,
