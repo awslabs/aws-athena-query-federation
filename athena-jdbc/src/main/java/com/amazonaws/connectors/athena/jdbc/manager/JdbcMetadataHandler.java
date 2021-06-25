@@ -266,16 +266,10 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
+    protected ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
-        LOGGER.warn(
-          "[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}",
-          catalogName,
-          escapeNamePattern(tableHandle.getSchemaName(), escape),
-          escapeNamePattern(tableHandle.getTableName(), escape)
-        );
         return metadata.getColumns(
                 catalogName,
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
