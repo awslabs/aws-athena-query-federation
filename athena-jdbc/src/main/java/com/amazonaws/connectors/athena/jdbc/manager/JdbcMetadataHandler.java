@@ -270,7 +270,7 @@ public abstract class JdbcMetadataHandler
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
-        Logger.warn(
+        LOGGER.warn(
           "[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}",
           catalogName,
           escapeNamePattern(tableHandle.getSchemaName(), escape),
