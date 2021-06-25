@@ -101,6 +101,12 @@ public class SnowflakeMetadataHandler
     }
 
     @Override
+    protected String escapeNamePattern(final String name, final String escape)
+    {
+        return super.escapeNamePattern(name, escape).toUpperCase();
+    }
+
+    @Override
     protected ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
             throws SQLException
     {
