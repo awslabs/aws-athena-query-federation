@@ -100,8 +100,9 @@ public final class JDBCUtil
         switch (databaseConnectionConfig.getType()) {
             case MYSQL:
                 return new MySqlMetadataHandler(databaseConnectionConfig);
-            case REDSHIFT:
             case SNOWFLAKE:
+                return new SnowflakeMetadataHandler(databaseConnectionConfig);
+            case REDSHIFT:
             case POSTGRES:
                 return new PostGreSqlMetadataHandler(databaseConnectionConfig);
             default:
