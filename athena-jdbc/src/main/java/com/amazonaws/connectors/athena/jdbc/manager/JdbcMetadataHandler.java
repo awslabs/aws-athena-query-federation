@@ -271,7 +271,7 @@ public abstract class JdbcMetadataHandler
     {
         String escape = metadata.getSearchStringEscape();
         Logger.warn(
-          '[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}',
+          "[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}",
           catalogName,
           escapeNamePattern(tableHandle.getSchemaName(), escape),
           escapeNamePattern(tableHandle.getTableName(), escape)
