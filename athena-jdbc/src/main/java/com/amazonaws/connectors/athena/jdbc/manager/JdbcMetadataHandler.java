@@ -275,7 +275,7 @@ public abstract class JdbcMetadataHandler
           catalogName,
           escapeNamePattern(tableHandle.getSchemaName(), escape),
           escapeNamePattern(tableHandle.getTableName(), escape)
-        )
+        );
         return metadata.getColumns(
                 catalogName,
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
