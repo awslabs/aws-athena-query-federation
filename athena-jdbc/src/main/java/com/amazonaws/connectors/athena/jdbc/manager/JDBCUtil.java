@@ -26,6 +26,7 @@ import com.amazonaws.connectors.athena.jdbc.mysql.MySqlMetadataHandler;
 import com.amazonaws.connectors.athena.jdbc.mysql.MySqlRecordHandler;
 import com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler;
+import com.amazonaws.connectors.athena.jdbc.snowflake.SnowflakeMetadataHandler;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 
