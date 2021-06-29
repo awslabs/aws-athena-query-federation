@@ -122,7 +122,7 @@ See respective database documentation for conversion between JDBC and database t
 
 We support two ways to input database user name and password:
 
-1. **AWS Secrets Manager:** The name of the secret in AWS Secrets Manager can be embedded in JDBC connection string, which is used to replace with `vertica-username` and `vertica-password` values from AWS Secrets Manager.
+1. **AWS Secrets Manager:** The name of the secret in AWS Secrets Manager can be embedded in JDBC connection string, which is used to replace with `vertica-username` and `vertica-password` values from AWS Secrets Manager. To use the Athena Federated Query feature with AWS Secrets Manager, you must configure an Amazon VPC private endpoint for Secrets Manager. For more information, see [Create a Secrets Manager VPC Private Endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) in the _AWS Secrets Manager User Guide_.
 2. **Connection String:** Username and password can be specified as properties in the JDBC connection string.
 
 ### Deploying The Connector

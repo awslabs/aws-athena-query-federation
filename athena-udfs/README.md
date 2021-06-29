@@ -18,7 +18,7 @@ This would return result 'eJwLLinKzEsPyXdKdc7PLShKLS5OTQEAUrEH9w=='.
 
 This would return result 'StringToBeCompressed'.
 
-3. "encrypt": encrypt the data with a data key stored in AWS Secrets Manager
+3. "encrypt": encrypt the data with a data key stored in AWS Secrets Manager*
 
 Before testing this query, you would need to create a secret in AWS Secrets Manager. Make sure to use "DefaultEncryptionKey". If you choose to use your KMS key, you would need to update ./athena-udfs.yaml to allow access to your KMS key. Remove all the json brackets and store a base64 encoded string as data key. Sample data is like `AQIDBAUGBwgJAAECAwQFBg==`. 
 
@@ -26,11 +26,13 @@ Example query:
 
 `USING EXTERNAL FUNCTION encrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT encrypt('plaintext', 'my_secret_name');`
 
-3. "decrypt": decrypt the data with a data key stored in AWS Secrets Manager
+4. "decrypt": decrypt the data with a data key stored in AWS Secrets Manager*
 
 Example query:
 
 `USING EXTERNAL FUNCTION decrypt(col VARCHAR, secretName VARCHAR) RETURNS VARCHAR LAMBDA '<lambda name>' SELECT decrypt('tEgyixKs1d0RsnL51ypMgg==', 'my_secret_name');`
+
+*To use the Athena Federated Query feature with AWS Secrets Manager, you must configure an Amazon VPC private endpoint for Secrets Manager. For more information, see [Create a Secrets Manager VPC Private Endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) in the _AWS Secrets Manager User Guide_.
 
 ## AWS built UDFs
 For an example that uses UDFs with Athena to translate and analyze text, see the AWS
