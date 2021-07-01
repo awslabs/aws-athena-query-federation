@@ -8,7 +8,7 @@
     <parent>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-athena-query-federation</artifactId>
-        <version>${aws-athena-query-federation.version</version>
+        <version>1.2</version>
     </parent>
 
     <groupId>com.amazonaws</groupId>
