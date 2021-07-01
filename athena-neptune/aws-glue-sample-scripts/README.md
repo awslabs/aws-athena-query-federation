@@ -31,7 +31,7 @@ Refer to the diagram below:
 
 ### Create AWS Glue Catalog Database and Tables
 
-The sample script [here](./sample-cli-scripts.sh) creates a Glue Database by the name "graph-database" and tables: airport, country and continent corresponding to the Air Routes Property Graph sample dataset. If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
+The sample script [here](./sample-cli-script.sh) creates a Glue Database by the name "graph-database" and tables: airport, country and continent corresponding to the Air Routes Property Graph sample dataset. If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
 
 Ensure to have the right executable permissions on the script once you download it.
 
