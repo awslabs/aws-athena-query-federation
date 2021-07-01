@@ -6,11 +6,15 @@ This connector enables Amazon Athena to communicate with your Neptune Graph Data
 
 ## Steps to setup the connector
 
+### Setup Neptune Cluster (Optional)
+You can skip this step if you’ve an existing Amazon Neptune cluster and property graph dataset in it that you would like to use. Ensure to have an Internet Gateway and NAT Gateway in the VPC hosting your Neptune cluster and the private subnets in which the Amazon Athena Neptune Connector Lambda function will be running should have route to the internet via this NAT Gateway. This NAT Gateway will be later on used by the Amazon Athena Neptune Connector Lambda function to talk to AWS Glue.
+
+For detailed instructions on setting up a new Neptune cluster and loading the sample property graph air routes dataset into it, follow the steps mentioned [here](./neptune-cluster-setup).
 ### Setup AWS Glue Catalog
 
 Unlike traditional relational data stores, Neptune graph DB nodes and edges do not have set schema. Each entry can have different fields and data types. While we are investigating the best way to support schema-on-read usecases for this connector, it presently supports retrieving meta-data from the Glue Data Catalog. You need to pre-create the Glue Database and the corresponding Glue tables with required schemas within that database. This allows the connector to populate list of tables available to query within Athena. 
 
-Refer to the sample Glue catalog setup [here](./aws-glue-sample-scripts)
+Refer to the sample Glue catalog setup [here](./aws-glue-sample-scripts).
 
 ### Deploy the Neptune Athena Connector
 
