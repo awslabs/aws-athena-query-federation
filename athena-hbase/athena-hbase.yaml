@@ -46,7 +46,7 @@ Parameters:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. hbase-*).'
     Type: String
   HBaseConnectionString:
-    Description: 'The HBase connection details to use by default in the format: master_hostname:zookeeper_port:hbase_port and optionally using SecretsManager (e.g. ${secret_name}).'
+    Description: 'The HBase connection details to use by default in the format: master_hostname:hbase_port:zookeeper_port and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
 Resources:
   ConnectorConfig:
