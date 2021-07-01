@@ -144,7 +144,7 @@ Integration-Test framework provides the following public API allowing access to 
         return secretCredentials;
     }
 ```
-To use the Athena Federated Query feature with AWS Secrets Manager, you must configure an Amazon VPC private endpoint for Secrets Manager. For more information, see [Create a Secrets Manager VPC Private Endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) in the _AWS Secrets Manager User Guide_.
+To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 **Environment variables** - Parameters used by the connectors' internal logic:
 * **spill_bucket** - The S3 bucket used for spilling excess data.

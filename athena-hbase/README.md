@@ -33,7 +33,7 @@ To support these two SQL statements we'd need to add two environment variables t
 2. **hbase_instance_2** - The value should be the HBase connection details in the format of: master_hostname:hbase_port:zookeeper_port
 
 You can also optionally use SecretsManager for part or all of the value for the preceding connection details. For example, if I set a Lambda environment variable for  **hbase_instance_1** to be "${hbase_host_1}:${hbase_master_port_1}:${hbase_zookeeper_port_1}" the Athena Federation SDK will automatically attempt to retrieve a secret from AWS SecretsManager named "hbase_host_1" and inject that value in place of "${hbase_host_1}". It wil do the same for the other secrets: hbase_zookeeper_port_1, hbase_master_port_1. Basically anything between ${...} is attempted as a secret in SecretsManager. If no such secret exists, the text isn't replaced.
-To use the Athena Federated Query feature with AWS Secrets Manager, you must configure an Amazon VPC private endpoint for Secrets Manager. For more information, see [Create a Secrets Manager VPC Private Endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) in the _AWS Secrets Manager User Guide_.
+To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 ### Setting Up Databases & Tables
 

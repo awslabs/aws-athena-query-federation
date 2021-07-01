@@ -28,7 +28,7 @@ To enable a Glue Table for use with Redis, you can set the following properties 
 3. **redis-key-prefix** - (required if not using # 2)  A comma separated list of key prefixes to scan for values that should be part of this table. You must set either this or redis-keys-zset on the table. (e.g. accounts-*,acct-)
 4. **redis-value-type** - (required) Defines how the value for the keys defined by either redis-key-prefix or redis-keys-zset will be mapped to your table. literal maps to a single column. zset also maps to a single column but each key can essentially store N rows. hash allows for each key to be a row with multiple columns. (e.g. hash or literal or zset)
 
-*To use the Athena Federated Query feature with AWS Secrets Manager, you must configure an Amazon VPC private endpoint for Secrets Manager. For more information, see [Create a Secrets Manager VPC Private Endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) in the _AWS Secrets Manager User Guide_.
+*To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 ### Data Types
 
