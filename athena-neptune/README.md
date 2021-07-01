@@ -10,11 +10,11 @@ This connector enables Amazon Athena to communicate with your Neptune Graph Data
 
 Unlike traditional relational data stores, Neptune graph DB nodes and edges do not have set schema. Each entry can have different fields and data types. While we are investigating the best way to support schema-on-read usecases for this connector, it presently supports retrieving meta-data from the Glue Data Catalog. You need to pre-create the Glue Database and the corresponding Glue tables with required schemas within that database. This allows the connector to populate list of tables available to query within Athena. 
 
-Refer to the sample script to setup glue catalog [here](./aws-glue-sample-scripts)
+Refer to the sample Glue catalog setup [here](./aws-glue-sample-scripts)
 
 ### Deploy the Neptune Athena Connector
 
-Once you have created the glue catalog,  follow steps [here](./neptune-connector-setup) to setup the Athena Neptune Connector
+Once you have created the glue catalog, follow steps [here](./neptune-connector-setup) to setup the Athena Neptune Connector
 
 ## Current Limitations
 
