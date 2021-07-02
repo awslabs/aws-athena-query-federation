@@ -34,7 +34,7 @@ import java.util.List;
 public class MySqlQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    MySqlQueryStringBuilder(final String quoteCharacters)
+    public MySqlQueryStringBuilder(final String quoteCharacters)
     {
         super(quoteCharacters);
     }

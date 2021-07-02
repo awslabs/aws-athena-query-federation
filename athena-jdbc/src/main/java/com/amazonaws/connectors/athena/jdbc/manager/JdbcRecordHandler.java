@@ -114,6 +114,11 @@ public abstract class JdbcRecordHandler
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
 
+    protected JdbcConnectionFactory getJdbcConnectionFactory()
+    {
+        return jdbcConnectionFactory;
+    }
+
     private JdbcCredentialProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
