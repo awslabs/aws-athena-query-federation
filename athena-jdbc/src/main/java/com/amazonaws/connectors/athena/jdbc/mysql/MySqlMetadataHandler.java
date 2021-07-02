@@ -86,7 +86,12 @@ public class MySqlMetadataHandler
      */
     public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+    }
+
+    public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    {
+        super(databaseConnectionConfig, jdbcConnectionFactory);
     }
 
     @VisibleForTesting
