@@ -43,7 +43,7 @@ For any other type of Elasticsearch instance (e.g. self-hosted), the associated 
 must be specified in the **domain_mapping** variable. This also determines which credentials will 
 be used to access the endpoint. If **auto_discover_endpoint**=**true**, then AWS credentials will 
 be used to authenticate to Elasticsearch. Otherwise, username/password credentials retrieved from 
-Amazon Secrets Manager via the **domain_mapping** variable will be used.
+Amazon Secrets Manager via the **domain_mapping** variable will be used.*
 
 3. **domain_mapping** - Used only when **auto_discover_endpoint**=**false**, 
 this is the mapping between the domain names and their associated endpoints. The variable can
@@ -51,7 +51,7 @@ accommodate multiple Elasticsearch endpoints using the following format:
 `domain1=endpoint1,domain2=endpoint2,domain3=endpoint3,...` For the purpose of authenticating to 
 an Elasticsearch endpoint, this connector supports substitution strings injected with the format 
 `${SecretName}:` with username and password retrieved from AWS Secrets Manager (see example 
-below). The colon `:` at the end of the expression serves as a separator from the rest of the 
+below).* The colon `:` at the end of the expression serves as a separator from the rest of the 
 endpoint.
     ```                        
         Example (using secret elasticsearch-creds): 
@@ -82,6 +82,8 @@ my_bucket).
 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the 
 above bucket where large responses spill. You should configure an S3 lifecycle on this 
 location to delete old spills after X days/hours.
+
+*To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 ## Setting Up Databases & Tables
 
