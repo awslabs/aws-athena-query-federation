@@ -12,6 +12,7 @@
     <artifactId>athena-federation-sdk-tools</artifactId>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK Tools</name>
+    <version>${aws-athena-federation-sdk.version}</version>
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>

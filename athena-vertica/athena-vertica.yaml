@@ -76,7 +76,7 @@ Resources:
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler"
-      CodeUri: "./target/athena-vertica-1.0.jar"
+      CodeUri: "./target/athena-vertica-2021.21.1.jar"
       Description: "Amazon Athena Vertica Connector"
       Runtime: java8
       Timeout: !Ref LambdaTimeout

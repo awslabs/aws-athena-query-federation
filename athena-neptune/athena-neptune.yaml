@@ -57,7 +57,10 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet(s) that the Lambda function can use to access the Neptune cluster. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
-
+  IAMEnabled:
+    Description: 'If set to ''true'' the connector uses Signature Version 4 Signing'
+    Default: false
+    Type: String
 
 Resources:
   ConnectorConfig:
@@ -72,9 +75,11 @@ Resources:
           neptune_endpoint: !Ref NeptuneClusterEndpoint
           neptune_port: !Ref NeptunePort
           neptune_cluster_res_id: !Ref NeptuneClusterResourceID
+          iam_enabled: !Ref IAMEnabled
+          SERVICE_REGION: !Ref AWS::Region
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.neptune.NeptuneCompositeHandler"
-      CodeUri: "./target/athena-neptune-1.0.jar"
+      CodeUri: "./target/athena-neptune-2021.21.1.jar"
       Description: "Enables Amazon Athena to communicate with Neptune, making your Neptune graph data accessible via SQL."
       Runtime: java8
       Timeout: !Ref LambdaTimeout

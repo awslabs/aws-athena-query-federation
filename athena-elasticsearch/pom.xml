@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>athena-elasticsearch</artifactId>
+    <version>${aws-athena-federation-sdk.version}</version>
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
