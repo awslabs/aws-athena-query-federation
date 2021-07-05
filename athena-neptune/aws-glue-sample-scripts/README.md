@@ -36,13 +36,13 @@ The sample script [here](./sample-cli-script.sh) creates a Glue Database by the 
 Ensure to have the right executable permissions on the script once you download it.
 
 ```
-chmod 755 sample-cli-scripts.sh
+chmod 755 sample-cli-script.sh
 ```
 Ensure to setup credentials for your AWS CLI to work.
 
 Replace &lt;aws-profile> with the AWS profile name that carries your credentials and replace &lt;aws-region> with AWS region where you are creating the AWS Glue tables which should be the same as your Neptune Cluster's AWS region.
 
 ```
-./sample-cli-scripts.sh  <aws-profile> <aws-region>
+./sample-cli-script.sh  <aws-profile> <aws-region>
 ```
 If all goes well you now have the Glue Database and Tables that are required for your Athena Neptune Connector setup and you can move on to those steps mentioned [here](../neptune-connector-setup/README.md).
