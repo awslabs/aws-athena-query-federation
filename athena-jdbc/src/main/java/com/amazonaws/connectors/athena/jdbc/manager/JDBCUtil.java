@@ -99,7 +99,6 @@ public final class JDBCUtil
     private static JdbcMetadataHandler createJdbcMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         switch (databaseConnectionConfig.getType()) {
-            case SNOWFLAKE:
             case MYSQL:
                 return new MySqlMetadataHandler(databaseConnectionConfig);
             case SNOWFLAKE:
