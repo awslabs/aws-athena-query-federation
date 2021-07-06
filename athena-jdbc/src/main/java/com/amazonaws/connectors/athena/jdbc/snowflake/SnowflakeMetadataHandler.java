@@ -177,7 +177,7 @@ public class SnowflakeMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
-        logger.info("doGetSplits: enter - " + getSplitsRequest);
+        LOGGER.info("doGetSplits: enter - " + getSplitsRequest);
 
         String catalogName = getSplitsRequest.getCatalogName();
         Set<Split> splits = new HashSet<>();
@@ -185,7 +185,7 @@ public class SnowflakeMetadataHandler
         Split split = Split.newBuilder(makeSpillLocation(getSplitsRequest), makeEncryptionKey()).build();
         splits.add(split);
 
-        logger.info("doGetSplits: exit - " + splits.size());
+        LOGGER.info("doGetSplits: exit - " + splits.size());
         return new GetSplitsResponse(catalogName, splits);
         // LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
         // int partitionContd = decodeContinuationToken(getSplitsRequest);
