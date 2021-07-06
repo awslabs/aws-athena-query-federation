@@ -266,7 +266,7 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
+    protected ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
