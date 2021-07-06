@@ -20,13 +20,13 @@
 package com.amazonaws.connectors.athena.jdbc.snowflake;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.Block;
+// import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+// import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -35,26 +35,26 @@ import com.amazonaws.connectors.athena.jdbc.connection.GenericJdbcConnectionFact
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.connectors.athena.jdbc.manager.JDBCUtil;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.connectors.athena.jdbc.manager.PreparedStatementBuilder;
+// import com.amazonaws.connectors.athena.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import org.apache.arrow.vector.complex.reader.FieldReader;
+// import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
+// import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
+// import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
+// import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
+// import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -142,7 +142,6 @@ public class SnowflakeMetadataHandler
         //     //we wrote 1 row so we return 1
         //     return 1;
         // });
-
 
         // LOGGER.info("{}: Catalog {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
         //         getTableLayoutRequest.getTableName().getTableName());
