@@ -27,6 +27,7 @@ import com.amazonaws.connectors.athena.jdbc.mysql.MySqlRecordHandler;
 import com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler;
 import com.amazonaws.connectors.athena.jdbc.snowflake.SnowflakeMetadataHandler;
+import com.amazonaws.connectors.athena.jdbc.snowflake.SnowflakeRecordHandler;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 
@@ -154,8 +155,9 @@ public final class JDBCUtil
                 return new MySqlRecordHandler(databaseConnectionConfig);
             case POSTGRES:
             case REDSHIFT:
-            case SNOWFLAKE:
                 return new PostGreSqlRecordHandler(databaseConnectionConfig);
+            case SNOWFLAKE:
+                return new SnowflakeRecordHandler(databaseConnectionConfig);
             default:
                 throw new RuntimeException("Mux: Unhandled database engine " + databaseConnectionConfig.getType());
         }
