@@ -150,11 +150,11 @@ public final class JDBCUtil
     private static JdbcRecordHandler createJdbcRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         switch (databaseConnectionConfig.getType()) {
-            case SNOWFLAKE:
             case MYSQL:
                 return new MySqlRecordHandler(databaseConnectionConfig);
-            case REDSHIFT:
             case POSTGRES:
+            case REDSHIFT:
+            case SNOWFLAKE:
                 return new PostGreSqlRecordHandler(databaseConnectionConfig);
             default:
                 throw new RuntimeException("Mux: Unhandled database engine " + databaseConnectionConfig.getType());

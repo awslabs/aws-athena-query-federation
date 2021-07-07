@@ -58,17 +58,17 @@ public class SnowflakeMetadataHandler
         extends JdbcMetadataHandler
 {
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
-    static final String GET_PARTITIONS_QUERY = "SELECT nmsp_child.nspname AS child_schema, child.relname AS child FROM pg_inherits JOIN pg_class parent " +
-            "ON pg_inherits.inhparent = parent.oid JOIN pg_class child ON pg_inherits.inhrelid = child.oid JOIN pg_namespace nmsp_parent " +
-            "ON nmsp_parent.oid = parent.relnamespace JOIN pg_namespace nmsp_child ON nmsp_child.oid = child.relnamespace where nmsp_parent.nspname = ? " +
-            "AND parent.relname = ?";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
-    static final String BLOCK_PARTITION_SCHEMA_COLUMN_NAME = "partition_schema_name";
-    static final String ALL_PARTITIONS = "*";
+    // static final String GET_PARTITIONS_QUERY = "SELECT nmsp_child.nspname AS child_schema, child.relname AS child FROM pg_inherits JOIN pg_class parent " +
+    //         "ON pg_inherits.inhparent = parent.oid JOIN pg_class child ON pg_inherits.inhrelid = child.oid JOIN pg_namespace nmsp_parent " +
+    //         "ON nmsp_parent.oid = parent.relnamespace JOIN pg_namespace nmsp_child ON nmsp_child.oid = child.relnamespace where nmsp_parent.nspname = ? " +
+    //         "AND parent.relname = ?";
+    // static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
+    // static final String BLOCK_PARTITION_SCHEMA_COLUMN_NAME = "partition_schema_name";
+    // static final String ALL_PARTITIONS = "*";
     private static final Logger LOGGER = LoggerFactory.getLogger(SnowflakeMetadataHandler.class);
-    private static final String PARTITION_SCHEMA_NAME = "child_schema";
-    private static final String PARTITION_NAME = "child";
-    private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
+    // private static final String PARTITION_SCHEMA_NAME = "child_schema";
+    // private static final String PARTITION_NAME = "child";
+    // private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -119,9 +119,8 @@ public class SnowflakeMetadataHandler
     @Override
     public Schema getPartitionSchema(final String catalogName)
     {
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
-                .addField(BLOCK_PARTITION_SCHEMA_COLUMN_NAME, Types.MinorType.VARCHAR.getType())
-                .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
+        LOGGER.warn("[SNOWFLAKE DEBUG] getPartitionSchema ");
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         return schemaBuilder.build();
     }
 
