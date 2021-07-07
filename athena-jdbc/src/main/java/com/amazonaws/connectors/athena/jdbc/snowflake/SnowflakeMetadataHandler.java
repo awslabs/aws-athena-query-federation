@@ -103,7 +103,7 @@ public class SnowflakeMetadataHandler
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
-        LOGGER.warn(
+        LOGGER.info(
           "[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}",
           catalogName,
           escapeNamePattern(tableHandle.getSchemaName(), escape),
