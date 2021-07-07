@@ -235,7 +235,7 @@ public abstract class JdbcMetadataHandler
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"));
                 String columnName = resultSet.getString("COLUMN_NAME");
-                LOGGER.info("[SNOWFLAKE DEBUG] catalogName: {}, columnType: {}", columnName, columnType.getClass().getSimpleName());
+                LOGGER.warn("[SNOWFLAKE DEBUG] catalogName: {}", columnName);
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
                     if (columnType instanceof ArrowType.List) {
                         schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
