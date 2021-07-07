@@ -44,12 +44,12 @@ public class SnowflakeQueryStringBuilder
     {
         StringBuilder tableName = new StringBuilder();
         if (!Strings.isNullOrEmpty(catalog)) {
-            tableName.append(quote(catalog)).append('.');
+            tableName.append(quote(catalog.toUpperCase())).append('.');
         }
         if (!Strings.isNullOrEmpty(schema)) {
-            tableName.append(quote(schema)).append('.');
+            tableName.append(quote(schema.toUpperCase())).append('.');
         }
-        tableName.append(quote(table));
+        tableName.append(quote(table.toUpperCase()));
 
         return String.format(" FROM %s ", tableName);
 
