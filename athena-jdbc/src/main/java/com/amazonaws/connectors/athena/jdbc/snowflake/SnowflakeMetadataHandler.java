@@ -37,8 +37,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +49,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
- * information_schema.
+ * Handles metadata for Snowflake.
  */
 public class SnowflakeMetadataHandler
         extends JdbcMetadataHandler
@@ -93,12 +90,6 @@ public class SnowflakeMetadataHandler
             throws SQLException
     {
         String escape = metadata.getSearchStringEscape();
-        LOGGER.warn(
-          "[SNOWFLAKE DEBUG] catalogName: {}, SchemaName: {}, TableName: {}",
-          catalogName,
-          escapeNamePattern(tableHandle.getSchemaName(), escape),
-          escapeNamePattern(tableHandle.getTableName(), escape)
-        );
         return metadata.getColumns(
                 catalogName,
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
@@ -109,7 +100,6 @@ public class SnowflakeMetadataHandler
     @Override
     public Schema getPartitionSchema(final String catalogName)
     {
-        LOGGER.warn("[SNOWFLAKE DEBUG] getPartitionSchema ");
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         return schemaBuilder.build();
     }
@@ -131,39 +121,5 @@ public class SnowflakeMetadataHandler
 
         LOGGER.info("doGetSplits: exit - " + splits.size());
         return new GetSplitsResponse(catalogName, splits);
-    }
-
-    /**
-     * Converts an ARRAY column's TYPE_NAME (provided by the jdbc metadata) to an ArrowType.
-     * @param typeName The column's TYPE_NAME (e.g. _int4, _text, _float8, etc...)
-     * @param precision Used for BigDecimal ArrowType
-     * @param scale Used for BigDecimal ArrowType
-     * @return ArrowType equivalent of the fieldType.
-     */
-    @Override
-    protected ArrowType getArrayArrowTypeFromTypeName(String typeName, int precision, int scale)
-    {
-        switch(typeName) {
-            case "_bool":
-                return Types.MinorType.BIT.getType();
-            case "_int2":
-                return Types.MinorType.SMALLINT.getType();
-            case "_int4":
-                return Types.MinorType.INT.getType();
-            case "_int8":
-                return Types.MinorType.BIGINT.getType();
-            case "_float4":
-                return Types.MinorType.FLOAT4.getType();
-            case "_float8":
-                return Types.MinorType.FLOAT8.getType();
-            case "_date":
-                return Types.MinorType.DATEDAY.getType();
-            case "_timestamp":
-                return Types.MinorType.DATEMILLI.getType();
-            case "_numeric":
-                return new ArrowType.Decimal(precision, scale);
-            default:
-                return super.getArrayArrowTypeFromTypeName(typeName, precision, scale);
-        }
     }
 }
