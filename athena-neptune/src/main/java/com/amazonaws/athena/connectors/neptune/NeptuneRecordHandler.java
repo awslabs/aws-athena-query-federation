@@ -80,7 +80,7 @@ public class NeptuneRecordHandler extends RecordHandler
     {
         this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(),
-                new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port")));
+                new NeptuneConnection(System.getenv("neptune_endpoint"), System.getenv("neptune_port"), Boolean.parseBoolean(System.getenv("iam_enabled"))));
     }
 
     @VisibleForTesting
