@@ -35,7 +35,7 @@ import java.util.Map;
 /**
  * Creates and Caches HBase Connection Instances, using the connection string as the cache key.
  *
- * @Note Connection String format is expected to be host:zookeeper_port:master_port
+ * @Note Connection String format is expected to be host:master_port:zookeeper_port
  */
 public class HbaseConnectionFactory
 {
@@ -78,7 +78,7 @@ public class HbaseConnectionFactory
     /**
      * Gets or Creates an HBase connection for the given connection string.
      *
-     * @param conStr HBase connection details, format is expected to be host:zookeeper_port:master_port
+     * @param conStr HBase connection details, format is expected to be host:master_port:zookeeper_port
      * @return An HBase connection if the connection succeeded, else the function will throw.
      */
     public synchronized Connection getOrCreateConn(String conStr)
