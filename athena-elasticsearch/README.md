@@ -33,7 +33,7 @@ fields defined in your Elasticsearch index.
 The Amazon Athena Elasticsearch Connector exposes several configuration options via Lambda 
 environment variables:
 
-1. **disable_glue** - (Optional) If present, with any value, the connector will no longer 
+1. **disable_glue** - (Optional) If present, with any value except false, the connector will no longer 
 attempt to retrieve supplemental metadata from Glue.
 
 2. **auto_discover_endpoint** - true/false (true is the default value). If you are using Amazon
