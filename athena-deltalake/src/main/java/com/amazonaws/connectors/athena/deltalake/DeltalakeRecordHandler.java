@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -33,39 +34,37 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.github.mjakubowski84.parquet4s.*;
+import com.google.common.primitives.Longs;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.holders.*;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.fs.Path;
+import org.apache.parquet.filter2.compat.FilterCompat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.None;
+import software.amazon.ion.Decimal;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.*;
 import static java.lang.String.format;
 
-/**
- * This class is part of an tutorial that will walk you through how to build a connector for your
- * custom data source. The README for this module (athena-example) will guide you through preparing
- * your development environment, modifying this example RecordHandler, building, deploying, and then
- * using your new source in an Athena query.
- * <p>
- * More specifically, this class is responsible for providing Athena with actual rows level data from your source. Athena
- * will call readWithConstraint(...) on this class for each 'Split' you generated in ExampleMetadataHandler.
- * <p>
- * For more examples, please see the other connectors in this repository (e.g. athena-cloudwatch, athena-docdb, etc...)
- */
 public class DeltalakeRecordHandler
         extends RecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeRecordHandler.class);
 
-    /**
-     * used to aid in debugging. Athena will use this name in conjunction with your catalog id
-     * to correlate relevant query errors.
-     */
-    private static final String SOURCE_TYPE = "example";
-
-    private AmazonS3 amazonS3;
+    private static final String SOURCE_TYPE = "deltalake";
 
     public DeltalakeRecordHandler()
     {
@@ -76,145 +75,202 @@ public class DeltalakeRecordHandler
     protected DeltalakeRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
-        this.amazonS3 = amazonS3;
     }
 
-    /**
-     * Used to read the row data associated with the provided Split.
-     *
-     * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
-     * The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
-     * @param recordsRequest Details of the read request, including:
-     * 1. The Split
-     * 2. The Catalog, Database, and Table the read request is for.
-     * 3. The filtering predicate (if any)
-     * 4. The columns required for projection.
-     * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws IOException
-     * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
-     * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
-     */
+    protected Optional<Value> getValue(Object context, String fieldName) {
+        RowParquetRecord record = (RowParquetRecord)context;
+        Value value = record.get(fieldName);
+        if (value instanceof NullValue$) return Optional.empty();
+        else return Optional.of(value);
+    }
+
+    protected Extractor getNumberExtractor(int bitWidth, String fieldName, Optional<Object> literalValue) {
+        if (bitWidth == 8 * NullableTinyIntHolder.WIDTH) return new TinyIntExtractor() {
+            @Override
+            public void extract(Object context, NullableTinyIntHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (byte)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Byte>)v).value()).orElse(Byte.valueOf("0"));
+                }
+            }
+        };
+        else if (bitWidth == 8 * NullableSmallIntHolder.WIDTH) return new SmallIntExtractor() {
+            @Override
+            public void extract(Object context, NullableSmallIntHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (short)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Short>)v).value()).orElse(Short.valueOf("0"));
+                }
+            }
+        };
+        else if (bitWidth == 8 * NullableIntHolder.WIDTH) return new IntExtractor() {
+            @Override
+            public void extract(Object context, NullableIntHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (int)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Integer>)v).value()).orElse(0);
+                }
+            }
+        };
+        else if (bitWidth == 8 * NullableBigIntHolder.WIDTH) return new BigIntExtractor() {
+            @Override
+            public void extract(Object context, NullableBigIntHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                dst.value = parquetValue.map(v -> ((PrimitiveValue<Long>)v).value()).orElse(0L);
+                if (literalValue.isPresent()) {
+                    dst.value = (long)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Long>)v).value()).orElse(0L);
+                }
+            }
+        };
+        else throw new IllegalArgumentException("Unsupported bitWidth: " + bitWidth);
+    }
+
+    protected Extractor getFloatExtractor(FloatingPointPrecision precision, String fieldName, Optional<Object> literalValue) {
+        if (precision == FloatingPointPrecision.SINGLE) return new Float4Extractor() {
+            @Override
+            public void extract(Object context, NullableFloat4Holder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (float)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((FloatValue)v).value()).orElse(0f);
+                }
+            }
+
+        };
+        else if (precision == FloatingPointPrecision.DOUBLE) return new Float8Extractor() {
+            @Override
+            public void extract(Object context, NullableFloat8Holder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (double)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((DoubleValue)v).value()).orElse(0d);
+                }
+            }
+        };
+        else throw new IllegalArgumentException("Unsupported float precision: " + precision);
+    }
+
+    public Extractor getExtractor(Field field) {
+        return getExtractor(field, Optional.empty());
+    }
+
+    public Extractor getExtractor(Field field, Optional<Object> literalValue) {
+        ArrowType fieldType = field.getType();
+        String fieldName = field.getName();
+        if (fieldType.getTypeID() == ArrowTypeID.Int) return getNumberExtractor(((ArrowType.Int)fieldType).getBitWidth(), fieldName, literalValue);
+        else if (fieldType.getTypeID() == ArrowTypeID.Bool) return new BitExtractor(){
+            @Override
+            public void extract(Object context, NullableBitHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (int)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((BooleanValue)v).value() ? 1 : 0).orElse(0);
+                }
+            }
+        };
+        else if (fieldType.getTypeID() == ArrowTypeID.Utf8) return new VarCharExtractor(){
+            @Override
+            public void extract(Object context, com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (String)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> ((BinaryValue)v).value().toStringUsingUTF8()).orElse("");
+                }
+            }
+        };
+        else if (fieldType.getTypeID() == ArrowTypeID.Date) return new DateMilliExtractor() {
+            @Override
+            public void extract(Object context, NullableDateMilliHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (Long)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v -> Longs.fromByteArray(((BinaryValue)v).value().getBytes())).orElse(0L);
+                }
+            }
+        };
+        else if (fieldType.getTypeID() == ArrowTypeID.FloatingPoint) return getFloatExtractor(((ArrowType.FloatingPoint)fieldType).getPrecision(), fieldName, literalValue);
+        else if (fieldType.getTypeID() == ArrowTypeID.Decimal) return new DecimalExtractor() {
+            @Override
+            public void extract(Object context, com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder dst) throws Exception {
+                Optional<Value> parquetValue = getValue(context, fieldName);
+                dst.isSet = parquetValue.isPresent() ? 1 : 0;
+                if (literalValue.isPresent()) {
+                    dst.value = (Decimal)literalValue.get();
+                } else {
+                    dst.value = parquetValue.map(v ->
+                            Decimals.decimalFromBinary(((BinaryValue) v).value(), Decimals.Scale(), Decimals.MathContext()).bigDecimal()).orElse(BigDecimal.valueOf(0));
+                }
+            }
+        };
+        else if (fieldType.getTypeID() == ArrowType.ArrowTypeID.Null) return new Extractor() {};
+        else return new Extractor() {};
+    }
+
+
+
+
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws IOException
     {
-        logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
-
         Split split = recordsRequest.getSplit();
-        int splitYear = 0;
-        int splitMonth = 0;
-        int splitDay = 0;
 
-        /**
-         * TODO: Extract information about what we need to read from the split. If you are following the tutorial
-         *  this is basically the partition column values for year, month, day.
-         *
-         splitYear = split.getPropertyAsInt("year");
-         splitMonth = split.getPropertyAsInt("month");
-         splitDay = split.getPropertyAsInt("day");
-         *
-         */
+        String relativeFilePath = split.getProperty(FILE_SPLIT_PROPERTY_KEY);
 
-        String dataBucket = null;
-        /**
-         * TODO: Get the data bucket from the env variable set by athena-deltalake.yaml
-         *
-         dataBucket = System.getenv("data_bucket");
-         *
-         */
+        List<String> partitionNames = deserializePartitionNames(split.getProperty(PARTITION_NAMES_SPLIT_PROPERTY_KEY));
 
-        String dataKey = format("%s/%s/%s/sample_data.csv", splitYear, splitMonth, splitDay);
+        String tableName = recordsRequest.getTableName().getTableName();
+        String schemaName = recordsRequest.getTableName().getSchemaName();
 
-        BufferedReader s3Reader = openS3File(dataBucket, dataKey);
-        if (s3Reader == null) {
-            //There is no data to read for this split.
-            return;
-        }
+        String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
+        String filePath = String.format("%s%s", tablePath, relativeFilePath);
+
+        List<Field> fields = recordsRequest.getSchema().getFields();
 
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
 
-        /**
-         * TODO: Add extractors for each field to our RowWRiterBuilder, the RowWriterBuilder will then 'generate'
-         * optomized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
-         * branches, etc... Later in the code when we call RowWriter for each line in our S3 file
-         *
-         builder.withExtractor("year", (IntExtractor) (Object context, NullableIntHolder value) -> {
-             value.isSet = 1;
-             value.value = Integer.parseInt(((String[]) context)[0]);
-         });
+        for(Field field : fields) {
+            String fieldName = field.getName();
+            if (partitionNames.contains(fieldName)) {
+                String partitionValue = split.getProperty(getPartitionValuePropertyKey(fieldName));
+                builder.withExtractor(fieldName, getExtractor(field, Optional.of(partitionValue)));
+            }
+            else builder.withExtractor(fieldName, getExtractor(field));
+        }
 
-         builder.withExtractor("month", (IntExtractor) (Object context, NullableIntHolder value) -> {
-             value.isSet = 1;
-             value.value = Integer.parseInt(((String[]) context)[1]);
-         });
-
-         builder.withExtractor("day", (IntExtractor) (Object context, NullableIntHolder value) -> {
-             value.isSet = 1;
-             value.value = Integer.parseInt(((String[]) context)[2]);
-         });
-
-         builder.withExtractor("encrypted_payload", (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-             value.isSet = 1;
-             value.value = ((String[]) context)[6];
-         });
-         */
-
-        /**
-         * TODO: The account_id field is a sensitive field, so we'd like to mask it to the last 4 before
-         *  returning it to Athena. Note that this will mean you can only filter (where/having)
-         *  on the masked value from Athena.
-         *
-         builder.withExtractor("account_id", (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-             value.isSet = 1;
-             String accountId = ((String[]) context)[3];
-             value.value = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
-         });
-         */
-
-        /**
-         * TODO: Write data for our transaction STRUCT:
-         * For complex types like List and Struct, we can build a Map to conveniently set nested values
-         *
-         builder.withFieldWriterFactory("transaction",
-                (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
-                    (Object context, int rowNum) -> {
-                         Map<String, Object> eventMap = new HashMap<>();
-                         eventMap.put("id", Integer.parseInt(((String[])context)[4]));
-                         eventMap.put("completed", Boolean.parseBoolean(((String[])context)[5]));
-                         BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, eventMap);
-                         return true;    //we don't yet support predicate pushdown on complex types
-         });
-         */
-
-        //Used some basic code-gen to optimize how we generate response data.
         GeneratedRowWriter rowWriter = builder.build();
+        ParquetReadSupport parquetReadSupport = new ParquetReadSupport();
+        org.apache.parquet.hadoop.ParquetReader<RowParquetRecord> parquetReader = org.apache.parquet.hadoop.ParquetReader.builder(parquetReadSupport, new Path(filePath)).build();
 
-        //We read the transaction data line by line from our S3 object.
-        String line;
-        while ((line = s3Reader.readLine()) != null) {
-            logger.info("readWithConstraint: processing line " + line);
-
-            //The sample_data.csv file is structured as year,month,day,account_id,transaction.id,transaction.complete
-            String[] lineParts = line.split(",");
-
-            //We use the provided BlockSpiller to write our row data into the response. This utility is provided by
-            //the Amazon Athena Query Federation SDK and automatically handles breaking the data into reasonably sized
-            //chunks, encrypting it, and spilling to S3 if we've enabled these features.
-            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, lineParts) ? 1 : 0);
+        long countRecord = 0L;
+        RowParquetRecord record;
+        while((record = parquetReader.read()) != null) {
+            RowParquetRecord finalRecord = record;
+            spiller.writeRows((block, rowNum) -> rowWriter.writeRow(block, rowNum, finalRecord) ? 1 : 0);
+            countRecord += 1;
         }
-    }
-
-    /**
-     * Helper function for checking the existence of and opening S3 Objects for read.
-     */
-    private BufferedReader openS3File(String bucket, String key)
-    {
-        logger.info("openS3File: opening file " + bucket + ":" + key);
-        if (amazonS3.doesObjectExist(bucket, key)) {
-            S3Object obj = amazonS3.getObject(bucket, key);
-            logger.info("openS3File: opened file " + bucket + ":" + key);
-            return new BufferedReader(new InputStreamReader(obj.getObjectContent()));
-        }
-        return null;
+        logger.info("Split finished with %l records", countRecord);
     }
 }

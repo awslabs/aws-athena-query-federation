@@ -39,17 +39,29 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.sun.tools.javac.util.Pair;
+import io.delta.standalone.DeltaLog;
+import io.delta.standalone.Snapshot;
+import io.delta.standalone.actions.AddFile;
+import io.delta.standalone.types.*;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
@@ -68,11 +80,39 @@ public class DeltalakeMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeMetadataHandler.class);
 
+    public static String FILE_SPLIT_PROPERTY_KEY = "file";
+    public static String PARTITION_NAMES_SPLIT_PROPERTY_KEY = "partitions_names";
+    public static String PARTITION_VALUES_SPLIT_PROPERTY_KEY_PREFIX = "PARTITION_";
+
+    public static String getPartitionValuePropertyKey(String partitionName) {
+        return String.format("%s%s", PARTITION_NAMES_SPLIT_PROPERTY_KEY, partitionName);
+    }
+
+    public static String serializePartitionNames(List<String> partitionNames) {
+        return String.join(",", partitionNames);
+    }
+
+    public static List<String> deserializePartitionNames(String partitionNames) {
+        return Arrays.asList(partitionNames.split(",").clone());
+    }
+
     /**
      * used to aid in debugging. Athena will use this name in conjunction with your catalog id
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "example";
+    public static String DATA_BUCKET = System.getenv("data_bucket");
+    public S3Client s3 = S3Client.create();
+    public String S3_FOLDER_SUFFIX = "_$folder$";
+    static public Configuration HADOOP_CONF = defaultConfiguration();
+
+    static private Configuration defaultConfiguration() {
+        Configuration conf = new Configuration();
+        conf.setLong("fs.s3a.multipart.size", 104857600);
+        conf.setInt("fs.s3a.multipart.threshold", Integer.MAX_VALUE);
+        conf.setBoolean("fs.s3a.impl.disable.cache", true);
+        return conf;
+    }
 
     public DeltalakeMetadataHandler()
     {
@@ -89,220 +129,191 @@ public class DeltalakeMetadataHandler
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
     }
 
+    protected String extractPartitionValue(String partitionName, String path) {
+        Pattern p = Pattern.compile(String.format("\\/%s=([^\\/]*)\\/", partitionName));
+        Matcher m = p.matcher(path);
+        m.find();
+        return m.group(1);
+    }
+
+
+    protected List<Pair<String, String>> extractPartitionValues(List<String> partitions, String path) {
+        return partitions.stream()
+                .map(partitionName -> Pair.of(partitionName, extractPartitionValue(partitionName, path)))
+                .collect(Collectors.toList());
+    }
+
+    protected Set<String> listFolders() {
+        return listFolders("");
+    }
+
+    protected Set<String> listFolders(String prefix) {
+        ListObjectsRequest listObjects = ListObjectsRequest
+                .builder()
+                .prefix(prefix)
+                .delimiter("/")
+                .bucket(DATA_BUCKET)
+                .build();
+        return s3.listObjects(listObjects)
+                .contents().stream()
+                .map(S3Object::key)
+                .filter(s3Object -> s3Object.endsWith(S3_FOLDER_SUFFIX))
+                .map(s3Object -> StringUtils.removeEnd(s3Object, S3_FOLDER_SUFFIX))
+                .collect(Collectors.toSet());
+    }
+
+    protected SchemaBuilder addFieldToSchema(SchemaBuilder schemaBuilder, StructField field) {
+        DataType dataType = field.getDataType();
+        if (dataType instanceof StringType) {
+            return schemaBuilder.addStringField(field.getName());
+        }
+        else if (dataType instanceof BooleanType) {
+            return schemaBuilder.addBitField(field.getName());
+        }
+        else if (dataType instanceof ByteType) {
+            return schemaBuilder.addTinyIntField(field.getName());
+        }
+        else if (dataType instanceof ShortType) {
+            return schemaBuilder.addSmallIntField(field.getName());
+        }
+        else if (dataType instanceof IntegerType) {
+            return schemaBuilder.addIntField(field.getName());
+        }
+        else if (dataType instanceof LongType) {
+            return schemaBuilder.addBigIntField(field.getName());
+        }
+        else if (dataType instanceof FloatType) {
+            return schemaBuilder.addFloat4Field(field.getName());
+        }
+        else if (dataType instanceof DoubleType) {
+            return schemaBuilder.addFloat8Field(field.getName());
+        }
+        else if (dataType instanceof DateType) {
+            return schemaBuilder.addDateDayField(field.getName());
+        }
+        else if (dataType instanceof TimestampType) {
+            return schemaBuilder.addDateMilliField(field.getName());
+        }
+        else if (dataType instanceof DecimalType) {
+            DecimalType decimalType = (DecimalType)dataType;
+            return schemaBuilder.addDecimalField(field.getName(), decimalType.getPrecision(), decimalType.getScale());
+        }
+        else {
+            return schemaBuilder;
+        }
+    }
+
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
         logger.info("doListSchemaNames: ", request);
-        return new ListSchemasResponse(request.getCatalogName(), null);
+        return new ListSchemasResponse(request.getCatalogName(), listFolders());
     }
 
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
-        logger.info("doListTables: enter - " + request);
+        logger.info("doListTables:", request);
 
-        List<TableName> tables = new ArrayList<>();
-
-        /**
-         * TODO: Add tables for the requested schema, example below
-         *
-         tables.add(new TableName(request.getSchemaName(), "table1"));
-         tables.add(new TableName(request.getSchemaName(), "table2"));
-         tables.add(new TableName(request.getSchemaName(), "table3"));
-         *
-         */
-
-        String nextToken = null;
-        int pageSize = request.getPageSize();
-
-        /**
-         * TODO: Add logic to paginate the response when the request's pageSize is not UNLIMITED_PAGE_SIZE_VALUE.
-         *
-         if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
-            // Get the stating table for this page (if null, then this is the first page).
-            String startToken = request.getNextToken();
-            // Sort the list. Include all tables if the startToken is null, or only the tables whose names are equal to
-            // or higher in value than startToken. Limit the number of tables in the list to the pageSize + 1 (the
-            // nextToken).
-            List<TableName> paginatedTables = tables.stream()
-                    .sorted(Comparator.comparing(TableName::getTableName))
-                    .filter(table -> startToken == null || table.getTableName().compareTo(startToken) >= 0)
-                    .limit(pageSize + 1)
-                    .collect(Collectors.toList());
-
-            if (paginatedTables.size() > pageSize) {
-                // Paginated list contains full page of results + nextToken.
-                // nextToken is the last element in the paginated list.
-                // In an actual connector, the nextToken's value should be obfuscated.
-                nextToken = paginatedTables.get(pageSize).getTableName();
-                // nextToken is removed to include only the paginated results.
-                tables = paginatedTables.subList(0, pageSize);
-            }
-            else {
-                // Paginated list contains all remaining tables - end of the pagination.
-                tables = paginatedTables;
-            }
-         }
-         *
-         */
-
-        return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
+        String schemaName = request.getSchemaName();
+        String prefix = schemaName + "/";
+        Set<TableName> tables = listFolders(prefix).stream()
+                .map(table -> new TableName(schemaName, table))
+                .collect(Collectors.toSet());
+        return new ListTablesResponse(schemaName, tables, null);
     }
 
-    /**
-     * Used to get definition (field names, types, descriptions, etc...) of a Table.
-     *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details on who made the request and which Athena catalog, database, and table they are querying.
-     * @return A GetTableResponse which primarily contains:
-     * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
-     * 2. A Set<String> of partition column names (or empty if the table isn't partitioned).
-     * 3. A TableName object confirming the schema and table name the response is for.
-     * 4. A catalog name corresponding the Athena catalog that was queried.
-     */
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
     {
-        logger.info("doGetTable: enter - " + request);
+        String catalogName = request.getCatalogName();
+        String tableName = request.getTableName().getTableName();
+        String schemaName = request.getTableName().getSchemaName();
 
-        Set<String> partitionColNames = new HashSet<>();
+        String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
 
-        /**
-         * TODO: Add partitions columns, example below.
-         *
-         partitionColNames.add("year");
-         partitionColNames.add("month");
-         partitionColNames.add("day");
-         *
-         */
+        Snapshot log = DeltaLog.forTable(HADOOP_CONF, tablePath).snapshot();
+        StructField[] fields = log.getMetadata().getSchema().getFields();
 
-        SchemaBuilder tableSchemaBuilder = SchemaBuilder.newBuilder();
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        for(StructField field : fields) {
+            schemaBuilder = addFieldToSchema(schemaBuilder, field);
+        }
+        Schema schema = schemaBuilder.build();
 
-        /**
-         * TODO: Generate a schema for the requested table.
-         *
-         tableSchemaBuilder.addIntField("year")
-         .addIntField("month")
-         .addIntField("day")
-         .addStringField("account_id")
-         .addStringField("encrypted_payload")
-         .addStructField("transaction")
-         .addChildField("transaction", "id", Types.MinorType.INT.getType())
-         .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
-         //Metadata who's name matches a column name
-         //is interpreted as the description of that
-         //column when you run "show tables" queries.
-         .addMetadata("year", "The year that the payment took place in.")
-         .addMetadata("month", "The month that the payment took place in.")
-         .addMetadata("day", "The day that the payment took place in.")
-         .addMetadata("account_id", "The account_id used for this payment.")
-         .addMetadata("encrypted_payload", "A special encrypted payload.")
-         .addMetadata("transaction", "The payment transaction details.")
-         //This metadata field is for our own use, Athena will ignore and pass along fields it doesn't expect.
-         //we will use this later when we implement doGetTableLayout(...)
-         .addMetadata("partitionCols", "year,month,day");
-         *
-         */
+        Set<String> partitions = new HashSet<>(log.getMetadata().getPartitionColumns());
 
-        return new GetTableResponse(request.getCatalogName(),
-                request.getTableName(),
-                tableSchemaBuilder.build(),
-                partitionColNames);
+        return new GetTableResponse(catalogName, request.getTableName(), schema, partitions);
     }
 
-    /**
-     * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
-     *
-     * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
-     * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
-     * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @note Partitions are partially opaque to Amazon Athena in that it only understands your partition columns and
-     * how to filter out partitions that do not meet the query's constraints. Any additional columns you add to the
-     * partition data are ignored by Athena but passed on to calls on GetSplits.
-     */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        for (int year = 2000; year < 2018; year++) {
-            for (int month = 1; month < 12; month++) {
-                for (int day = 1; day < 31; day++) {
+        String tableName = request.getTableName().getTableName();
+        String schemaName = request.getTableName().getSchemaName();
 
-                    final int yearVal = year;
-                    final int monthVal = month;
-                    final int dayVal = day;
-                    /**
-                     * TODO: If the partition represented by this year,month,day offer the values to the block
-                     * and check if they all passed constraints. The Block has been configured to automatically
-                     * apply our partition pruning constraints.
-                     *
-                     blockWriter.writeRows((Block block, int row) -> {
-                     boolean matched = true;
-                     matched &= block.setValue("year", row, yearVal);
-                     matched &= block.setValue("month", row, monthVal);
-                     matched &= block.setValue("day", row, dayVal);
-                     //If all fields matches then we wrote 1 row during this call so we return 1
-                     return matched ? 1 : 0;
-                     });
-                     *
-                     */
-                }
-            }
-        }
+        String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
+        Snapshot log = DeltaLog.forTable(HADOOP_CONF, tablePath).snapshot();
+
+        List<String> partitions = log.getMetadata().getPartitionColumns();
+
+        log.getAllFiles().stream()
+            .map(file -> extractPartitionValues(partitions, file.getPath()))
+            .forEachOrdered(extractedPartitions -> {
+                blockWriter.writeRows((Block block, int row) -> {
+                    boolean matched = true;
+                    for(Pair<String, String> partitionValue: extractedPartitions) {
+                        matched &= block.setValue(partitionValue.fst, row, partitionValue.snd);
+                    }
+                    return matched ? 1 : 0;
+                });
+            });
     }
 
-    /**
-     * Used to split-up the reads required to scan the requested batch of partition(s).
-     *
-     * @param allocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request Provides details of the catalog, database, table, andpartition(s) being queried as well as
-     * any filter predicate.
-     * @return A GetSplitsResponse which primarily contains:
-     * 1. A Set<Split> which represent read operations Amazon Athena must perform by calling your read function.
-     * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
-     * @note A Split is a mostly opaque object to Amazon Athena. Amazon Athena will use the optional SpillLocation and
-     * optional EncryptionKey for pipelined reads but all properties you set on the Split are passed to your read
-     * function to help you perform the read.
-     */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
-        logger.info("doGetSplits: enter - " + request);
-
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
 
+        String tableName = request.getTableName().getTableName();
+        String schemaName = request.getTableName().getSchemaName();
+
+        String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
+        Snapshot log = DeltaLog.forTable(HADOOP_CONF, tablePath).snapshot();
+
+        List<AddFile> allFiles = log.getAllFiles();
         Block partitions = request.getPartitions();
 
-        FieldReader day = partitions.getFieldReader("day");
-        FieldReader month = partitions.getFieldReader("month");
-        FieldReader year = partitions.getFieldReader("year");
-        for (int i = 0; i < partitions.getRowCount(); i++) {
-            //Set the readers to the partition row we area on
-            year.setPosition(i);
-            month.setPosition(i);
-            day.setPosition(i);
+        List<FieldReader> fieldReaders = partitions.getFieldReaders();
+        List<String> partitionNames = fieldReaders.stream().map(fr -> fr.getField().getName()).collect(Collectors.toList());
 
-            /**
-             * TODO: For each partition in the request, create 1 or more splits. Splits
-             *   are parallelizable units of work. Each represents a part of your table
-             *   that needs to be read for the query. Splits are opaque to Athena aside from the
-             *   spill location and encryption key. All properties added to a split are solely
-             *   for your use when Athena calls your readWithContraints(...) function to perform
-             *   the read. In this example we just need to know the partition details (year, month, day).
-             *
-             Split split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-             .add("year", String.valueOf(year.readInteger()))
-             .add("month", String.valueOf(month.readInteger()))
-             .add("day", String.valueOf(day.readInteger()))
-             .build();
+        int nbPartitions = partitions.getRowCount();
+        IntStream.range(0, nbPartitions).forEachOrdered(i -> {
+            fieldReaders.forEach(fieldReader -> fieldReader.setPosition(i));
 
-             splits.add(split);
-             *
-             */
-        }
+            allFiles.stream().filter(file ->
+                fieldReaders.stream().allMatch(fieldReader ->
+                    fieldReader.readText().toString()
+                        .equals(extractPartitionValue(fieldReader.getField().getName(), file.getPath()))
+                )
+            ).forEach(file -> {
+                Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey());
+                for(FieldReader fieldReader: fieldReaders) {
+                    splitBuilder.add(
+                            getPartitionValuePropertyKey(fieldReader.getField().getName()),
+                            extractPartitionValue(fieldReader.getField().getName(), file.getPath())
+                    );
+                }
+                Split split = splitBuilder
+                        .add(FILE_SPLIT_PROPERTY_KEY, file.getPath())
+                        .add(PARTITION_NAMES_SPLIT_PROPERTY_KEY, serializePartitionNames(partitionNames))
+                        .build();
+                splits.add(split);
+            });
+        });
 
-        logger.info("doGetSplits: exit - " + splits.size());
         return new GetSplitsResponse(catalogName, splits);
     }
 }
