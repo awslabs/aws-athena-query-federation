@@ -210,6 +210,7 @@ For latest version information see [pom.xml](./pom.xml).
 * In Mux setup, spill bucket and prefix is shared across all database instances.
 * Any relevant Lambda Limits. See Lambda documentation.
 * Redshift does not support external partitions so all data will be retrieved every time.
+* Athena converts queries to lower case. MySQL table names need to be in lower case to match. For example, Athena queries against "myTable" will fail.
 
 # Performance tuning
 
