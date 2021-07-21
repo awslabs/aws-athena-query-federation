@@ -37,44 +37,36 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.connectors.athena.deltalake.protocol.DeltaTable;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.tools.javac.util.Pair;
-import io.delta.standalone.DeltaLog;
-import io.delta.standalone.Snapshot;
-import io.delta.standalone.actions.AddFile;
-import io.delta.standalone.types.*;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.S3Object;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * This class is part of an tutorial that will walk you through how to build a connector for your
- * custom data source. The README for this module (athena-example) will guide you through preparing
- * your development environment, modifying this example Metadatahandler, building, deploying, and then
- * using your new source in an Athena query.
- * <p>
- * More specifically, this class is responsible for providing Athena with metadata about the schemas (aka databases),
- * tables, and table partitions that your source contains. Lastly, this class tells Athena how to split up reads against
- * this source. This gives you control over the level of performance and parallelism your source can support.
- * <p>
- * For more examples, please see the other connectors in this repository (e.g. athena-cloudwatch, athena-docdb, etc...)
- */
 public class DeltalakeMetadataHandler
         extends MetadataHandler
 {
@@ -96,13 +88,11 @@ public class DeltalakeMetadataHandler
         return Arrays.asList(partitionNames.split(",").clone());
     }
 
-    /**
-     * used to aid in debugging. Athena will use this name in conjunction with your catalog id
-     * to correlate relevant query errors.
-     */
+
     private static final String SOURCE_TYPE = "example";
     public static String DATA_BUCKET = System.getenv("data_bucket");
     public S3Client s3 = S3Client.create();
+    AmazonS3 amazonS3 = AmazonS3ClientBuilder.defaultClient();
     public String S3_FOLDER_SUFFIX = "_$folder$";
     static public Configuration HADOOP_CONF = defaultConfiguration();
 
@@ -148,59 +138,135 @@ public class DeltalakeMetadataHandler
     }
 
     protected Set<String> listFolders(String prefix) {
-        ListObjectsRequest listObjects = ListObjectsRequest
-                .builder()
-                .prefix(prefix)
-                .delimiter("/")
-                .bucket(DATA_BUCKET)
-                .build();
-        return s3.listObjects(listObjects)
-                .contents().stream()
-                .map(S3Object::key)
+        ListObjectsV2Request listObjects = new ListObjectsV2Request()
+                .withPrefix(prefix)
+                .withDelimiter("/")
+                .withBucketName(DATA_BUCKET);
+        return amazonS3.listObjectsV2(listObjects)
+                .getObjectSummaries()
+                .stream()
+                .map(S3ObjectSummary::getKey)
                 .filter(s3Object -> s3Object.endsWith(S3_FOLDER_SUFFIX))
                 .map(s3Object -> StringUtils.removeEnd(s3Object, S3_FOLDER_SUFFIX))
                 .collect(Collectors.toSet());
     }
 
-    protected SchemaBuilder addFieldToSchema(SchemaBuilder schemaBuilder, StructField field) {
-        DataType dataType = field.getDataType();
-        if (dataType instanceof StringType) {
-            return schemaBuilder.addStringField(field.getName());
+
+
+    protected Field getAvroField(JsonNode fieldType, String fieldName, boolean fieldNullable) {
+        if (fieldType.isTextual()) {
+            String fieldTypeName = fieldType.asText();
+            if(fieldTypeName.equals("integer")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.INT.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("string")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.VARCHAR.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("long")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.BIGINT.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("short")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.SMALLINT.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("byte")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.TINYINT.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("float")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.FLOAT4.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("double")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.FLOAT8.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("boolean")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.BIT.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("binary")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.VARBINARY.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("date")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.DATEDAY.getType(), null),
+            null);
+            }
+            if(fieldTypeName.equals("timestamp")) {
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.DATEMILLI.getType(), null),
+            null);
+            }
+        } else {
+            String complexTypeName = fieldType.get("type").asText();
+            if (complexTypeName.equals("struct")) {
+                Iterator<JsonNode> structFields = fieldType.withArray("fields").elements();
+                List<Field> children = new ArrayList<>();
+                while (structFields.hasNext()) {
+                    JsonNode structField = structFields.next();
+                    children.add(getAvroField(structField));
+                }
+                return new Field(
+                    fieldName,
+                    new FieldType(fieldNullable, Types.MinorType.STRUCT.getType(), null),
+                    children);
+            } else if (complexTypeName.equals("array")){
+                JsonNode elementType = fieldType.get("elementType");
+                boolean elementNullable = fieldType.get("containsNull").asBoolean();
+                String elementName = fieldName + ".element";
+                Field elementField = getAvroField(elementType, elementName, elementNullable);
+                return new Field(
+                        fieldName,
+                        new FieldType(fieldNullable, Types.MinorType.LIST.getType(), null),
+                        Collections.singletonList(elementField));
+            } else if (complexTypeName.equals("map")){
+                JsonNode keyType = fieldType.get("keyType");
+                JsonNode valueType = fieldType.get("valueType");
+                boolean valueNullable = fieldType.get("valueContainsNull").asBoolean();
+                boolean keyNullable = false;
+                String keyName = fieldName + ".key";
+                String valueName = fieldName + ".value";
+                Field keyField = getAvroField(keyType, keyName, keyNullable);
+                Field valueField = getAvroField(valueType, valueName, valueNullable);
+                return new Field(
+                        fieldName,
+                        new FieldType(fieldNullable, Types.MinorType.MAP.getType(), null),
+                        Arrays.asList(keyField, valueField));
+            }
         }
-        else if (dataType instanceof BooleanType) {
-            return schemaBuilder.addBitField(field.getName());
-        }
-        else if (dataType instanceof ByteType) {
-            return schemaBuilder.addTinyIntField(field.getName());
-        }
-        else if (dataType instanceof ShortType) {
-            return schemaBuilder.addSmallIntField(field.getName());
-        }
-        else if (dataType instanceof IntegerType) {
-            return schemaBuilder.addIntField(field.getName());
-        }
-        else if (dataType instanceof LongType) {
-            return schemaBuilder.addBigIntField(field.getName());
-        }
-        else if (dataType instanceof FloatType) {
-            return schemaBuilder.addFloat4Field(field.getName());
-        }
-        else if (dataType instanceof DoubleType) {
-            return schemaBuilder.addFloat8Field(field.getName());
-        }
-        else if (dataType instanceof DateType) {
-            return schemaBuilder.addDateDayField(field.getName());
-        }
-        else if (dataType instanceof TimestampType) {
-            return schemaBuilder.addDateMilliField(field.getName());
-        }
-        else if (dataType instanceof DecimalType) {
-            DecimalType decimalType = (DecimalType)dataType;
-            return schemaBuilder.addDecimalField(field.getName(), decimalType.getPrecision(), decimalType.getScale());
-        }
-        else {
-            return schemaBuilder;
-        }
+        throw new UnsupportedOperationException("Unsupported field type: " + fieldType.toString());
+    }
+
+    public Field getAvroField(JsonNode field) {
+        String fieldName = field.get("name").asText();
+        boolean fieldNullable = field.get("nullable").asBoolean();
+        JsonNode fieldType = field.get("type");
+        return getAvroField(fieldType, fieldName, fieldNullable);
     }
 
     @Override
@@ -224,24 +290,27 @@ public class DeltalakeMetadataHandler
     }
 
     @Override
-    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
-    {
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws IOException {
         String catalogName = request.getCatalogName();
         String tableName = request.getTableName().getTableName();
         String schemaName = request.getTableName().getSchemaName();
 
         String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
 
-        Snapshot log = DeltaLog.forTable(HADOOP_CONF, tablePath).snapshot();
-        StructField[] fields = log.getMetadata().getSchema().getFields();
-
+        DeltaTable.DeltaTableSnapshot log = new DeltaTable(schemaName + "/" + tableName , DATA_BUCKET).getSnapshot();
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode schemaJson = mapper.readTree(log.metaData.schemaString);
+        Iterator<JsonNode> fields = schemaJson.withArray("fields").elements();
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        for(StructField field : fields) {
-            schemaBuilder = addFieldToSchema(schemaBuilder, field);
+        while (fields.hasNext()) {
+            JsonNode field = fields.next();
+            String fieldName = field.get("name").asText();
+            Field avroField = getAvroField(field);
+            schemaBuilder.addField(avroField);
         }
         Schema schema = schemaBuilder.build();
 
-        Set<String> partitions = new HashSet<>(log.getMetadata().getPartitionColumns());
+        Set<String> partitions = new HashSet<>(log.metaData.partitionColumns);
 
         return new GetTableResponse(catalogName, request.getTableName(), schema, partitions);
     }
@@ -254,17 +323,18 @@ public class DeltalakeMetadataHandler
         String schemaName = request.getTableName().getSchemaName();
 
         String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
-        Snapshot log = DeltaLog.forTable(HADOOP_CONF, tablePath).snapshot();
+        DeltaTable.DeltaTableSnapshot log = new DeltaTable(schemaName + "/" + tableName , DATA_BUCKET).getSnapshot();
 
-        List<String> partitions = log.getMetadata().getPartitionColumns();
 
-        log.getAllFiles().stream()
-            .map(file -> extractPartitionValues(partitions, file.getPath()))
-            .forEachOrdered(extractedPartitions -> {
+        List<String> partitions = log.metaData.partitionColumns;
+
+        log.files.stream()
+            .map(file -> file.partitionValues.entrySet())
+            .forEachOrdered(keyValues -> {
                 blockWriter.writeRows((Block block, int row) -> {
                     boolean matched = true;
-                    for(Pair<String, String> partitionValue: extractedPartitions) {
-                        matched &= block.setValue(partitionValue.fst, row, partitionValue.snd);
+                    for(Map.Entry<String, String> partitionValue: keyValues) {
+                        matched &= block.setValue(partitionValue.getKey(), row, partitionValue.getValue());
                     }
                     return matched ? 1 : 0;
                 });
