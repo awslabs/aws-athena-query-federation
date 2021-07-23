@@ -45,4 +45,4 @@ Replace &lt;aws-profile> with the AWS profile name that carries your credentials
 ```
 ./sample-cli-script.sh  <aws-profile> <aws-region>
 ```
-If all goes well you now have the Glue Database and Tables that are required for your Athena Neptune Connector setup and you can move on to those steps mentioned [here](../neptune-connector-setup/README.md).
+If all goes well you now have the Glue Database and Tables that are required for your Athena Neptune Connector setup and you can move on to those steps mentioned [here](../neptune-connector-setup/).
