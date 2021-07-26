@@ -52,7 +52,9 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_TYPE;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_CLUSTER_FLAG;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_ENDPOINT_PROP;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_SSL_FLAG;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.SPLIT_END_INDEX;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.SPLIT_START_INDEX;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
@@ -121,6 +123,8 @@ public class RedisRecordHandler
     {
         Split split = recordsRequest.getSplit();
         ScanResult<String> keyCursor = null;
+        boolean sslEnabled = Boolean.parseBoolean(split.getProperty(REDIS_SSL_FLAG));
+        boolean clusterEnabled = Boolean.parseBoolean(split.getProperty(REDIS_CLUSTER_FLAG));
 
         final AtomicLong rowsMatched = new AtomicLong(0);
         int numRows = 0;

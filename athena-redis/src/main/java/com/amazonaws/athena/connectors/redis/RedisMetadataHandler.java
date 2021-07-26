@@ -104,6 +104,10 @@ public class RedisMetadataHandler
     protected static final String REDIS_ENDPOINT_PROP = "redis-endpoint";
     //Defines the value that should be present in the Glue Database URI to enable the DB for Redis.
     protected static final String REDIS_DB_FLAG = "redis-db-flag";
+    //Defines if ssl should be used to connect to Redis.
+    protected static final String REDIS_SSL_FLAG = "redis-ssl-flag";
+    //Defines if redis instance is a cluster
+    protected static final String REDIS_CLUSTER_FLAG = "redis-cluster-flag";
 
     //Used to filter out Glue tables which lack a redis endpoint.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(REDIS_ENDPOINT_PROP);
@@ -196,7 +200,9 @@ public class RedisMetadataHandler
         partitionSchemaBuilder.addStringField(REDIS_ENDPOINT_PROP)
                 .addStringField(VALUE_TYPE_TABLE_PROP)
                 .addStringField(KEY_PREFIX_TABLE_PROP)
-                .addStringField(ZSET_KEYS_TABLE_PROP);
+                .addStringField(ZSET_KEYS_TABLE_PROP)
+                .addStringField(REDIS_SSL_FLAG)
+                .addStringField(REDIS_CLUSTER_FLAG);
     }
 
     /**
@@ -214,6 +220,8 @@ public class RedisMetadataHandler
             block.setValue(VALUE_TYPE_TABLE_PROP, rowNum, properties.get(VALUE_TYPE_TABLE_PROP));
             block.setValue(KEY_PREFIX_TABLE_PROP, rowNum, properties.get(KEY_PREFIX_TABLE_PROP));
             block.setValue(ZSET_KEYS_TABLE_PROP, rowNum, properties.get(ZSET_KEYS_TABLE_PROP));
+            block.setValue(REDIS_SSL_FLAG, rowNum, properties.get(REDIS_SSL_FLAG));
+            block.setValue(REDIS_CLUSTER_FLAG, rowNum, properties.get(REDIS_CLUSTER_FLAG));
             return 1;
         });
     }
@@ -234,6 +242,8 @@ public class RedisMetadataHandler
         Block partitions = request.getPartitions();
         String redisEndpoint = getValue(partitions, 0, REDIS_ENDPOINT_PROP);
         String redisValueType = getValue(partitions, 0, VALUE_TYPE_TABLE_PROP);
+        boolean sslEnabled = Boolean.parseBoolean(getValue(partitions, 0, REDIS_SSL_FLAG));
+        boolean clusterEnabled = Boolean.parseBoolean(getValue(partitions, 0, REDIS_CLUSTER_FLAG));
 
         if (redisEndpoint == null) {
             throw new RuntimeException("Table is missing " + REDIS_ENDPOINT_PROP + " table property");
