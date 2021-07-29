@@ -42,8 +42,10 @@ import org.apache.arrow.vector.UInt8Vector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.complex.impl.UnionMapWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.FieldWriter;
@@ -95,6 +97,9 @@ import java.util.Map;
 public class BlockUtils
 {
     public static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
+    private static final String ENTRIES = "entries";
+    private static final String KEY = "key";
+    private static final String VALUE = "value";
 
     /**
      * Creates a new Block with a single column and populated with the provided values.
@@ -166,7 +171,18 @@ public class BlockUtils
      */
     public static void setComplexValue(FieldVector vector, int pos, FieldResolver resolver, Object value)
     {
-        if (vector instanceof ListVector) {
+        if (vector instanceof MapVector) {
+            UnionMapWriter writer = ((MapVector) vector).getWriter();
+            writer.setPosition(pos);
+            writeMap(vector.getAllocator(),
+                    writer,
+                    vector.getField(),
+                    pos,
+                    value,
+                    resolver);
+            writer.endMap();
+        }
+        else if (vector instanceof ListVector) {
             if (value != null) {
                 UnionListWriter writer = ((ListVector) vector).getWriter();
                 writer.setPosition(pos);
@@ -463,6 +479,12 @@ public class BlockUtils
                 }
                 sbList.append("}");
                 return sbList.toString();
+            case MAP:
+                StringBuilder sbMap = new StringBuilder();
+                while (reader.next()) {
+                    sbMap.append(fieldToString(reader.reader()));
+                }
+                return sbMap.toString();
             default:
                 Object obj = reader.readObject();
                 return reader.getMinorType() + " - " + ((obj != null) ? obj.getClass().toString() : "null") +
@@ -1032,6 +1054,271 @@ public class BlockUtils
     }
 
     /**
+     * Used to write a Map value.
+     *
+     * @param allocator The BlockAllocator which can be used to generate Apache Arrow Buffers for types
+     * which require conversion to an Arrow Buffer before they can be written using the FieldWriter.
+     * @param writer The FieldWriter for the Map field we'd like to write into.
+     * @param field The Schema details of the Map Field we are writing into.
+     * @param pos The position (row) in the Apache Arrow batch we are writing to.
+     * @param value The value we'd like to write as a Map.
+     * @param resolver The field resolver that can be used to extract individual Struct Map from the value.
+     */
+    @VisibleForTesting
+    protected static void writeMap(BufferAllocator allocator,
+                                      UnionMapWriter writer,
+                                      Field field,
+                                      int pos,
+                                      Object value,
+                                      FieldResolver resolver)
+    {
+        //We expect null writes to have been handled earlier so this is a no-op.
+        if (value == null) {
+            return;
+        }
+
+        //Indicate the beginning of the Map value, this is how Apache Arrow handles the variable length of map types.
+        writer.startMap();
+
+        List<Field> children = field.getChildren();
+        Field keyValueStructField;
+        if (children.size() != 1) {
+            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+        }
+        else {
+            keyValueStructField = children.get(0);
+            if (!ENTRIES.equals(keyValueStructField.getName()) || !(keyValueStructField.getType() instanceof ArrowType.Struct)) {
+                throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+            }
+        }
+
+        List<Field> keyValueChildren = keyValueStructField.getChildren();
+        Field keyField;
+        Field valueField;
+        if (keyValueChildren.size() != 2) {
+            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+        }
+        else {
+            keyField = keyValueChildren.get(0);
+            valueField = keyValueChildren.get(1);
+            if (!KEY.equals(keyField.getName()) || !VALUE.equals(valueField.getName())) {
+                throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+            }
+        }
+
+        for (Field nextChild : keyValueChildren) {
+            //For each child field that comprises the Map, attempt to extract and write the corresponding value
+            //using the FieldResolver.
+            Object childValue = resolver.getFieldValue(nextChild, value);
+            switch (Types.getMinorTypeForArrowType(nextChild.getType())) {
+                case LIST:
+                    writeList(allocator,
+                            (FieldWriter) writer.list(nextChild.getName()),
+                            nextChild,
+                            pos,
+                            ((List) childValue),
+                            resolver);
+                    break;
+                case STRUCT:
+                    writeStruct(allocator,
+                            writer.struct(nextChild.getName()),
+                            nextChild,
+                            pos,
+                            childValue,
+                            resolver);
+                    break;
+                default:
+                    writeMapValue(writer, nextChild, allocator, childValue);
+                    break;
+            }
+        }
+        writer.endEntry();
+    }
+
+    /**
+     * Used to write a value into a specific child field within a Map. Multiple calls to this method per-cell are
+     * expected in order to write to all N fields of a Map.
+     *
+     * @param writer The FieldWriter (already positioned at the row and list entry number) that we want to write into.
+     * @param field The child field we are attempting to write into.
+     * @param allocator The BlockAllocator that can be used for allocating Arrow Buffers for fields which require conversion
+     * to Arrow Buff before being written.
+     * @param value The value to write.
+     * @note This method and its List complement violate the DRY mantra because ListWriter and StructWriter don't share
+     * a meaningful ancestor despite having identical methods. This requires us to either further wrap and abstract the writer
+     * or duplicate come code. In a future release we hope to have contributed a better option to Apache Arrow which allows
+     * us to simplify this method.
+     */
+    @VisibleForTesting
+    protected static void writeMapValue(UnionMapWriter writer, Field field, BufferAllocator allocator, Object value)
+    {
+        writer.startEntry();
+        if (field.getName().equalsIgnoreCase("key")) {
+            writer = writer.key();
+        }
+        else if (field.getName().equalsIgnoreCase("value")) {
+            writer = writer.value();
+        }
+        else {
+            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
+        }
+
+        if (value == null) {
+            return;
+        }
+
+        ArrowType type = field.getType();
+        try {
+            switch (Types.getMinorTypeForArrowType(type)) {
+                case TIMESTAMPMILLITZ:
+                    long dateTimeWithZone;
+                    if (value instanceof ZonedDateTime) {
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
+                    }
+                    else if (value instanceof LocalDateTime) {
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(
+                                ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+                    }
+                    else if (value instanceof Date) {
+                        long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
+                                .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+                        dateTimeWithZone = DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
+                    }
+                    else {
+                        dateTimeWithZone = (long) value;
+                    }
+                    writer.timeStampMilliTZ(field.getName()).writeTimeStampMilliTZ(dateTimeWithZone);
+                    break;
+                case DATEMILLI:
+                    if (value instanceof Date) {
+                        writer.dateMilli(field.getName()).writeDateMilli(((Date) value).getTime());
+                    }
+                    else {
+                        writer.dateMilli(field.getName()).writeDateMilli((long) value);
+                    }
+                    break;
+
+                case DATEDAY:
+                    if (value instanceof Date) {
+                        org.joda.time.Days days = org.joda.time.Days.daysBetween(EPOCH,
+                                new org.joda.time.DateTime(((Date) value).getTime()));
+                        writer.dateDay(field.getName()).writeDateDay(days.getDays());
+                    }
+                    else if (value instanceof LocalDate) {
+                        int days = (int) ((LocalDate) value).toEpochDay();
+                        writer.dateDay(field.getName()).writeDateDay(days);
+                    }
+                    else if (value instanceof Long) {
+                        writer.dateDay(field.getName()).writeDateDay(((Long) value).intValue());
+                    }
+                    else {
+                        writer.dateDay(field.getName()).writeDateDay((int) value);
+                    }
+                    break;
+                case FLOAT8:
+                    writer.float8(field.getName()).writeFloat8((double) value);
+                    break;
+                case FLOAT4:
+                    writer.float4(field.getName()).writeFloat4((float) value);
+                    break;
+                case INT:
+                    if (value != null && value instanceof Long) {
+                        //This may seem odd at first but many frameworks (like Presto) use long as the preferred
+                        //native java type for representing integers. We do this to keep type conversions simple.
+                        writer.integer(field.getName()).writeInt(((Long) value).intValue());
+                    }
+                    else {
+                        writer.integer(field.getName()).writeInt((int) value);
+                    }
+                    break;
+                case TINYINT:
+                    writer.tinyInt(field.getName()).writeTinyInt((byte) value);
+                    break;
+                case SMALLINT:
+                    writer.smallInt(field.getName()).writeSmallInt((short) value);
+                    break;
+                case UINT1:
+                    writer.uInt1(field.getName()).writeUInt1((byte) value);
+                    break;
+                case UINT2:
+                    writer.uInt2(field.getName()).writeUInt2((char) value);
+                    break;
+                case UINT4:
+                    writer.uInt4(field.getName()).writeUInt4((int) value);
+                    break;
+                case UINT8:
+                    writer.uInt8(field.getName()).writeUInt8((long) value);
+                    break;
+                case BIGINT:
+                    writer.bigInt(field.getName()).writeBigInt((long) value);
+                    break;
+                case VARBINARY:
+                    if (value instanceof ArrowBuf) {
+                        ArrowBuf buf = (ArrowBuf) value;
+                        writer.varBinary(field.getName()).writeVarBinary(0, (int) (buf.capacity()), buf);
+                    }
+                    else if (value instanceof byte[]) {
+                        byte[] bytes = (byte[]) value;
+                        try (ArrowBuf buf = allocator.buffer(bytes.length)) {
+                            buf.writeBytes(bytes);
+                            writer.varBinary(field.getName()).writeVarBinary(0, (int) (buf.readableBytes()), buf);
+                        }
+                    }
+                    break;
+                case DECIMAL:
+                    int scale = ((ArrowType.Decimal) type).getScale();
+                    int precision = ((ArrowType.Decimal) type).getPrecision();
+                    if (value instanceof Double) {
+                        BigDecimal bdVal = new BigDecimal((double) value);
+                        bdVal = bdVal.setScale(scale, RoundingMode.HALF_UP);
+                        writer.decimal(field.getName(), scale, precision).writeDecimal(bdVal);
+                    }
+                    else {
+                        BigDecimal scaledValue = ((BigDecimal) value).setScale(scale, RoundingMode.HALF_UP);
+                        writer.decimal(field.getName(), scale, precision).writeDecimal(scaledValue);
+                    }
+                    break;
+                case VARCHAR:
+                    if (value instanceof String) {
+                        byte[] bytes = ((String) value).getBytes(Charsets.UTF_8);
+                        try (ArrowBuf buf = allocator.buffer(bytes.length)) {
+                            buf.writeBytes(bytes);
+                            writer.varChar(field.getName()).writeVarChar(0, (int) (buf.readableBytes()), buf);
+                        }
+                    }
+                    else if (value instanceof ArrowBuf) {
+                        ArrowBuf buf = (ArrowBuf) value;
+                        writer.varChar(field.getName()).writeVarChar(0, (int) (buf.readableBytes()), buf);
+                    }
+                    else if (value instanceof byte[]) {
+                        byte[] bytes = (byte[]) value;
+                        try (ArrowBuf buf = allocator.buffer(bytes.length)) {
+                            buf.writeBytes(bytes);
+                            writer.varChar(field.getName()).writeVarChar(0, (int) (buf.readableBytes()), buf);
+                        }
+                    }
+                    break;
+                case BIT:
+                    if (value instanceof Integer && (int) value > 0) {
+                        writer.bit(field.getName()).writeBit(1);
+                    }
+                    else if (value instanceof Boolean && (boolean) value) {
+                        writer.bit(field.getName()).writeBit(1);
+                    }
+                    else {
+                        writer.bit(field.getName()).writeBit(0);
+                    }
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown type " + type);
+            }
+        }
+        catch (RuntimeException ex) {
+            throw new RuntimeException("Unable to write value for field " + field.getName() + " using value " + value, ex);
+        }
+    }
+
+    /**
      * Used to mark a particular cell as null.
      *
      * @param vector The FieldVector to write the null value to.
@@ -1168,6 +1455,9 @@ public class BlockUtils
                     writer.startList();
                     writer.endList();
                     writer.setValueCount(0);
+                    break;
+                case MAP:
+                    ((MapVector) vector).setNull(row);
                     break;
                 default:
                     throw new IllegalArgumentException("Unknown type " + vector.getMinorType());

@@ -65,6 +65,7 @@ public final class ArrowTypeSerDe
                     .add(new TimeSerDe.Serializer())
                     .add(new TimeStampSerDe.Serializer())
                     .add(new IntervalSerDe.Serializer())
+                    .add(new MapSerDe.Serializer())
                     .build());
         }
     }
@@ -90,6 +91,7 @@ public final class ArrowTypeSerDe
                     .add(new TimeSerDe.Deserializer())
                     .add(new TimeStampSerDe.Deserializer())
                     .add(new IntervalSerDe.Deserializer())
+                    .add(new MapSerDe.Deserializer())
                     .build());
         }
     }
@@ -681,6 +683,42 @@ public final class ArrowTypeSerDe
             {
                 IntervalUnit unit = IntervalUnit.valueOf(getNextStringField(jparser, UNIT_FIELD));
                 return new ArrowType.Interval(unit);
+            }
+        }
+    }
+
+    private static final class MapSerDe
+    {
+        private static final String KEY = "key";
+        private static final String VALUE = "value";
+
+        private static final class Serializer extends TypedSerializer<ArrowType>
+        {
+            private Serializer()
+            {
+                super(ArrowType.class, ArrowType.Map.class);
+            }
+
+            @Override
+            protected void doTypedSerialize(ArrowType arrowType, JsonGenerator jgen, SerializerProvider provider)
+                    throws IOException
+            {
+                // no fields
+            }
+        }
+
+        private static final class Deserializer extends TypedDeserializer<ArrowType>
+        {
+            private Deserializer()
+            {
+                super(ArrowType.class, ArrowType.Map.class);
+            }
+
+            @Override
+            protected ArrowType doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
+                    throws IOException
+            {
+                return new ArrowType.Map(false);
             }
         }
     }
