@@ -60,7 +60,9 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
+import org.apache.arrow.vector.complex.impl.UnionMapWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -402,6 +404,25 @@ public class ExampleRecordHandler
                     default:
                         throw new IllegalArgumentException("Unsupported type " + childType);
                 }
+            case MAP:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (FieldWriter) (Object context, int rowNum) -> {
+                            UnionMapWriter writer  = ((MapVector) vector).getWriter();
+                            writer.setPosition(rowNum);
+                            writer.startMap();
+                            writer.startEntry();
+                            byte[] bytes = "chars".getBytes(Charsets.UTF_8);
+                            try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
+                                buf.writeBytes(bytes);
+                                writer.key().varChar("key").writeVarChar(0, (int) (buf.readableBytes()), buf);
+                            }
+
+                            writer.value().integer("value").writeInt(1001);
+                            writer.endEntry();
+                            writer.endMap();
+                            ((MapVector) vector).setNotNull(rowNum);
+                            return true;
+                        };
             default:
                 throw new IllegalArgumentException("Unsupported type " + fieldType);
         }
