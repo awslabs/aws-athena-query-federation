@@ -39,6 +39,7 @@ public class FieldBuilder
 {
     private final String name;
     private final ArrowType type;
+    private final boolean nullable;
     //Using LinkedHashMap because Apache Arrow makes field order important so honoring that contract here
     private final Map<String, Field> children = new LinkedHashMap<>();
 
@@ -48,10 +49,11 @@ public class FieldBuilder
      * @param name The name to use for the Field being built.
      * @param type The type to use for the Field being built, most often one of STRUCT or LIST.
      */
-    private FieldBuilder(String name, ArrowType type)
+    private FieldBuilder(String name, ArrowType type, boolean nullable)
     {
         this.name = name;
         this.type = type;
+        this.nullable = nullable;
     }
 
     /**
@@ -63,7 +65,21 @@ public class FieldBuilder
      */
     public static FieldBuilder newBuilder(String name, ArrowType type)
     {
-        return new FieldBuilder(name, type);
+        return new FieldBuilder(name, type, true);
+    }
+
+    /**
+     * Creates a FieldBuilder for a Field with the given name, type, and whether or not the field is nullable.
+     *
+     * @param name The name to use for the Field being built.
+     * @param type The type to use for the Field being built, most often one of STRUCT or LIST.
+     * @param nullable A true or false value indicating that the field can contain null values. Most often used for
+     *                 MAP types.
+     * @return A new FieldBuilder for the specified name and type.
+     */
+    public static FieldBuilder newBuilder(String name, ArrowType type, boolean nullable)
+    {
+     return new FieldBuilder(name, type, nullable);
     }
 
     /**
@@ -77,6 +93,12 @@ public class FieldBuilder
     public FieldBuilder addField(String fieldName, ArrowType type, List<Field> children)
     {
         this.children.put(fieldName, new Field(fieldName, FieldType.nullable(type), children));
+        return this;
+    }
+
+    public FieldBuilder addField(String fieldName, ArrowType type, boolean nullable, List<Field> children)
+    {
+        this.children.put(fieldName, new Field(fieldName, new FieldType(nullable, type, null), children));
         return this;
     }
 
@@ -253,6 +275,6 @@ public class FieldBuilder
      */
     public Field build()
     {
-        return new Field(name, FieldType.nullable(type), new ArrayList<>(children.values()));
+        return new Field(name, new FieldType(nullable, type, null), new ArrayList<>(children.values()));
     }
 }
