@@ -689,8 +689,8 @@ public final class ArrowTypeSerDe
 
     private static final class MapSerDe
     {
-        private static final String KEY = "key";
-        private static final String VALUE = "value";
+        //Arrow map types are represented as Map(false)<entries: Struct<key:keyType,value:valueType>>
+        private static final Boolean keysSortedFalse = false;
 
         private static final class Serializer extends TypedSerializer<ArrowType>
         {
@@ -718,7 +718,7 @@ public final class ArrowTypeSerDe
             protected ArrowType doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
                     throws IOException
             {
-                return new ArrowType.Map(false);
+                return new ArrowType.Map(keysSortedFalse);
             }
         }
     }

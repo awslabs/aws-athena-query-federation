@@ -1144,10 +1144,10 @@ public class BlockUtils
      * @param allocator The BlockAllocator that can be used for allocating Arrow Buffers for fields which require conversion
      * to Arrow Buff before being written.
      * @param value The value to write.
-     * @note This method and its List complement violate the DRY mantra because ListWriter and StructWriter don't share
-     * a meaningful ancestor despite having identical methods. This requires us to either further wrap and abstract the writer
-     * or duplicate come code. In a future release we hope to have contributed a better option to Apache Arrow which allows
-     * us to simplify this method.
+     * @note This method and its List and struct complement violate the DRY mantra because
+     * ListWriter, StructWriter, and UnionMapWriter don't share a meaningful ancestor despite having identical methods.
+     * This requires us to either further wrap and abstract the writer or duplicate come code. In a future
+     * release we hope to have contributed a better option to Apache Arrow which allows us to simplify this method.
      */
     @VisibleForTesting
     protected static void writeMapValue(UnionMapWriter writer, Field field, BufferAllocator allocator, Object value)
