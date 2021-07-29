@@ -32,11 +32,18 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
+import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import io.lettuce.core.Range;
+import io.lettuce.core.ScanArgs;
+import io.lettuce.core.ScanCursor;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -50,12 +57,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ScanParams;
-import redis.clients.jedis.ScanResult;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -69,6 +72,7 @@ import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_T
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.ZSET_KEYS_TABLE_PROP;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.times;
@@ -90,7 +94,10 @@ public class RedisMetadataHandlerTest
     public TestName testName = new TestName();
 
     @Mock
-    private Jedis mockClient;
+    private RedisConnectionWrapper<String, String> mockConnection;
+
+    @Mock
+    private RedisCommandsWrapper<String, String> mockSyncCommands;
 
     @Mock
     private AWSGlue mockGlue;
@@ -102,7 +109,7 @@ public class RedisMetadataHandlerTest
     private AmazonAthena mockAthena;
 
     @Mock
-    private JedisPoolFactory mockFactory;
+    private RedisConnectionFactory mockFactory;
 
     @Before
     public void setUp()
@@ -110,7 +117,8 @@ public class RedisMetadataHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(mockFactory.getOrCreateConn(eq(decodedEndpoint))).thenReturn(mockClient);
+        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean())).thenReturn(mockConnection);
+        when(mockConnection.sync()).thenReturn(mockSyncCommands);
 
         handler = new RedisMetadataHandler(mockGlue, new LocalKeyFactory(), mockSecretsManager, mockAthena, mockFactory, "bucket", "prefix");
         allocator = new BlockAllocatorImpl();
@@ -166,24 +174,31 @@ public class RedisMetadataHandlerTest
         String prefixes = "prefix1-*,prefix2-*, prefix3-*";
 
         //4 zsets per prefix
-        when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
-            String cursor = (String) invocationOnMock.getArguments()[0];
-            if (cursor == null || cursor.equals("0")) {
+        when(mockSyncCommands.scan(any(ScanCursor.class), any(ScanArgs.class))).then((InvocationOnMock invocationOnMock) -> {
+            ScanCursor cursor = (ScanCursor) invocationOnMock.getArguments()[0];
+            if (cursor == null || cursor.getCursor().equals("0")) {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("1", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("1");
+                scanCursor.setKeys(result);
+                return scanCursor;
             }
             else {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("0", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("0");
+                scanCursor.setKeys(result);
+                scanCursor.setFinished(true);
+                return scanCursor;
             }
         });
 
         //100 keys per zset
-        when(mockClient.zcount(anyString(), anyString(), anyString())).thenReturn(200L);
+        when(mockSyncCommands.zcount(anyString(), any(Range.class))).thenReturn(200L);
 
         List<String> partitionCols = new ArrayList<>();
 
@@ -232,7 +247,7 @@ public class RedisMetadataHandlerTest
         assertEquals("Continuation criteria violated", 120, response.getSplits().size());
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
-        verify(mockClient, times(6)).scan(anyString(), any(ScanParams.class));
+        verify(mockSyncCommands, times(6)).scan(any(ScanCursor.class), any(ScanArgs.class));
     }
 
     @Test

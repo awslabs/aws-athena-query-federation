@@ -25,28 +25,30 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import io.lettuce.core.KeyScanCursor;
+import io.lettuce.core.ScanArgs;
+import io.lettuce.core.ScanCursor;
+import io.lettuce.core.ScoredValue;
+import io.lettuce.core.ScoredValueScanCursor;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ScanParams;
-import redis.clients.jedis.ScanResult;
-import redis.clients.jedis.Tuple;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_COLUMN_NAME;
@@ -58,7 +60,8 @@ import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_S
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.SPLIT_END_INDEX;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.SPLIT_START_INDEX;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
-import static redis.clients.jedis.ScanParams.SCAN_POINTER_START;
+import static io.lettuce.core.ScanCursor.FINISHED;
+import static io.lettuce.core.ScanCursor.INITIAL;
 
 /**
  * Handles data read record requests for the Athena Redis Connector.
@@ -80,7 +83,7 @@ public class RedisRecordHandler
     //The page size for Jedis scans.
     private static final int SCAN_COUNT_SIZE = 100;
 
-    private final JedisPoolFactory jedisPoolFactory;
+    private final RedisConnectionFactory redisConnectionFactory;
     private final AmazonS3 amazonS3;
 
     public RedisRecordHandler()
@@ -88,31 +91,34 @@ public class RedisRecordHandler
         this(AmazonS3ClientBuilder.standard().build(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(),
-                new JedisPoolFactory());
+                new RedisConnectionFactory());
     }
 
     @VisibleForTesting
     protected RedisRecordHandler(AmazonS3 amazonS3,
             AWSSecretsManager secretsManager,
             AmazonAthena athena,
-            JedisPoolFactory jedisPoolFactory)
+            RedisConnectionFactory redisConnectionFactory)
     {
         super(amazonS3, secretsManager, athena, SOURCE_TYPE);
         this.amazonS3 = amazonS3;
-        this.jedisPoolFactory = jedisPoolFactory;
+        this.redisConnectionFactory = redisConnectionFactory;
     }
 
     /**
      * Used to obtain a Redis client connection for the provided endpoint.
      *
      * @param rawEndpoint The value from the REDIS_ENDPOINT_PROP on the table being queried.
-     * @return A Jedis client connection.
+     * @param sslEnabled The value from the REDIS_SSL_FLAG on the table being queried.
+     * @param isCluster The value from the REDIS_CLUSTER_FLAG on the table being queried.
+     * @return A Lettuce client connection.
      * @notes This method first attempts to resolve any secrets (noted by ${secret_name}) using SecretsManager.
      */
-    private Jedis getOrCreateClient(String rawEndpoint)
+    private RedisConnectionWrapper<String, String> getOrCreateClient(String rawEndpoint, boolean sslEnabled,
+                                                                     boolean isCluster)
     {
         String endpoint = resolveSecrets(rawEndpoint);
-        return jedisPoolFactory.getOrCreateConn(endpoint);
+        return redisConnectionFactory.getOrCreateConn(endpoint, sslEnabled, isCluster);
     }
 
     /**
@@ -122,79 +128,78 @@ public class RedisRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
         Split split = recordsRequest.getSplit();
-        ScanResult<String> keyCursor = null;
+        ScanCursor keyCursor = null;
         boolean sslEnabled = Boolean.parseBoolean(split.getProperty(REDIS_SSL_FLAG));
-        boolean clusterEnabled = Boolean.parseBoolean(split.getProperty(REDIS_CLUSTER_FLAG));
+        boolean isCluster = Boolean.parseBoolean(split.getProperty(REDIS_CLUSTER_FLAG));
+        ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
+        List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
+                .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
 
-        final AtomicLong rowsMatched = new AtomicLong(0);
-        int numRows = 0;
+        RedisConnectionWrapper<String, String> connection = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP),
+                                                                              sslEnabled, isCluster);
+        RedisCommandsWrapper<String, String> syncCommands = connection.sync();
+
         do {
             Set<String> keys = new HashSet<>();
             //Load all the keys associated with this split
-            keyCursor = loadKeys(split, keyCursor, keys);
+            keyCursor = loadKeys(syncCommands, split, keyCursor, keys);
 
             //Scan the data associated with all the keys.
             for (String nextKey : keys) {
                 if (!queryStatusChecker.isQueryRunning()) {
                     return;
                 }
-                try (Jedis client = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP))) {
-                    ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
-                    List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
-                            .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
-
-                    switch (valueType) {
-                        case LITERAL:   //The key value is a row with single column
-                            loadLiteralRow(client, nextKey, spiller, fieldList);
-                            break;
-                        case HASH:
-                            loadHashRow(client, nextKey, spiller, fieldList);
-                            break;
-                        case ZSET:
-                            loadZSetRows(client, nextKey, spiller, fieldList);
-                            break;
-                        default:
-                            throw new RuntimeException("Unsupported value type " + valueType);
-                    }
+                switch (valueType) {
+                    case LITERAL:   //The key value is a row with single column
+                        loadLiteralRow(syncCommands, nextKey, spiller, fieldList);
+                        break;
+                    case HASH:
+                        loadHashRow(syncCommands, nextKey, spiller, fieldList);
+                        break;
+                    case ZSET:
+                        loadZSetRows(syncCommands, nextKey, spiller, fieldList);
+                        break;
+                    default:
+                        throw new RuntimeException("Unsupported value type " + valueType);
                 }
             }
         }
-        while (keyCursor != null && !END_CURSOR.equals(keyCursor.getCursor()));
+        while (keyCursor != null && !keyCursor.isFinished());
     }
 
     /**
      * For the given key prefix, find all actual keys depending on the type of the key.
      *
+     * @param syncCommands The Lettuce Client
      * @param split The split for this request, mostly used to get the redis endpoint and config details.
      * @param redisCursor The previous Redis cursor (aka continuation token).
      * @param keys The collections of keys we collected so far. Any new keys we find are added to this.
      * @return The Redis cursor to use when continuing the scan.
      */
-    private ScanResult<String> loadKeys(Split split, ScanResult<String> redisCursor, Set<String> keys)
+    private ScanCursor loadKeys(RedisCommandsWrapper<String, String> syncCommands, Split split,
+                                        ScanCursor redisCursor, Set<String> keys)
     {
-        try (Jedis client = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP))) {
-            KeyType keyType = KeyType.fromId(split.getProperty(KEY_TYPE));
-            String keyPrefix = split.getProperty(KEY_PREFIX_TABLE_PROP);
-            if (keyType == KeyType.ZSET) {
-                long start = Long.valueOf(split.getProperty(SPLIT_START_INDEX));
-                long end = Long.valueOf(split.getProperty(SPLIT_END_INDEX));
-                keys.addAll(client.zrange(keyPrefix, start, end));
-                return new ScanResult<String>(END_CURSOR, Collections.EMPTY_LIST);
-            }
-            else {
-                String cursor = (redisCursor == null) ? SCAN_POINTER_START : redisCursor.getCursor();
-                ScanParams scanParam = new ScanParams();
-                scanParam.count(SCAN_COUNT_SIZE);
-                scanParam.match(split.getProperty(KEY_PREFIX_TABLE_PROP));
+        KeyType keyType = KeyType.fromId(split.getProperty(KEY_TYPE));
+        String keyPrefix = split.getProperty(KEY_PREFIX_TABLE_PROP);
+        if (keyType == KeyType.ZSET) {
+            long start = Long.valueOf(split.getProperty(SPLIT_START_INDEX));
+            long end = Long.valueOf(split.getProperty(SPLIT_END_INDEX));
+            keys.addAll(syncCommands.zrange(keyPrefix, start, end));
+            return FINISHED;
+        }
+        else {
+            ScanCursor cursor = (redisCursor == null) ? INITIAL : redisCursor;
+            ScanArgs scanArgs = new ScanArgs();
+            scanArgs.limit(SCAN_COUNT_SIZE);
+            scanArgs.match(split.getProperty(KEY_PREFIX_TABLE_PROP));
 
-                ScanResult<String> newCursor = client.scan(cursor, scanParam);
-                keys.addAll(newCursor.getResult());
-                return newCursor;
-            }
+            KeyScanCursor<String> newCursor = syncCommands.scan(cursor, scanArgs);
+            keys.addAll(newCursor.getKeys());
+            return newCursor;
         }
     }
 
-    private void loadLiteralRow(Jedis client, String keyString, BlockSpiller spiller, List<Field> fieldList)
+    private void loadLiteralRow(RedisCommandsWrapper<String, String> syncCommands, String keyString, BlockSpiller spiller, List<Field> fieldList)
     {
         spiller.writeRows((Block block, int row) -> {
             if (fieldList.size() != 1) {
@@ -202,14 +207,15 @@ public class RedisRecordHandler
             }
 
             Field field = fieldList.get(0);
-            Object value = ValueConverter.convert(field, client.get(keyString));
+            Object value = ValueConverter.convert(field, syncCommands.get(keyString));
             boolean literalMatched = block.offerValue(KEY_COLUMN_NAME, row, keyString);
             literalMatched &= block.offerValue(field.getName(), row, value);
             return literalMatched ? 1 : 0;
         });
     }
 
-    private void loadHashRow(Jedis client, String keyString, BlockSpiller spiller, List<Field> fieldList)
+    private void loadHashRow(RedisCommandsWrapper<String, String> syncCommands, String keyString, BlockSpiller spiller,
+                             List<Field> fieldList)
     {
         spiller.writeRows((Block block, int row) -> {
             boolean hashMatched = block.offerValue(KEY_COLUMN_NAME, row, keyString);
@@ -217,7 +223,7 @@ public class RedisRecordHandler
             Map<String, String> rawValues = new HashMap<>();
             //Glue only supports lowercase column names / also could do a better job only fetching the columns
             //that are needed
-            client.hgetAll(keyString).forEach((key, entry) -> rawValues.put(key.toLowerCase(), entry));
+            syncCommands.hgetall(keyString).forEach((key, entry) -> rawValues.put(key.toLowerCase(), entry));
 
             for (Field hfield : fieldList) {
                 Object hvalue = ValueConverter.convert(hfield, rawValues.get(hfield.getName()));
@@ -230,27 +236,27 @@ public class RedisRecordHandler
         });
     }
 
-    private void loadZSetRows(Jedis client, String keyString, BlockSpiller spiller, List<Field> fieldList)
+    private void loadZSetRows(RedisCommandsWrapper<String, String> syncCommands, String keyString, BlockSpiller spiller,
+                              List<Field> fieldList)
     {
         if (fieldList.size() != 1) {
             throw new RuntimeException("Ambiguous field mapping, more than 1 field for ZSET value type.");
         }
 
         Field zfield = fieldList.get(0);
-        String cursor = SCAN_POINTER_START;
+        ScoredValueScanCursor<String> cursor = null;
         do {
-            ScanResult<Tuple> result = client.zscan(keyString, cursor);
-            cursor = result.getCursor();
-            for (Tuple nextElement : result.getResult()) {
+            cursor = syncCommands.zscan(keyString, cursor == null ? INITIAL : cursor);
+            for (ScoredValue<String> nextElement : cursor.getValues()) {
                 spiller.writeRows((Block block, int rowNum) -> {
-                    Object zvalue = ValueConverter.convert(zfield, nextElement.getElement());
+                    Object zvalue = ValueConverter.convert(zfield, nextElement.getValue());
                     boolean zsetMatched = block.offerValue(KEY_COLUMN_NAME, rowNum, keyString);
                     zsetMatched &= block.offerValue(zfield.getName(), rowNum, zvalue);
                     return zsetMatched ? 1 : 0;
                 });
             }
         }
-        while (cursor != null && !END_CURSOR.equals(cursor));
+        while (!cursor.isFinished());
     }
 
     /**

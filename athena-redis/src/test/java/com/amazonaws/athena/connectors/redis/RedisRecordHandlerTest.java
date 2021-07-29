@@ -35,6 +35,11 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
+import com.amazonaws.athena.connectors.redis.util.MockKeyScanCursor;
+import com.amazonaws.athena.connectors.redis.util.MockScoredValueScanCursor;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectResult;
@@ -45,6 +50,9 @@ import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
+import io.lettuce.core.ScanArgs;
+import io.lettuce.core.ScanCursor;
+import io.lettuce.core.ScoredValue;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -59,15 +67,10 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ScanParams;
-import redis.clients.jedis.ScanResult;
-import redis.clients.jedis.Tuple;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +84,7 @@ import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_E
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -106,13 +110,16 @@ public class RedisRecordHandlerTest
     public TestName testName = new TestName();
 
     @Mock
-    private Jedis mockClient;
+    private RedisConnectionWrapper<String, String> mockConnection;
+
+    @Mock
+    private RedisCommandsWrapper<String, String> mockSyncCommands;
 
     @Mock
     private AWSSecretsManager mockSecretsManager;
 
     @Mock
-    private JedisPoolFactory mockFactory;
+    private RedisConnectionFactory mockFactory;
 
     @Mock
     private AmazonAthena mockAthena;
@@ -122,7 +129,8 @@ public class RedisRecordHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(mockFactory.getOrCreateConn(eq(decodedEndpoint))).thenReturn(mockClient);
+        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean())).thenReturn(mockConnection);
+        when(mockConnection.sync()).thenReturn(mockSyncCommands);
 
         allocator = new BlockAllocatorImpl();
 
@@ -182,24 +190,31 @@ public class RedisRecordHandlerTest
             throws Exception
     {
         //4 keys per prefix
-        when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
-            String cursor = (String) invocationOnMock.getArguments()[0];
-            if (cursor == null || cursor.equals("0")) {
+        when(mockSyncCommands.scan(any(ScanCursor.class), any(ScanArgs.class))).then((InvocationOnMock invocationOnMock) -> {
+            ScanCursor cursor = (ScanCursor) invocationOnMock.getArguments()[0];
+            if (cursor == null || cursor.getCursor().equals("0")) {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("1", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("1");
+                scanCursor.setKeys(result);
+                return scanCursor;
             }
             else {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("0", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("0");
+                scanCursor.setKeys(result);
+                scanCursor.setFinished(true);
+                return scanCursor;
             }
         });
 
         AtomicLong value = new AtomicLong(0);
-        when(mockClient.get(anyString()))
+        when(mockSyncCommands.get(anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
@@ -260,28 +275,35 @@ public class RedisRecordHandlerTest
             throws Exception
     {
         //4 keys per prefix
-        when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
-            String cursor = (String) invocationOnMock.getArguments()[0];
-            if (cursor == null || cursor.equals("0")) {
+        when(mockSyncCommands.scan(any(ScanCursor.class), any(ScanArgs.class))).then((InvocationOnMock invocationOnMock) -> {
+            ScanCursor cursor = (ScanCursor) invocationOnMock.getArguments()[0];
+            if (cursor == null || cursor.getCursor().equals("0")) {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("1", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("1");
+                scanCursor.setKeys(result);
+                return scanCursor;
             }
             else {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("0", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("0");
+                scanCursor.setKeys(result);
+                scanCursor.setFinished(true);
+                return scanCursor;
             }
         });
 
         //4 columns per key
         AtomicLong intColVal = new AtomicLong(0);
-        when(mockClient.hgetAll(anyString())).then((InvocationOnMock invocationOnMock) -> {
+        when(mockSyncCommands.hgetall(anyString())).then((InvocationOnMock invocationOnMock) -> {
             Map<String, String> result = new HashMap<>();
             result.put("intcol", String.valueOf(intColVal.getAndIncrement()));
             result.put("stringcol", UUID.randomUUID().toString());
@@ -290,7 +312,7 @@ public class RedisRecordHandlerTest
         });
 
         AtomicLong value = new AtomicLong(0);
-        when(mockClient.get(anyString()))
+        when(mockSyncCommands.get(anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
@@ -357,41 +379,55 @@ public class RedisRecordHandlerTest
             throws Exception
     {
         //4 keys per prefix
-        when(mockClient.scan(anyString(), any(ScanParams.class))).then((InvocationOnMock invocationOnMock) -> {
-            String cursor = (String) invocationOnMock.getArguments()[0];
-            if (cursor == null || cursor.equals("0")) {
+        when(mockSyncCommands.scan(any(ScanCursor.class), any(ScanArgs.class))).then((InvocationOnMock invocationOnMock) -> {
+            ScanCursor cursor = (ScanCursor) invocationOnMock.getArguments()[0];
+            if (cursor == null || cursor.getCursor().equals("0")) {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("1", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("1");
+                scanCursor.setKeys(result);
+                return scanCursor;
             }
             else {
                 List<String> result = new ArrayList<>();
                 result.add(UUID.randomUUID().toString());
-                return new ScanResult<>("0", result);
+                MockKeyScanCursor<String> scanCursor = new MockKeyScanCursor<>();
+                scanCursor.setCursor("0");
+                scanCursor.setKeys(result);
+                scanCursor.setFinished(true);
+                return scanCursor;
             }
         });
 
         //4 rows per key
-        when(mockClient.zscan(anyString(), anyString())).then((InvocationOnMock invocationOnMock) -> {
-            String cursor = (String) invocationOnMock.getArguments()[1];
-            if (cursor == null || cursor.equals("0")) {
-                List<Tuple> result = new ArrayList<>();
-                result.add(new Tuple("1", 0.0D));
-                result.add(new Tuple("2", 0.0D));
-                result.add(new Tuple("3", 0.0D));
-                return new ScanResult<>("1", result);
+        when(mockSyncCommands.zscan(anyString(), any(ScanCursor.class))).then((InvocationOnMock invocationOnMock) -> {
+            ScanCursor cursor = (ScanCursor) invocationOnMock.getArguments()[1];
+            if (cursor == null || cursor.getCursor().equals("0")) {
+                List<ScoredValue<String>> result = new ArrayList<>();
+                result.add(ScoredValue.just(0.0D, "1"));
+                result.add(ScoredValue.just(0.0D, "2"));
+                result.add(ScoredValue.just(0.0D, "3"));
+                MockScoredValueScanCursor<String> scanCursor = new MockScoredValueScanCursor<>();
+                scanCursor.setCursor("1");
+                scanCursor.setValues(result);
+                return scanCursor;
             }
             else {
-                List<Tuple> result = new ArrayList<>();
-                result.add(new Tuple("4", 0.0D));
-                return new ScanResult<>("0", result);
+                List<ScoredValue<String>> result = new ArrayList<>();
+                result.add(ScoredValue.just(0.0D, "4"));
+                MockScoredValueScanCursor<String> scanCursor = new MockScoredValueScanCursor<>();
+                scanCursor.setCursor("0");
+                scanCursor.setValues(result);
+                scanCursor.setFinished(true);
+                return scanCursor;
             }
         });
 
         AtomicLong value = new AtomicLong(0);
-        when(mockClient.get(anyString()))
+        when(mockSyncCommands.get(anyString()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> String.valueOf(value.getAndIncrement()));
 
         S3SpillLocation splitLoc = S3SpillLocation.newBuilder()

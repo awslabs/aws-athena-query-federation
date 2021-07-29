@@ -40,11 +40,18 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisCommandsWrapper;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory;
+import com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionWrapper;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import io.lettuce.core.KeyScanCursor;
+import io.lettuce.core.Range;
+import io.lettuce.core.ScanArgs;
+import io.lettuce.core.ScanCursor;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.VarCharReader;
 import org.apache.arrow.vector.types.Types;
@@ -52,16 +59,13 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.ScanParams;
-import redis.clients.jedis.ScanResult;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static redis.clients.jedis.ScanParams.SCAN_POINTER_START;
+import static io.lettuce.core.ScanCursor.INITIAL;
 
 /**
  * Handles metadata requests for the Athena Redis Connector using Glue for schema.
@@ -115,13 +119,13 @@ public class RedisMetadataHandler
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(REDIS_DB_FLAG));
 
     private final AWSGlue awsGlue;
-    private final JedisPoolFactory jedisPoolFactory;
+    private final RedisConnectionFactory redisConnectionFactory;
 
     public RedisMetadataHandler()
     {
         super(false, SOURCE_TYPE);
         this.awsGlue = getAwsGlue();
-        this.jedisPoolFactory = new JedisPoolFactory();
+        this.redisConnectionFactory = new RedisConnectionFactory();
     }
 
     @VisibleForTesting
@@ -129,26 +133,28 @@ public class RedisMetadataHandler
             EncryptionKeyFactory keyFactory,
             AWSSecretsManager secretsManager,
             AmazonAthena athena,
-            JedisPoolFactory jedisPoolFactory,
+            RedisConnectionFactory redisConnectionFactory,
             String spillBucket,
             String spillPrefix)
     {
         super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.awsGlue = awsGlue;
-        this.jedisPoolFactory = jedisPoolFactory;
+        this.redisConnectionFactory = redisConnectionFactory;
     }
 
     /**
      * Used to obtain a Redis client connection for the provided endpoint.
      *
      * @param rawEndpoint The value from the REDIS_ENDPOINT_PROP on the table being queried.
-     * @return A Jedis client connection.
+     * @param sslEnabled The value from the REDIS_SSL_FLAG on the table being queried.
+     * @param isCluster The value from the REDIS_CLUSTER_FLAG on the table being queried.
+     * @return A Lettuce client connection.
      * @notes This method first attempts to resolve any secrets (noted by ${secret_name}) using SecretsManager.
      */
-    private Jedis getOrCreateClient(String rawEndpoint)
+    private RedisConnectionWrapper<String, String> getOrCreateClient(String rawEndpoint, boolean sslEnabled, boolean isCluster)
     {
         String endpoint = resolveSecrets(rawEndpoint);
-        return jedisPoolFactory.getOrCreateConn(endpoint);
+        return redisConnectionFactory.getOrCreateConn(endpoint, sslEnabled, isCluster);
     }
 
     /**
@@ -243,7 +249,7 @@ public class RedisMetadataHandler
         String redisEndpoint = getValue(partitions, 0, REDIS_ENDPOINT_PROP);
         String redisValueType = getValue(partitions, 0, VALUE_TYPE_TABLE_PROP);
         boolean sslEnabled = Boolean.parseBoolean(getValue(partitions, 0, REDIS_SSL_FLAG));
-        boolean clusterEnabled = Boolean.parseBoolean(getValue(partitions, 0, REDIS_CLUSTER_FLAG));
+        boolean isCluster = Boolean.parseBoolean(getValue(partitions, 0, REDIS_CLUSTER_FLAG));
 
         if (redisEndpoint == null) {
             throw new RuntimeException("Table is missing " + REDIS_ENDPOINT_PROP + " table property");
@@ -255,8 +261,11 @@ public class RedisMetadataHandler
 
         logger.info("doGetSplits: Preparing splits for {}", BlockUtils.rowToString(partitions, 0));
 
-        KeyType keyType = null;
+        KeyType keyType;
         Set<String> splitInputs = new HashSet<>();
+
+        RedisConnectionWrapper<String, String> connection = getOrCreateClient(redisEndpoint, sslEnabled, isCluster);
+        RedisCommandsWrapper<String, String> syncCommands = connection.sync();
 
         String keyPrefix = getValue(partitions, 0, KEY_PREFIX_TABLE_PROP);
         if (keyPrefix != null) {
@@ -272,20 +281,21 @@ public class RedisMetadataHandler
             }
             String[] partitionPrefixes = prop.split(KEY_PREFIX_SEPERATOR);
 
-            ScanResult<String> keyCursor = null;
+            ScanCursor keyCursor = null;
             //Add all the values in the ZSETs ad keys to scan
             for (String next : partitionPrefixes) {
                 do {
-                    keyCursor = loadKeys(redisEndpoint, next, keyCursor, splitInputs);
+                    keyCursor = loadKeys(syncCommands, next, keyCursor, splitInputs);
                 }
-                while (keyCursor != null && !END_CURSOR.equals(keyCursor.getCursor()));
+                while (!keyCursor.isFinished());
             }
             keyType = KeyType.ZSET;
         }
 
         Set<Split> splits = new HashSet<>();
         for (String next : splitInputs) {
-            splits.addAll(makeSplits(request, redisEndpoint, next, keyType, redisValueType));
+            splits.addAll(makeSplits(request, syncCommands, redisEndpoint, next, keyType, redisValueType, sslEnabled,
+                                     isCluster));
         }
 
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
@@ -295,22 +305,25 @@ public class RedisMetadataHandler
      * For a given key prefix this method attempts to break up all the matching keys into N buckets (aka N splits).
      *
      * @param request
+     * @param syncCommands The Lettuce Client
      * @param endpoint The redis endpoint to query.
      * @param keyPrefix The key prefix to scan.
      * @param keyType The KeyType (prefix or zset).
      * @param valueType The ValueType, used for mapping the values stored at each key to a result row when the split is processed.
+     * @param sslEnabled The value from the REDIS_SSL_FLAG on the table being queried.
+     * @param isCluster The value from the REDIS_CLUSTER_FLAG on the table being queried.
      * @return A Set of splits to optionally parallelize reading the values associated with the keyPrefix.
      */
-    private Set<Split> makeSplits(GetSplitsRequest request, String endpoint, String keyPrefix, KeyType keyType, String valueType)
+    private Set<Split> makeSplits(GetSplitsRequest request, RedisCommandsWrapper<String, String> syncCommands,
+                                  String endpoint, String keyPrefix, KeyType keyType, String valueType,
+                                  boolean sslEnabled, boolean isCluster)
     {
         Set<Split> splits = new HashSet<>();
         long numberOfKeys = 1;
 
         if (keyType == KeyType.ZSET) {
-            try (Jedis client = getOrCreateClient(endpoint)) {
-                numberOfKeys = client.zcount(keyPrefix, "-inf", "+inf");
-                logger.info("makeSplits: ZCOUNT[{}] found [{}]", keyPrefix, numberOfKeys);
-            }
+            numberOfKeys = syncCommands.zcount(keyPrefix, Range.unbounded());
+            logger.info("makeSplits: ZCOUNT[{}] found [{}]", keyPrefix, numberOfKeys);
         }
 
         long stride = (numberOfKeys > REDIS_MAX_SPLITS) ? 1 + (numberOfKeys / REDIS_MAX_SPLITS) : numberOfKeys;
@@ -331,6 +344,8 @@ public class RedisMetadataHandler
                     .add(REDIS_ENDPOINT_PROP, endpoint)
                     .add(SPLIT_START_INDEX, String.valueOf(startIndex))
                     .add(SPLIT_END_INDEX, String.valueOf(endIndex))
+                    .add(REDIS_SSL_FLAG, String.valueOf(sslEnabled))
+                    .add(REDIS_CLUSTER_FLAG, String.valueOf(isCluster))
                     .build();
 
             splits.add(split);
@@ -345,24 +360,23 @@ public class RedisMetadataHandler
      * For the given zset prefix, find all values and treat each of those values are a key to scan before returning
      * the scan continuation token.
      *
-     * @param connStr The Jedis connection string for the table.
+     * @param syncCommands The Lettuce Client
      * @param prefix The zset key prefix to scan.
      * @param redisCursor The previous Redis cursor (aka continuation token).
      * @param keys The collections of keys we collected so far. Any new keys we find are added to this.
      * @return The Redis cursor to use when continuing the scan.
      */
-    private ScanResult<String> loadKeys(String connStr, String prefix, ScanResult<String> redisCursor, Set<String> keys)
+    private ScanCursor loadKeys(RedisCommandsWrapper<String, String> syncCommands, String prefix,
+                                        ScanCursor redisCursor, Set<String> keys)
     {
-        try (Jedis client = getOrCreateClient(connStr)) {
-            String cursor = (redisCursor == null) ? SCAN_POINTER_START : redisCursor.getCursor();
-            ScanParams scanParam = new ScanParams();
-            scanParam.count(SCAN_COUNT_SIZE);
-            scanParam.match(prefix);
+        ScanCursor cursor = (redisCursor == null) ? INITIAL : redisCursor;
+        ScanArgs scanArgs = new ScanArgs();
+        scanArgs.limit(SCAN_COUNT_SIZE);
+        scanArgs.match(prefix);
 
-            ScanResult<String> newCursor = client.scan(cursor, scanParam);
-            keys.addAll(newCursor.getResult());
-            return newCursor;
-        }
+        KeyScanCursor<String> newCursor = syncCommands.scan(cursor, scanArgs);
+        keys.addAll(newCursor.getKeys());
+        return newCursor;
     }
 
     /**
