@@ -68,8 +68,13 @@ public class MySqlRecordHandler
 
     public MySqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, MySqlMetadataHandler.JDBC_PROPERTIES));
+    }
+
+    public MySqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, MySqlMetadataHandler.JDBC_PROPERTIES), new MySqlQueryStringBuilder(MYSQL_QUOTE_CHARACTER));
+                jdbcConnectionFactory, new MySqlQueryStringBuilder(MYSQL_QUOTE_CHARACTER));
     }
 
     @VisibleForTesting

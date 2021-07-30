@@ -36,7 +36,8 @@ import java.util.Set;
 public enum DefaultGlueType
 {
     INT("int", Types.MinorType.INT.getType()),
-    VARCHAR("string", Types.MinorType.VARCHAR.getType()),
+    VARCHAR("varchar", Types.MinorType.VARCHAR.getType()),
+    STRING("string", Types.MinorType.VARCHAR.getType()),
     BIGINT("bigint", Types.MinorType.BIGINT.getType()),
     DOUBLE("double", Types.MinorType.FLOAT8.getType()),
     FLOAT("float", Types.MinorType.FLOAT4.getType()),

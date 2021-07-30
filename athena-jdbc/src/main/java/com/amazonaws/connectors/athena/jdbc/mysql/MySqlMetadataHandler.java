@@ -86,7 +86,12 @@ public class MySqlMetadataHandler
      */
     public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+    }
+
+    public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    {
+        super(databaseConnectionConfig, jdbcConnectionFactory);
     }
 
     @VisibleForTesting
@@ -171,7 +176,7 @@ public class MySqlMetadataHandler
 
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
-                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition));
+                return new GetSplitsResponse(getSplitsRequest.getCatalogName(), splits, encodeContinuationToken(curPartition + 1));
             }
         }
 

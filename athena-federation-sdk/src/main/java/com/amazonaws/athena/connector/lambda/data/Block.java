@@ -88,7 +88,7 @@ public class Block
      * @param schema The schema of the data that can be read/written to the provided VectorSchema.
      * @param vectorSchema Used to read/write values from the Apache Arrow memory buffers owned by this object.
      */
-    protected Block(String allocatorId, Schema schema, VectorSchemaRoot vectorSchema)
+    public Block(String allocatorId, Schema schema, VectorSchemaRoot vectorSchema)
     {
         requireNonNull(allocatorId, "allocatorId is null");
         requireNonNull(schema, "schema is null");

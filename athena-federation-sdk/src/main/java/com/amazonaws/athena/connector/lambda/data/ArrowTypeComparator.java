@@ -25,7 +25,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.bouncycastle.util.Arrays;
 import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,7 +86,7 @@ public class ArrowTypeComparator
             case BIT:
                 return Boolean.compare((boolean) lhs, (boolean) rhs);
             case DATEMILLI:
-                return ((LocalDateTime) lhs).compareTo((LocalDateTime) rhs);
+                return ((java.time.LocalDateTime) lhs).compareTo((java.time.LocalDateTime) rhs);
             case DATEDAY:
                 return ((Integer) lhs).compareTo((Integer) rhs);
             case TIMESTAMPMILLITZ:
@@ -104,6 +103,7 @@ public class ArrowTypeComparator
                 else {
                     return ((java.time.LocalDateTime) lhs).compareTo((java.time.LocalDateTime) rhs);
                 }
+            case MAP:
             case LIST:
             case STRUCT: // struct maps to java.util.map
                 //This could lead to thrashing if used to sort a collection

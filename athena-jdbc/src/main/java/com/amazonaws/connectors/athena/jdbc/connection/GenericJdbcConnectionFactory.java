@@ -24,6 +24,9 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -53,7 +56,7 @@ public class GenericJdbcConnectionFactory
     private static final String REDSHIFT_DRIVER_CLASS = "com.amazon.redshift.jdbc.Driver";
     private static final int REDSHIFT_DEFAULT_PORT = 5439;
 
-    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9/_+=.@-]+})";
+    private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@-]+})";
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private static final ImmutableMap<DatabaseEngine, DatabaseConnectionInfo> CONNECTION_INFO = ImmutableMap.of(
@@ -88,7 +91,7 @@ public class GenericJdbcConnectionFactory
             if (jdbcCredentialProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement = String.format("user=%s&password=%s", jdbcCredentialProvider.getCredential().getUser(),
-                        jdbcCredentialProvider.getCredential().getPassword());
+                        encodeValue(jdbcCredentialProvider.getCredential().getPassword()));
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
@@ -105,6 +108,16 @@ public class GenericJdbcConnectionFactory
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
         }
         catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private String encodeValue(String value)
+    {
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
+        }
+        catch (UnsupportedEncodingException ex) {
             throw new RuntimeException(ex);
         }
     }

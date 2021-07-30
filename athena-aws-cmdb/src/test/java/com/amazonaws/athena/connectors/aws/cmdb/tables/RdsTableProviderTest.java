@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.aws.cmdb.tables;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.services.elasticmapreduce.AmazonElasticMapReduce;
 import com.amazonaws.services.elasticmapreduce.model.Application;
 import com.amazonaws.services.elasticmapreduce.model.Cluster;
@@ -46,7 +47,6 @@ import com.amazonaws.services.rds.model.Subnet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.joda.time.DateTimeZone;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
@@ -156,7 +156,7 @@ public class RdsTableProviderTest
                     }
                     break;
                 case DATEMILLI:
-                    assertEquals(100_000, fieldReader.readLocalDateTime().toDateTime(DateTimeZone.UTC).getMillis());
+                    assertEquals(100_000, fieldReader.readLocalDateTime().atZone(BlockUtils.UTC_ZONE_ID).toInstant().toEpochMilli());
                     break;
                 case BIT:
                     assertTrue(fieldReader.readBoolean());

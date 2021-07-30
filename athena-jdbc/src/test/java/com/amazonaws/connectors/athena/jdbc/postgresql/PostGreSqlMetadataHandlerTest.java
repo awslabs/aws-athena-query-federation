@@ -31,24 +31,29 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.connectors.athena.jdbc.TestBase;
 import com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider;
-import com.amazonaws.connectors.athena.jdbc.manager.JdbcMetadataHandler;
-import com.amazonaws.connectors.athena.jdbc.mysql.MySqlMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -61,7 +66,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -69,6 +73,8 @@ import java.util.stream.Collectors;
 public class PostGreSqlMetadataHandlerTest
         extends TestBase
 {
+    private static final Logger logger = LoggerFactory.getLogger(PostGreSqlMetadataHandlerTest.class);
+
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", JdbcConnectionFactory.DatabaseEngine.MYSQL,
             "mysql://jdbc:mysql://hostname/user=A&password=B");
     private PostGreSqlMetadataHandler postGreSqlMetadataHandler;
@@ -275,4 +281,62 @@ public class PostGreSqlMetadataHandlerTest
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }
+
+    @Test
+    public void doGetTableWithArrayColumns()
+            throws Exception
+    {
+        logger.info("doGetTableWithArrayColumns - enter");
+
+        String[] schema = {"DATA_TYPE", "COLUMN_NAME",  "COLUMN_SIZE", "DECIMAL_DIGITS", "TYPE_NAME"};
+        Object[][] values = {
+                {Types.ARRAY, "bool_array", 0, 0, "_bool"},
+                {Types.ARRAY, "smallint_array", 0, 0, "_int2"},
+                {Types.ARRAY, "int_array", 0, 0, "_int4"},
+                {Types.ARRAY, "bigint_array", 0, 0, "_int8"},
+                {Types.ARRAY, "float_array", 0, 0, "_float4"},
+                {Types.ARRAY, "double_array", 0, 0, "_float8"},
+                {Types.ARRAY, "date_array", 0, 0, "_date"},
+                {Types.ARRAY, "timestamp_array", 0, 0, "_timestamp"},
+                {Types.ARRAY, "binary_array", 0, 0, "_bytea"},
+                {Types.ARRAY, "decimal_array", 38, 2, "_numeric"},
+                {Types.ARRAY, "string_array", 0, 0, "_text"},
+                {Types.ARRAY, "uuid_array", 0, 0, "_uuid"}
+        };
+        AtomicInteger rowNumber = new AtomicInteger(-1);
+        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+
+        SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
+        expectedSchemaBuilder
+                .addListField("bool_array", new ArrowType.Bool())
+                .addListField("smallint_array", new ArrowType.Int(16, true))
+                .addListField("int_array", new ArrowType.Int(32, true))
+                .addListField("bigint_array", new ArrowType.Int(64, true))
+                .addListField("float_array", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE))
+                .addListField("double_array", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
+                .addListField("date_array", new ArrowType.Date(DateUnit.DAY))
+                .addListField("timestamp_array", new ArrowType.Date(DateUnit.MILLISECOND))
+                .addListField("binary_array", new ArrowType.Utf8())
+                .addListField("decimal_array", new ArrowType.Decimal(38, 2))
+                .addListField("string_array", new ArrowType.Utf8())
+                .addListField("uuid_array", new ArrowType.Utf8());
+        postGreSqlMetadataHandler.getPartitionSchema("testCatalog").getFields()
+                .forEach(expectedSchemaBuilder::addField);
+        Schema expected = expectedSchemaBuilder.build();
+
+        TableName inputTableName = new TableName("testSchema", "testTable");
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+
+        GetTableResponse getTableResponse = this.postGreSqlMetadataHandler.doGetTable(new BlockAllocatorImpl(),
+                new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
+
+        logger.info("Schema: {}", getTableResponse.getSchema());
+
+        Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+
+        logger.info("doGetTableWithArrayColumns - exit");
+   }
 }

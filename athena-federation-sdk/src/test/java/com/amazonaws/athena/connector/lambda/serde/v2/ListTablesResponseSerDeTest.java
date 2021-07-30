@@ -47,7 +47,7 @@ public class ListTablesResponseSerDeTest extends TypedSerDeTest<FederationRespon
     {
         expected = new ListTablesResponse("test-catalog", ImmutableList.of(
                 new TableName("schema1", "table1"),
-                new TableName("schema1", "table2")));
+                new TableName("schema1", "table2")), "table3");
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "ListTablesResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();

@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -37,7 +38,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class GetTableLayoutRequestSerDe
+public final class GetTableLayoutRequestSerDe
 {
     private static final String IDENTITY_FIELD = "identity";
     private static final String QUERY_ID_FIELD = "queryId";
@@ -49,18 +50,18 @@ final class GetTableLayoutRequestSerDe
 
     private GetTableLayoutRequestSerDe(){}
 
-    static final class Serializer extends MetadataRequestSerializer
+    public static final class Serializer extends MetadataRequestSerializer
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
         private final ConstraintsSerDe.Serializer constraintsSerializer;
-        private final SchemaSerDe.Serializer schemaSerializer;
+        private final VersionedSerDe.Serializer<Schema> schemaSerializer;
 
-        Serializer(
+        public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
                 TableNameSerDe.Serializer tableNameSerializer,
                 ConstraintsSerDe.Serializer constraintsSerializer,
-                SchemaSerDe.Serializer schemaSerializer)
+                VersionedSerDe.Serializer<Schema> schemaSerializer)
         {
             super(GetTableLayoutRequest.class, identitySerializer);
             this.identitySerializer = requireNonNull(identitySerializer, "identitySerializer is null");
@@ -88,18 +89,18 @@ final class GetTableLayoutRequestSerDe
         }
     }
 
-    static final class Deserializer extends MetadataRequestDeserializer
+    public static final class Deserializer extends MetadataRequestDeserializer
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
         private final ConstraintsSerDe.Deserializer constraintsDeserializer;
-        private final SchemaSerDe.Deserializer schemaDeserializer;
+        private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
 
-        Deserializer(
+        public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
                 TableNameSerDe.Deserializer tableNameDeserializer,
                 ConstraintsSerDe.Deserializer constraintsDeserializer,
-                SchemaSerDe.Deserializer schemaDeserializer)
+                VersionedSerDe.Deserializer<Schema> schemaDeserializer)
         {
             super(GetTableLayoutRequest.class, identityDeserializer);
             this.identityDeserializer = requireNonNull(identityDeserializer, "identityDeserializer is null");

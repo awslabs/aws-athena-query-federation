@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2020.35.1
+    SemanticVersion: 2021.30.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -46,7 +46,7 @@ Parameters:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. hbase-*).'
     Type: String
   HBaseConnectionString:
-    Description: 'The HBase connection details to use by default in the format: master_hostname:zookeeper_port:hbase_port and optionally using SecretsManager (e.g. ${secret_name}).'
+    Description: 'The HBase connection details to use by default in the format: master_hostname:hbase_port:zookeeper_port and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
 Resources:
   ConnectorConfig:
@@ -60,7 +60,7 @@ Resources:
           default_hbase: !Ref HBaseConnectionString
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.hbase.HbaseCompositeHandler"
-      CodeUri: "./target/athena-hbase-1.0.jar"
+      CodeUri: "./target/athena-hbase-2021.30.1.jar"
       Description: "Enables Amazon Athena to communicate with HBase, making your HBase data accessible via SQL"
       Runtime: java8
       Timeout: !Ref LambdaTimeout
@@ -70,7 +70,7 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:aws:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
           Version: '2012-10-17'
         - Statement:
             - Action:

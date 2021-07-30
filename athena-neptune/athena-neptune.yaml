@@ -1,0 +1,116 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaNeptuneConnector
+    Description: This connector enables Amazon Athena to communicate with your Neptune instance, making your Neptune graph data accessible via SQL.
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation','athena-neptune','neptune']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2021.30.1
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+Parameters:
+  NeptuneClusterEndpoint:
+    Description: 'The Neptune cluster endpoint'
+    Type: String
+  NeptunePort:
+    Description: 'The Neptune port'
+    Type: String
+    Default: '8182'
+  NeptuneClusterResourceID:
+    Description: 'To find the Neptune cluster resource ID in the Amazon Neptune AWS Management Console, choose the DB cluster that you want. The Resource ID is shown in the Configuration section.'
+    Type: String
+  GlueDatabaseName:
+    Description: 'Name of the Neptune cluster specific Glue Database that contains schemas of graph vertices'
+    Type: String
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    Default: 'athena-catalog'
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-neptune-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
+    Default: 'false'
+    Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup(s) that should be applied to the Lambda function to allow connectivity to Neptune cluster. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet(s) that the Lambda function can use to access the Neptune cluster. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  IAMEnabled:
+    Description: 'If set to ''true'' the connector uses Signature Version 4 Signing'
+    Default: false
+    Type: String
+
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          glue_database_name: !Ref GlueDatabaseName
+          neptune_endpoint: !Ref NeptuneClusterEndpoint
+          neptune_port: !Ref NeptunePort
+          neptune_cluster_res_id: !Ref NeptuneClusterResourceID
+          iam_enabled: !Ref IAMEnabled
+          SERVICE_REGION: !Ref AWS::Region
+      FunctionName: !Ref AthenaCatalogName
+      Handler: "com.amazonaws.athena.connectors.neptune.NeptuneCompositeHandler"
+      CodeUri: "./target/athena-neptune-2021.30.1.jar"
+      Description: "Enables Amazon Athena to communicate with Neptune, making your Neptune graph data accessible via SQL."
+      Runtime: java8
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase              
+                - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
+              Effect: Allow
+              Resource: '*'
+            - Action:
+                - neptune-db:*
+              Effect: Allow
+              #Dynamically construct Neptune Cluster Resource ARN to limit permissions to the specific cluster provided
+              Resource: !Sub 'arn:${AWS::Partition}:neptune-db:${AWS::Region}:${AWS::AccountId}:${NeptuneClusterResourceID}/*'
+          Version: '2012-10-17'
+        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
+        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
+        - S3CrudPolicy:
+            BucketName: !Ref SpillBucket
+        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds

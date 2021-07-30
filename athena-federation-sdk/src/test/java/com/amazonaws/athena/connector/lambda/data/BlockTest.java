@@ -44,6 +44,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.reader.Float8Reader;
@@ -69,6 +70,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +84,10 @@ import static org.junit.Assert.assertTrue;
 //      Also having them condensed like this gives a good example for how to use Apache Arrow.
 public class BlockTest
 {
+    private static final String ENTRIES = "entries";
+    private static final String KEY = "key";
+    private static final String VALUE = "value";
+
     private static final Logger logger = LoggerFactory.getLogger(BlockTest.class);
     private BlockAllocatorImpl allocator;
 
@@ -283,6 +289,7 @@ public class BlockTest
                 case VARCHAR:
                 case BIT:
                 case STRUCT:
+                case MAP:
                     vector.setPosition(0);
                     assertFalse("Failed for " + vector.getMinorType() + " " + next.getName(), vector.isSet());
                     break;
@@ -356,6 +363,12 @@ public class BlockTest
                         .addListField("nestedList", Types.MinorType.VARCHAR.getType())
                         .addListField("nestedListDec", new ArrowType.Decimal(10, 2))
                         .build());
+
+        schemaBuilder.addField(FieldBuilder.newBuilder("simplemap", new ArrowType.Map(false))
+            .addField("entries", Types.MinorType.STRUCT.getType(), false, Arrays.asList(
+                    FieldBuilder.newBuilder("key", Types.MinorType.VARCHAR.getType(), false).build(),
+                    FieldBuilder.newBuilder("value", Types.MinorType.INT.getType()).build()))
+            .build());
         return schemaBuilder.build();
     }
 
@@ -618,6 +631,93 @@ public class BlockTest
                                     i,
                                     FieldResolver.DEFAULT,
                                     Collections.singletonList(i % 2 == 1));
+                        }
+                    }
+                    break;
+                case MAP:
+                    MapVector mapVector = (MapVector) vector;
+                    for (int i = 0; i < expectedRows; i++) {
+                        final int seed = i;
+                        BlockUtils.setComplexValue(mapVector, i, (Field field, Object value) -> {
+                            if (field.getName().equals("key")) {
+                                return String.valueOf(1000 + seed);
+                            }
+                            if (field.getName().equals("value")) {
+                                return seed;
+                            }
+                            if (field.getName().equals("tinyintcol")) {
+                                return (byte) seed;
+                            }
+
+                            if (field.getName().equals("smallintcol")) {
+                                return (short) seed;
+                            }
+
+                            if (field.getName().equals("nestedList")) {
+                                List<String> values = new ArrayList<>();
+                                values.add("val1");
+                                values.add("val2");
+                                return values;
+                            }
+
+                            if (field.getName().equals("nestedListDec")) {
+                                List<Double> values = new ArrayList<>();
+                                values.add(2.0D);
+                                values.add(2.2D);
+                                return values;
+                            }
+
+                            if (field.getName().equals("float4Col")) {
+                                return seed * 1.0F;
+                            }
+                            if (field.getName().equals("float8Col")) {
+                                return seed * 2.0D;
+                            }
+                            if (field.getName().equals("shortDecCol")) {
+                                return seed * 3.0D;
+                            }
+                            if (field.getName().equals("longDecCol")) {
+                                return seed * 4.0D;
+                            }
+                            if (field.getName().equals("binaryCol")) {
+                                return String.valueOf(seed).getBytes(Charsets.UTF_8);
+                            }
+                            if (field.getName().equals("bitCol")) {
+                                return seed % 2 == 1;
+                            }
+                            if (field.getName().equals("nestedStruct")) {
+                                //doesn't matter since we are generating the values for the struct
+                                //it just needs to be non-null
+                                return new Object();
+                            }
+
+                            throw new RuntimeException("Unexpected field " + field.getName());
+                        }, new Object());
+                    }
+                    List<Field> children = vector.getField().getChildren();
+                    Field keyValueStructField;
+                    if (children.size() != 1) {
+                        throw new IllegalStateException("Invalid Arrow Map schema: " + vector.getField());
+                    }
+                    else {
+                        keyValueStructField = children.get(0);
+                        if (!ENTRIES.equals(keyValueStructField.getName())
+                                || !(keyValueStructField.getType() instanceof ArrowType.Struct)) {
+                            throw new IllegalStateException("Invalid Arrow Map schema: " + vector.getField());
+                        }
+                    }
+
+                    List<Field> keyValueChildren = keyValueStructField.getChildren();
+                    Field keyField;
+                    Field valueField;
+                    if (keyValueChildren.size() != 2) {
+                        throw new IllegalStateException("Invalid Arrow Map schema: " + vector.getField());
+                    }
+                    else {
+                        keyField = keyValueChildren.get(0);
+                        valueField = keyValueChildren.get(1);
+                        if (!KEY.equals(keyField.getName()) || !VALUE.equals(valueField.getName())) {
+                            throw new IllegalStateException("Invalid Arrow Map schema: " + vector.getField());
                         }
                     }
                     break;
@@ -975,7 +1075,8 @@ public class BlockTest
         try {
             ByteArrayOutputStream jout = new ByteArrayOutputStream();
             JsonFactory factory = new JsonFactory();
-            JsonGenerator jsonGenerator = factory.createJsonGenerator(jout);
+            JsonGenerator jsonGenerator = factory.createGenerator(jout);
+            jsonGenerator.writeStartObject();
             jsonGenerator.writeBinaryField("field", serializedBlock.toByteArray());
             jsonGenerator.close();
             double overhead = 1 - (((double) serializedBlock.size()) / ((double) jout.size()));

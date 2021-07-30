@@ -164,6 +164,11 @@ public class ElasticsearchMetadataHandler
     {
         logger.debug("doListSchemaNames: enter - " + request);
 
+        if (autoDiscoverEndpoint) {
+            // Refresh Domain Map as new domains could have been added (in Amazon ES), and/or old ones removed...
+            domainMap = domainMapProvider.getDomainMap(null);
+        }
+
         return new ListSchemasResponse(request.getCatalogName(), domainMap.keySet());
     }
 
@@ -189,8 +194,9 @@ public class ElasticsearchMetadataHandler
             AwsRestHighLevelClient client = clientFactory.getOrCreateClient(endpoint);
             try {
                 for (String index : client.getAliases()) {
-                    // Add all Indices except for kibana.
-                    if (index.contains("kibana")) {
+                    // Ignore all system indices starting with period `.` (e.g. .kibana, .tasks, etc...)
+                    if (index.startsWith(".")) {
+                        logger.info("Ignoring system index: {}", index);
                         continue;
                     }
 
@@ -205,7 +211,7 @@ public class ElasticsearchMetadataHandler
             throw new RuntimeException("Error processing request to list indices: " + error.getMessage(), error);
         }
 
-        return new ListTablesResponse(request.getCatalogName(), indices);
+        return new ListTablesResponse(request.getCatalogName(), indices, null);
     }
 
     /**

@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.DateUnit;
@@ -57,23 +58,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 /**
  * All items in the "com.amazonaws.athena.connector.lambda.examples" that this class belongs to are part of an
  * 'Example' connector. We do not recommend using any of the classes in this package directly. Instead you can/should
  * copy and modify as needed.
  * <p>
- * This class defined an example MetadataHandler that supports a single schema and single table which showcases most
- * of the features offered by the Amazon Athena Query Federation SDK. Some notable characteristics include:
+ * This class defined an example MetadataHandler which showcases most of the features offered by the Amazon Athena
+ * Query Federation SDK. Some notable characteristics include:
  * 1. Highly partitioned table.
  * 2. Paginated split generation.
  * 3. S3 Spill support.
  * 4. Spill encryption using either KMS KeyFactory or LocalKeyFactory.
  * 5. A wide range of field types including complex Struct and List types.
+ * 6. Pagination support for the ListTables request and response (doListTables).
  * <p>
  *
  * @note All schema names, table names, and column names must be lower case at this time. Any entities that are uppercase or
@@ -180,26 +185,65 @@ public class ExampleMetadataHandler
     }
 
     /**
-     * Returns a static list of TableNames. A connector for a real data source would likely query that source's metadata
-     * to create a real list of TableNames for the requested schema name.
+     * Returns a paginated list of TableNames.
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request Provides details on who made the request and which Athena catalog and database they are querying.
-     * @return A ListTablesResponse containing the list of available TableNames.
+     * @return A ListTablesResponse containing the list of available TableNames and a nextToken String for the start of
+     * the next pagination (may be null if there are no more tables to paginate).
+     * @implNote A complete (un-paginated) list of tables should be returned if the request's pageSize is set to
+     * ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE.
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
         logCaller(request);
-        List<TableName> tables = new ArrayList<>();
-        tables.add(new TableName(ExampleTable.schemaName, ExampleTable.tableName));
+        String nextToken = null;
+        int pageSize = request.getPageSize();
+        // The following list is purposely unordered to demonstrate that the pagination logic does not consider the
+        // order of the tables deterministic (i.e. pagination will work irrespective of the order that the tables are
+        // returned from the source).
+        List<TableName> tables = new ImmutableList.Builder<TableName>()
+                .add(new TableName("schema", "table4"))
+                .add(new TableName("schema", "table3"))
+                .add(new TableName("schema", "table5"))
+                .add(new TableName("schema", "table1"))
+                .add(new TableName("schema", "table2"))
+                .build();
+
+        // Check if request has unlimited page size. If not, then list of tables will be paginated.
+        if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
+            // Get the stating table for this page (if null, then this is the first page).
+            String startToken = request.getNextToken();
+            // Sort the list. Include all tables if the startToken is null, or only the tables whose names are equal to
+            // or higher in value than startToken. Limit the number of tables in the list to the pageSize + 1 (the
+            // nextToken).
+            List<TableName> paginatedTables = tables.stream()
+                    .sorted(Comparator.comparing(TableName::getTableName))
+                    .filter(table -> startToken == null || table.getTableName().compareTo(startToken) >= 0)
+                    .limit(pageSize + 1)
+                    .collect(Collectors.toList());
+
+            if (paginatedTables.size() > pageSize) {
+                // Paginated list contains full page of results + nextToken.
+                // nextToken is the last element in the paginated list.
+                // In an actual connector, the nextToken's value should be obfuscated.
+                nextToken = paginatedTables.get(pageSize).getTableName();
+                // nextToken is removed to include only the paginated results.
+                tables = paginatedTables.subList(0, pageSize);
+            }
+            else {
+                // Paginated list contains all remaining tables - end of the pagination.
+                tables = paginatedTables;
+            }
+        }
 
         //The below filter for null schema is not typical, we do this to generate a specific semantic error
         //that is exercised in our unit test suite.
         return new ListTablesResponse(request.getCatalogName(),
                 tables.stream()
                         .filter(table -> request.getSchemaName() == null || request.getSchemaName().equals(table.getSchemaName()))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList()), nextToken);
     }
 
     /**
@@ -439,6 +483,11 @@ public class ExampleMetadataHandler
                             FieldBuilder.newBuilder("outerlist", new ArrowType.List())
                                     .addListField("innerList", Types.MinorType.VARCHAR.getType())
                                     .build())
+                    .addField(FieldBuilder.newBuilder("simplemap", new ArrowType.Map(false))
+                            .addField("entries", Types.MinorType.STRUCT.getType(), false, Arrays.asList(
+                                    FieldBuilder.newBuilder("key", Types.MinorType.VARCHAR.getType(), false).build(),
+                                    FieldBuilder.newBuilder("value", Types.MinorType.INT.getType()).build()))
+                            .build())
                     .addMetadata("partitionCols", "day,month,year")
                     .addMetadata("randomProp1", "randomPropVal1")
                     .addMetadata("randomProp2", "randomPropVal2").build();

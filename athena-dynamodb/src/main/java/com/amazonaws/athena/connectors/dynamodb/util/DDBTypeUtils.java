@@ -26,13 +26,13 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.lang3.StringUtils;
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -174,11 +174,11 @@ public final class DDBTypeUtils
         }
         else if (object instanceof LocalDateTime) {
             String datetimeFormat = recordMetadata.getDateTimeFormat(columnName);
-            DateTimeZone dtz = DateTimeZone.forID(recordMetadata.getDefaultTimeZone().toString());
+            ZoneId dtz = ZoneId.of(recordMetadata.getDefaultTimeZone().toString());
             if (datetimeFormat != null) {
-                return ((LocalDateTime) object).toDateTime(dtz).toLocalDateTime().toString(datetimeFormat);
+                return ((LocalDateTime) object).atZone(dtz).format(DateTimeFormatter.ofPattern(datetimeFormat));
             }
-            return ((LocalDateTime) object).toDateTime(dtz).getMillis();
+            return ((LocalDateTime) object).atZone(dtz).toInstant().toEpochMilli();
         }
         return object;
     }

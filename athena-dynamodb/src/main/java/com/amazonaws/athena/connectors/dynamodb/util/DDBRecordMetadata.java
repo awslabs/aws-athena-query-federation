@@ -28,7 +28,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.time.ZoneId;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -185,7 +184,7 @@ public class DDBRecordMetadata
                 return new HashMap<>(MAP_SPLITTER.split(datetimeFormatMappingParam));
             }
         }
-        return Collections.emptyMap();
+        return new HashMap<>();
     }
 
     /**

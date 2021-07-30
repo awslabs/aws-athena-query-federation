@@ -1,0 +1,122 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: AthenaVerticaConnector
+    Description: 'This connector enables Amazon Athena to communicate with Vertica'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2021.30.1
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+# Parameters are CloudFormation features to pass input
+# to your template when you create a stack
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  VerticaExportBucket:
+    Description: "The bucket where the Vertica Query results will be exported."
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: "false"
+    Type: String
+  VpcId:
+    Description: 'VPC ID'
+    Type: 'AWS::EC2::VPC::Id'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  SecretNameOrPrefix:
+    Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. vertica-*).'
+    Type: String
+    Default: "vertica-*"
+  VerticaConnectionString:
+    Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
+    Type: String
+    Default: "jdbc:vertica://<host_name>:<port>/<database>?user=${vertica-username}&password=${vertica-password}"
+
+Resources:
+  LambdaSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Athena Vertica Connector Lambda VPC Security Group'
+      VpcId: !Ref VpcId
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          export_bucket: !Ref VerticaExportBucket
+          default_vertica: !Ref VerticaConnectionString
+
+      FunctionName: !Sub "${AthenaCatalogName}"
+      Handler: "com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler"
+      CodeUri: "./target/athena-vertica-2021.30.1.jar"
+      Description: "Amazon Athena Vertica Connector"
+      Runtime: java8
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Policies:
+        - Statement:
+            - Action:
+                - athena:GetQueryExecution
+                - s3:ListAllMyBuckets
+              Effect: Allow
+              Resource: '*'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - s3:ListBucket
+              Effect: Allow
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:s3:::${VerticaExportBucket}'
+                - !Sub 'arn:${AWS::Partition}:s3:::${SpillBucket}'
+          Version: '2012-10-17'
+        - Statement:
+            - Action:
+                - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+        - S3ReadPolicy:
+            BucketName:
+              Ref: SpillBucket
+        - S3WritePolicy:
+            BucketName:
+              Ref: SpillBucket
+        - S3ReadPolicy:
+            BucketName:
+              Ref: VerticaExportBucket
+        - S3WritePolicy:
+            BucketName:
+              Ref: VerticaExportBucket
+      #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
+      VpcConfig:
+        SecurityGroupIds:
+          #SecurityGroup that should be applied to the Lambda function
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds

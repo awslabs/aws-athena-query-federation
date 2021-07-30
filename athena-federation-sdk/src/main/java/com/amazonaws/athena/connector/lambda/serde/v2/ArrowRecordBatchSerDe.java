@@ -31,7 +31,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.MetadataVersion;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,6 +43,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * used to serialize and deserialize ArrowRecordBatch.
+ *
+ * @deprecated {@link com.amazonaws.athena.connector.lambda.serde.v3.ArrowRecordBatchSerDeV3} should be used instead
+ */
+@Deprecated
 public final class ArrowRecordBatchSerDe
 {
     private ArrowRecordBatchSerDe(){}
@@ -53,12 +61,15 @@ public final class ArrowRecordBatchSerDe
         }
 
         @Override
-        protected void doSerialize(ArrowRecordBatch arrowRecordBatch, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(ArrowRecordBatch arrowRecordBatch, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             try {
+                IpcOption option = new IpcOption();
+                option.write_legacy_ipc_format = true;
+                option.metadataVersion = MetadataVersion.V4;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch);
+                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch, option);
                 jgen.writeBinary(out.toByteArray());
             }
             finally {
@@ -78,7 +89,7 @@ public final class ArrowRecordBatchSerDe
         }
 
         @Override
-        protected ArrowRecordBatch doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public ArrowRecordBatch doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             if (jparser.nextToken() != JsonToken.VALUE_EMBEDDED_OBJECT) {

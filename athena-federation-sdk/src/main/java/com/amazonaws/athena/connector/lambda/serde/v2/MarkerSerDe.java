@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
+import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -32,7 +33,7 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-final class MarkerSerDe
+public final class MarkerSerDe
 {
     private static final String VALUE_BLOCK_FIELD = "valueBlock";
     private static final String BOUND_FIELD = "bound";
@@ -40,18 +41,18 @@ final class MarkerSerDe
 
     private MarkerSerDe(){}
 
-    static final class Serializer extends BaseSerializer<Marker>
+    public static final class Serializer extends BaseSerializer<Marker>
     {
-        private final BlockSerDe.Serializer blockSerializer;
+        private final VersionedSerDe.Serializer<Block> blockSerializer;
 
-        Serializer(BlockSerDe.Serializer blockSerializer)
+        public Serializer(VersionedSerDe.Serializer<Block> blockSerializer)
         {
             super(Marker.class);
             this.blockSerializer = requireNonNull(blockSerializer, "blockSerializer is null");
         }
 
         @Override
-        protected void doSerialize(Marker marker, JsonGenerator jgen, SerializerProvider provider)
+        public void doSerialize(Marker marker, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
             jgen.writeFieldName(VALUE_BLOCK_FIELD);
@@ -62,18 +63,18 @@ final class MarkerSerDe
         }
     }
 
-    static final class Deserializer extends BaseDeserializer<Marker>
+    public static final class Deserializer extends BaseDeserializer<Marker>
     {
-        private final BlockSerDe.Deserializer blockDeserializer;
+        private final VersionedSerDe.Deserializer<Block> blockDeserializer;
 
-        Deserializer(BlockSerDe.Deserializer blockDeserializer)
+        public Deserializer(VersionedSerDe.Deserializer<Block> blockDeserializer)
         {
             super(Marker.class);
             this.blockDeserializer = requireNonNull(blockDeserializer, "blockDeserializer is null");
         }
 
         @Override
-        protected Marker doDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        public Marker doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             assertFieldName(jparser, VALUE_BLOCK_FIELD);

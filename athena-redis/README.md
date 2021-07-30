@@ -2,7 +2,7 @@
 
 This connector enables Amazon Athena to communicate with your Redis instance(s), making your Redis data accessible via SQL. 
 
-**To enable this Preview feature you need to create an Athena workgroup named AmazonAthenaPreviewFunctionality and run any queries attempting to federate to this connector, use a UDF, or SageMaker inference from that workgroup.**
+**Athena Federated Queries are now enabled as GA in us-east-1, us-east-2, us-west-2, eu-west-1, ap-northeast-1, ap-south-1, us-west-1, ap-southeast-1, ap-southeast-2, eu-west-2, ap-northeast-2, eu-west-3, ca-central-1, sa-east-1, and eu-central-1. To use this feature, upgrade your engine version to Athena V2 in your workgroup settings. Check documentation here for more details: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html.**
 
 Unlike traditional relational data stores, Redis does not have the concept of a table or a column. Instead, Redis offers key-value access patterns where the key is essentially a 'string' and the value is one of: string, z-set, hmap. The Athena Redis Connector allows you to configure virtual tables using the Glue Data Catalog for schema and special table properties to tell the Athena Redis Connector how to map your Redis key-values into a table. You can read more on this below in the 'Setting Up Tables Section'.
 
@@ -23,11 +23,13 @@ The Athena Redis Connector exposes several configuration options via Lambda envi
 
 To enable a Glue Table for use with Redis, you can set the following properties on the Table. redis-endpoint , redis-value-type, and one of redis-keys-zset or redis-key-prefix. Also note that any Glue database which may contain redis tables should have "redis-db-flag" somewhere in the URI property of the Database. You can set this from the Glue Console by editing the database.
 
-1. **redis-endpoint** - (required) The hostname:port:password of the redis server that data for this table should come from. (e.g. athena-federation-demo.cache.amazonaws.com:6379) Alternatively, you can store the endpoint or part of the endpoint in SecretsManager by using ${secret_name} as the table property value.
+1. **redis-endpoint** - (required) The hostname:port:password of the redis server that data for this table should come from. (e.g. athena-federation-demo.cache.amazonaws.com:6379) Alternatively, you can store the endpoint or part of the endpoint in AWS Secrets Manager by using ${secret_name} as the table property value.*
 2. **redis-keys-zset** - (required if not using # 3) A comma separated list of keys whose value is a zset. Each of the values in the zset is then treated as a key that is part of this table. You must set either this or redis-key-prefix. (e.g. active-orders,pending-orders)
 3. **redis-key-prefix** - (required if not using # 2)  A comma separated list of key prefixes to scan for values that should be part of this table. You must set either this or redis-keys-zset on the table. (e.g. accounts-*,acct-)
 4. **redis-value-type** - (required) Defines how the value for the keys defined by either redis-key-prefix or redis-keys-zset will be mapped to your table. literal maps to a single column. zset also maps to a single column but each key can essentially store N rows. hash allows for each key to be a row with multiple columns. (e.g. hash or literal or zset)
-  
+
+*To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
+
 ### Data Types
 
 All Redis values are retrieved as the basic String data type. From there they are converted to one of the below Apache Arrow data types used by the Athena Query Federation SDK based on how you've defined your table(s) in Glue's DataCatalog.

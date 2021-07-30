@@ -67,6 +67,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.MetricStatSerDe.SERIALIZED_METRIC_STATS_FIELD_NAME;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.METRIC_NAME_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
@@ -132,7 +133,8 @@ public class MetricsMetadataHandlerTest
     {
         logger.info("doListTables - enter");
 
-        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema);
+        ListTablesRequest req = new ListTablesRequest(identity, "queryId", "default", defaultSchema,
+                null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse res = handler.doListTables(allocator, req);
         logger.info("doListTables - {}", res.getTables());
 
@@ -331,5 +333,56 @@ public class MetricsMetadataHandlerTest
         assertEquals(1, numContinuations);
 
         logger.info("doGetMetricSamplesSplits: exit");
+    }
+
+    @Test
+    public void doGetMetricSamplesSplitsEmptyMetrics()
+            throws Exception
+    {
+        logger.info("doGetMetricSamplesSplitsEmptyMetrics: enter");
+
+        String namespace = "NameSpace";
+        String invalidNamespaceFilter = "InvalidNameSpace";
+        int numMetrics = 10;
+
+        when(mockMetrics.listMetrics(any(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            List<Metric> metrics = new ArrayList<>();
+            for (int i = 0; i < numMetrics; i++) {
+                metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i));
+            }
+            return new ListMetricsResult().withNextToken(null).withMetrics(metrics);
+        });
+
+        Schema schema = SchemaBuilder.newBuilder().addIntField("partitionId").build();
+
+        Block partitions = allocator.createBlock(schema);
+        BlockUtils.setValue(partitions.getFieldVector("partitionId"), 1, 1);
+        partitions.setRowCount(1);
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+
+        constraintsMap.put(NAMESPACE_FIELD,
+                EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
+                        .add(invalidNamespaceFilter).build());
+
+        GetSplitsRequest originalReq = new GetSplitsRequest(identity,
+                "queryId",
+                "catalog_name",
+                new TableName(defaultSchema, "metric_samples"),
+                partitions,
+                Collections.singletonList("partitionId"),
+                new Constraints(constraintsMap),
+                null);
+
+        GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
+        logger.info("doGetMetricSamplesSplitsEmptyMetrics: req[{}]", req);
+
+        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
+        assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
+
+        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+
+        assertEquals(0, response.getSplits().size());
+        assertEquals(null, response.getContinuationToken());
     }
 }
