@@ -36,7 +36,7 @@ in most **pom.xml** files (e.g.
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>Current version of the SDK (e.g. 2021.21.1)</version>
+            <version>Current version of the SDK (e.g. 2021.30.1)</version>
             <scope>test</scope>
         </dependency>
 ```
@@ -144,6 +144,7 @@ Integration-Test framework provides the following public API allowing access to 
         return secretCredentials;
     }
 ```
+To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 **Environment variables** - Parameters used by the connectors' internal logic:
 * **spill_bucket** - The S3 bucket used for spilling excess data.
