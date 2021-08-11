@@ -72,8 +72,8 @@ import static io.lettuce.core.ScanCursor.INITIAL;
  * <p>
  * For more detail, please see the module's README.md, some notable characteristics of this class include:
  * <p>
- * 1. Uses Glue table properties (redis-endpoint, redis-value-type, redis-key-prefix, and redis-keys-zset) to
- * provide schema as well as connectivity details to Redis.
+ * 1. Uses Glue table properties (redis-endpoint, redis-value-type, redis-key-prefix, redis-keys-zset, redis-ssl-flag,
+ * and redis-cluster-flag) to provide schema as well as connectivity details to Redis.
  * 2. Attempts to resolve sensitive fields such as redis-endpoint via SecretsManager so that you can substitute
  * variables with values from by doing something like hostname:port:password=${my_secret}
  */
