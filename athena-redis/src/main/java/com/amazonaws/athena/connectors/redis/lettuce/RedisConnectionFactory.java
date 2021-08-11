@@ -41,7 +41,8 @@ public class RedisConnectionFactory
   public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr, boolean sslEnabled,
                                                                              boolean isCluster)
   {
-    RedisConnectionWrapper<String, String> connection = clientCache.get(conStr);
+    String conKey = conStr + sslEnabled + isCluster;
+    RedisConnectionWrapper<String, String> connection = clientCache.get(conKey);
     if (connection == null) {
       String[] endpointParts = conStr.split(":");
       if (endpointParts.length == 2) {
@@ -65,7 +66,7 @@ public class RedisConnectionFactory
       else {
         throw new IllegalArgumentException("Redis endpoint format error.");
       }
-      clientCache.put(conStr, connection);
+      clientCache.put(conKey, connection);
     }
     return connection;
   }
