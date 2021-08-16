@@ -21,21 +21,27 @@ package com.amazonaws.athena.connectors.neptune;
 
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.driver.Cluster;
+import org.apache.tinkerpop.gremlin.driver.SigV4WebSocketChannelizer;
 import org.apache.tinkerpop.gremlin.driver.remote.DriverRemoteConnection;
 import org.apache.tinkerpop.gremlin.process.traversal.AnonymousTraversalSource;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 
 public class NeptuneConnection
 {
-     private static Cluster cluster = null;
+    private static Cluster cluster = null;
 
-    NeptuneConnection(String neptuneEndpoint, String neptunePort)
+    NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM)
     {
-        cluster = Cluster.build()
-                        .addContactPoint(neptuneEndpoint)
-                        .port(Integer.parseInt(neptunePort))
-                        .enableSsl(true)
-                        .create();
+        Cluster.Builder builder = Cluster.build();
+        builder.addContactPoint(neptuneEndpoint)
+               .port(Integer.parseInt(neptunePort))
+               .enableSsl(true);
+               
+        if (enabledIAM) {
+            builder = builder.channelizer(SigV4WebSocketChannelizer.class);
+        }
+        
+        cluster = builder.create();
     }
 
     Client getNeptuneClientConnection()

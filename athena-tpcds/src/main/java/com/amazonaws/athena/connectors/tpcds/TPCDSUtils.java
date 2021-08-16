@@ -48,7 +48,6 @@ public class TPCDSUtils
     {
         ColumnType type = column.getType();
         switch (type.getBase()) {
-            case TIME:
             case IDENTIFIER:
                 return FieldBuilder.newBuilder(column.getName(), Types.MinorType.BIGINT.getType()).build();
             case INTEGER:
@@ -58,6 +57,7 @@ public class TPCDSUtils
             case DECIMAL:
                 ArrowType arrowType = new ArrowType.Decimal(type.getPrecision().get(), type.getScale().get());
                 return FieldBuilder.newBuilder(column.getName(), arrowType).build();
+            case TIME:
             case CHAR:
             case VARCHAR:
                 return FieldBuilder.newBuilder(column.getName(), Types.MinorType.VARCHAR.getType()).build();

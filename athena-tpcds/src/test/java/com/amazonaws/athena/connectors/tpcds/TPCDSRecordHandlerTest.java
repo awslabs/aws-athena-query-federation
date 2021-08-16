@@ -47,6 +47,7 @@ import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import com.teradata.tpcds.Table;
 import com.teradata.tpcds.column.Column;
@@ -259,6 +260,52 @@ public class TPCDSRecordHandlerTest
         }
 
         logger.info("doReadRecordsSpill: exit");
+    }
+
+    @Test
+    public void doReadRecordForTPCDSTIMETypeColumn()
+            throws Exception
+    {
+        for (Table next : Table.getBaseTables()) {
+            if (next.getName().equals("dbgen_version")) {
+                table = next;
+            }
+        }
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        for (Column nextCol : table.getColumns()) {
+            schemaBuilder.addField(TPCDSUtils.convertColumn(nextCol));
+        }
+
+        ReadRecordsRequest request = new ReadRecordsRequest(identity,
+                "catalog",
+                "queryId-" + System.currentTimeMillis(),
+                new TableName("tpcds1", table.getName()),
+                schemaBuilder.build(),
+                Split.newBuilder(S3SpillLocation.newBuilder()
+                                .withBucket(UUID.randomUUID().toString())
+                                .withSplitId(UUID.randomUUID().toString())
+                                .withQueryId(UUID.randomUUID().toString())
+                                .withIsDirectory(true)
+                                .build(),
+                        keyFactory.create())
+                        .add(SPLIT_NUMBER_FIELD, "0")
+                        .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
+                        .add(SPLIT_SCALE_FACTOR_FIELD, "1")
+                        .build(),
+                new Constraints(ImmutableMap.of()),
+                100_000_000_000L,
+                100_000_000_000L
+        );
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+
+        logger.info("doReadRecordForTPCDSTIMETypeColumn: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(1, response.getRecords().getRowCount()); // TPCDS for `dbgen_version` always generates 1 record.
+
+        logger.info("doReadRecordForTPCDSTIMETypeColumn: exit");
     }
 
     private class ByteHolder
