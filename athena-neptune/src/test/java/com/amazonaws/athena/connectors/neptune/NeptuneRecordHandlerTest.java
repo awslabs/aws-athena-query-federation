@@ -46,7 +46,6 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneRecordHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectResult;
@@ -111,7 +110,10 @@ public class NeptuneRecordHandlerTest extends TestBase {
         public void setUp() {
                 logger.info("{}: enter", testName.getMethodName());
 
-                schemaForRead = SchemaBuilder.newBuilder().addIntField("property1").addStringField("property2")
+                schemaForRead = SchemaBuilder
+                                .newBuilder()
+                                .addMetadata("type", "vertex")
+                                .addIntField("property1").addStringField("property2")
                                 .addFloat8Field("property3").addBitField("property4").addBigIntField("property5").addFloat4Field("property6")
                                 .build();
 

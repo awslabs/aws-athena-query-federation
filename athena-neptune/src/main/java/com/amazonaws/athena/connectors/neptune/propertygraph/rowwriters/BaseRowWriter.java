@@ -17,18 +17,20 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.neptune.rowwriters;
+package com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters;
 
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public class BaseRowWriter {
-    BaseRowWriter() {
+public class BaseRowWriter 
+{
+    BaseRowWriter() 
+    {
         // Empty private constructor
     }
 
     enum SpecialKeys {
-        IN, OUT,ID
+        IN, OUT, ID
     }
 }
