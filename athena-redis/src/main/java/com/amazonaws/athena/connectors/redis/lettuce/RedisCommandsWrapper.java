@@ -26,6 +26,7 @@ import io.lettuce.core.ScanCursor;
 import io.lettuce.core.ScoredValueScanCursor;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands;
+import org.apache.arrow.util.VisibleForTesting;
 
 import java.util.List;
 import java.util.Map;
@@ -109,6 +110,39 @@ public class RedisCommandsWrapper<K, V>
     }
     else {
       return standaloneCommands.zscan(var1, var2);
+    }
+  }
+
+  @VisibleForTesting
+  public String hmset(K var1, Map<K, V> var2)
+  {
+    if (isCluster) {
+      return clusterCommands.hmset(var1, var2);
+    }
+    else {
+      return standaloneCommands.hmset(var1, var2);
+    }
+  }
+
+  @VisibleForTesting
+  public Long zadd(K var1, double var2, V var3)
+  {
+    if (isCluster) {
+      return clusterCommands.zadd(var1, var2, var3);
+    }
+    else {
+      return standaloneCommands.zadd(var1, var2, var3);
+    }
+  }
+
+  @VisibleForTesting
+  public String set(K var1, V var2)
+  {
+    if (isCluster) {
+      return clusterCommands.set(var1, var2);
+    }
+    else {
+      return standaloneCommands.set(var1, var2);
     }
   }
 }

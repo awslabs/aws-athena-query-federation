@@ -48,6 +48,32 @@
             <version>${slf4jVersion}</version>
         </dependency>
         <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-elasticache</artifactId>
+            <version>${aws-sdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/elasticache -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>elasticache</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/glue -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>glue</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-integ-test</artifactId>
+            <version>${aws-athena-federation-sdk.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
             <version>${log4j2Version}</version>

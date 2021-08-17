@@ -51,4 +51,14 @@ public class RedisConnectionWrapper<K, V>
   {
     return this.redisCommandsWrapper;
   }
+
+  public void close()
+  {
+    if (isCluster) {
+      clusterConnection.close();
+    }
+    else {
+      standaloneConnection.close();
+    }
+  }
 }
