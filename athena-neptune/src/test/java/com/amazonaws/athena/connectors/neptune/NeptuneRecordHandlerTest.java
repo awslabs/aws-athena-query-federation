@@ -46,6 +46,7 @@ import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneRecordHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectResult;

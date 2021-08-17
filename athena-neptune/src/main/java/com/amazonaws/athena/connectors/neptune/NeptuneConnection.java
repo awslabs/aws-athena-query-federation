@@ -30,7 +30,7 @@ public class NeptuneConnection
 {
     private static Cluster cluster = null;
 
-    NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM)
+    public NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM)
     {
         Cluster.Builder builder = Cluster.build();
         builder.addContactPoint(neptuneEndpoint)
@@ -44,12 +44,12 @@ public class NeptuneConnection
         cluster = builder.create();
     }
 
-    Client getNeptuneClientConnection()
+    public Client getNeptuneClientConnection()
     {
         return cluster.connect();
     }
 
-    GraphTraversalSource getTraversalSource(Client client)
+    public GraphTraversalSource getTraversalSource(Client client)
     {
         DriverRemoteConnection connection = DriverRemoteConnection.using(client);
         return AnonymousTraversalSource.traversal().withRemote(connection);
@@ -60,3 +60,4 @@ public class NeptuneConnection
         cluster.close();
     }
 }
+

@@ -17,20 +17,18 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.neptune;
-
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import com.amazonaws.athena.connectors.neptune.propertygraph.NeptuneRecordHandler;
+package com.amazonaws.athena.connectors.neptune.rowwriters;
 
 /**
- * Boilerplate composite handler that allows us to use a single Lambda function for both
- * Metadata and Data. In this case we just compose NeptuneMetadataHandler and NeptuneRecordHandler.
+ * This class is a Utility class to create Extractors for each field type as per
+ * Schema
  */
-public class NeptuneCompositeHandler
-        extends CompositeHandler
-{
-    public NeptuneCompositeHandler()
-    {
-        super(new NeptuneMetadataHandler(), new NeptuneRecordHandler());
+public class BaseRowWriter {
+    BaseRowWriter() {
+        // Empty private constructor
+    }
+
+    enum SpecialKeys {
+        IN, OUT,ID
     }
 }
