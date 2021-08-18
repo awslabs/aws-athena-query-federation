@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -157,22 +157,38 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#hgetall-K-">hgetall</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1)</code>&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#hmset-K-java.util.Map-">hmset</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
+     <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>,<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;&nbsp;var2)</code>&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>io.lettuce.core.KeyScanCursor&lt;<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#scan-io.lettuce.core.ScanCursor-io.lettuce.core.ScanArgs-">scan</a></span>(io.lettuce.core.ScanCursor&nbsp;var1,
     io.lettuce.core.ScanArgs&nbsp;var2)</code>&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#set-K-V-">set</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
+   <a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&nbsp;var2)</code>&nbsp;</td>
+</tr>
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zadd-K-double-V-">zadd</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
+    double&nbsp;var2,
+    <a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&nbsp;var3)</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zcount-K-io.lettuce.core.Range-">zcount</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
       io.lettuce.core.Range&lt;? extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Number.html?is-external=true" title="class or interface in java.lang">Number</a>&gt;&nbsp;var2)</code>&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zrange-K-long-long-">zrange</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
       long&nbsp;var2,
       long&nbsp;var3)</code>&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>io.lettuce.core.ScoredValueScanCursor&lt;<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zscan-K-io.lettuce.core.ScanCursor-">zscan</a></span>(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
      io.lettuce.core.ScanCursor&nbsp;var2)</code>&nbsp;</td>
@@ -280,11 +296,48 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </a><a name="zscan-K-io.lettuce.core.ScanCursor-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>zscan</h4>
 <pre>public&nbsp;io.lettuce.core.ScoredValueScanCursor&lt;<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;&nbsp;zscan(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
                                                       io.lettuce.core.ScanCursor&nbsp;var2)</pre>
+</li>
+</ul>
+<a name="hmset-java.lang.Object-java.util.Map-">
+<!--   -->
+</a><a name="hmset-K-java.util.Map-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>hmset</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;hmset(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
+                    <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>,<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt;&nbsp;var2)</pre>
+</li>
+</ul>
+<a name="zadd-java.lang.Object-double-java.lang.Object-">
+<!--   -->
+</a><a name="zadd-K-double-V-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>zadd</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a>&nbsp;zadd(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
+                 double&nbsp;var2,
+                 <a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&nbsp;var3)</pre>
+</li>
+</ul>
+<a name="set-java.lang.Object-java.lang.Object-">
+<!--   -->
+</a><a name="set-K-V-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>set</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;set(<a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>&nbsp;var1,
+                  <a href="../../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&nbsp;var2)</pre>
 </li>
 </ul>
 </li>

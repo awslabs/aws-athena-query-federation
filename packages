@@ -2,6 +2,7 @@ com.amazonaws.athena.connectors.cloudwatch
 com.amazonaws.athena.connectors.docdb
 com.amazonaws.athena.connectors.docdb.integ
 com.amazonaws.athena.connectors.redis
+com.amazonaws.athena.connectors.redis.integ
 com.amazonaws.athena.connectors.redis.lettuce
 com.amazonaws.athena.connectors.aws.cmdb
 com.amazonaws.athena.connectors.aws.cmdb.tables
