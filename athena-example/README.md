@@ -138,11 +138,12 @@ For Athena to delegate UDF calls to your Lambda function, you need to implement 
 UDF implementation is a bit different from implementing a connector. Let’s say you have the following query you want to run (we'll actually run this query for real later in the tutorial). The query defines two UDFs: "extract_tx_id" and "decrypt" which are hosted in a Lambda function specified as "my_lambda_function".
 
 ```sql
-USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
-    RETURNS INT TYPE LAMBDA_INVOKE
-WITH (lambda_name = 'my_lambda_function'), FUNCTION decrypt(payload VARCHAR ) 
-    RETURNS VARCHAR TYPE LAMBDA_INVOKE
-WITH (lambda_name = 'my_lambda_function')
+USING EXTERNAL FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
+RETURNS INT
+LAMBDA 'my_lambda_function',
+EXTERNAL FUNCTION decrypt(payload VARCHAR ) 
+    RETURNS VARCHAR
+LAMBDA 'my_lambda_function'
 SELECT year,
          month,
          day,
@@ -251,11 +252,10 @@ If everything worked as expected you should see the script generate useful debug
 Ok, now we are ready to try running some queries using our new connector. To do so, configure your workgroup to use Athena Engine Version 2. This feature is only available on the new Athena Engine. See documentation here for more info: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html. Some good examples to try include (be sure to put in your actual database and table names):
 
 ```sql
-USING FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
-		RETURNS INT TYPE LAMBDA_INVOKE
-WITH (lambda_name = '<function_name>'), FUNCTION decrypt(payload VARCHAR ) 
-		RETURNS VARCHAR TYPE LAMBDA_INVOKE
-WITH (lambda_name = '<function_name>')
+USING EXTERNAL FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
+		RETURNS INT 
+LAMBDA_INVOKE '<function_name>', EXTERNAL FUNCTION decrypt(payload VARCHAR ) 
+		RETURNS VARCHAR LAMBDA '<function_name>'
 SELECT year,
          month,
          day,

@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +133,11 @@ public class ExampleRecordHandlerTest
                         FieldBuilder.newBuilder("outerlist", new ArrowType.List())
                                 .addListField("innerList", Types.MinorType.VARCHAR.getType())
                                 .build())
+                .addField(FieldBuilder.newBuilder("simplemap", new ArrowType.Map(false))
+                        .addField("entries", Types.MinorType.STRUCT.getType(), false, Arrays.asList(
+                                FieldBuilder.newBuilder("key", Types.MinorType.VARCHAR.getType(), false).build(),
+                                FieldBuilder.newBuilder("value", Types.MinorType.INT.getType()).build()))
+                        .build())
                 .addMetadata("partitionCols", "year,month,day")
                 .build();
 

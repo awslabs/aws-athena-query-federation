@@ -103,6 +103,7 @@ public class ArrowTypeComparator
                 else {
                     return ((java.time.LocalDateTime) lhs).compareTo((java.time.LocalDateTime) rhs);
                 }
+            case MAP:
             case LIST:
             case STRUCT: // struct maps to java.util.map
                 //This could lead to thrashing if used to sort a collection
