@@ -63,9 +63,11 @@ public class RedisIntegTestHandler
     {
         logger.info("handleRequest - enter");
 
+        RedisConnectionWrapper<String, String> standaloneConnection = null;
+        RedisConnectionWrapper<String, String> clusterConnection = null;
         try {
-            RedisConnectionWrapper<String, String> standaloneConnection = connectionFactory.getOrCreateConn(standaloneConnectionString, false, false);
-            RedisConnectionWrapper<String, String> clusterConnection = connectionFactory.getOrCreateConn(clusterConnectionString, true, true);
+            standaloneConnection = connectionFactory.getOrCreateConn(standaloneConnectionString, false, false);
+            clusterConnection = connectionFactory.getOrCreateConn(clusterConnectionString, true, true);
 
             insertRedisData(standaloneConnection.sync());
             insertRedisData(clusterConnection.sync());
@@ -74,6 +76,14 @@ public class RedisIntegTestHandler
         }
         catch (Exception e) {
             logger.error("Error setting up Redis table {}", e.getMessage(), e);
+        }
+        finally {
+            if (standaloneConnection != null) {
+                standaloneConnection.close();
+            }
+            if (clusterConnection != null) {
+                clusterConnection.close();
+            }
         }
 
         logger.info("handleRequest - exit");
