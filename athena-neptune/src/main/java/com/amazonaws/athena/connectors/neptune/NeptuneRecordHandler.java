@@ -99,7 +99,7 @@ public class NeptuneRecordHandler extends RecordHandler
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
         Client client = null;
-        String graphType = System.getenv("neptune_graphtype");
+        String graphType = System.getenv("neptune_graphtype") != null ? System.getenv("neptune_graphtype") : "PROPERTYGRAPH";
 
         try {
             switch(graphType){
