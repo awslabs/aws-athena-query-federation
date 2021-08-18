@@ -129,8 +129,8 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
  <p>
  For more detail, please see the module's README.md, some notable characteristics of this class include:
  <p>
- 1. Uses Glue table properties (redis-endpoint, redis-value-type, redis-key-prefix, and redis-keys-zset) to
- provide schema as well as connectivity details to Redis.
+ 1. Uses Glue table properties (redis-endpoint, redis-value-type, redis-key-prefix, redis-keys-zset, redis-ssl-flag,
+ and redis-cluster-flag) to provide schema as well as connectivity details to Redis.
  2. Attempts to resolve sensitive fields such as redis-endpoint via SecretsManager so that you can substitute
  variables with values from by doing something like hostname:port:password=${my_secret}</div>
 </li>
@@ -184,11 +184,19 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_DB_FLAG">REDIS_DB_FLAG</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_CLUSTER_FLAG">REDIS_CLUSTER_FLAG</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_DB_FLAG">REDIS_DB_FLAG</a></span></code>&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_ENDPOINT_PROP">REDIS_ENDPOINT_PROP</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_SSL_FLAG">REDIS_SSL_FLAG</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected static <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
@@ -241,11 +249,11 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>protected </code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#RedisMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.JedisPoolFactory-java.lang.String-java.lang.String-">RedisMetadataHandler</a></span>(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#RedisMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory-java.lang.String-java.lang.String-">RedisMetadataHandler</a></span>(com.amazonaws.services.glue.AWSGlue&nbsp;awsGlue,
                     <a href="../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
                     com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
                     com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
-                    <a href="../../../../../com/amazonaws/athena/connectors/redis/JedisPoolFactory.html" title="class in com.amazonaws.athena.connectors.redis">JedisPoolFactory</a>&nbsp;jedisPoolFactory,
+                    <a href="../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionFactory</a>&nbsp;redisConnectionFactory,
                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillBucket,
                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillPrefix)</code>&nbsp;</td>
 </tr>
@@ -473,13 +481,39 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <a name="REDIS_DB_FLAG">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>REDIS_DB_FLAG</h4>
 <pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> REDIS_DB_FLAG</pre>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../constant-values.html#com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_DB_FLAG">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+<a name="REDIS_SSL_FLAG">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>REDIS_SSL_FLAG</h4>
+<pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> REDIS_SSL_FLAG</pre>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../constant-values.html#com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_SSL_FLAG">Constant Field Values</a></dd>
+</dl>
+</li>
+</ul>
+<a name="REDIS_CLUSTER_FLAG">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>REDIS_CLUSTER_FLAG</h4>
+<pre>protected static final&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a> REDIS_CLUSTER_FLAG</pre>
+<dl>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../constant-values.html#com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_CLUSTER_FLAG">Constant Field Values</a></dd>
 </dl>
 </li>
 </ul>
@@ -500,7 +534,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
 <pre>public&nbsp;RedisMetadataHandler()</pre>
 </li>
 </ul>
-<a name="RedisMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.JedisPoolFactory-java.lang.String-java.lang.String-">
+<a name="RedisMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -510,7 +544,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/G
                                <a href="../../../../../com/amazonaws/athena/connector/lambda/security/EncryptionKeyFactory.html" title="interface in com.amazonaws.athena.connector.lambda.security">EncryptionKeyFactory</a>&nbsp;keyFactory,
                                com.amazonaws.services.secretsmanager.AWSSecretsManager&nbsp;secretsManager,
                                com.amazonaws.services.athena.AmazonAthena&nbsp;athena,
-                               <a href="../../../../../com/amazonaws/athena/connectors/redis/JedisPoolFactory.html" title="class in com.amazonaws.athena.connectors.redis">JedisPoolFactory</a>&nbsp;jedisPoolFactory,
+                               <a href="../../../../../com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionFactory</a>&nbsp;redisConnectionFactory,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillBucket,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;spillPrefix)</pre>
 </li>

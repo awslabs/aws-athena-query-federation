@@ -976,6 +976,8 @@
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/redis/package-summary.html">com.amazonaws.athena.connectors.redis</a> - package com.amazonaws.athena.connectors.redis</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/redis/lettuce/package-summary.html">com.amazonaws.athena.connectors.redis.lettuce</a> - package com.amazonaws.athena.connectors.redis.lettuce</dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/tpcds/package-summary.html">com.amazonaws.athena.connectors.tpcds</a> - package com.amazonaws.athena.connectors.tpcds</dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/udfs/package-summary.html">com.amazonaws.athena.connectors.udfs</a> - package com.amazonaws.athena.connectors.udfs</dt>
@@ -2783,6 +2785,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html#GenericJdbcConnectionFactory-com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig-java.util.Map-">GenericJdbcConnectionFactory(DatabaseConnectionConfig, Map&lt;String, String&gt;)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.connection.<a href="com/amazonaws/connectors/athena/jdbc/connection/GenericJdbcConnectionFactory.html" title="class in com.amazonaws.connectors.athena.jdbc.connection">GenericJdbcConnectionFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#get-K-">get(K)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html#get-java.lang.String-">get(String)</a></span> - Method in class com.amazonaws.connectors.athena.elasticsearch.<a href="com/amazonaws/connectors/athena/elasticsearch/CacheableAwsRestHighLevelClient.html" title="class in com.amazonaws.connectors.athena.elasticsearch">CacheableAwsRestHighLevelClient</a></dt>
 <dd>
 <div class="block">Gets a client from the cache keyed on the endpoint.</div>
@@ -3360,10 +3364,8 @@
 <dd>
 <div class="block">Gets or Creates an HBase connection for the given connection string.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/JedisPoolFactory.html#getOrCreateConn-java.lang.String-">getOrCreateConn(String)</a></span> - Method in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/JedisPoolFactory.html" title="class in com.amazonaws.athena.connectors.redis">JedisPoolFactory</a></dt>
-<dd>
-<div class="block">Gets or Creates a Jedis instance for the given connection string.</div>
-</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html#getOrCreateConn-java.lang.String-boolean-boolean-">getOrCreateConn(String, boolean, boolean)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/vertica/VerticaConnectionFactory.html#getOrCreateConn-java.lang.String-">getOrCreateConn(String)</a></span> - Method in class com.amazonaws.connectors.athena.vertica.<a href="com/amazonaws/connectors/athena/vertica/VerticaConnectionFactory.html" title="class in com.amazonaws.connectors.athena.vertica">VerticaConnectionFactory</a></dt>
 <dd>
 <div class="block">Used to get an existing, pooled, connection or to create a new connection
@@ -4467,6 +4469,8 @@
 <dd>
 <div class="block">The constructor establishes a connection to the HBase instance.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#hgetall-K-">hgetall(K)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
+<dd>&nbsp;</dd>
 </dl>
 <a name="I:I">
 <!--   -->
@@ -4795,12 +4799,6 @@
 <dt><span class="memberNameLink"><a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcSplitQueryBuilder.html#JdbcSplitQueryBuilder-java.lang.String-">JdbcSplitQueryBuilder(String)</a></span> - Constructor for class com.amazonaws.connectors.athena.jdbc.manager.<a href="com/amazonaws/connectors/athena/jdbc/manager/JdbcSplitQueryBuilder.html" title="class in com.amazonaws.connectors.athena.jdbc.manager">JdbcSplitQueryBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/connectors/athena/jdbc/manager/JDBCUtil.html" title="class in com.amazonaws.connectors.athena.jdbc.manager"><span class="typeNameLink">JDBCUtil</span></a> - Class in <a href="com/amazonaws/connectors/athena/jdbc/manager/package-summary.html">com.amazonaws.connectors.athena.jdbc.manager</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="com/amazonaws/athena/connectors/redis/JedisPoolFactory.html" title="class in com.amazonaws.athena.connectors.redis"><span class="typeNameLink">JedisPoolFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/redis/package-summary.html">com.amazonaws.athena.connectors.redis</a></dt>
-<dd>
-<div class="block">Creates and Caches JedisPool Instances, using the connection string as the cache key.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/JedisPoolFactory.html#JedisPoolFactory--">JedisPoolFactory()</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/JedisPoolFactory.html" title="class in com.amazonaws.athena.connectors.redis">JedisPoolFactory</a></dt>
 <dd>&nbsp;</dd>
 </dl>
 <a name="I:K">
@@ -5844,9 +5842,17 @@
 <dd>
 <div class="block">Lambda functions intended for <code>Record</code> operations associate with this interface.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_CLUSTER_FLAG">REDIS_CLUSTER_FLAG</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_DB_FLAG">REDIS_DB_FLAG</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_ENDPOINT_PROP">REDIS_ENDPOINT_PROP</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#REDIS_SSL_FLAG">REDIS_SSL_FLAG</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce"><span class="typeNameLink">RedisCommandsWrapper</span></a>&lt;<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">K</a>,<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="type parameter in RedisCommandsWrapper">V</a>&gt; - Class in <a href="com/amazonaws/athena/connectors/redis/lettuce/package-summary.html">com.amazonaws.athena.connectors.redis.lettuce</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#RedisCommandsWrapper-io.lettuce.core.api.sync.RedisCommands-io.lettuce.core.cluster.api.sync.RedisAdvancedClusterCommands-boolean-">RedisCommandsWrapper(RedisCommands&lt;K, V&gt;, RedisAdvancedClusterCommands&lt;K, V&gt;, boolean)</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/redis/RedisCompositeHandler.html" title="class in com.amazonaws.athena.connectors.redis"><span class="typeNameLink">RedisCompositeHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/redis/package-summary.html">com.amazonaws.athena.connectors.redis</a></dt>
 <dd>
@@ -5855,13 +5861,21 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisCompositeHandler.html#RedisCompositeHandler--">RedisCompositeHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisCompositeHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisCompositeHandler</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html" title="class in com.amazonaws.athena.connectors.redis.lettuce"><span class="typeNameLink">RedisConnectionFactory</span></a> - Class in <a href="com/amazonaws/athena/connectors/redis/lettuce/package-summary.html">com.amazonaws.athena.connectors.redis.lettuce</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html#RedisConnectionFactory--">RedisConnectionFactory()</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionFactory.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionFactory</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce"><span class="typeNameLink">RedisConnectionWrapper</span></a>&lt;<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html" title="type parameter in RedisConnectionWrapper">K</a>,<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html" title="type parameter in RedisConnectionWrapper">V</a>&gt; - Class in <a href="com/amazonaws/athena/connectors/redis/lettuce/package-summary.html">com.amazonaws.athena.connectors.redis.lettuce</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html#RedisConnectionWrapper-io.lettuce.core.api.StatefulRedisConnection-io.lettuce.core.cluster.api.StatefulRedisClusterConnection-boolean-">RedisConnectionWrapper(StatefulRedisConnection&lt;K, V&gt;, StatefulRedisClusterConnection&lt;K, V&gt;, boolean)</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionWrapper</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis"><span class="typeNameLink">RedisMetadataHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/redis/package-summary.html">com.amazonaws.athena.connectors.redis</a></dt>
 <dd>
 <div class="block">Handles metadata requests for the Athena Redis Connector using Glue for schema.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#RedisMetadataHandler--">RedisMetadataHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#RedisMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.JedisPoolFactory-java.lang.String-java.lang.String-">RedisMetadataHandler(AWSGlue, EncryptionKeyFactory, AWSSecretsManager, AmazonAthena, JedisPoolFactory, String, String)</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#RedisMetadataHandler-com.amazonaws.services.glue.AWSGlue-com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory-java.lang.String-java.lang.String-">RedisMetadataHandler(AWSGlue, EncryptionKeyFactory, AWSSecretsManager, AmazonAthena, RedisConnectionFactory, String, String)</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html" title="class in com.amazonaws.athena.connectors.redis"><span class="typeNameLink">RedisRecordHandler</span></a> - Class in <a href="com/amazonaws/athena/connectors/redis/package-summary.html">com.amazonaws.athena.connectors.redis</a></dt>
 <dd>
@@ -5869,7 +5883,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html#RedisRecordHandler--">RedisRecordHandler()</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisRecordHandler</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html#RedisRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.JedisPoolFactory-">RedisRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, JedisPoolFactory)</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisRecordHandler</a></dt>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html#RedisRecordHandler-com.amazonaws.services.s3.AmazonS3-com.amazonaws.services.secretsmanager.AWSSecretsManager-com.amazonaws.services.athena.AmazonAthena-com.amazonaws.athena.connectors.redis.lettuce.RedisConnectionFactory-">RedisRecordHandler(AmazonS3, AWSSecretsManager, AmazonAthena, RedisConnectionFactory)</a></span> - Constructor for class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisRecordHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisRecordHandler</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html#REGION_ID_FIELD">REGION_ID_FIELD</a></span> - Static variable in class com.amazonaws.athena.connectors.hbase.<a href="com/amazonaws/athena/connectors/hbase/HbaseMetadataHandler.html" title="class in com.amazonaws.athena.connectors.hbase">HbaseMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
@@ -5988,6 +6002,8 @@
 <dd>
 <div class="block">Used to process results from an HBase ResultScanner (aka iterator of results).</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#scan-io.lettuce.core.ScanCursor-io.lettuce.core.ScanArgs-">scan(ScanCursor, ScanArgs)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html#SCAN_PARTITION_TYPE">SCAN_PARTITION_TYPE</a></span> - Static variable in class com.amazonaws.athena.connectors.dynamodb.constants.<a href="com/amazonaws/athena/connectors/dynamodb/constants/DynamoDBConstants.html" title="class in com.amazonaws.athena.connectors.dynamodb.constants">DynamoDBConstants</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html#scanTable-org.apache.hadoop.hbase.TableName-org.apache.hadoop.hbase.client.Scan-com.amazonaws.athena.connectors.hbase.connection.ResultProcessor-">scanTable(TableName, Scan, ResultProcessor&lt;T&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.hbase.connection.<a href="com/amazonaws/athena/connectors/hbase/connection/HBaseConnection.html" title="class in com.amazonaws.athena.connectors.hbase.connection">HBaseConnection</a></dt>
@@ -6496,6 +6512,8 @@
 <div class="block">This is an extremely POOR usage of AES-GCM and is only mean to illustrate how one could
  use a UDF for masking a field using encryption.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html#sync--">sync()</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisConnectionWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisConnectionWrapper</a></dt>
+<dd>&nbsp;</dd>
 </dl>
 <a name="I:T">
 <!--   -->
@@ -7292,6 +7310,12 @@ the order they are declared.</div>
 </a>
 <h2 class="title">Z</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zcount-K-io.lettuce.core.Range-">zcount(K, Range&lt;? extends Number&gt;)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zrange-K-long-long-">zrange(K, long, long)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html#zscan-K-io.lettuce.core.ScanCursor-">zscan(K, ScanCursor)</a></span> - Method in class com.amazonaws.athena.connectors.redis.lettuce.<a href="com/amazonaws/athena/connectors/redis/lettuce/RedisCommandsWrapper.html" title="class in com.amazonaws.athena.connectors.redis.lettuce">RedisCommandsWrapper</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html#ZSET_KEYS_TABLE_PROP">ZSET_KEYS_TABLE_PROP</a></span> - Static variable in class com.amazonaws.athena.connectors.redis.<a href="com/amazonaws/athena/connectors/redis/RedisMetadataHandler.html" title="class in com.amazonaws.athena.connectors.redis">RedisMetadataHandler</a></dt>
 <dd>&nbsp;</dd>
 </dl>
