@@ -237,6 +237,36 @@ public class NeptuneRecordHandlerTest extends TestBase {
         private void invokeAndAssertForEdge() throws Exception {
                 HashMap<String, ValueSet> constraintsMap0 = new HashMap<>();
                 invokeAndAssert(schemaPGEdgeForRead, constraintsMap0, 2);
+
+                // Equal to filter
+                HashMap<String, ValueSet> constraintsMap1 = new HashMap<>();
+                constraintsMap1.put("property1",
+                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.INT.getType(), 21)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap1, 1);
+
+                // Greater Than filter
+                HashMap<String, ValueSet> constraintsMap2 = new HashMap<>();
+                constraintsMap2.put("property1",
+                                SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 15)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap2, 1);
+
+                // Greater Than Equal to filter
+                HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
+                constraintsMap3.put("property1", SortedRangeSet
+                                .of(Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 15)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap3, 1);
+
+                // Less Than filter
+                HashMap<String, ValueSet> constraintsMap4 = new HashMap<>();
+                constraintsMap4.put("property1",
+                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 25)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap4, 1);
+
+                // Less Than Equal to filter
+                HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
+                constraintsMap5.put("property1",
+                                SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 25)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap5, 1);
         }
 
         private void invokeAndAssertForVertex() throws Exception {
