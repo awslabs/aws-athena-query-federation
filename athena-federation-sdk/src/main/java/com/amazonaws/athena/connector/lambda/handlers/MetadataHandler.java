@@ -220,6 +220,7 @@ public abstract class MetadataHandler
                 if (!(rawReq instanceof MetadataRequest)) {
                     throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
                 }
+                ((MetadataRequest) rawReq).setContext(context);
                 doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
             }
             catch (Exception ex) {
