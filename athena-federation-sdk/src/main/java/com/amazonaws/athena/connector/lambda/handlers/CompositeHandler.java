@@ -97,6 +97,9 @@ public class CompositeHandler
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
             ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
             try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
+                if (rawReq instanceof MetadataRequest) {
+                    ((MetadataRequest) rawReq).setContext(context);
+                }
                 handleRequest(allocator, rawReq, outputStream, objectMapper);
             }
         }
