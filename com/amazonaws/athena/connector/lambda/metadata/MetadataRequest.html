@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -172,15 +172,27 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/request
 </td>
 </tr>
 <tr id="i1" class="rowColor">
+<td class="colFirst"><code>com.amazonaws.services.lambda.runtime.Context</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html#getContext--">getContext</a></span>()</code>
+<div class="block">Returns Context from Lambda.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html#getQueryId--">getQueryId</a></span>()</code>
 <div class="block">Returns the ID of the query requesting metadata.</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequestType.html" title="enum in com.amazonaws.athena.connector.lambda.metadata">MetadataRequestType</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html#getRequestType--">getRequestType</a></span>()</code>
 <div class="block">Returns the type of the request.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../com/amazonaws/athena/connector/lambda/metadata/MetadataRequest.html#setContext-com.amazonaws.services.lambda.runtime.Context-">setContext</a></span>(com.amazonaws.services.lambda.runtime.Context&nbsp;context)</code>
+<div class="block">Set the Context from Lambda.</div>
 </td>
 </tr>
 </table>
@@ -278,7 +290,7 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/request
 <a name="getQueryId--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getQueryId</h4>
 <pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;getQueryId()</pre>
@@ -287,6 +299,30 @@ extends <a href="../../../../../../com/amazonaws/athena/connector/lambda/request
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>The ID of the query requesting metadata.</dd>
 </dl>
+</li>
+</ul>
+<a name="getContext--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getContext</h4>
+<pre>public&nbsp;com.amazonaws.services.lambda.runtime.Context&nbsp;getContext()</pre>
+<div class="block">Returns Context from Lambda.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The Context of the Lambda</dd>
+</dl>
+</li>
+</ul>
+<a name="setContext-com.amazonaws.services.lambda.runtime.Context-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>setContext</h4>
+<pre>public&nbsp;void&nbsp;setContext(com.amazonaws.services.lambda.runtime.Context&nbsp;context)</pre>
+<div class="block">Set the Context from Lambda.</div>
 </li>
 </ul>
 </li>
