@@ -90,9 +90,10 @@ public class GenericJdbcConnectionFactory
             final String derivedJdbcString;
             if (jdbcCredentialProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                final String secretReplacement = String.format("user=%s&password=%s", jdbcCredentialProvider.getCredential().getUser(),
-                        encodeValue(jdbcCredentialProvider.getCredential().getPassword()));
-                derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
+                derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
+
+                jdbcProperties.put("user", jdbcCredentialProvider.getCredential().getUser());
+                jdbcProperties.put("password", jdbcCredentialProvider.getCredential().getPassword());
             }
             else {
                 derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
