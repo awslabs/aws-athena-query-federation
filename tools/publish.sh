@@ -75,7 +75,14 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         read -p "Do you wish to proceed? (yes or no) " yn
         case $yn in
             [Yy]* ) echo "Proceeding..."
-                read -p "Enter the AWS Account ID that will be used to publish to Serverless Application Repository (limits SAR access to applications on the specified account: " account
+                account_regex="^[0-9]{12}$"
+                while ! [[ $account =~ $account_regex ]]
+                do
+                    read -p "Enter the AWS Account ID that will be used to publish to Serverless Application Repository (limits SAR access to applications on the specified account: " account
+                    if ! [[ $account =~ $account_regex ]];
+                        then echo "Enter a valid AWS Account ID"
+                    fi
+                done
                 cat > sar_bucket_policy.json <<- EOM
 {
   "Version": "2012-10-17",
