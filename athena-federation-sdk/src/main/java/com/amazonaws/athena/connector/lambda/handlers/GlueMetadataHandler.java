@@ -59,6 +59,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -112,6 +113,8 @@ public abstract class GlueMetadataHandler
     private static final Splitter.MapSplitter MAP_SPLITTER = Splitter.on(",").trimResults().withKeyValueSeparator("=");
     //Regex we expect for a table resource ARN
     private static final Pattern TABLE_ARN_REGEX = Pattern.compile("^arn:(?:aws|aws-cn|aws-us-gov):[a-z]+:[a-z1-9-]+:[0-9]{12}:table\\/(.+)$");
+    //Regex we expect for a lambda function ARN
+    private static final String FUNCTION_ARN_REGEX = "arn:aws[a-zA-Z-]*?:lambda:[a-zA-Z0-9-]+:(\\d{12}):function:[a-zA-Z0-9-_]+";
     //Table property that we expect to contain the source table name
     public static final String SOURCE_TABLE_PROPERTY = "sourceTable";
     //Table property that we expect to contain the column name mapping
@@ -199,6 +202,14 @@ public abstract class GlueMetadataHandler
     {
         String override = System.getenv(CATALOG_NAME_ENV_OVERRIDE);
         if (override == null) {
+            if (request.getContext() != null) {
+                String functionArn = request.getContext().getInvokedFunctionArn();
+                String functionOwner = getFunctionOwner(functionArn).orElse(null);
+                if (functionOwner != null) {
+                    logger.debug("Function Owner: " + functionOwner);
+                    return functionOwner;
+                }
+            }
             return request.getIdentity().getAccount();
         }
         return override;
@@ -526,5 +537,28 @@ public abstract class GlueMetadataHandler
                     .collect(Collectors.joining(","));
             schemaBuilder.addMetadata(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED, datetimeFormatMappingString);
         }
+    }
+
+    /**
+     * Parse the function owner from a lambda function ARN
+     *
+     * @param functionArn The lambda function arn
+     * @returns a string of the function owner
+     */
+    private Optional<String> getFunctionOwner(String functionArn)
+    {
+        if (functionArn != null) {
+            Pattern arnPattern = Pattern.compile(FUNCTION_ARN_REGEX);
+            Matcher arnMatcher = arnPattern.matcher(functionArn);
+            try {
+                if (arnMatcher.matches() && arnMatcher.groupCount() > 0 && arnMatcher.group(1) != null) {
+                    return Optional.of(arnMatcher.group(1));
+                }
+            }
+            catch (Exception e) {
+                logger.warn("Unable to parse owner from function arn: " + functionArn, e);
+            }
+        }
+        return Optional.empty();
     }
 }
