@@ -28,4 +28,8 @@ public class Enums
     public enum TableSchemaMetaType {
         VERTEX, EDGE
     }
+
+    public enum GraphType{
+        PROPERTYGRAPH, RDF
+    }
 }

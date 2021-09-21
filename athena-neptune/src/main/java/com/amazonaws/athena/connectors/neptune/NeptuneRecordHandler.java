@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.GraphType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.PropertyGraphHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
@@ -99,15 +100,19 @@ public class NeptuneRecordHandler extends RecordHandler
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
         Client client = null;
-        String graphType = System.getenv("neptune_graphtype") != null ? System.getenv("neptune_graphtype") : "PROPERTYGRAPH";
+        GraphType graphType = GraphType.PROPERTYGRAPH;
+
+        if (System.getenv("neptune_graphtype") != null) {
+            graphType = GraphType.valueOf(System.getenv("neptune_graphtype").toUpperCase());
+        }
 
         try {
             switch(graphType){
-                case "PROPERTYGRAPH":
+                case PROPERTYGRAPH:
                     (new PropertyGraphHandler(neptuneConnection)).executeQuery(recordsRequest, queryStatusChecker, spiller);    
                     break;
 
-                case "RDF":
+                case RDF:
                     logger.info("readWithConstraint: Support for RDF is not implemented yet!!");
                     break;
             }

@@ -1,18 +1,24 @@
 #!/bin/bash
+#id is the reserved key for vertex tables
+#id,from, to are the reserved columns for edge tables
 
 echo $1;
 echo $2;
 
+dbname='graph-database-sep4'
+
 
 aws glue create-database \
---database-input "{\"Name\":\"graph-database\"}" \
+--database-input "{\"Name\":\"${dbname}\"}" \
 --profile $1 \
 --endpoint https://glue.$2.amazonaws.com
 
+
 aws glue create-table \
-    --database-name graph-database \
+    --database-name $dbname \
     --table-input  '{"Name":"airport", "StorageDescriptor":{ 
         "Columns":[ 
+            {"Name":"id", "Type":"string"}, 
             {"Name":"type", "Type":"string"}, 
             {"Name":"code", "Type":"string"}, 
             {"Name":"icao", "Type":"string"}, 
@@ -28,35 +34,57 @@ aws glue create-table \
         ], 
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
-            "separatorChar":","} 
+            "separatorChar":",",
+            "type":"vertex"} 
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com
 
 aws glue create-table \
-    --database-name graph-database \
+    --database-name $dbname \
     --table-input  '{"Name":"country", "StorageDescriptor":{ 
         "Columns":[ 
+            {"Name":"id", "Type":"string"}, 
             {"Name":"code", "Type":"string"}, 
             {"Name":"desc", "Type":"string"}
         ], 
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
-            "separatorChar":","} 
+             "separatorChar":",",
+            "type":"vertex"} 
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com
 
 aws glue create-table \
-    --database-name graph-database \
+    --database-name $dbname \
     --table-input  '{"Name":"continent", "StorageDescriptor":{ 
         "Columns":[ 
+            {"Name":"id", "Type":"string"}, 
             {"Name":"code", "Type":"string"}, 
             {"Name":"desc", "Type":"string"}
         ], 
         "Location":"s3://dummy-bucket/"},
         "Parameters":{ 
-            "separatorChar":","} 
+            "separatorChar":",",
+            "type":"vertex"} 
+        }' \
+    --profile $1 \
+    --endpoint https://glue.$2.amazonaws.com
+
+aws glue create-table \
+    --database-name $dbname \
+    --table-input  '{"Name":"route", "StorageDescriptor":{ 
+        "Columns":[ 
+            {"Name":"id", "Type":"string"}, 
+            {"Name":"out", "Type":"string"}, 
+            {"Name":"in", "Type":"string"},
+            {"Name":"dist", "Type":"int"} 
+        ], 
+        "Location":"s3://dummy-bucket/"},
+        "Parameters":{ 
+             "separatorChar":",",
+            "type":"edge"} 
         }' \
     --profile $1 \
     --endpoint https://glue.$2.amazonaws.com
