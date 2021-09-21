@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extra
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
@@ -45,7 +46,7 @@ import java.util.Map;
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class EdgeRowWriter extends BaseRowWriter 
+public final class EdgeRowWriter
 {
     private EdgeRowWriter() 
     {
@@ -78,7 +79,7 @@ public final class EdgeRowWriter extends BaseRowWriter
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             value.isSet = 0;
                             String fieldName = field.getName().toLowerCase().trim();
-
+                            
                             // check for special keys and parse them separately
                             if (fieldName.equals(SpecialKeys.ID.toString().toLowerCase())) {
                                 Object fieldValue = obj.get(T.id);

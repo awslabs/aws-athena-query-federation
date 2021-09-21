@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extra
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
@@ -44,7 +45,7 @@ import java.util.Map;
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class VertexRowWriter extends BaseRowWriter 
+public final class VertexRowWriter
 {
     private VertexRowWriter() 
     {

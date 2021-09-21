@@ -91,7 +91,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
             {
         super(glue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.glue = glue;
-        this.glueDBName = System.getenv("glue_database_name"); 
+        this.glueDBName = System.getenv("glue_database_name");
     }
 
     /**
@@ -170,8 +170,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         Schema tableSchema = null;
         try {
             if (glue != null) {
-                tableSchema = super.doGetTable(blockAllocator, request).getSchema();
-                
+                tableSchema = super.doGetTable(blockAllocator, request).getSchema();        
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
         } 

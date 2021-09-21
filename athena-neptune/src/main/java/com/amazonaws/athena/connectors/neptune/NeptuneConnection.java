@@ -30,7 +30,7 @@ public class NeptuneConnection
 {
     private static Cluster cluster = null;
 
-    public NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM)
+    NeptuneConnection(String neptuneEndpoint, String neptunePort, boolean enabledIAM)
     {
         Cluster.Builder builder = Cluster.build();
         builder.addContactPoint(neptuneEndpoint)

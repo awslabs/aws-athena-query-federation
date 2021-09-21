@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
@@ -31,10 +30,10 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.neptune.NeptuneConnection;
 import com.amazonaws.athena.connectors.neptune.NeptuneRecordHandler;
+import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.TableSchemaMetaType;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.EdgeRowWriter;
 import com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters.VertexRowWriter;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.groovy.jsr223.GroovyTranslator;
@@ -102,21 +101,20 @@ public class PropertyGraphHandler
     public void executeQuery(ReadRecordsRequest recordsRequest, final QueryStatusChecker queryStatusChecker,
             final BlockSpiller spiller) throws Exception 
     {
-        logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
+        logger.debug("readWithConstraint: enter - " + recordsRequest.getSplit());
         long numRows = 0;
         Client client = neptuneConnection.getNeptuneClientConnection();
         GraphTraversalSource graphTraversalSource = neptuneConnection.getTraversalSource(client);
         GraphTraversal graphTraversal = null;
-        TableName tableName = recordsRequest.getTableName();
-        String labelName = tableName.getTableName();
-        String tableSchemaMetaType = recordsRequest.getSchema().getCustomMetadata().get("type");
+        String labelName = recordsRequest.getTableName().getTableName();
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+        TableSchemaMetaType tableSchemaMetaType = TableSchemaMetaType.valueOf(recordsRequest.getSchema().getCustomMetadata().get("type").toUpperCase());
         
-        logger.info("readWithConstraint: schema type is " + tableSchemaMetaType);
+        logger.debug("readWithConstraint: schema type is " + tableSchemaMetaType.toString());
 
         if (tableSchemaMetaType != null) {
             switch (tableSchemaMetaType) {
-                case "vertex":
+                case VERTEX:
                     graphTraversal = graphTraversalSource.V().hasLabel(labelName);
                     getQueryPartForContraintsMap(graphTraversal, recordsRequest);
                     graphTraversal = graphTraversal.valueMap().with(WithOptions.tokens);
@@ -127,7 +125,7 @@ public class PropertyGraphHandler
 
                     break;
 
-                case "edge":
+                case EDGE:
                     graphTraversal = graphTraversalSource.E().hasLabel(labelName);
                     getQueryPartForContraintsMap(graphTraversal, recordsRequest);
                     graphTraversal = graphTraversal.elementMap();
@@ -194,9 +192,6 @@ public class PropertyGraphHandler
                     }
 
                     if (!range.getLow().isNullValue()) {
-                        logger.info("inside flattenConstraintMap: " + range.getType().toString()
-                                .equalsIgnoreCase(Types.MinorType.INT.getType().toString()));
-
                         traversal = GremlinQueryPreProcessor.generateGremlinQueryPart(traversal, key,
                                 range.getLow().getValue().toString(), range.getType(), range.getLow().getBound(),
                                 GremlinQueryPreProcessor.Operator.GREATERTHAN);

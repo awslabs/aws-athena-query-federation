@@ -128,8 +128,8 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 schemaPGEdgeForRead = SchemaBuilder
                                 .newBuilder()
                                 .addMetadata("type", "edge")
-                                .addStringField("from")
-                                .addStringField("to")
+                                .addStringField("in")
+                                .addStringField("out")
                                 .addStringField("id")
                                 .addIntField("property1")
                                 .addStringField("property2")
@@ -399,7 +399,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 invokeAndAssertForEdge(); 
         }
 
-       // @Test
+        @Test
         public void doReadRecordsSpill() throws Exception {
                 S3SpillLocation splitLoc = S3SpillLocation.newBuilder().withBucket(UUID.randomUUID().toString())
                                 .withSplitId(UUID.randomUUID().toString()).withQueryId(UUID.randomUUID().toString())
