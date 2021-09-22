@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -49,6 +50,7 @@ import com.amazonaws.services.glue.model.GetTablesRequest;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.Types;
@@ -131,6 +133,9 @@ public class GlueMetadataHandlerTest
 
     @Mock
     private AWSGlue mockGlue;
+
+    @Mock
+    private Context mockContext;
 
     @Before
     public void setUp()
@@ -437,5 +442,34 @@ public class GlueMetadataHandlerTest
 
         //Verify types
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col1").getType()).equals(Types.MinorType.INT));
+    }
+
+    @Test
+    public void testGetCatalog() {
+        // Catalog should be the account from the request
+        MetadataRequest req = new GetTableRequest(IdentityUtil.fakeIdentity(), queryId, catalog, new TableName(schema, table));
+        String catalog = handler.getCatalog(req);
+        assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
+
+        // Catalog should be the account from the lambda context's function arn
+        when(mockContext.getInvokedFunctionArn())
+                .thenReturn("arn:aws:lambda:us-east-1:012345678912:function:athena-123");
+        req.setContext(mockContext);
+        catalog = handler.getCatalog(req);
+        assertEquals("012345678912", catalog);
+
+        // Catalog should be the account from the request since function arn is invalid
+        when(mockContext.getInvokedFunctionArn())
+                .thenReturn("arn:aws:lambda:us-east-1:012345678912:function:");
+        req.setContext(mockContext);
+        catalog = handler.getCatalog(req);
+        assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
+
+        // Catalog should be the account from the request since function arn is null
+        when(mockContext.getInvokedFunctionArn())
+                .thenReturn(null);
+        req.setContext(mockContext);
+        catalog = handler.getCatalog(req);
+        assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
     }
 }

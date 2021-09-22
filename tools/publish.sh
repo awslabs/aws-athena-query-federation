@@ -39,7 +39,6 @@ if [ "$#" -lt 2 ]; then
     echo "\n1. S3_BUCKET used for publishing artifacts to Lambda/Serverless App Repo.\n"
     echo "\n2. The connector module to publish (e.g. athena-exmaple or athena-cloudwatch) \n"
     echo "\n3. The AWS REGION to target (e.g. us-east-1 or us-east-2) \n"
-    echo "\n4. The AWS PARTITION to target (aws, aws-cn, aws-us-gov) Defaults to aws \n"
     echo "\n\n USAGE from the module's directory: ../tools/publish.sh my_s3_bucket athena-example \n"
     exit;
 fi
@@ -76,6 +75,14 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         read -p "Do you wish to proceed? (yes or no) " yn
         case $yn in
             [Yy]* ) echo "Proceeding..."
+                account_regex="^[0-9]{12}$"
+                while ! [[ $account =~ $account_regex ]]
+                do
+                    read -p "Enter the AWS Account ID that will be used to publish to Serverless Application Repository (limits SAR access to applications on the specified account: " account
+                    if ! [[ $account =~ $account_regex ]];
+                        then echo "Enter a valid AWS Account ID"
+                    fi
+                done
                 cat > sar_bucket_policy.json <<- EOM
 {
   "Version": "2012-10-17",
@@ -86,7 +93,12 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         "Service":  "serverlessrepo.amazonaws.com"
       },
       "Action": "s3:GetObject",
-      "Resource": "arn:$PARTITION:s3:::$1/*"
+      "Resource": "arn:$PARTITION:s3:::$1/*",
+      "Condition": {
+        "StringEquals": {
+            "aws:SourceAccount": "$account"
+        }
+      }
     }
   ]
 }
