@@ -108,12 +108,7 @@ public class PropertyGraphHandler
         GraphTraversal graphTraversal = null;
         String labelName = recordsRequest.getTableName().getTableName();
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
-        String schema = recordsRequest.getSchema().toString();
         String type = recordsRequest.getSchema().getCustomMetadata().get("componenttype");
-
-        logger.info("readWithConstraint: schema is " + schema);
-        logger.info("readWithConstraint: schema type is " + type);
-
         TableSchemaMetaType tableSchemaMetaType = TableSchemaMetaType.valueOf(type.toUpperCase());
         
         logger.debug("readWithConstraint: schema type is " + tableSchemaMetaType.toString());
