@@ -115,7 +115,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
                 schemaPGVertexForRead = SchemaBuilder
                                 .newBuilder()
-                                .addMetadata("type", "vertex")
+                                .addMetadata("componenttype", "vertex")
                                 .addStringField("id")
                                 .addIntField("property1")
                                 .addStringField("property2")
@@ -127,7 +127,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 
                 schemaPGEdgeForRead = SchemaBuilder
                                 .newBuilder()
-                                .addMetadata("type", "edge")
+                                .addMetadata("componenttype", "edge")
                                 .addStringField("in")
                                 .addStringField("out")
                                 .addStringField("id")
