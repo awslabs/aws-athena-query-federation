@@ -140,7 +140,7 @@ public class PropertyGraphHandler
         }
 
         // log string equivalent of gremlin query
-        logger.info("readWithConstraint: enter - "
+        logger.debug("readWithConstraint: enter - "
                 + GroovyTranslator.of("g").translate(graphTraversal.asAdmin().getBytecode()));
 
         final GraphTraversal graphTraversalFinal1 = graphTraversal;

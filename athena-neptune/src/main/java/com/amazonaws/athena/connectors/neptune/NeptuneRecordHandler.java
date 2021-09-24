@@ -69,7 +69,7 @@ public class NeptuneRecordHandler extends RecordHandler
     }
 
     @VisibleForTesting
-    public NeptuneRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
+    protected NeptuneRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
      final AmazonAthena amazonAthena, final NeptuneConnection neptuneConnection)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
@@ -96,7 +96,8 @@ public class NeptuneRecordHandler extends RecordHandler
      *       performance.
      */
     @Override
-    protected void readWithConstraint(final BlockSpiller spiller, final ReadRecordsRequest recordsRequest, final QueryStatusChecker queryStatusChecker) throws Exception 
+    protected void readWithConstraint(final BlockSpiller spiller, final ReadRecordsRequest recordsRequest, 
+     final QueryStatusChecker queryStatusChecker) throws Exception 
     {
         logger.info("readWithConstraint: enter - " + recordsRequest.getSplit());
         Client client = null;
