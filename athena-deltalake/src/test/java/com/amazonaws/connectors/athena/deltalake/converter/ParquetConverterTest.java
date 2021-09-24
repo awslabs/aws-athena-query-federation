@@ -41,23 +41,23 @@ import static org.junit.Assert.assertTrue;
 
 public class ParquetConverterTest {
 
-
     @Test
     public void testExtractors() throws Exception {
         List<Type> fields = Arrays.asList(
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BINARY, "stringField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "longField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "integerField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "shortField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "byteField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.FLOAT, "floatField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, "doubleField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BINARY, "decimalField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, "booleanField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BINARY, "binaryField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "dateField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "timestampField"),
-                new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT96, "timestampLegacyField")
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BINARY, "stringField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "longField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "integerField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "shortField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "byteField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.FLOAT, "floatField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.DOUBLE, "doubleField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT32, "decimalIntField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "decimalLongField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BOOLEAN, "booleanField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BINARY, "binaryField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "dateField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "timestampField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT96, "timestampLegacyField")
         );
 
         MessageType schema = new MessageType("record", fields);
@@ -69,12 +69,13 @@ public class ParquetConverterTest {
         record.add(4, 100);
         record.add(5, 100.01f);
         record.add(6, 100_000.0001d);
-        record.add(7, 12345L);
-        record.add(8, true);
-        record.add(9, Binary.fromReusedByteArray(new byte[]{1, 3, 5}));
-        record.add(10, 1000);
-        record.add(11, 1632235944000L);
-        record.add(12, new NanoTime(2459479, 11972));
+        record.add(7, 12345);
+        record.add(8, 1234567890L);
+        record.add(9, true);
+        record.add(10, Binary.fromReusedByteArray(new byte[]{1, 3, 5}));
+        record.add(11, 18894);
+        record.add(12, 1632235944000L);
+        record.add(13, new NanoTime(2459479, 11972));
         Field stringField = Field.nullable("stringField", new ArrowType.Utf8());
         Field longField = Field.nullable("longField", new ArrowType.Int(64, true));
         Field integerField = Field.nullable("integerField", new ArrowType.Int(32, true));
@@ -82,7 +83,8 @@ public class ParquetConverterTest {
         Field byteField = Field.nullable("byteField", new ArrowType.Int(8, true));
         Field floatField = Field.nullable("floatField", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
         Field doubleField = Field.nullable("doubleField", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-        Field decimalField = Field.nullable("decimalField", new ArrowType.Decimal(8, 2, 32));
+        Field decimalIntField = Field.nullable("decimalIntField", new ArrowType.Decimal(8, 2, 32));
+        Field decimalLongField = Field.nullable("decimalLongField", new ArrowType.Decimal(12, 2, 32));
         Field booleanField = Field.nullable("booleanField", new ArrowType.Bool());
         Field binaryField = Field.nullable("binaryField", new ArrowType.Binary());
         Field dateField = Field.nullable("dateField", new ArrowType.Date(DateUnit.DAY));
@@ -138,12 +140,19 @@ public class ParquetConverterTest {
         ((Float8Extractor)doubleExtractor).extract(record, doubleHolder);
         assertEquals(100_000.0001d, doubleHolder.value, 0.1);
 
-        // Decimal test
-        Extractor decimalExtractor = getExtractor(decimalField);
-        assertTrue(decimalExtractor instanceof DecimalExtractor);
-        com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
-        ((DecimalExtractor)decimalExtractor).extract(record, decimalHolder);
-        assertEquals(BigDecimal.valueOf(12345L, 2), decimalHolder.value);
+        // Decimal int test
+        Extractor decimalIntExtractor = getExtractor(decimalIntField);
+        assertTrue(decimalIntExtractor instanceof DecimalExtractor);
+        com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalIntHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
+        ((DecimalExtractor)decimalIntExtractor).extract(record, decimalIntHolder);
+        assertEquals(BigDecimal.valueOf(12345, 2), decimalIntHolder.value);
+
+        // Decimal long test
+        Extractor decimalLongExtractor = getExtractor(decimalLongField);
+        assertTrue(decimalLongExtractor instanceof DecimalExtractor);
+        com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalLongHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
+        ((DecimalExtractor)decimalLongExtractor).extract(record, decimalLongHolder);
+        assertEquals(BigDecimal.valueOf(1234567890L, 2), decimalLongHolder.value);
 
         // Boolean test
         Extractor booleanExtractor = getExtractor(booleanField);
@@ -164,7 +173,7 @@ public class ParquetConverterTest {
         assertTrue(dateExtractor instanceof DateDayExtractor);
         NullableDateDayHolder dateHolder = new NullableDateDayHolder();
         ((DateDayExtractor)dateExtractor).extract(record, dateHolder);
-        assertEquals(1000, dateHolder.value);
+        assertEquals(18894, dateHolder.value);
 
         // Timestamp test
         Extractor timestampExtractor = getExtractor(timestampField);
