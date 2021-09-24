@@ -20,10 +20,11 @@
 package com.amazonaws.connectors.athena.deltalake;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -31,33 +32,38 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.github.mjakubowski84.parquet4s.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.holders.*;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.parquet.hadoop.example.GroupReadSupport;
+import org.apache.parquet.schema.PrimitiveType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.None;
-import software.amazon.ion.Decimal;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
+import java.text.ParseException;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.*;
-import static java.lang.String.format;
+import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
+import static com.amazonaws.connectors.athena.deltalake.converter.ParquetConverter.getExtractor;
 
 public class DeltalakeRecordHandler
         extends RecordHandler
@@ -66,9 +72,17 @@ public class DeltalakeRecordHandler
 
     private static final String SOURCE_TYPE = "deltalake";
 
+    private Configuration conf;
+
     public DeltalakeRecordHandler()
     {
         this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
+        Configuration conf = new Configuration();
+        conf.setLong("fs.s3a.multipart.size", 104857600);
+        conf.setInt("fs.s3a.multipart.threshold", Integer.MAX_VALUE);
+        conf.setBoolean("fs.s3a.impl.disable.cache", true);
+        conf.set("fs.s3a.metadatastore.impl", "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore");
+        this.conf = conf;
     }
 
     @VisibleForTesting
@@ -77,175 +91,37 @@ public class DeltalakeRecordHandler
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
     }
 
-    protected Optional<Value> getValue(Object context, String fieldName) {
-        RowParquetRecord record = (RowParquetRecord)context;
-        Value value = record.get(fieldName);
-        if (value instanceof NullValue$) return Optional.empty();
-        else return Optional.of(value);
+    protected Map<String, String> deserializePartitionValues(String partitionValuesJson) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode schemaJson = mapper.readTree(partitionValuesJson);
+        Map<String, String> partitionValues = new HashMap<>();
+        Iterator<Map.Entry<String, JsonNode>> fields = schemaJson.fields();
+        for (Iterator<Map.Entry<String, JsonNode>> it = fields; it.hasNext(); ) {
+            Map.Entry<String, JsonNode> field = it.next();
+            partitionValues.put(field.getKey(), field.getValue().textValue());
+        }
+        return partitionValues;
     }
-
-    protected Extractor getNumberExtractor(int bitWidth, String fieldName, Optional<Object> literalValue) {
-        if (bitWidth == 8 * NullableTinyIntHolder.WIDTH) return new TinyIntExtractor() {
-            @Override
-            public void extract(Object context, NullableTinyIntHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (byte)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Byte>)v).value()).orElse(Byte.valueOf("0"));
-                }
-            }
-        };
-        else if (bitWidth == 8 * NullableSmallIntHolder.WIDTH) return new SmallIntExtractor() {
-            @Override
-            public void extract(Object context, NullableSmallIntHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (short)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Short>)v).value()).orElse(Short.valueOf("0"));
-                }
-            }
-        };
-        else if (bitWidth == 8 * NullableIntHolder.WIDTH) return new IntExtractor() {
-            @Override
-            public void extract(Object context, NullableIntHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (int)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Integer>)v).value()).orElse(0);
-                }
-            }
-        };
-        else if (bitWidth == 8 * NullableBigIntHolder.WIDTH) return new BigIntExtractor() {
-            @Override
-            public void extract(Object context, NullableBigIntHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                dst.value = parquetValue.map(v -> ((PrimitiveValue<Long>)v).value()).orElse(0L);
-                if (literalValue.isPresent()) {
-                    dst.value = (long)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((PrimitiveValue<Long>)v).value()).orElse(0L);
-                }
-            }
-        };
-        else throw new IllegalArgumentException("Unsupported bitWidth: " + bitWidth);
-    }
-
-    protected Extractor getFloatExtractor(FloatingPointPrecision precision, String fieldName, Optional<Object> literalValue) {
-        if (precision == FloatingPointPrecision.SINGLE) return new Float4Extractor() {
-            @Override
-            public void extract(Object context, NullableFloat4Holder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (float)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((FloatValue)v).value()).orElse(0f);
-                }
-            }
-
-        };
-        else if (precision == FloatingPointPrecision.DOUBLE) return new Float8Extractor() {
-            @Override
-            public void extract(Object context, NullableFloat8Holder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (double)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((DoubleValue)v).value()).orElse(0d);
-                }
-            }
-        };
-        else throw new IllegalArgumentException("Unsupported float precision: " + precision);
-    }
-
-    public Extractor getExtractor(Field field) {
-        return getExtractor(field, Optional.empty());
-    }
-
-    public Extractor getExtractor(Field field, Optional<Object> literalValue) {
-        ArrowType fieldType = field.getType();
-        String fieldName = field.getName();
-        if (fieldType.getTypeID() == ArrowTypeID.Int) return getNumberExtractor(((ArrowType.Int)fieldType).getBitWidth(), fieldName, literalValue);
-        else if (fieldType.getTypeID() == ArrowTypeID.Bool) return new BitExtractor(){
-            @Override
-            public void extract(Object context, NullableBitHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (int)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((BooleanValue)v).value() ? 1 : 0).orElse(0);
-                }
-            }
-        };
-        else if (fieldType.getTypeID() == ArrowTypeID.Utf8) return new VarCharExtractor(){
-            @Override
-            public void extract(Object context, com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (String)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> ((BinaryValue)v).value().toStringUsingUTF8()).orElse("");
-                }
-            }
-        };
-        else if (fieldType.getTypeID() == ArrowTypeID.Date) return new DateMilliExtractor() {
-            @Override
-            public void extract(Object context, NullableDateMilliHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (Long)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v -> Longs.fromByteArray(((BinaryValue)v).value().getBytes())).orElse(0L);
-                }
-            }
-        };
-        else if (fieldType.getTypeID() == ArrowTypeID.FloatingPoint) return getFloatExtractor(((ArrowType.FloatingPoint)fieldType).getPrecision(), fieldName, literalValue);
-        else if (fieldType.getTypeID() == ArrowTypeID.Decimal) return new DecimalExtractor() {
-            @Override
-            public void extract(Object context, com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder dst) throws Exception {
-                Optional<Value> parquetValue = getValue(context, fieldName);
-                dst.isSet = parquetValue.isPresent() ? 1 : 0;
-                if (literalValue.isPresent()) {
-                    dst.value = (Decimal)literalValue.get();
-                } else {
-                    dst.value = parquetValue.map(v ->
-                            Decimals.decimalFromBinary(((BinaryValue) v).value(), Decimals.Scale(), Decimals.MathContext()).bigDecimal()).orElse(BigDecimal.valueOf(0));
-                }
-            }
-        };
-        else if (fieldType.getTypeID() == ArrowType.ArrowTypeID.Null) return new Extractor() {};
-        else return new Extractor() {};
-    }
-
-
-
 
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException
-    {
+            throws IOException, ParseException {
+        System.out.println("readWithConstraint: " + recordsRequest);
+
         Split split = recordsRequest.getSplit();
 
-        String relativeFilePath = split.getProperty(FILE_SPLIT_PROPERTY_KEY);
+        String relativeFilePath = split.getProperty(SPLIT_FILE_PROPERTY);
 
-        List<String> partitionNames = deserializePartitionNames(split.getProperty(PARTITION_NAMES_SPLIT_PROPERTY_KEY));
+
+        Map<String, String> partitionValues = deserializePartitionValues(split.getProperty(SPLIT_PARTITION_VALUES_PROPERTY));
+        System.out.println("partitionValues: " + partitionValues);
+        Set<String> partitionNames = partitionValues.keySet();
 
         String tableName = recordsRequest.getTableName().getTableName();
         String schemaName = recordsRequest.getTableName().getSchemaName();
 
-        String tablePath = String.format("s3a://%s/%s/%s/", DATA_BUCKET, schemaName, tableName);
-        String filePath = String.format("%s%s", tablePath, relativeFilePath);
+        String tablePath = String.format("s3a://%s/%s/%s", DATA_BUCKET, schemaName, tableName);
+        String filePath = String.format("%s/%s", tablePath, relativeFilePath);
 
         List<Field> fields = recordsRequest.getSchema().getFields();
 
@@ -254,23 +130,25 @@ public class DeltalakeRecordHandler
         for(Field field : fields) {
             String fieldName = field.getName();
             if (partitionNames.contains(fieldName)) {
-                String partitionValue = split.getProperty(getPartitionValuePropertyKey(fieldName));
+                Object partitionValue = castPartitionValue(partitionValues.get(fieldName), field.getType());
                 builder.withExtractor(fieldName, getExtractor(field, Optional.of(partitionValue)));
             }
             else builder.withExtractor(fieldName, getExtractor(field));
         }
 
+        ParquetReader<Group> reader = ParquetReader
+                .builder(new GroupReadSupport(), new Path(filePath))
+                .withConf(conf)
+                .build();
         GeneratedRowWriter rowWriter = builder.build();
-        ParquetReadSupport parquetReadSupport = new ParquetReadSupport();
-        org.apache.parquet.hadoop.ParquetReader<RowParquetRecord> parquetReader = org.apache.parquet.hadoop.ParquetReader.builder(parquetReadSupport, new Path(filePath)).build();
 
         long countRecord = 0L;
-        RowParquetRecord record;
-        while((record = parquetReader.read()) != null) {
-            RowParquetRecord finalRecord = record;
+        Group record;
+        while((record = reader.read()) != null) {
+            Group finalRecord = record;
             spiller.writeRows((block, rowNum) -> rowWriter.writeRow(block, rowNum, finalRecord) ? 1 : 0);
             countRecord += 1;
         }
-        logger.info("Split finished with %l records", countRecord);
+        System.out.println("Split finished with records: " +  countRecord);
     }
 }

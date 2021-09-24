@@ -30,6 +30,6 @@ public class DeltalakeCompositeHandler
 {
     public DeltalakeCompositeHandler()
     {
-        super(new DeltalakeMetadataHandler(), new DeltalakeRecordHandler(), new DeltalakeUserDefinedFuncHandler());
+        super(new DeltalakeMetadataHandler(), new DeltalakeRecordHandler());
     }
 }

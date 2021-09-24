@@ -23,6 +23,10 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -38,8 +42,20 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import org.apache.arrow.vector.holders.*;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.Int96Value;
+import org.apache.parquet.example.data.simple.NanoTime;
+import org.apache.parquet.example.data.simple.SimpleGroup;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -52,13 +68,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.math.BigDecimal;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.endsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -132,16 +147,6 @@ public class DeltalakeRecordHandlerTest
     public void doReadRecordsNoSpill()
             throws Exception
     {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doReadRecordsNoSpill: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
-
         for (int i = 0; i < 2; i++) {
             Map<String, ValueSet> constraintsMap = new HashMap<>();
 

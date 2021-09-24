@@ -20,3 +20,28 @@ Clean pom.xml if dependencies can be removed
 is it necessary to have 'parquet-hadoop-bundle' with the bundle ?
 
 set athena-deltalake.yaml
+
+
+Limitations
+
+Partitions of type Binary
+List tables without _$folder$ suffix
+
+### Data Types
+
+Using these primitive types: https://github.com/delta-io/delta/blob/master/PROTOCOL.md#primitive-types
+
+|Delta DataType|Apache Arrow Type|
+|-------------|-----------------|
+|string|VARCHAR|
+|long|BIGINT|	
+|integer|INT|	
+|short|SMALLINT|	
+|byte|TINYINT|	
+|float|FLOAT4|	
+|double|FLOAT8|	
+|decimal|DECIMAL|	
+|boolean|BIT|	
+|binary|VARBINARY|	
+|date|DATEDAY|	
+|timestamp|DATEMILLI|

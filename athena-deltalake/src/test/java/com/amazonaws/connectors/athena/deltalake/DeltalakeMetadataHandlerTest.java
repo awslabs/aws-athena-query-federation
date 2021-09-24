@@ -43,277 +43,215 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
+import io.findify.s3mock.S3Mock;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.apache.arrow.vector.util.Text;
+import org.junit.*;
+import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.sql.Timestamp;
+import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_FILE_PROPERTY;
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_PARTITION_VALUES_PROPERTY;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 public class DeltalakeMetadataHandlerTest
 {
+    static int S3_ENDPOINT_PORT = 8001;
+    static String S3_ENDPOINT = String.format("http://localhost:%d", S3_ENDPOINT_PORT);
+    static String S3_REGION = "ap-southeast-1";
+    static String S3_RESOURCES_FOLDER = "/s3";
+
+    private DeltalakeMetadataHandler handler;
+
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeMetadataHandlerTest.class);
-
-    private DeltalakeMetadataHandler handler = new DeltalakeMetadataHandler(new LocalKeyFactory(),
-            mock(AWSSecretsManager.class),
-            mock(AmazonAthena.class),
-            "spill-bucket",
-            "spill-prefix");
-
-    private boolean enableTests = System.getenv("publishing") != null &&
-            System.getenv("publishing").equalsIgnoreCase("true");
 
     private BlockAllocatorImpl allocator;
 
+    @Rule
+    public TestName testName = new TestName();
+
     @Before
-    public void setUp()
-    {
-        logger.info("setUpBefore - enter");
+    public void setUp() {
+        logger.info("{}: enter ", testName.getMethodName());
         allocator = new BlockAllocatorImpl();
-        logger.info("setUpBefore - exit");
+
+        AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(S3_ENDPOINT, S3_REGION);
+        AmazonS3 amazonS3 = AmazonS3ClientBuilder
+                .standard()
+                .withPathStyleAccessEnabled(true)
+                .withEndpointConfiguration(endpoint)
+                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+                .build();
+
+        this.handler = new DeltalakeMetadataHandler(
+                amazonS3,
+                new LocalKeyFactory(),
+                mock(AWSSecretsManager.class),
+                mock(AmazonAthena.class),
+                "spill-bucket",
+                "spill-prefix");
     }
 
+    @BeforeClass
+    static public void setUpClass() {
+        logger.info("Before all: enter ");
+        String bucketPath = DeltalakeMetadataHandlerTest.class.getResource(S3_RESOURCES_FOLDER).getPath();
+        S3Mock api = new S3Mock.Builder().withPort(S3_ENDPOINT_PORT).withFileBackend(bucketPath).build();
+        api.start();
+    }
+
+
     @After
-    public void after()
+    public void tearDown()
+            throws Exception
     {
         allocator.close();
+        logger.info("{}: exit ", testName.getMethodName());
     }
 
     @Test
     public void doListSchemaNames()
     {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doListSchemaNames: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
-
-        logger.info("doListSchemas - enter");
+        // Given
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "default");
+        // When
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
-        logger.info("doListSchemas - {}", res.getSchemas());
+        // Then
         assertFalse(res.getSchemas().isEmpty());
-        logger.info("doListSchemas - exit");
+        assertArrayEquals(Arrays.asList("test-database-2", "test-database-1").toArray(), res.getSchemas().toArray());
     }
 
     @Test
     public void doListTables()
     {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doListTables: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
+        // Given
+        String schemaName = "test-database-1";
+        ListTablesRequest request = new ListTablesRequest(fakeIdentity(), "queryId", "default",
+                schemaName, null, UNLIMITED_PAGE_SIZE_VALUE);
 
-        logger.info("doListTables - enter");
+        // When
+        ListTablesResponse response = handler.doListTables(allocator, request);
 
-        // Test request with unlimited page size
-        logger.info("doListTables - Test unlimited page size");
-        ListTablesRequest req = new ListTablesRequest(fakeIdentity(), "queryId", "default",
-                "schema1", null, UNLIMITED_PAGE_SIZE_VALUE);
-        ListTablesResponse res = handler.doListTables(allocator, req);
-        ListTablesResponse expectedResponse = new ListTablesResponse("default",
-                new ImmutableList.Builder<TableName>()
-                        .add(new TableName("schema1", "table1"))
-                        .add(new TableName("schema1", "table2"))
-                        .add(new TableName("schema1", "table3"))
-                        .build(), null);
-        logger.info("doListTables - {}", res);
-        assertEquals("Expecting a different response", expectedResponse, res);
-
-        // Test first paginated request with pageSize: 2, nextToken: null
-        logger.info("doListTables - Test first pagination request");
-        req = new ListTablesRequest(fakeIdentity(), "queryId", "default", "schema1",
-                null, 2);
-        expectedResponse = new ListTablesResponse("default",
-                new ImmutableList.Builder<TableName>()
-                        .add(new TableName("schema1", "table1"))
-                        .add(new TableName("schema1", "table2"))
-                        .build(), "table3");
-        res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res);
-        assertEquals("Expecting a different response", expectedResponse, res);
-
-        // Test second paginated request with pageSize: 2, nextToken: res.getNextToken()
-        logger.info("doListTables - Test second pagination request");
-        req = new ListTablesRequest(fakeIdentity(), "queryId", "default", "schema1",
-                res.getNextToken(), 2);
-        expectedResponse = new ListTablesResponse("default",
-                new ImmutableList.Builder<TableName>()
-                        .add(new TableName("schema1", "table3"))
-                        .build(), null);
-        res = handler.doListTables(allocator, req);
-        logger.info("doListTables - {}", res);
-        assertEquals("Expecting a different response", expectedResponse, res);
-
-        logger.info("doListTables - exit");
+        // Then
+        List<TableName> responseTables = new ArrayList<>(response.getTables());
+        assertEquals(2, responseTables.size());
+        assertEquals("test-table-1", responseTables.get(0).getTableName());
+        assertEquals("test-table-2", responseTables.get(1).getTableName());
     }
 
     @Test
-    public void doGetTable()
-    {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doGetTable: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
-
-        logger.info("doGetTable - enter");
+    public void doGetTable() throws IOException {
+        // Given
+        String schemaName = "test-database-1";
+        String tableName = "test-table-1";
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "default",
-                new TableName("schema1", "table1"));
+                new TableName(schemaName, tableName));
+
+        // When
         GetTableResponse res = handler.doGetTable(allocator, req);
+
+        // Then
         assertTrue(res.getSchema().getFields().size() > 0);
-        assertTrue(res.getSchema().getCustomMetadata().size() > 0);
-        logger.info("doGetTable - {}", res);
-        logger.info("doGetTable - exit");
+        assertTrue(res.getPartitionColumns().size() == 0);
     }
 
     @Test
     public void getPartitions()
             throws Exception
     {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("getPartitions: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
-
-        logger.info("doGetTableLayout - enter");
+        // Given
+        String schemaName = "test-database-2";
+        String tableName = "partitioned-table";
+        TableName table = new TableName(schemaName, tableName);
 
         Schema tableSchema = SchemaBuilder.newBuilder()
-                .addIntField("day")
-                .addIntField("month")
-                .addIntField("year")
+                .addBitField("is_valid")
+                .addStringField("region")
+                .addDateDayField("event_date")
+                .addIntField("amount")
                 .build();
 
         Set<String> partitionCols = new HashSet<>();
-        partitionCols.add("day");
-        partitionCols.add("month");
-        partitionCols.add("year");
+        partitionCols.add("is_valid");
+        partitionCols.add("region");
+        partitionCols.add("event_date");
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
-        constraintsMap.put("day", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 0)), false));
+        GetTableLayoutRequest req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
+            table,
+            new Constraints(constraintsMap),
+            tableSchema,
+            partitionCols);
 
-        constraintsMap.put("month", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 0)), false));
+        // When
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
 
-        constraintsMap.put("year", SortedRangeSet.copyOf(Types.MinorType.INT.getType(),
-                ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 2000)), false));
-
-        GetTableLayoutRequest req = null;
-        GetTableLayoutResponse res = null;
-        try {
-
-            req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
-                    new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap),
-                    tableSchema,
-                    partitionCols);
-
-            res = handler.doGetTableLayout(allocator, req);
-
-            logger.info("doGetTableLayout - {}", res);
-            Block partitions = res.getPartitions();
-            for (int row = 0; row < partitions.getRowCount() && row < 10; row++) {
-                logger.info("doGetTableLayout:{} {}", row, BlockUtils.rowToString(partitions, row));
-            }
-            assertTrue(partitions.getRowCount() > 0);
-            logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
-        }
-        finally {
-            try {
-                req.close();
-                res.close();
-            }
-            catch (Exception ex) {
-                logger.error("doGetTableLayout: ", ex);
-            }
-        }
-
-        logger.info("doGetTableLayout - exit");
+        // Then
+        Block partitions = res.getPartitions();
+        assertEquals(2, partitions.getRowCount());
+        assertEquals("[is_valid : true], [event_date : 18617], [region : asia]", BlockUtils.rowToString(partitions, 0));
+        assertEquals("[is_valid : false], [event_date : 18669], [region : europe]", BlockUtils.rowToString(partitions, 1));
     }
 
     @Test
-    public void doGetSplits()
-    {
-        if (!enableTests) {
-            //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
-            //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
-            //avoid breaking the build but still have a useful tutorial. We are also duplicateing this block
-            //on purpose since this is a somewhat odd pattern.
-            logger.info("doGetSplits: Tests are disabled, to enable them set the 'publishing' environment variable " +
-                    "using maven clean install -Dpublishing=true");
-            return;
-        }
+    public void doGetSplits() throws IOException {
+        // Given
+        String schemaName = "test-database-2";
+        String tableName = "partitioned-table";
+        TableName table = new TableName(schemaName, tableName);
 
-        logger.info("doGetSplits: enter");
+        String isValidCol = "is_valid";
+        String regionCol = "region";
+        String eventDateCol = "event_date";
 
-        String yearCol = "year";
-        String monthCol = "month";
-        String dayCol = "day";
-
-        //This is the schema that ExampleMetadataHandler has layed out for a 'Partition' so we need to populate this
-        //minimal set of info here.
-        Schema schema = SchemaBuilder.newBuilder()
-                .addIntField(yearCol)
-                .addIntField(monthCol)
-                .addIntField(dayCol)
+        Schema tableSchema = SchemaBuilder.newBuilder()
+                .addBitField(isValidCol)
+                .addStringField(regionCol)
+                .addDateDayField(eventDateCol)
+                .addIntField("amount")
                 .build();
 
-        List<String> partitionCols = new ArrayList<>();
-        partitionCols.add(yearCol);
-        partitionCols.add(monthCol);
-        partitionCols.add(dayCol);
+        List<String> partitionCols = Arrays.asList(isValidCol, regionCol, eventDateCol);
 
         Map<String, ValueSet> constraintsMap = new HashMap<>();
 
-        Block partitions = allocator.createBlock(schema);
+        Block partitions = allocator.createBlock(tableSchema);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {
-            BlockUtils.setValue(partitions.getFieldVector(yearCol), i, 2016 + i);
-            BlockUtils.setValue(partitions.getFieldVector(monthCol), i, (i % 12) + 1);
-            BlockUtils.setValue(partitions.getFieldVector(dayCol), i, (i % 28) + 1);
+            BlockUtils.setValue(partitions.getFieldVector(isValidCol), i, true);
+            BlockUtils.setValue(partitions.getFieldVector(regionCol), i, new Text("a"));
+            BlockUtils.setValue(partitions.getFieldVector(eventDateCol), i, LocalDate.of(2021, 3, 24));
         }
         partitions.setRowCount(num_partitions);
 
         String continuationToken = null;
         GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(), "queryId", "catalog_name",
-                new TableName("schema", "table_name"),
+                table,
                 partitions,
                 partitionCols,
                 new Constraints(constraintsMap),
@@ -322,19 +260,15 @@ public class DeltalakeMetadataHandlerTest
         do {
             GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
 
-            logger.info("doGetSplits: req[{}]", req);
             MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
             assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
 
             GetSplitsResponse response = (GetSplitsResponse) rawResponse;
             continuationToken = response.getContinuationToken();
 
-            logger.info("doGetSplits: continuationToken[{}] - splits[{}]", continuationToken, response.getSplits());
-
             for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty("year"));
-                assertNotNull(nextSplit.getProperty("month"));
-                assertNotNull(nextSplit.getProperty("day"));
+                assertNotNull(nextSplit.getProperty(SPLIT_PARTITION_VALUES_PROPERTY));
+                assertNotNull(nextSplit.getProperty(SPLIT_FILE_PROPERTY));
             }
 
             assertTrue(!response.getSplits().isEmpty());
@@ -346,8 +280,6 @@ public class DeltalakeMetadataHandlerTest
         while (continuationToken != null);
 
         assertTrue(numContinuations == 0);
-
-        logger.info("doGetSplits: exit");
     }
 
     private static FederatedIdentity fakeIdentity()
