@@ -22,9 +22,6 @@ package com.amazonaws.connectors.athena.deltalake;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -37,29 +34,19 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.holders.*;
-import org.apache.arrow.vector.types.DateUnit;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.example.GroupReadSupport;
-import org.apache.parquet.schema.PrimitiveType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.text.ParseException;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.*;
 import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
@@ -76,19 +63,14 @@ public class DeltalakeRecordHandler
 
     public DeltalakeRecordHandler()
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
-        Configuration conf = new Configuration();
-        conf.setLong("fs.s3a.multipart.size", 104857600);
-        conf.setInt("fs.s3a.multipart.threshold", Integer.MAX_VALUE);
-        conf.setBoolean("fs.s3a.impl.disable.cache", true);
-        conf.set("fs.s3a.metadatastore.impl", "org.apache.hadoop.fs.s3a.s3guard.NullMetadataStore");
-        this.conf = conf;
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), new Configuration());
     }
 
     @VisibleForTesting
-    protected DeltalakeRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected DeltalakeRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, Configuration conf)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        this.conf = conf;
     }
 
     protected Map<String, String> deserializePartitionValues(String partitionValuesJson) throws JsonProcessingException {
@@ -106,7 +88,7 @@ public class DeltalakeRecordHandler
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws IOException, ParseException {
-        System.out.println("readWithConstraint: " + recordsRequest);
+        logger.info("readWithConstraint: " + recordsRequest);
 
         Split split = recordsRequest.getSplit();
 
@@ -114,7 +96,6 @@ public class DeltalakeRecordHandler
 
 
         Map<String, String> partitionValues = deserializePartitionValues(split.getProperty(SPLIT_PARTITION_VALUES_PROPERTY));
-        System.out.println("partitionValues: " + partitionValues);
         Set<String> partitionNames = partitionValues.keySet();
 
         String tableName = recordsRequest.getTableName().getTableName();
@@ -131,24 +112,21 @@ public class DeltalakeRecordHandler
             String fieldName = field.getName();
             if (partitionNames.contains(fieldName)) {
                 Object partitionValue = castPartitionValue(partitionValues.get(fieldName), field.getType());
-                builder.withExtractor(fieldName, getExtractor(field, Optional.of(partitionValue)));
+                builder.withExtractor(fieldName, getExtractor(field, Optional.ofNullable(partitionValue)));
             }
             else builder.withExtractor(fieldName, getExtractor(field));
         }
 
         ParquetReader<Group> reader = ParquetReader
                 .builder(new GroupReadSupport(), new Path(filePath))
-                .withConf(conf)
+                .withConf(this.conf)
                 .build();
         GeneratedRowWriter rowWriter = builder.build();
 
-        long countRecord = 0L;
         Group record;
-        while((record = reader.read()) != null) {
+        while((record = reader.read()) != null && queryStatusChecker.isQueryRunning()) {
             Group finalRecord = record;
             spiller.writeRows((block, rowNum) -> rowWriter.writeRow(block, rowNum, finalRecord) ? 1 : 0);
-            countRecord += 1;
         }
-        System.out.println("Split finished with records: " +  countRecord);
     }
 }

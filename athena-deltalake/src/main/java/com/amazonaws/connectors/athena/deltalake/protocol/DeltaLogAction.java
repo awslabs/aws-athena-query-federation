@@ -1,7 +1,6 @@
 package com.amazonaws.connectors.athena.deltalake.protocol;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.parquet.example.data.Group;

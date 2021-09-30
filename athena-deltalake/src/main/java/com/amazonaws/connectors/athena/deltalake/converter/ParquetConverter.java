@@ -8,6 +8,7 @@ import org.apache.arrow.vector.holders.*;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.Text;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.schema.PrimitiveType;
 
@@ -109,8 +110,12 @@ public class ParquetConverter {
                     dst.value = valueHolder.value;
                 };
             case VARCHAR:
+                Optional<Object> literalValueCasted = literalValue.map(v -> {
+                    if (v instanceof Text) return v.toString();
+                    else return v;
+                });
                 return (VarCharExtractor) (Object context, com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder dst) -> {
-                    ValueHolder<String> valueHolder = getValueHolder(context, fieldName, "", literalValue).apply(
+                    ValueHolder<String> valueHolder = getValueHolder(context, fieldName, "", literalValueCasted).apply(
                         (Group record) -> record.getString(fieldName, 0)
                     );
                     dst.isSet = valueHolder.isSet;

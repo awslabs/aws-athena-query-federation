@@ -10,6 +10,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.util.Text;
 import org.apache.commons.io.FileUtils;
 import org.junit.Test;
 
@@ -239,13 +240,13 @@ public class DeltaConverterTest {
 
 
     @Test
-    public void testCastPartitionValue() throws ParseException {
-        assertEquals("test", castPartitionValue("test", Types.MinorType.VARCHAR.getType()));
+    public void testCastPartitionValue() {
+        assertEquals(new Text("test"), castPartitionValue("test", Types.MinorType.VARCHAR.getType()));
         assertEquals(2021, castPartitionValue("2021", Types.MinorType.INT.getType()));
         assertEquals(12.1f, castPartitionValue("12.1", Types.MinorType.FLOAT8.getType()));
-        assertEquals(LocalDate.of(2021, 2, 3), castPartitionValue("2021-02-03", Types.MinorType.DATEDAY.getType()));
+        assertEquals(18661, castPartitionValue("2021-02-03", Types.MinorType.DATEDAY.getType()));
         assertEquals(Timestamp.valueOf(LocalDateTime.of(2021, 2, 3, 12, 32,27)), castPartitionValue("2021-02-03 12:32:27", Types.MinorType.TIMESTAMPSEC.getType()));
-        assertEquals(true, castPartitionValue("true", Types.MinorType.BIT.getType()));
+        assertEquals(1, castPartitionValue("true", Types.MinorType.BIT.getType()));
     }
 
 }

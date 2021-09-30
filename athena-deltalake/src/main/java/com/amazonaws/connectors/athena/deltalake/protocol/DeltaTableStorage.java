@@ -149,13 +149,17 @@ public class DeltaTableStorage {
                 .withPrefix(deltaLogDirectoryKey() + "/")
                 .withStartAfter(deltaLogDirectoryKey() + "/" + startAfterName);
         ListObjectsV2Result result = amazonS3.listObjectsV2(listRequest);
-        List<String> deltaLogsKeys = new ArrayList<>();
-        for(S3ObjectSummary object: result.getObjectSummaries()) {
-            if(object.getKey().endsWith(".json")) deltaLogsKeys.add(object.getKey());
-        }
-        return deltaLogsKeys.stream()
-                .map(deltaLogKey -> readDeltaLog(deltaLogKey))
+        List<String> deltaLogsKeys = result.getObjectSummaries().stream()
+                .map(S3ObjectSummary::getKey)
+                .filter(key -> key.endsWith(".json"))
+                .sorted()
                 .collect(Collectors.toList());
+
+        List<DeltaTableSnapshotBuilder.DeltaLogEntry> deltaLogEntries = new ArrayList<>();
+        for(String key: deltaLogsKeys) {
+            deltaLogEntries.add(readDeltaLog(key));
+        }
+        return deltaLogEntries;
     }
 
     private DeltaTableSnapshotBuilder.DeltaLogEntry readDeltaLog(String deltaLogsEntryKey) {

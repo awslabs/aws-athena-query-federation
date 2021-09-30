@@ -26,15 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.connectors.athena.deltalake.protocol.DeltaLogAction;
 import com.amazonaws.connectors.athena.deltalake.protocol.DeltaTableSnapshotBuilder;
@@ -44,6 +36,7 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.ListObjectsV2Request;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -57,10 +50,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.*;
+import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
+import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.getArrowSchema;
 
 public class DeltalakeMetadataHandler
         extends MetadataHandler
@@ -74,6 +72,17 @@ public class DeltalakeMetadataHandler
     public static String DATA_BUCKET = System.getenv("data_bucket");
     public String S3_FOLDER_SUFFIX = "_$folder$";
     private final AmazonS3 amazonS3;
+
+    private class ListFoldersResult {
+        Stream<String> listedFolders;
+        String nextContinuationToken;
+
+        public ListFoldersResult(Stream<String> listedFolders, String nextContinuationToken) {
+            this.listedFolders = listedFolders;
+            this.nextContinuationToken = nextContinuationToken;
+        }
+
+    }
 
     public DeltalakeMetadataHandler()
     {
@@ -98,23 +107,30 @@ public class DeltalakeMetadataHandler
         return objectMapper.writeValueAsString(partitionValues);
     }
 
-    private Set<String> listFolders() {
+    private ListFoldersResult listFolders() {
         return listFolders("");
     }
 
-    private Set<String> listFolders(String prefix) {
+    private ListFoldersResult listFolders(String prefix) {
+        return listFolders(prefix, null, null);
+    }
+
+    private ListFoldersResult listFolders(String prefix, String continuationToken, Integer maxKeys) {
         ListObjectsV2Request listObjects = new ListObjectsV2Request()
                 .withPrefix(prefix)
                 .withDelimiter("/")
                 .withBucketName(DATA_BUCKET);
-        return amazonS3.listObjectsV2(listObjects)
+        if (maxKeys != null) listObjects.withMaxKeys(maxKeys);
+        if (continuationToken != null) listObjects.withContinuationToken(continuationToken);
+        ListObjectsV2Result listObjectsResult = amazonS3.listObjectsV2(listObjects);
+        Stream<String> listedFolers = listObjectsResult
                 .getObjectSummaries()
                 .stream()
                 .map(S3ObjectSummary::getKey)
                 .filter(s3Object -> s3Object.endsWith(S3_FOLDER_SUFFIX))
                 .map(s3Object -> StringUtils.removeEnd(s3Object, S3_FOLDER_SUFFIX))
-                .map(s3Object -> StringUtils.removeStart(s3Object, prefix))
-                .collect(Collectors.toSet());
+                .map(s3Object -> StringUtils.removeStart(s3Object, prefix));
+        return new ListFoldersResult(listedFolers, listObjectsResult.getNextContinuationToken());
     }
 
     private String tableKeyPrefix(String schemaName, String tableName) {
@@ -130,57 +146,58 @@ public class DeltalakeMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
-        System.out.println("doListSchemaNames: " + request);
-        Set<String> schemas = listFolders();
-        ListSchemasResponse res = new ListSchemasResponse(request.getCatalogName(), schemas);
-        System.out.println(res.toString());
-        return res;
+        logger.info("doListSchemaNames: " + request);
+        Set<String> schemas = listFolders().listedFolders.collect(Collectors.toSet());
+        return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
-        System.out.println("doListTables:" + request);
+        logger.info("doListTables:" + request);
+        String nextToken = request.getNextToken();
+        int pageSize = request.getPageSize();
 
         String schemaName = request.getSchemaName();
         String prefix = schemaName + "/";
-        Set<TableName> tables = listFolders(prefix).stream()
+        Stream<String> listedFolders;
+        if(pageSize != ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE) {
+            ListFoldersResult listFoldersResult = listFolders(prefix, nextToken, pageSize);
+            listedFolders = listFoldersResult.listedFolders;
+            nextToken = listFoldersResult.nextContinuationToken;
+        } else {
+            ListFoldersResult listFoldersResult = listFolders(prefix);
+            listedFolders = listFoldersResult.listedFolders;
+        }
+        Set<TableName> tables = listedFolders
                 .map(table -> new TableName(schemaName, table))
                 .collect(Collectors.toSet());
-        ListTablesResponse res = new ListTablesResponse(schemaName, tables, null);
-        System.out.println(res.toString());
-        return res;
+        return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
     }
 
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws IOException {
-        System.out.println("doGetTable: " + request);
+        logger.info("doGetTable: " + request);
         String catalogName = request.getCatalogName();
         String tableName = request.getTableName().getTableName();
         String schemaName = request.getTableName().getSchemaName();
 
         DeltaTableSnapshot deltaTableSnapshot = getDeltaSnapshot(schemaName, tableName);
-        System.out.println("delta table schema: " + deltaTableSnapshot.metaData.schemaString);
         Schema schema = getArrowSchema(deltaTableSnapshot.metaData.schemaString);
         Set<String> partitions = new HashSet<>(deltaTableSnapshot.metaData.partitionColumns);
 
-        GetTableResponse res = new GetTableResponse(catalogName, request.getTableName(), schema, partitions);
-        System.out.println(res.toString());
-        return res;
+        return new GetTableResponse(catalogName, request.getTableName(), schema, partitions);
     }
 
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
-        System.out.println("getPartitions: " + request);
+        logger.info("getPartitions: " + request);
         String tableName = request.getTableName().getTableName();
         String schemaName = request.getTableName().getSchemaName();
 
         DeltaTableSnapshot deltaTableSnapshot = getDeltaSnapshot(schemaName, tableName);
-
-        List<String> partitions = deltaTableSnapshot.metaData.partitionColumns;
-        System.out.println("partition columns: " + partitions.toString());
 
         for(DeltaLogAction.AddFile file: deltaTableSnapshot.files) {
             Set<Map.Entry<String, String>> keyValues = file.partitionValues.entrySet();
@@ -195,12 +212,11 @@ public class DeltalakeMetadataHandler
                 return matched ? 1 : 0;
             });
         }
-        System.out.println("block: " + blockWriter.toString());
     }
 
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException {
-        System.out.println("doGetSplits: " + request);
+        logger.info("doGetSplits: " + request);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
 
@@ -219,8 +235,6 @@ public class DeltalakeMetadataHandler
                     .build();
             splits.add(split);
         }
-        GetSplitsResponse res = new GetSplitsResponse(catalogName, splits);
-        System.out.println(res.toString());
-        return res;
+        return new GetSplitsResponse(catalogName, splits);
     }
 }

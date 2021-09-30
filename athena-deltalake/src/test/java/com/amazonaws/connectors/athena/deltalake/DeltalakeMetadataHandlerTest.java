@@ -63,13 +63,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.sql.Timestamp;
-import java.text.ParseException;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_FILE_PROPERTY;
@@ -77,13 +72,8 @@ import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
-public class DeltalakeMetadataHandlerTest
+public class DeltalakeMetadataHandlerTest extends TestBase
 {
-    static int S3_ENDPOINT_PORT = 8001;
-    static String S3_ENDPOINT = String.format("http://localhost:%d", S3_ENDPOINT_PORT);
-    static String S3_REGION = "ap-southeast-1";
-    static String S3_RESOURCES_FOLDER = "/s3";
-
     private DeltalakeMetadataHandler handler;
 
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeMetadataHandlerTest.class);
@@ -98,14 +88,6 @@ public class DeltalakeMetadataHandlerTest
         logger.info("{}: enter ", testName.getMethodName());
         allocator = new BlockAllocatorImpl();
 
-        AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(S3_ENDPOINT, S3_REGION);
-        AmazonS3 amazonS3 = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(endpoint)
-                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-                .build();
-
         this.handler = new DeltalakeMetadataHandler(
                 amazonS3,
                 new LocalKeyFactory(),
@@ -114,15 +96,6 @@ public class DeltalakeMetadataHandlerTest
                 "spill-bucket",
                 "spill-prefix");
     }
-
-    @BeforeClass
-    static public void setUpClass() {
-        logger.info("Before all: enter ");
-        String bucketPath = DeltalakeMetadataHandlerTest.class.getResource(S3_RESOURCES_FOLDER).getPath();
-        S3Mock api = new S3Mock.Builder().withPort(S3_ENDPOINT_PORT).withFileBackend(bucketPath).build();
-        api.start();
-    }
-
 
     @After
     public void tearDown()
@@ -145,21 +118,41 @@ public class DeltalakeMetadataHandlerTest
     }
 
     @Test
-    public void doListTables()
+    public void doListTablesUnlimited()
     {
         // Given
         String schemaName = "test-database-1";
         ListTablesRequest request = new ListTablesRequest(fakeIdentity(), "queryId", "default",
                 schemaName, null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesResponse expectedResponse = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName(schemaName, "test-table-1"))
+                        .add(new TableName(schemaName, "test-table-2"))
+                        .add(new TableName(schemaName, "test-table-3"))
+                        .build(), null);
 
         // When
         ListTablesResponse response = handler.doListTables(allocator, request);
 
         // Then
-        List<TableName> responseTables = new ArrayList<>(response.getTables());
-        assertEquals(2, responseTables.size());
-        assertEquals("test-table-1", responseTables.get(0).getTableName());
-        assertEquals("test-table-2", responseTables.get(1).getTableName());
+        assertEquals(expectedResponse, response);
+    }
+
+    @Test
+    public void doListTablesWithPageSize()
+    {
+        // First request
+        String schemaName = "test-database-1";
+        int pageSize = 2;
+        ListTablesRequest request1 = new ListTablesRequest(fakeIdentity(), "queryId", "default",
+                schemaName, null, pageSize);
+        ListTablesResponse expectedResponse1 = new ListTablesResponse("default",
+                new ImmutableList.Builder<TableName>()
+                        .add(new TableName(schemaName, "test-table-1"))
+                        .add(new TableName(schemaName, "test-table-2"))
+                        .build(), "test-database-1/test-table-2_$folder$");
+        ListTablesResponse response1 = handler.doListTables(allocator, request1);
+        assertEquals(expectedResponse1, response1);
     }
 
     @Test
