@@ -29,12 +29,19 @@ Refer to the diagram below:
 
 ![](./assets/connector-propertygraph.png)
 
-### Create AWS Glue Catalog Database and Tables
+## Create AWS Glue Catalog Database and Tables
 
+AWS Glue Catalog Database and Tables can be created either via using Amazon Neptune Export Configuration or Manually. 
 
-You can use the sample nodejs script [here](./automation/script.js) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route corresponding to the Air Routes Property Graph sample dataset.. The nodejs script uses the Amazon Neptune export configuration file. There is a sample export configuration for the Air Routes sample dataset in the folder.
+<br />
 
-From inside the folder, run these commands
+### Create AWS Glue Database and Tables using Amazon Neptune Export Configuration
+
+<br />
+
+You can use the sample node.js script [here](./automation/script.js) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route corresponding to the Air Routes Property Graph sample dataset. The nodejs script uses the Amazon Neptune export configuration file. There is a sample export configuration for the Air Routes sample dataset in the [folder](./automation).
+
+From inside the [folder](./automation), run these commands
 
 Install dependencies
 
@@ -55,8 +62,10 @@ bin/neptune-export.sh create-pg-config -e <neptuneclusterendpoint> -d <outputfol
 
 ```
 
+### Create AWS Glue Database and Tables manually
+<br />
 
-Optionally, if you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-script.sh) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route  corresponding to the Air Routes Property Graph sample dataset. 
+If you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-script.sh) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route  corresponding to the Air Routes Property Graph sample dataset. 
 
 If you're planning to use your own data set instead of the Air Routes sample dataset, then you need to modify the script according to your data structure. 
 
