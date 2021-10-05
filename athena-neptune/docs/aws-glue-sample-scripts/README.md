@@ -7,7 +7,7 @@
 
 <br/>
 
-Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relatoinship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node with the corresponding datatypes.
+Each table within the AWS Glue Catalog based database maps to one node/vertex or edge/relatoinship type within your Amazon Neptune Property Graph model. Each Column for a Table maps to one property of the graph node or edge with the corresponding datatypes.
 
 Here's a reference of the Glue DataTypes that you can use:
         
@@ -31,7 +31,7 @@ Refer to the diagram below:
 
 ## Create AWS Glue Catalog Database and Tables
 
-AWS Glue Catalog Database and Tables can be created either via using Amazon Neptune Export Configuration or Manually. 
+AWS Glue Catalog Database and Tables can be created either by using [Amazon Neptune Export Configuration](#create-aws-glue-database-and-tables-using-amazon-neptune-export-configuration) or [Manually](#create-aws-glue-database-and-tables-manually). 
 
 ### Create AWS Glue Database and Tables using Amazon Neptune Export Configuration
 
