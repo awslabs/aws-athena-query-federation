@@ -33,13 +33,9 @@ Refer to the diagram below:
 
 AWS Glue Catalog Database and Tables can be created either via using Amazon Neptune Export Configuration or Manually. 
 
-<br />
-
 ### Create AWS Glue Database and Tables using Amazon Neptune Export Configuration
 
-<br />
-
-You can use the sample node.js script [here](./automation/script.js) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route corresponding to the Air Routes Property Graph sample dataset. The nodejs script uses the Amazon Neptune export configuration file. There is a sample export configuration for the Air Routes sample dataset in the [folder](./automation).
+You can use the sample node.js script [here](./automation/script.js) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route corresponding to the Air Routes Property Graph sample dataset. The node.js script uses the Amazon Neptune export configuration file. There is a sample export configuration for the Air Routes sample dataset in the [folder](./automation).
 
 From inside the [folder](./automation), run these commands
 
@@ -63,7 +59,7 @@ bin/neptune-export.sh create-pg-config -e <neptuneclusterendpoint> -d <outputfol
 ```
 
 ### Create AWS Glue Database and Tables manually
-<br />
+
 
 If you want to create database and tables manually, you can use the sample shell script [here](./manual/sample-cli-script.sh) to create a Glue Database by the name "graph-database" and tables: airport, country, continent and route  corresponding to the Air Routes Property Graph sample dataset. 
 
