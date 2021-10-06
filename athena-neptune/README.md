@@ -28,9 +28,6 @@ Alternatively, you can build and deploy this connector from source follow the be
 
 ## Current Limitations
 
-Here are some of the current limitations of this connector:
-
-1. The connector currently supports only Property Graph model and does not support RDF Graphs yet.
-2. The connector does not support edge traversal capabilities that Apache TinkerPop Gremlin supports. 
+The connector currently supports only Property Graph model and does not support RDF Graphs yet. 
 
 

@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.neptune;
+package com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters;
 
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extra
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
@@ -35,18 +36,20 @@ import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.tinkerpop.gremlin.structure.T;
 
 import java.util.ArrayList;
 import java.util.Map;
+
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class TypeRowWriter
+public final class VertexRowWriter
 {
-    private TypeRowWriter() 
+    private VertexRowWriter() 
     {
-        //Empty private constructor
+        // Empty private constructor
     }
 
     public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field)
@@ -74,12 +77,23 @@ public final class TypeRowWriter
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
                             Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                            String fieldName = field.getName().toLowerCase().trim();
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null) {
-                                value.value = objValues.get(0).toString();
-                                value.isSet = 1;
+                            // check for special keys and parse them separately
+                            if (fieldName.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                                Object fieldValue = obj.get(T.id);
+                                if (fieldValue != null) {
+                                    value.value = fieldValue.toString();
+                                    value.isSet = 1;
+                                }
+                            } 
+                            else {
+                                ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+                                if (objValues != null && objValues.get(0) != null) {
+                                    value.value = objValues.get(0).toString();
+                                    value.isSet = 1;
+                                }
                             }
                         });
                 break;
@@ -88,9 +102,10 @@ public final class TypeRowWriter
                 rowWriterBuilder.withExtractor(field.getName(),
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
                             Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
                             value.isSet = 0;
+                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
+
                             if (objValues != null && objValues.get(0) != null) {
                                 value.value = Integer.parseInt(objValues.get(0).toString());
                                 value.isSet = 1;
