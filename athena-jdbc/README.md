@@ -45,9 +45,9 @@ Multiplexer provides a way to connect to multiple database instances of any type
 
 |Handler|Class|
 |---	|---	|
-|Composite Handler|com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler|
-|Metadata Handler|com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcMetadataHandler|
-|Record Handler|com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcRecordHandler|
+|Composite Handler|MultiplexingJdbcCompositeHandler|
+|Metadata Handler|MultiplexingJdbcMetadataHandler|
+|Record Handler|MultiplexingJdbcRecordHandler|
 
 
 **Parameters:**
@@ -93,17 +93,17 @@ Database specific metadata and record handlers can also be used to connect to a 
 
 |DB Type|Handler|Class|
 |---|---|---|
-| |Composite Handler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlCompositeHandler|
-|MySql|Metadata Handler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlMetadataHandler|
-| |Record Handler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlRecordHandler|
+| |Composite Handler|MySqlCompositeHandler|
+|MySql|Metadata Handler|MySqlMetadataHandler|
+| |Record Handler|MySqlRecordHandler|
 |	|	|
-| |Composite Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlCompositeHandler|
-|PostGreSql|Metadata Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|
-| |Record Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
+| |Composite Handler|PostGreSqlCompositeHandler|
+|PostGreSql|Metadata Handler|PostGreSqlMetadataHandler|
+| |Record Handler|PostGreSqlRecordHandler|
 |	|	|
-| |Composite Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
-|Redshift|Metadata Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|
-| |Record Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
+| |Composite Handler|PostGreSqlRecordHandler|
+|Redshift|Metadata Handler|PostGreSqlMetadataHandler|
+| |Record Handler|PostGreSqlRecordHandler|
 
 **Parameters:**
 
