@@ -204,16 +204,16 @@ public abstract class JdbcSplitQueryBuilder
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return String.format("(%s IS NULL)", columnName);
+                return String.format("(%s IS NULL)", quote(columnName));
             }
 
             if (valueSet.isNullAllowed()) {
-                disjuncts.add(String.format("(%s IS NULL)", columnName));
+                disjuncts.add(String.format("(%s IS NULL)", quote(columnName)));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return String.format("(%s IS NOT NULL)", columnName);
+                return String.format("(%s IS NOT NULL)", quote(columnName));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
