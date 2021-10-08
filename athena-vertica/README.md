@@ -80,9 +80,9 @@ Database specific metadata and record handlers can also be used to connect to a 
 
 |Handler|Class|
 |---|---|
-|Composite Handler|com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler|
-|Metadata Handler|com.amazonaws.connectors.athena.vertica.VerticaMetadataHandler|
-|Record Handler|com.amazonaws.connectors.athena.vertica.VerticaRecordHandler|
+|Composite Handler|VerticaCompositeHandler|
+|Metadata Handler|VerticaMetadataHandler|
+|Record Handler|VerticaRecordHandler|
 
 **Parameters:**
 
