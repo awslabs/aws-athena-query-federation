@@ -22,10 +22,10 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlMetadataHandler;
-import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.mysql.MySqlMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.mysql.MySqlRecordHandler;
+import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlRecordHandler;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 
