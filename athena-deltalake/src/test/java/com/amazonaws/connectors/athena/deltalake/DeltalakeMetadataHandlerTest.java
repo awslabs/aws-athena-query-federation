@@ -87,6 +87,7 @@ public class DeltalakeMetadataHandlerTest extends TestBase
     public void setUp() {
         logger.info("{}: enter ", testName.getMethodName());
         allocator = new BlockAllocatorImpl();
+        String dataBucket = "test-bucket-1";
 
         this.handler = new DeltalakeMetadataHandler(
                 amazonS3,
@@ -94,7 +95,8 @@ public class DeltalakeMetadataHandlerTest extends TestBase
                 mock(AWSSecretsManager.class),
                 mock(AmazonAthena.class),
                 "spill-bucket",
-                "spill-prefix");
+                "spill-prefix",
+                dataBucket);
     }
 
     @After

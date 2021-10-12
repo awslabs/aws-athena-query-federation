@@ -69,8 +69,8 @@ public class DeltalakeMetadataHandler
     public static String SPLIT_PARTITION_VALUES_PROPERTY = "partitions_values";
 
     private static final String SOURCE_TYPE = "deltalake";
-    public static String DATA_BUCKET = System.getenv("data_bucket");
     public String S3_FOLDER_SUFFIX = "_$folder$";
+    private String dataBucket;
     private final AmazonS3 amazonS3;
 
     private class ListFoldersResult {
@@ -84,10 +84,11 @@ public class DeltalakeMetadataHandler
 
     }
 
-    public DeltalakeMetadataHandler()
+    public DeltalakeMetadataHandler(String dataBucket)
     {
         super(SOURCE_TYPE);
         this.amazonS3 = AmazonS3ClientBuilder.defaultClient();
+        this.dataBucket = dataBucket;
     }
 
     @VisibleForTesting
@@ -96,10 +97,12 @@ public class DeltalakeMetadataHandler
             AWSSecretsManager awsSecretsManager,
             AmazonAthena athena,
             String spillBucket,
-            String spillPrefix)
+            String spillPrefix,
+            String dataBucket)
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.amazonS3 = amazonS3;
+        this.dataBucket = dataBucket;
     }
 
     protected String serializePartitionValues(Map<String, String> partitionValues) throws JsonProcessingException {
@@ -119,7 +122,7 @@ public class DeltalakeMetadataHandler
         ListObjectsV2Request listObjects = new ListObjectsV2Request()
                 .withPrefix(prefix)
                 .withDelimiter("/")
-                .withBucketName(DATA_BUCKET);
+                .withBucketName(dataBucket);
         if (maxKeys != null) listObjects.withMaxKeys(maxKeys);
         if (continuationToken != null) listObjects.withContinuationToken(continuationToken);
         ListObjectsV2Result listObjectsResult = amazonS3.listObjectsV2(listObjects);
@@ -138,7 +141,7 @@ public class DeltalakeMetadataHandler
     }
 
     private DeltaTableSnapshot getDeltaSnapshot(String schemaName, String tableName) throws IOException {
-        DeltaTableStorage.TableLocation tableLocation = new DeltaTableStorage.TableLocation(DATA_BUCKET, tableKeyPrefix(schemaName, tableName));
+        DeltaTableStorage.TableLocation tableLocation = new DeltaTableStorage.TableLocation(dataBucket, tableKeyPrefix(schemaName, tableName));
         DeltaTableStorage deltaTableStorage = new DeltaTableStorage(amazonS3, new Configuration(), tableLocation);
         return new DeltaTableSnapshotBuilder(deltaTableStorage).getSnapshot();
     }

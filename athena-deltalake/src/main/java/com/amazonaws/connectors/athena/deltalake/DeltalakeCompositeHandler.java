@@ -30,6 +30,11 @@ public class DeltalakeCompositeHandler
 {
     public DeltalakeCompositeHandler()
     {
-        super(new DeltalakeMetadataHandler(), new DeltalakeRecordHandler());
+        this(System.getenv("data_bucket"));
+    }
+
+    private DeltalakeCompositeHandler(String dataBucket)
+    {
+        super(new DeltalakeMetadataHandler(dataBucket), new DeltalakeRecordHandler(dataBucket));
     }
 }

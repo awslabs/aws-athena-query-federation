@@ -60,17 +60,25 @@ public class DeltalakeRecordHandler
     private static final String SOURCE_TYPE = "deltalake";
 
     private Configuration conf;
+    private String dataBucket;
 
-    public DeltalakeRecordHandler()
+    public DeltalakeRecordHandler(String dataBucket)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), new Configuration());
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), new Configuration(), dataBucket);
     }
 
     @VisibleForTesting
-    protected DeltalakeRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, Configuration conf)
+    protected DeltalakeRecordHandler(
+        AmazonS3 amazonS3,
+        AWSSecretsManager secretsManager,
+        AmazonAthena amazonAthena,
+        Configuration conf,
+        String dataBucket
+    )
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         this.conf = conf;
+        this.dataBucket = dataBucket;
     }
 
     protected Map<String, String> deserializePartitionValues(String partitionValuesJson) throws JsonProcessingException {
@@ -87,7 +95,7 @@ public class DeltalakeRecordHandler
 
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
-            throws IOException, ParseException {
+            throws IOException {
         logger.info("readWithConstraint: " + recordsRequest);
 
         Split split = recordsRequest.getSplit();
@@ -101,7 +109,7 @@ public class DeltalakeRecordHandler
         String tableName = recordsRequest.getTableName().getTableName();
         String schemaName = recordsRequest.getTableName().getSchemaName();
 
-        String tablePath = String.format("s3a://%s/%s/%s", DATA_BUCKET, schemaName, tableName);
+        String tablePath = String.format("s3a://%s/%s/%s", dataBucket, schemaName, tableName);
         String filePath = String.format("%s/%s", tablePath, relativeFilePath);
 
         List<Field> fields = recordsRequest.getSchema().getFields();

@@ -13,8 +13,6 @@ Metadata:
     SemanticVersion: 2021.21.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
-# Parameters are CloudFormation features to pass input
-# to your template when you create a stack
 Parameters:
   AthenaCatalogName:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
@@ -54,9 +52,9 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           data_bucket: !Ref DataBucket
       FunctionName: !Sub "${AthenaCatalogName}"
-      Handler: "com.amazonaws.connectors.athena.example.DeltalakeCompositeHandler"
-      CodeUri: "./target/athena-example-1.0.jar"
-      Description: "A guided example for writing and deploying your own federated Amazon Athena connector for a custom source."
+      Handler: "com.amazonaws.connectors.athena.deltalake.DeltalakeCompositeHandler"
+      CodeUri: "./target/athena-deltalake-1.1.jar"
+      Description: "Enables Amazon Athena to query Delta Lake tables stored in S3."
       Runtime: java8
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
@@ -68,8 +66,6 @@ Resources:
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
             BucketName: !Ref SpillBucket
         - S3CrudPolicy:

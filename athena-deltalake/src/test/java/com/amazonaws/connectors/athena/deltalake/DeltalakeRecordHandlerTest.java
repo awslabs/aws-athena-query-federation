@@ -114,6 +114,7 @@ public class DeltalakeRecordHandlerTest extends TestBase
         String isValidCol = "is_valid";
         String regionCol = "region";
         String eventDateCol = "event_date";
+        String dataBucket = "test-bucket-1";
 
         schemaForRead = SchemaBuilder.newBuilder()
                 .addBitField(isValidCol)
@@ -127,6 +128,8 @@ public class DeltalakeRecordHandlerTest extends TestBase
         Configuration conf = new Configuration();
         conf.set("fs.s3a.endpoint", S3_ENDPOINT);
         conf.set("fs.s3a.path.style.access", "true");
+        conf.set("fs.s3a.access.key", "NO_NEED");
+        conf.set("fs.s3a.secret.key", "NO_NEED");
 
         AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(S3_ENDPOINT, S3_REGION);
         amazonS3 = AmazonS3ClientBuilder
@@ -139,7 +142,8 @@ public class DeltalakeRecordHandlerTest extends TestBase
                 amazonS3,
                 mock(AWSSecretsManager.class),
                 mock(AmazonAthena.class),
-                conf);
+                conf,
+                dataBucket);
 
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
