@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-example
+ * athena-deltalake
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -21,10 +21,6 @@ package com.amazonaws.connectors.athena.deltalake;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
-/**
- * Boilerplate composite handler that allows us to use a single Lambda function for both
- * Metadata and Data. In this case we just compose ExampleMetadataHandler and ExampleRecordHandler.
- */
 public class DeltalakeCompositeHandler
         extends CompositeHandler
 {

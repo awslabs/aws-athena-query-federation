@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-example
+ * athena-deltalake
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
@@ -60,6 +61,13 @@ import java.util.stream.Stream;
 import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
 import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.getArrowSchema;
 
+/**
+ * Handles metadata requests for the Athena Deltalake Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Uses delta log informations to resolve the tables schema, partitions and files.
+ */
 public class DeltalakeMetadataHandler
         extends MetadataHandler
 {
@@ -105,6 +113,12 @@ public class DeltalakeMetadataHandler
         this.dataBucket = dataBucket;
     }
 
+    /**
+     * Returns a JSON string representing a map of partition values
+     * @param partitionValues Map of partition values
+     * @return A JSON string
+     * @throws JsonProcessingException
+     */
     protected String serializePartitionValues(Map<String, String> partitionValues) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
         return objectMapper.writeValueAsString(partitionValues);
@@ -118,6 +132,16 @@ public class DeltalakeMetadataHandler
         return listFolders(prefix, null, null);
     }
 
+    /**
+     * List all the folders inside a root folder.
+     * This lookup relies on the existence of files named after the name of the folders, following this convention:
+     * "<folder_name>_$folder$"
+     * @param prefix Prefix key filter, i.e the folder inside which sub-folders are looked for.
+     *               Empty string means we look at the root of the bucket
+     * @param continuationToken If maxKeys < number of remaining keys, this token is used to look for the next keys.
+     * @param maxKeys Maximum number of returned folders
+     * @return
+     */
     private ListFoldersResult listFolders(String prefix, String continuationToken, Integer maxKeys) {
         ListObjectsV2Request listObjects = new ListObjectsV2Request()
                 .withPrefix(prefix)
@@ -140,12 +164,22 @@ public class DeltalakeMetadataHandler
         return schemaName + "/" + tableName;
     }
 
+    /**
+     * Retrieves the current Delta table snapshot of a given table
+     * @param schemaName The schema of the table
+     * @param tableName The name of the table
+     * @return The current snapshot of the Delta Table reconstructed from its Transaction Log
+     * @throws IOException
+     */
     private DeltaTableSnapshot getDeltaSnapshot(String schemaName, String tableName) throws IOException {
         DeltaTableStorage.TableLocation tableLocation = new DeltaTableStorage.TableLocation(dataBucket, tableKeyPrefix(schemaName, tableName));
         DeltaTableStorage deltaTableStorage = new DeltaTableStorage(amazonS3, new Configuration(), tableLocation);
         return new DeltaTableSnapshotBuilder(deltaTableStorage).getSnapshot();
     }
 
+    /**
+     * List databases inside a bucket by looking for files suffixed with _$folder$.
+     */
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
@@ -154,6 +188,9 @@ public class DeltalakeMetadataHandler
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
 
+    /**
+     * List tables inside a database by looking for files suffixed with _$folder$.
+     */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
     {
@@ -178,6 +215,9 @@ public class DeltalakeMetadataHandler
         return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
     }
 
+    /**
+     * Retrieves the schema and the partition columns of the table by reading its Delta transaction log.
+     */
     @Override
     public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws IOException {
         logger.info("doGetTable: " + request);
@@ -192,6 +232,10 @@ public class DeltalakeMetadataHandler
         return new GetTableResponse(catalogName, request.getTableName(), schema, partitions);
     }
 
+    /**
+     * Each file of the Delta table is associated to only 1 partition.
+     * We get the partitions by looping through all the files of the table.
+     */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
@@ -217,6 +261,13 @@ public class DeltalakeMetadataHandler
         }
     }
 
+    /**
+     * We parallelize the computation by making 1 split per file which form the Delta table.
+     *
+     * Each split contains 2 properties that are used by the readWithConstraint method:
+     * - one for the file path
+     * - one for the partition values associated to the file
+     */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException {
         logger.info("doGetSplits: " + request);
@@ -227,17 +278,32 @@ public class DeltalakeMetadataHandler
         String schemaName = request.getTableName().getSchemaName();
 
         DeltaTableSnapshot deltaTableSnapshot = getDeltaSnapshot(schemaName, tableName);
+        Schema schema = request.getSchema();
 
         Collection<DeltaLogAction.AddFile> allFiles = deltaTableSnapshot.files;
 
+        Map<String, ValueSet> constraints = request.getConstraints().getSummary();
         for (DeltaLogAction.AddFile file: allFiles) {
-            Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey());
-            Split split = splitBuilder
-                    .add(SPLIT_FILE_PROPERTY, file.path)
-                    .add(SPLIT_PARTITION_VALUES_PROPERTY, serializePartitionValues(file.partitionValues))
-                    .build();
-            splits.add(split);
+            boolean areConstraintsSatisfied = doesPartitionComplyConstraints(constraints, file.partitionValues, schema);
+            if(areConstraintsSatisfied) {
+                Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey());
+                Split split = splitBuilder
+                        .add(SPLIT_FILE_PROPERTY, file.path)
+                        .add(SPLIT_PARTITION_VALUES_PROPERTY, serializePartitionValues(file.partitionValues))
+                        .build();
+                splits.add(split);
+            }
         }
         return new GetSplitsResponse(catalogName, splits);
+    }
+
+    protected boolean doesPartitionComplyConstraints(Map<String, ValueSet> constraints, Map<String, String> partitionValues, Schema schema) {
+        for (Map.Entry<String, String> partitionElement: partitionValues.entrySet()) {
+            String partitionName = partitionElement.getKey();
+            Object partitionValue = castPartitionValue(partitionElement.getValue(), schema.findField(partitionName).getType());
+            ValueSet partitionConstraint = constraints.get(partitionName);
+            if (partitionConstraint != null && !partitionConstraint.containsValue(partitionValue)) return false;
+        }
+        return true;
     }
 }

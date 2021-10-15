@@ -38,8 +38,17 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Contains util functions to convert Delta types into Arrow or Java types
+ */
 public class DeltaConverter {
 
+    /**
+     * Convert a delta schema into a Arrow schema
+     * @param deltaSchemaString The Delta schema represented as a JSON string
+     * @return A Arrow Schema
+     * @throws JsonProcessingException
+     */
     static public Schema getArrowSchema(String deltaSchemaString) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode schemaJson = mapper.readTree(deltaSchemaString);
@@ -53,6 +62,13 @@ public class DeltaConverter {
         return schemaBuilder.build();
     }
 
+    /**
+     * Convert a Delta field to a Arrow Field
+     * @param fieldType The Delta type of the field as a parsed JSON
+     * @param fieldName The name of the field
+     * @param fieldNullable If the field is nullable
+     * @return A Arrow field
+     */
     static protected Field getAvroField(JsonNode fieldType, String fieldName, boolean fieldNullable) {
         if (fieldType.isTextual()) {
             String fieldTypeName = fieldType.asText();
@@ -175,6 +191,12 @@ public class DeltaConverter {
         return getAvroField(fieldType, fieldName, fieldNullable);
     }
 
+    /**
+     * Convert a Delta partition value in String format, to the type of its column
+     * @param partitionValue The value of the partition as a String
+     * @param arrowType The expected arrow type for the partition column
+     * @return The parition value as an Object
+     */
     public static Object castPartitionValue(String partitionValue, ArrowType arrowType) {
         if (partitionValue.isEmpty()) return null;
         switch (arrowType.getTypeID()) {

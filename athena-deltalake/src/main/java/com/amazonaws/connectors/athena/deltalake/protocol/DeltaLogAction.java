@@ -26,7 +26,14 @@ import org.apache.parquet.example.data.Group;
 
 import java.util.*;
 
+/**
+ * Container for all Delta Log Action POJO
+ */
 public interface DeltaLogAction {
+
+    /**
+     * POJO for "addFile" Delta Log Action
+     */
     class AddFile implements DeltaLogAction {
         public String path;
         public Map<String, String> partitionValues;
@@ -76,6 +83,10 @@ public interface DeltaLogAction {
         }
     }
 
+    /**
+     * POJO for "removeFile" Delta Log Action
+     */
+
     class RemoveFile implements DeltaLogAction {
         String path;
 
@@ -104,6 +115,9 @@ public interface DeltaLogAction {
         }
     }
 
+    /**
+     * POJO for "metadata" Delta Log Action
+     */
     class MetaData implements DeltaLogAction {
         public String schemaString;
         public List<String> partitionColumns;

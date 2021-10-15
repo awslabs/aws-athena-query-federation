@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-example
+ * athena-deltalake
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -45,13 +45,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.*;
 
 import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.*;
 import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
 import static com.amazonaws.connectors.athena.deltalake.converter.ParquetConverter.getExtractor;
 
+/**
+ * Handles data read record requests for the Athena Deltalake Connector.
+ * <p>
+ * For more detail, please see the module's README.md, some notable characteristics of this class include:
+ * <p>
+ * 1. Supports only primitive types
+ */
 public class DeltalakeRecordHandler
         extends RecordHandler
 {
@@ -81,6 +87,12 @@ public class DeltalakeRecordHandler
         this.dataBucket = dataBucket;
     }
 
+    /**
+     * Deserialize a JSON string containing partition values into a map of values
+     * @param partitionValuesJson JSON string containing partitionValues
+     * @return A map of partition values
+     * @throws JsonProcessingException
+     */
     protected Map<String, String> deserializePartitionValues(String partitionValuesJson) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode schemaJson = mapper.readTree(partitionValuesJson);
@@ -93,6 +105,10 @@ public class DeltalakeRecordHandler
         return partitionValues;
     }
 
+    /**
+     * Reads the file specified in the Split properties.
+     * The file format is always parquet. Each record is then converted to Arrow format.
+     */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws IOException {

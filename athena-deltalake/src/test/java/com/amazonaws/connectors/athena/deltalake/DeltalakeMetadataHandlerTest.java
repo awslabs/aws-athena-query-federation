@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-example
+ * athena-deltalake
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -25,10 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.*;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -43,18 +40,12 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.AnonymousAWSCredentials;
-import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
-import io.findify.s3mock.S3Mock;
-import org.apache.arrow.vector.types.Types;
+import com.google.common.collect.Maps;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.arrow.vector.util.Text;
 import org.junit.*;
@@ -275,6 +266,46 @@ public class DeltalakeMetadataHandlerTest extends TestBase
         while (continuationToken != null);
 
         assertTrue(numContinuations == 0);
+    }
+
+    @Test
+    public void doesPartitionComplyConstraints() {
+        // Given
+        String partitionName1 = "partition1";
+        String partitionName2 = "partition2";
+        ArrowType partitionType1 = new ArrowType.Utf8();
+        ArrowType partitionType2 = new ArrowType.Int(32, true);
+        Schema schema = new Schema(Arrays.asList(
+            Field.nullable(partitionName1, partitionType1),
+            Field.nullable(partitionName2, partitionType2),
+            Field.nullable("nonPartitionColumn", new ArrowType.Int(32, true))
+        ));
+        ValueSet constraintPartition1 = EquatableValueSet
+                .newBuilder(allocator, partitionType1, true, false)
+                .add("value1")
+                .add("value2")
+                .build();
+        ValueSet constraintPartition2 = SortedRangeSet
+                .newBuilder(partitionType2, false)
+                .add(Range.range(allocator, partitionType2, 100, true, 200, true))
+                .build();
+        Map<String, ValueSet> constraints = Maps.newHashMap();
+        constraints.put(partitionName1, constraintPartition1);
+        constraints.put(partitionName2, constraintPartition2);
+
+        Map<String, String> partitionValuesInvalid1 = Maps.newHashMap();
+        partitionValuesInvalid1.put(partitionName1, "value3");
+        partitionValuesInvalid1.put(partitionName2, "150");
+        Map<String, String> partitionValuesInvalid2 = Maps.newHashMap();
+        partitionValuesInvalid2.put(partitionName1, "value1");
+        partitionValuesInvalid2.put(partitionName2, "250");;
+        Map<String, String> partitionValuesValid = Maps.newHashMap();
+        partitionValuesValid.put(partitionName1, "value1");
+        partitionValuesValid.put(partitionName2, "150");
+
+        assertFalse(handler.doesPartitionComplyConstraints(constraints, partitionValuesInvalid1, schema));
+        assertFalse(handler.doesPartitionComplyConstraints(constraints, partitionValuesInvalid2, schema));
+        assertTrue(handler.doesPartitionComplyConstraints(constraints, partitionValuesValid, schema));
     }
 
     private static FederatedIdentity fakeIdentity()

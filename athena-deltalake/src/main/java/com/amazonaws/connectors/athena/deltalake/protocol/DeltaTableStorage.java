@@ -42,6 +42,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 
+/**
+ * Serves as interface between the Delta Protocol logic and the physical storage of the data.
+ * Relies on AmazonS3 client to read the files.
+ */
 public class DeltaTableStorage {
     Configuration parquetConf;
     AmazonS3 amazonS3;
@@ -71,11 +75,22 @@ public class DeltaTableStorage {
         return String.format("s3a://%s/%s", tableLocation.bucket, deltaLogDirectoryKey());
     }
 
+    /**
+     *
+     * @param key Full key of a S3 file
+     * @return The file name, i.e without the path to the file
+     */
     private String extractFileName(String key) {
-        String[] splitted = key.split("");
+        String[] splitted = key.split("/");
         return splitted[splitted.length - 1];
     }
 
+    /**
+     * Return a reader of a S3 file
+     * @param bucket Bucket containing the file
+     * @param key S3 key of the file
+     * @return A BufferedReader of the file
+     */
     private BufferedReader openS3File(String bucket, String key)
     {
         if (amazonS3.doesObjectExist(bucket, key)) {
@@ -85,6 +100,12 @@ public class DeltaTableStorage {
         return null;
     }
 
+    /**
+     * Reads the "_last_checkpoint" file of the Delta Transaction Log if exists and
+     * returns a CheckpointIdentifier that represents its content
+     * @return A CheckpointIdentifier defined by "_last_checkpoint" file
+     * @throws IOException
+     */
     public DeltaTableSnapshotBuilder.CheckpointIdentifier getLastCheckpointIdentifier() throws IOException {
         String lastCheckpointFileKey = deltaLogDirectoryKey() + "/_last_checkpoint";
         BufferedReader lastCheckpointFile = openS3File(tableLocation.bucket, lastCheckpointFileKey);
@@ -101,6 +122,12 @@ public class DeltaTableStorage {
         return new DeltaTableSnapshotBuilder.CheckpointIdentifier(version, size, parts);
     }
 
+    /**
+     * Returns the checkpoint identified by the CheckpointIdentifier
+     * @param checkpointIdentifier The identifier of the checkpoint we want to read
+     * @return Returns the Checkpoint corresponding to the content of the identified checkpoint
+     * @throws IOException
+     */
     public DeltaTableSnapshotBuilder.Checkpoint getCheckpoint(DeltaTableSnapshotBuilder.CheckpointIdentifier checkpointIdentifier) throws IOException {
         List<String> checkpointFiles = listCheckpointFiles(checkpointIdentifier);
         List<DeltaLogAction> deltaActions = new ArrayList<>();
@@ -119,6 +146,11 @@ public class DeltaTableStorage {
         return new DeltaTableSnapshotBuilder.Checkpoint(checkpointFiles, deltaActions);
     }
 
+    /**
+     * List all the checkpoint files that constitute the identified Checkpoint
+     * @param checkpointIdentifier Reference to the checkpoint
+     * @return The list of file names (not the full keys) corresponding to the checkpoint
+     */
     static protected List<String> listCheckpointFiles(DeltaTableSnapshotBuilder.CheckpointIdentifier checkpointIdentifier) {
         String checkpointVersion = StringUtils.leftPad(String.valueOf(checkpointIdentifier.version), 20, '0');
         List<String> result = new ArrayList<>();
@@ -142,6 +174,11 @@ public class DeltaTableStorage {
         return listDeltaLogsEntriesAfter(null);
     }
 
+    /**
+     * List all the Delta transaction log entries that took place after a specified checkpoint
+     * @param checkpoint The starting point checkpoint
+     * @return A List of Delta log entries
+     */
     public List<DeltaTableSnapshotBuilder.DeltaLogEntry> listDeltaLogsEntriesAfter(DeltaTableSnapshotBuilder.Checkpoint checkpoint) {
         String startAfterName = checkpoint != null ? checkpoint.fileNames.get(checkpoint.fileNames.size() - 1) : "";
         ListObjectsV2Request listRequest = new ListObjectsV2Request()
@@ -162,6 +199,11 @@ public class DeltaTableStorage {
         return deltaLogEntries;
     }
 
+    /**
+     * Reads a Delta transaction log entry
+     * @param deltaLogsEntryKey The key of the Delta transaction log entry
+     * @return The constructed DeltaLogEntry
+     */
     private DeltaTableSnapshotBuilder.DeltaLogEntry readDeltaLog(String deltaLogsEntryKey) {
         List<DeltaLogAction> deltaActions = new ArrayList<>();
         BufferedReader deltaLogsFile = openS3File(tableLocation.bucket, deltaLogsEntryKey);
@@ -179,6 +221,11 @@ public class DeltaTableStorage {
         return new DeltaTableSnapshotBuilder.DeltaLogEntry(extractFileName(deltaLogsEntryKey), deltaActions);
     }
 
+    /**
+     * Construct a Delta Action from data in parquet format coming from the checkpoint
+     * @param deltaAction Delta Action in parquet format
+     * @return A DeltaLogAction
+     */
     private DeltaLogAction parseDeltaAction(Group deltaAction) {
         if (deltaAction.getFieldRepetitionCount("add") > 0) {
             return DeltaLogAction.AddFile.fromParquet(deltaAction.getGroup("add", 0));
@@ -187,6 +234,11 @@ public class DeltaTableStorage {
         } else return null;
     }
 
+    /**
+     * Construct a Delta Action from data in JSON format
+     * @param deltaAction Delta Action in JSON format
+     * @return A DeltaLogAction
+     */
     private DeltaLogAction parseJsonDeltaAction(JsonNode deltaAction) throws JsonProcessingException {
         if (deltaAction.has("add")) {
             return DeltaLogAction.AddFile.fromJsonString(deltaAction.get("add").toString());

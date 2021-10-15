@@ -36,6 +36,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+/**
+ * Contains util functions to convert Parquet data into Arrow format
+ */
 public class ParquetConverter {
 
     static private class ValueHolder<T> {
@@ -67,6 +70,12 @@ public class ParquetConverter {
         };
     }
 
+    /**
+     * Get a valid extractor from Parquet to Arrow for the Parquet type of the field
+     * @param field The field we want the extractor for
+     * @param literalValue If exists, the extractor will always return this value
+     * @return The extractor with the valid Arrow type
+     */
     static public Extractor getExtractor(Field field, Optional<Object> literalValue) {
         ArrowType fieldType = field.getType();
         String fieldName = field.getName();

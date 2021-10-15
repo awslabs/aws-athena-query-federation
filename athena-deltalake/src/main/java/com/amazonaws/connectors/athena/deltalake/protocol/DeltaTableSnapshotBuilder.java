@@ -24,7 +24,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-
+/**
+ * Entry class to retrieve a DeltaTableSnapshot.
+ * It contains all the Delta Log protocol logic.
+ * It relies on a DeltaTableStorage to retrieve physical data.
+ */
 public class DeltaTableSnapshotBuilder {
     DeltaTableStorage deltaTableStorage;
 
@@ -74,6 +78,12 @@ public class DeltaTableSnapshotBuilder {
         }
     }
 
+    /**
+     * Apply the Delta Log protocol reconciliation logic from a list of Delta log actions.
+     * See: https://github.com/delta-io/delta/blob/master/PROTOCOL.md#action-reconciliation
+     * @param deltaActions List of delta log actions
+     * @return The Snapshot representing the Delta Table made of the input Delta actions
+     */
     static public DeltaTableSnapshot reconciliateDeltaActions(List<DeltaLogAction> deltaActions) {
         Map<String, DeltaLogAction.AddFile> addFilesMap = new HashMap<>();
         DeltaLogAction.MetaData metaData = null;
@@ -91,6 +101,10 @@ public class DeltaTableSnapshotBuilder {
         return new DeltaTableSnapshot(new ArrayList<>(addFilesMap.values()), metaData);
     }
 
+    /**
+     * @return The current snapshot of the Delta table specified in deltaTableStorage.
+     * @throws IOException
+     */
     public DeltaTableSnapshot getSnapshot() throws IOException {
         CheckpointIdentifier lastCheckpointIdentifier = deltaTableStorage.getLastCheckpointIdentifier();
         List<DeltaLogAction> fullDeltaLogOrdered;

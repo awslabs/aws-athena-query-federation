@@ -43,7 +43,7 @@ Review the "Policies" section of the athena-redis.yaml file for full details on 
 
 ### Deploying The Connector
 
-To use the Amazon Athena Redis Connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps or use the more detailed tutorial in the athena-example module:
+To use the Amazon Athena Deltalake Connector in your queries, navigate to AWS Serverless Application Repository and deploy a pre-built version of this connector. Alternatively, you can build and deploy this connector from source follow the below steps or use the more detailed tutorial in the athena-example module:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-deltalake dir, run `AWS_REGION=eu-west-1 mvn clean install`.
