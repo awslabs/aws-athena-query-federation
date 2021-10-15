@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2021.37.1
+    SemanticVersion: 2021.41.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -60,7 +60,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
-      CodeUri: "./target/athena-jdbc-2021.37.1.jar"
+      CodeUri: "./target/athena-jdbc-2021.41.1.jar"
       Description: "Enables Amazon Athena to communicate with Databases using JDBC"
       Runtime: java8
       Timeout: !Ref LambdaTimeout
