@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10};
+var methods = {"i0":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -50,7 +50,7 @@ var activeTableTab = "activeTableTab";
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../com/amazonaws/athena/connectors/neptune/NeptuneMetadataHandler.html" title="class in com.amazonaws.athena.connectors.neptune"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../com/amazonaws/athena/connectors/neptune/TypeRowWriter.html" title="class in com.amazonaws.athena.connectors.neptune"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li>Next&nbsp;Class</li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?com/amazonaws/athena/connectors/neptune/NeptuneRecordHandler.html" target="_top">Frames</a></li>
@@ -177,13 +177,6 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal&lt;org.apache.tinkerpop.gremlin.structure.Vertex,org.apache.tinkerpop.gremlin.structure.Vertex&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/neptune/NeptuneRecordHandler.html#getQueryPartForContraintsMap-org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal-java.util.Map-">getQueryPartForContraintsMap</a></span>(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal&lt;org.apache.tinkerpop.gremlin.structure.Vertex,org.apache.tinkerpop.gremlin.structure.Vertex&gt;&nbsp;traversal,
-                            <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&nbsp;hashMap)</code>
-<div class="block">Used to generate Gremlin Query part for Constraint Map</div>
-</td>
-</tr>
-<tr id="i1" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../com/amazonaws/athena/connectors/neptune/NeptuneRecordHandler.html#readWithConstraint-com.amazonaws.athena.connector.lambda.data.BlockSpiller-com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">readWithConstraint</a></span>(<a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
                   <a href="../../../../../com/amazonaws/athena/connector/lambda/records/ReadRecordsRequest.html" title="class in com.amazonaws.athena.connector.lambda.records">ReadRecordsRequest</a>&nbsp;recordsRequest,
@@ -252,7 +245,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
 <a name="readWithConstraint-com.amazonaws.athena.connector.lambda.data.BlockSpiller-com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>readWithConstraint</h4>
 <pre>protected&nbsp;void&nbsp;readWithConstraint(<a href="../../../../../com/amazonaws/athena/connector/lambda/data/BlockSpiller.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockSpiller</a>&nbsp;spiller,
@@ -276,25 +269,6 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
                            work for a query that has already terminated</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></code></dd>
-</dl>
-</li>
-</ul>
-<a name="getQueryPartForContraintsMap-org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal-java.util.Map-">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>getQueryPartForContraintsMap</h4>
-<pre>public&nbsp;org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal&lt;org.apache.tinkerpop.gremlin.structure.Vertex,org.apache.tinkerpop.gremlin.structure.Vertex&gt;&nbsp;getQueryPartForContraintsMap(org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal&lt;org.apache.tinkerpop.gremlin.structure.Vertex,org.apache.tinkerpop.gremlin.structure.Vertex&gt;&nbsp;traversal,
-                                                                                                                                                                                                         <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&nbsp;hashMap)</pre>
-<div class="block">Used to generate Gremlin Query part for Constraint Map</div>
-<dl>
-<dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>traversal</code> - Gremlin Traversal, traversal is updated based on constraints
-                  map</dd>
-<dd><code>hasMap</code> - Constraint Hash Map</dd>
-<dt><span class="returnLabel">Returns:</span></dt>
-<dd>A Gremlin Query Part equivalent to Contraint.</dd>
 </dl>
 </li>
 </ul>
@@ -327,7 +301,7 @@ extends <a href="../../../../../com/amazonaws/athena/connector/lambda/handlers/R
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../com/amazonaws/athena/connectors/neptune/NeptuneMetadataHandler.html" title="class in com.amazonaws.athena.connectors.neptune"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../com/amazonaws/athena/connectors/neptune/TypeRowWriter.html" title="class in com.amazonaws.athena.connectors.neptune"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li>Next&nbsp;Class</li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?com/amazonaws/athena/connectors/neptune/NeptuneRecordHandler.html" target="_top">Frames</a></li>

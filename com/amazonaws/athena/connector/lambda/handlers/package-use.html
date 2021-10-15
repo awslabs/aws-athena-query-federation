@@ -115,6 +115,22 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc">com.amazonaws.athena.connectors.jdbc</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc.manager">com.amazonaws.athena.connectors.jdbc.manager</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc.mysql">com.amazonaws.athena.connectors.jdbc.mysql</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc.postgresql">com.amazonaws.athena.connectors.jdbc.postgresql</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.neptune">com.amazonaws.athena.connectors.neptune</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -123,11 +139,19 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.athena.connectors.tpcds">com.amazonaws.athena.connectors.tpcds</a></td>
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.timestream">com.amazonaws.athena.connectors.timestream</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.tpcds">com.amazonaws.athena.connectors.tpcds</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.udfs">com.amazonaws.athena.connectors.udfs</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
@@ -136,30 +160,6 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc">com.amazonaws.connectors.athena.jdbc</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.manager">com.amazonaws.connectors.athena.jdbc.manager</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.mysql">com.amazonaws.connectors.athena.jdbc.mysql</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.postgresql">com.amazonaws.connectors.athena.jdbc.postgresql</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.vertica">com.amazonaws.connectors.athena.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.timestream">com.amazonaws.connectors.timestream</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -408,6 +408,116 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.jdbc">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.jdbc">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.jdbc">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc.manager">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/jdbc/manager/package-summary.html">com.amazonaws.athena.connectors.jdbc.manager</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.jdbc.manager">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.jdbc.manager">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc.mysql">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/jdbc/mysql/package-summary.html">com.amazonaws.athena.connectors.jdbc.mysql</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.jdbc.mysql">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.jdbc.mysql">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.jdbc.mysql">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc.postgresql">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/jdbc/postgresql/package-summary.html">com.amazonaws.athena.connectors.jdbc.postgresql</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.jdbc.postgresql">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.jdbc.postgresql">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.jdbc.postgresql">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.neptune">
 <!--   -->
 </a>
@@ -478,6 +588,41 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.timestream">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/timestream/package-summary.html">com.amazonaws.athena.connectors.timestream</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.timestream">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/GlueMetadataHandler.html#com.amazonaws.athena.connectors.timestream">GlueMetadataHandler</a>
+<div class="block">This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
+ MetadataHandler.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.timestream">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.timestream">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.tpcds">
 <!--   -->
 </a>
@@ -519,6 +664,35 @@
 <tr class="altColor">
 <td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/UserDefinedFunctionHandler.html#com.amazonaws.athena.connectors.udfs">UserDefinedFunctionHandler</a>
 <div class="block">Athena UDF users are expected to extend this class to create UDFs.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.vertica">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/vertica/package-summary.html">com.amazonaws.athena.connectors.vertica</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.vertica">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.vertica">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.vertica">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
 </td>
 </tr>
 </tbody>
@@ -588,180 +762,6 @@
 <tr class="rowColor">
 <td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/UserDefinedFunctionHandler.html#com.amazonaws.connectors.athena.example">UserDefinedFunctionHandler</a>
 <div class="block">Athena UDF users are expected to extend this class to create UDFs.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/jdbc/package-summary.html">com.amazonaws.connectors.athena.jdbc</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.athena.jdbc">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.jdbc">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.jdbc">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc.manager">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/jdbc/manager/package-summary.html">com.amazonaws.connectors.athena.jdbc.manager</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.jdbc.manager">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.jdbc.manager">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc.mysql">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/jdbc/mysql/package-summary.html">com.amazonaws.connectors.athena.jdbc.mysql</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.athena.jdbc.mysql">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.jdbc.mysql">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.jdbc.mysql">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc.postgresql">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/jdbc/postgresql/package-summary.html">com.amazonaws.connectors.athena.jdbc.postgresql</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.athena.jdbc.postgresql">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.jdbc.postgresql">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.jdbc.postgresql">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.vertica">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/vertica/package-summary.html">com.amazonaws.connectors.athena.vertica</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.athena.vertica">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.vertica">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.vertica">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.timestream">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.timestream">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/GlueMetadataHandler.html#com.amazonaws.connectors.timestream">GlueMetadataHandler</a>
-<div class="block">This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
- MetadataHandler.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.timestream">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.timestream">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
 </td>
 </tr>
 </tbody>

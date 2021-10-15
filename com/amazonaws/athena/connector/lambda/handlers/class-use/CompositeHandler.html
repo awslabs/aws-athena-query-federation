@@ -107,11 +107,27 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.athena.connectors.neptune">com.amazonaws.athena.connectors.neptune</a></td>
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc">com.amazonaws.athena.connectors.jdbc</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc.mysql">com.amazonaws.athena.connectors.jdbc.mysql</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc.postgresql">com.amazonaws.athena.connectors.jdbc.postgresql</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.neptune">com.amazonaws.athena.connectors.neptune</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.redis">com.amazonaws.athena.connectors.redis</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.timestream">com.amazonaws.athena.connectors.timestream</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
@@ -119,31 +135,15 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc">com.amazonaws.connectors.athena.jdbc</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.mysql">com.amazonaws.connectors.athena.jdbc.mysql</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.postgresql">com.amazonaws.connectors.athena.jdbc.postgresql</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.vertica">com.amazonaws.connectors.athena.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.timestream">com.amazonaws.connectors.timestream</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -277,6 +277,69 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
+<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>class&nbsp;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcCompositeHandler.html" title="class in com.amazonaws.athena.connectors.jdbc">MultiplexingJdbcCompositeHandler</a></span></code>
+<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
+ Metadata and Data.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc.mysql">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/mysql/package-summary.html">com.amazonaws.athena.connectors.jdbc.mysql</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
+<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/mysql/package-summary.html">com.amazonaws.athena.connectors.jdbc.mysql</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>class&nbsp;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/mysql/MySqlCompositeHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.mysql">MySqlCompositeHandler</a></span></code>
+<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
+ Metadata and Data.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc.postgresql">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/postgresql/package-summary.html">com.amazonaws.athena.connectors.jdbc.postgresql</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
+<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/postgresql/package-summary.html">com.amazonaws.athena.connectors.jdbc.postgresql</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>class&nbsp;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/postgresql/PostGreSqlCompositeHandler.html" title="class in com.amazonaws.athena.connectors.jdbc.postgresql">PostGreSqlCompositeHandler</a></span></code>
+<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
+ Metadata and Data.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.neptune">
 <!--   -->
 </a>
@@ -319,6 +382,24 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.timestream">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/timestream/package-summary.html">com.amazonaws.athena.connectors.timestream</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
+<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/timestream/package-summary.html">com.amazonaws.athena.connectors.timestream</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>class&nbsp;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/timestream/TimestreamCompositeHandler.html" title="class in com.amazonaws.athena.connectors.timestream">TimestreamCompositeHandler</a></span></code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.tpcds">
 <!--   -->
 </a>
@@ -333,6 +414,27 @@
 <tr class="altColor">
 <td class="colFirst"><code>class&nbsp;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/tpcds/TPCDSCompositeHandler.html" title="class in com.amazonaws.athena.connectors.tpcds">TPCDSCompositeHandler</a></span></code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.vertica">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/vertica/package-summary.html">com.amazonaws.athena.connectors.vertica</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
+<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/vertica/package-summary.html">com.amazonaws.athena.connectors.vertica</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>class&nbsp;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/vertica/VerticaCompositeHandler.html" title="class in com.amazonaws.athena.connectors.vertica">VerticaCompositeHandler</a></span></code>
+<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
+ Metadata and Data.</div>
+</td>
 </tr>
 </tbody>
 </table>
@@ -375,108 +477,6 @@
 <div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
  Metadata and Data.</div>
 </td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/package-summary.html">com.amazonaws.connectors.athena.jdbc</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
-<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/package-summary.html">com.amazonaws.connectors.athena.jdbc</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>class&nbsp;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcCompositeHandler.html" title="class in com.amazonaws.connectors.athena.jdbc">MultiplexingJdbcCompositeHandler</a></span></code>
-<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
- Metadata and Data.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc.mysql">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/mysql/package-summary.html">com.amazonaws.connectors.athena.jdbc.mysql</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
-<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/mysql/package-summary.html">com.amazonaws.connectors.athena.jdbc.mysql</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>class&nbsp;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/mysql/MySqlCompositeHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.mysql">MySqlCompositeHandler</a></span></code>
-<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
- Metadata and Data.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc.postgresql">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/postgresql/package-summary.html">com.amazonaws.connectors.athena.jdbc.postgresql</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
-<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/postgresql/package-summary.html">com.amazonaws.connectors.athena.jdbc.postgresql</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>class&nbsp;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/postgresql/PostGreSqlCompositeHandler.html" title="class in com.amazonaws.connectors.athena.jdbc.postgresql">PostGreSqlCompositeHandler</a></span></code>
-<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
- Metadata and Data.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.vertica">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/vertica/package-summary.html">com.amazonaws.connectors.athena.vertica</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
-<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/vertica/package-summary.html">com.amazonaws.connectors.athena.vertica</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>class&nbsp;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/vertica/VerticaCompositeHandler.html" title="class in com.amazonaws.connectors.athena.vertica">VerticaCompositeHandler</a></span></code>
-<div class="block">Boilerplate composite handler that allows us to use a single Lambda function for both
- Metadata and Data.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.timestream">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing subclasses, and an explanation">
-<caption><span>Subclasses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/handlers/CompositeHandler.html" title="class in com.amazonaws.athena.connector.lambda.handlers">CompositeHandler</a> in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>class&nbsp;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamCompositeHandler.html" title="class in com.amazonaws.connectors.timestream">TimestreamCompositeHandler</a></span></code>&nbsp;</td>
 </tr>
 </tbody>
 </table>

@@ -127,6 +127,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc">com.amazonaws.athena.connectors.jdbc</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.jdbc.manager">com.amazonaws.athena.connectors.jdbc.manager</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.neptune">com.amazonaws.athena.connectors.neptune</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -135,7 +143,15 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.timestream">com.amazonaws.athena.connectors.timestream</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.tpcds">com.amazonaws.athena.connectors.tpcds</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
@@ -144,22 +160,6 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc">com.amazonaws.connectors.athena.jdbc</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.jdbc.manager">com.amazonaws.connectors.athena.jdbc.manager</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.vertica">com.amazonaws.connectors.athena.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.timestream">com.amazonaws.connectors.timestream</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -460,6 +460,44 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/package-summary.html">com.amazonaws.athena.connectors.jdbc</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">MultiplexingJdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/MultiplexingJdbcMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;getTableRequest)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.jdbc.manager">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/manager/package-summary.html">com.amazonaws.athena.connectors.jdbc.manager</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/manager/package-summary.html">com.amazonaws.athena.connectors.jdbc.manager</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">JdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/jdbc/manager/JdbcMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;getTableRequest)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.neptune">
 <!--   -->
 </a>
@@ -503,6 +541,25 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.timestream">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/timestream/package-summary.html">com.amazonaws.athena.connectors.timestream</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/timestream/package-summary.html">com.amazonaws.athena.connectors.timestream</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/timestream/TimestreamMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.tpcds">
 <!--   -->
 </a>
@@ -520,6 +577,27 @@
           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>
 <div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table using the static
  metadata provided by TerraData's TPCDS generator.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.vertica">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/vertica/package-summary.html">com.amazonaws.athena.connectors.vertica</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/vertica/package-summary.html">com.amazonaws.athena.connectors.vertica</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">VerticaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/vertica/VerticaMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>
+<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table.</div>
 </td>
 </tr>
 </tbody>
@@ -563,84 +641,6 @@
           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>
 <div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table.</div>
 </td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/package-summary.html">com.amazonaws.connectors.athena.jdbc</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/package-summary.html">com.amazonaws.connectors.athena.jdbc</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
-<td class="colLast"><span class="typeNameLabel">MultiplexingJdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/MultiplexingJdbcMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
-          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;getTableRequest)</code>&nbsp;</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.jdbc.manager">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/manager/package-summary.html">com.amazonaws.connectors.athena.jdbc.manager</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/manager/package-summary.html">com.amazonaws.connectors.athena.jdbc.manager</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
-<td class="colLast"><span class="typeNameLabel">JdbcMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/jdbc/manager/JdbcMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
-          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;getTableRequest)</code>&nbsp;</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.vertica">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/vertica/package-summary.html">com.amazonaws.connectors.athena.vertica</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/vertica/package-summary.html">com.amazonaws.connectors.athena.vertica</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
-<td class="colLast"><span class="typeNameLabel">VerticaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/vertica/VerticaMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
-          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>
-<div class="block">Used to get definition (field names, types, descriptions, etc...) of a Table.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.timestream">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a> in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/timestream/package-summary.html">com.amazonaws.connectors.timestream</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableResponse</a></code></td>
-<td class="colLast"><span class="typeNameLabel">TimestreamMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/timestream/TimestreamMetadataHandler.html#doGetTable-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetTableRequest-">doGetTable</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;blockAllocator,
-          <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableRequest</a>&nbsp;request)</code>&nbsp;</td>
 </tr>
 </tbody>
 </table>
