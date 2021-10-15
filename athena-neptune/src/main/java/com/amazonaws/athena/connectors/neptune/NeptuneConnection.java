@@ -44,12 +44,12 @@ public class NeptuneConnection
         cluster = builder.create();
     }
 
-    Client getNeptuneClientConnection()
+    public Client getNeptuneClientConnection()
     {
         return cluster.connect();
     }
 
-    GraphTraversalSource getTraversalSource(Client client)
+    public GraphTraversalSource getTraversalSource(Client client)
     {
         DriverRemoteConnection connection = DriverRemoteConnection.using(client);
         return AnonymousTraversalSource.traversal().withRemote(connection);

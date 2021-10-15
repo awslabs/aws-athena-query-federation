@@ -58,8 +58,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.tinkerpop.gremlin.driver.Client;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
+import org.apache.tinkerpop.gremlin.structure.Edge;
 import org.apache.tinkerpop.gremlin.structure.T;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.apache.tinkerpop.gremlin.structure.VertexProperty.Cardinality;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 import org.junit.After;
 import org.junit.Before;
@@ -86,7 +88,8 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
         private NeptuneRecordHandler handler;
         private BlockAllocatorImpl allocator;
-        private Schema schemaForRead;
+        private Schema schemaPGVertexForRead;
+        private Schema schemaPGEdgeForRead;
         private AmazonS3 amazonS3;
         private AWSSecretsManager awsSecretsManager;
         private AmazonAthena athena;
@@ -110,8 +113,30 @@ public class NeptuneRecordHandlerTest extends TestBase {
         public void setUp() {
                 logger.info("{}: enter", testName.getMethodName());
 
-                schemaForRead = SchemaBuilder.newBuilder().addIntField("property1").addStringField("property2")
-                                .addFloat8Field("property3").addBitField("property4").addBigIntField("property5").addFloat4Field("property6")
+                schemaPGVertexForRead = SchemaBuilder
+                                .newBuilder()
+                                .addMetadata("componenttype", "vertex")
+                                .addStringField("id")
+                                .addIntField("property1")
+                                .addStringField("property2")
+                                .addFloat8Field("property3")
+                                .addBitField("property4")
+                                .addBigIntField("property5")
+                                .addFloat4Field("property6")
+                                .build();
+                                
+                schemaPGEdgeForRead = SchemaBuilder
+                                .newBuilder()
+                                .addMetadata("componenttype", "edge")
+                                .addStringField("in")
+                                .addStringField("out")
+                                .addStringField("id")
+                                .addIntField("property1")
+                                .addStringField("property2")
+                                .addFloat8Field("property3")
+                                .addBitField("property4")
+                                .addBigIntField("property5")
+                                .addFloat4Field("property6")
                                 .build();
 
                 allocator = new BlockAllocatorImpl();
@@ -196,42 +221,84 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 vertex4.property("property3", 15);
                 vertex4.property("property6", 13);
 
-                GraphTraversal<Vertex, Vertex> traversal = (GraphTraversal<Vertex, Vertex>) tinkerGraph.traversal().V();
-                when(graphTraversalSource.V()).thenReturn(traversal);
+                GraphTraversal<Vertex, Vertex> vertextTraversal = (GraphTraversal<Vertex, Vertex>) tinkerGraph.traversal().V();
+                when(graphTraversalSource.V()).thenReturn(vertextTraversal);
+
+                //add edge from vertex1 to vertex2
+                tinkerGraph.traversal().addE("default").from(vertex1).to(vertex2).next();
+
+                //add edge from vertex1 to vertex2 with attributes
+                tinkerGraph.traversal().addE("default").from(vertex2).to(vertex3).property(Cardinality.single, "property1", 21, 21).next();
+
+                GraphTraversal<Edge, Edge>  edgeTraversal = (GraphTraversal<Edge, Edge>) tinkerGraph.traversal().E();
+                when(graphTraversalSource.E()).thenReturn(edgeTraversal);
         }
 
-        @Test
-        public void doReadRecordsNoSpill() throws Exception {
+        private void invokeAndAssertForEdge() throws Exception {
+                HashMap<String, ValueSet> constraintsMap0 = new HashMap<>();
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap0, 2);
 
+                // Equal to filter
+                HashMap<String, ValueSet> constraintsMap1 = new HashMap<>();
+                constraintsMap1.put("property1",
+                                SortedRangeSet.of(Range.equal(allocator, Types.MinorType.INT.getType(), 21)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap1, 1);
+
+                // Greater Than filter
+                HashMap<String, ValueSet> constraintsMap2 = new HashMap<>();
+                constraintsMap2.put("property1",
+                                SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 15)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap2, 1);
+
+                // Greater Than Equal to filter
+                HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
+                constraintsMap3.put("property1", SortedRangeSet
+                                .of(Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 15)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap3, 1);
+
+                // Less Than filter
+                HashMap<String, ValueSet> constraintsMap4 = new HashMap<>();
+                constraintsMap4.put("property1",
+                                SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 25)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap4, 1);
+
+                // Less Than Equal to filter
+                HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
+                constraintsMap5.put("property1",
+                                SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 25)));
+                invokeAndAssert(schemaPGEdgeForRead, constraintsMap5, 1);
+        }
+
+        private void invokeAndAssertForVertex() throws Exception {
                 // Equal to filter
                 HashMap<String, ValueSet> constraintsMap0 = new HashMap<>();
                 constraintsMap0.put("property1",
                                 SortedRangeSet.of(Range.equal(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(constraintsMap0, 1);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap0, 1);
 
                 // Greater Than Equal to filter
                 HashMap<String, ValueSet> constraintsMap = new HashMap<>();
                 constraintsMap.put("property1", SortedRangeSet
                                 .of(Range.greaterThanOrEqual(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(constraintsMap, 2);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap, 2);
 
                 // Greater Than filter
                 HashMap<String, ValueSet> constraintsMap1 = new HashMap<>();
                 constraintsMap1.put("property1",
                                 SortedRangeSet.of(Range.greaterThan(allocator, Types.MinorType.INT.getType(), 9)));
-                invokeAndAssert(constraintsMap1, 1);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap1, 1);
 
                 // Less Than Equal to filter
                 HashMap<String, ValueSet> constraintsMap2 = new HashMap<>();
                 constraintsMap2.put("property1",
                                 SortedRangeSet.of(Range.lessThanOrEqual(allocator, Types.MinorType.INT.getType(), 10)));
-                invokeAndAssert(constraintsMap2, 3);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap2, 3);
 
                 // Less Than filter
                 HashMap<String, ValueSet> constraintsMap3 = new HashMap<>();
                 constraintsMap3.put("property1",
                                 SortedRangeSet.of(Range.lessThan(allocator, Types.MinorType.INT.getType(), 10)));
-                invokeAndAssert(constraintsMap3, 2);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap3, 2);
 
                 // Multiple filters
                 HashMap<String, ValueSet> constraintsMap4 = new HashMap<>();
@@ -244,14 +311,14 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 constraintsMap4.put("property5", SortedRangeSet
                                 .of(Range.equal(allocator, Types.MinorType.BIGINT.getType(), 12379878123l)));
 
-                invokeAndAssert(constraintsMap4, 2);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap4, 2);
 
                 // String comparision
                 HashMap<String, ValueSet> constraintsMap5 = new HashMap<>();
                 constraintsMap5.put("property2", SortedRangeSet
                                 .of(Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "string2")));
 
-                invokeAndAssert(constraintsMap5, 1);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap5, 1);
 
                 // String comparision Equalsto
                 HashMap<String, ValueSet> constraintsMap6 = new HashMap<>();
@@ -259,7 +326,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
                                                 .add("string2").build());
 
-                invokeAndAssert(constraintsMap6, 1);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap6, 1);
 
                 // String comparision Not Equalsto
                 HashMap<String, ValueSet> constraintsMap7 = new HashMap<>();
@@ -267,24 +334,24 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), false, true)
                                                 .add("string2").build());
 
-                invokeAndAssert(constraintsMap7, 2);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap7, 2);
 
                 // Int comparision Equalsto
                 HashMap<String, ValueSet> constraintsMap8 = new HashMap<>();
                 constraintsMap8.put("property1", EquatableValueSet
                                 .newBuilder(allocator, Types.MinorType.INT.getType(), true, true).add(10).build());
 
-                invokeAndAssert(constraintsMap8, 1);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap8, 1);
 
                 // Int comparision Not Equalsto
                 HashMap<String, ValueSet> constraintsMap9 = new HashMap<>();
                 constraintsMap9.put("property1", EquatableValueSet
                                 .newBuilder(allocator, Types.MinorType.INT.getType(), false, true).add(10).build());
 
-                invokeAndAssert(constraintsMap9, 2);
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap9, 2);
 
                 // Check for null values, expect all vertices to return as part of resultset
-                invokeAndAssert(new HashMap<>(), 5);
+                invokeAndAssert(schemaPGVertexForRead, new HashMap<>(), 5);
 
                 // Check for integer to float,double conversion
                 HashMap<String, ValueSet> constraintsMap10 = new HashMap<>();
@@ -292,7 +359,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                 .of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), 13.2)));
                 constraintsMap10.put("property6", SortedRangeSet
                                 .of(Range.greaterThan(allocator, Types.MinorType.FLOAT4.getType(), 11.11f)));
-                invokeAndAssert(constraintsMap10, 3); 
+                invokeAndAssert(schemaPGVertexForRead, constraintsMap10, 3);
         }
 
         /**
@@ -301,7 +368,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
          * @param constraintMap       Constraint Map for Gremlin Query
          * @param expectedRecordCount Expected Row Count as per Gremlin Query Response
          */
-        private void invokeAndAssert(HashMap<String, ValueSet> constraintMap, Integer expectedRecordCount)
+        private void invokeAndAssert(Schema schemaPG, HashMap<String, ValueSet> constraintMap, Integer expectedRecordCount)
                         throws Exception {
 
                 S3SpillLocation spillLoc = S3SpillLocation.newBuilder().withBucket(UUID.randomUUID().toString())
@@ -313,7 +380,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 buildGraphTraversal();
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
-                                schemaForRead, Split.newBuilder(spillLoc, null).build(), new Constraints(constraintMap),
+                schemaPG, Split.newBuilder(spillLoc, null).build(), new Constraints(constraintMap),
                                 100_000_000_000L, 100_000_000_000L);
 
                 RecordResponse rawResponse = handler.doReadRecords(allocator, request);
@@ -323,6 +390,13 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 assertTrue(response.getRecords().getRowCount() == expectedRecordCount);
 
                 logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        }
+
+        @Test
+        public void doReadRecordsNoSpill() throws Exception {
+
+                invokeAndAssertForVertex(); 
+                invokeAndAssertForEdge(); 
         }
 
         @Test
@@ -341,7 +415,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 buildGraphTraversal();
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
-                                schemaForRead, Split.newBuilder(splitLoc, keyFactory.create()).build(),
+                schemaPGVertexForRead, Split.newBuilder(splitLoc, keyFactory.create()).build(),
                                 new Constraints(constraintsMap), 1_500_000L, // ~1.5MB so we should see some spill
                                 0L);
 

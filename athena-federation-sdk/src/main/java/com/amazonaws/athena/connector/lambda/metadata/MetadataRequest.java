@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.metadata;
 
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
+import com.amazonaws.services.lambda.runtime.Context;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,6 +35,7 @@ public abstract class MetadataRequest
     private final MetadataRequestType requestType;
     private final String queryId;
     private final String catalogName;
+    private Context context;
 
     /**
      * Constructs a new MetadataRequest object.
@@ -79,5 +81,23 @@ public abstract class MetadataRequest
     public String getQueryId()
     {
         return queryId;
+    }
+
+    /**
+     * Returns Context from Lambda.
+     *
+     * @return The Context of the Lambda
+     */
+    public Context getContext()
+    {
+        return context;
+    }
+
+    /**
+     * Set the Context from Lambda.
+     */
+    public void setContext(Context context)
+    {
+        this.context = context;
     }
 }
