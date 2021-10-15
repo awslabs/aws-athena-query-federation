@@ -3,6 +3,7 @@ const fs = require('fs');
 const AWS = require('aws-sdk');
 const { cwd } = require('process');
 
+//update region to AWS region where Amazon Neptune database resides
 AWS.config.update({
     region: 'us-west-2'
 })
@@ -15,7 +16,7 @@ function addDatabase(addTablesAfterDatabase) {
     var params = {
         DatabaseInput: { /* required */
             Name: databaseName, /* required */
-            Description: 'glue database to store external tables for neptune database',
+            Description: 'AWS Glue database to store external tables for Amazon Neptune database',
         }
     };
 
@@ -104,7 +105,6 @@ function addTable(tableType, tableName, tableColumns) {
     });
 }
 
-//addDatabase();
 function addTables(data) {
     data.nodes.forEach(node => {
         addTable('vertex', node.label, node.properties);
@@ -115,6 +115,7 @@ function addTables(data) {
     });
 }
 
+//read the export configuration file and create AWS Glue database
 fs.readFile(`${cwd()}/config.json`, 'utf8', (err, data) => {
     if (err) {
         console.error(err)
