@@ -15,11 +15,11 @@
 -docencoding
 'UTF-8'
 -doctitle
-'AWS Athena Query Federation 1.1.4 API'
+'AWS Athena Query Federation 1.1.5 API'
 -linkoffline
 'https://docs.oracle.com/javase/8/docs/api' '/home/ec2-user/actions-runner/_work/aws-athena-query-federation/aws-athena-query-federation/target/javadoc-bundle-options'
 -notimestamp
 -use
 -version
 -windowtitle
-'AWS Athena Query Federation 1.1.4 API'
+'AWS Athena Query Federation 1.1.5 API'
