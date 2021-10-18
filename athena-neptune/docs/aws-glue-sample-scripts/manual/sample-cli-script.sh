@@ -1,11 +1,12 @@
 #!/bin/bash
-#id is the reserved key for vertex tables
-#id,from, to are the reserved columns for edge tables
+
+# id is the reserved column for vertex tables
+# id, from, to are the reserved columns for edge tables
 
 echo $1;
 echo $2;
 
-dbname='graph-database-sep4'
+dbname='graph-database'
 
 
 aws glue create-database \
