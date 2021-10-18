@@ -59,7 +59,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
+      Handler: "com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-2021.41.1.jar"
       Description: "Enables Amazon Athena to communicate with Databases using JDBC"
       Runtime: java8
