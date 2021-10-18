@@ -83,4 +83,5 @@ calls to DynamoDB.  All other predicate scenarios will results in Y number of Sc
 
 ## Costs
 
-The costs for use this solutions, depends on AWS resorces used (like all AWS Solutions), so pay attemption on [Athena, lambda and DynamoDB pricing](https://aws.amazon.com/pricing/) to understad the investments. Especial attemption on [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/), cause if you scan (queries not using the partition and sort key) the costs could increase fast. For more information read the [DynamoDB Documentation](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html).
+The costs for use of this solution depends on the underlying AWS resources being used. Pay special attention to [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/) since queries using scans can consume a large number of RCU's.
+
