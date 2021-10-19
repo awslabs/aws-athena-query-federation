@@ -119,6 +119,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.elasticsearch">com.amazonaws.athena.connectors.elasticsearch</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.example">com.amazonaws.athena.connectors.example</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.hbase">com.amazonaws.athena.connectors.hbase</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -156,14 +164,6 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -392,6 +392,50 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.elasticsearch">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
+             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
+             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>
+<div class="block">Elasticsearch does not support partitioning so this method is a NoOp.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.example">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/example/package-summary.html">com.amazonaws.athena.connectors.example</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/example/package-summary.html">com.amazonaws.athena.connectors.example</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><span class="typeNameLabel">ExampleMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/example/ExampleMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
+             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
+             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>
+<div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.hbase">
 <!--   -->
 </a>
@@ -601,50 +645,6 @@
 <tr class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><span class="typeNameLabel">VerticaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/vertica/VerticaMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
-             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
-             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>
-<div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.elasticsearch">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
-             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
-             <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>
-<div class="block">Elasticsearch does not support partitioning so this method is a NoOp.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.example">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/example/package-summary.html">com.amazonaws.connectors.athena.example</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/example/package-summary.html">com.amazonaws.connectors.athena.example</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><span class="typeNameLabel">ExampleMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/example/ExampleMetadataHandler.html#getPartitions-com.amazonaws.athena.connector.lambda.data.BlockWriter-com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest-com.amazonaws.athena.connector.lambda.QueryStatusChecker-">getPartitions</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockWriter.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockWriter</a>&nbsp;blockWriter,
              <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetTableLayoutRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetTableLayoutRequest</a>&nbsp;request,
              <a href="../../../../../../../com/amazonaws/athena/connector/lambda/QueryStatusChecker.html" title="class in com.amazonaws.athena.connector.lambda">QueryStatusChecker</a>&nbsp;queryStatusChecker)</code>
 <div class="block">Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.</div>

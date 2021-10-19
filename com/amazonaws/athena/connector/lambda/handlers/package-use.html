@@ -111,6 +111,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.elasticsearch">com.amazonaws.athena.connectors.elasticsearch</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.example">com.amazonaws.athena.connectors.example</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.hbase">com.amazonaws.athena.connectors.hbase</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -152,14 +160,6 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -368,6 +368,75 @@
 <td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.dynamodb">RecordHandler</a>
 <div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
  source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.elasticsearch">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.elasticsearch">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/GlueMetadataHandler.html#com.amazonaws.athena.connectors.elasticsearch">GlueMetadataHandler</a>
+<div class="block">This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
+ MetadataHandler.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.elasticsearch">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.elasticsearch">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.example">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/example/package-summary.html">com.amazonaws.athena.connectors.example</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.athena.connectors.example">CompositeHandler</a>
+<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
+ composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.athena.connectors.example">MetadataHandler</a>
+<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.example">RecordHandler</a>
+<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
+ source.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/UserDefinedFunctionHandler.html#com.amazonaws.athena.connectors.example">UserDefinedFunctionHandler</a>
+<div class="block">Athena UDF users are expected to extend this class to create UDFs.</div>
 </td>
 </tr>
 </tbody>
@@ -693,75 +762,6 @@
 <td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.athena.connectors.vertica">RecordHandler</a>
 <div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
  source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.elasticsearch">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.athena.elasticsearch">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/GlueMetadataHandler.html#com.amazonaws.connectors.athena.elasticsearch">GlueMetadataHandler</a>
-<div class="block">This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
- MetadataHandler.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.elasticsearch">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.elasticsearch">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.example">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/package-summary.html">com.amazonaws.athena.connector.lambda.handlers</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/example/package-summary.html">com.amazonaws.connectors.athena.example</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/CompositeHandler.html#com.amazonaws.connectors.athena.example">CompositeHandler</a>
-<div class="block">This class allows you to have a single Lambda function be responsible for both metadata and data operations by
- composing a MetadataHandler with a RecordHandler and muxing requests to the appropriate class.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/MetadataHandler.html#com.amazonaws.connectors.athena.example">MetadataHandler</a>
-<div class="block">This class defines the functionality required by any valid source of federated metadata for Athena.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/RecordHandler.html#com.amazonaws.connectors.athena.example">RecordHandler</a>
-<div class="block">More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
- source.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/handlers/class-use/UserDefinedFunctionHandler.html#com.amazonaws.connectors.athena.example">UserDefinedFunctionHandler</a>
-<div class="block">Athena UDF users are expected to extend this class to create UDFs.</div>
 </td>
 </tr>
 </tbody>

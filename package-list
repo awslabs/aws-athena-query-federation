@@ -41,6 +41,8 @@ com.amazonaws.athena.connectors.dynamodb.model
 com.amazonaws.athena.connectors.dynamodb.resolver
 com.amazonaws.athena.connectors.dynamodb.throttling
 com.amazonaws.athena.connectors.dynamodb.util
+com.amazonaws.athena.connectors.elasticsearch
+com.amazonaws.athena.connectors.example
 com.amazonaws.athena.connectors.hbase
 com.amazonaws.athena.connectors.hbase.connection
 com.amazonaws.athena.connectors.hbase.integ
@@ -62,5 +64,3 @@ com.amazonaws.athena.connectors.tpcds
 com.amazonaws.athena.connectors.udfs
 com.amazonaws.athena.connectors.vertica
 com.amazonaws.athena.connectors.vertica.query
-com.amazonaws.connectors.athena.elasticsearch
-com.amazonaws.connectors.athena.example

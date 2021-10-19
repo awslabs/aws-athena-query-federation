@@ -115,6 +115,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.elasticsearch">com.amazonaws.athena.connectors.elasticsearch</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.example">com.amazonaws.athena.connectors.example</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.hbase">com.amazonaws.athena.connectors.hbase</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -152,14 +160,6 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -330,6 +330,48 @@
 <td class="colLast"><span class="typeNameLabel">DynamoDBMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/dynamodb/DynamoDBMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
 <div class="block">Copies data from partitions and creates splits, serializing as necessary for later calls to RecordHandler#readWithContraint.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.elasticsearch">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/elasticsearch/ElasticsearchMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
+<div class="block">Used to split-up the reads required to scan the requested index by shard.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.example">
+<!--   -->
+</a>
+<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a> in <a href="../../../../../../../com/amazonaws/athena/connectors/example/package-summary.html">com.amazonaws.athena.connectors.example</a></h3>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
+<caption><span>Methods in <a href="../../../../../../../com/amazonaws/athena/connectors/example/package-summary.html">com.amazonaws.athena.connectors.example</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colFirst" scope="col">Modifier and Type</th>
+<th class="colLast" scope="col">Method and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
+<td class="colLast"><span class="typeNameLabel">ExampleMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/example/ExampleMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
+           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
+<div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
 </td>
 </tr>
 </tbody>
@@ -529,48 +571,6 @@
 <tr class="altColor">
 <td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
 <td class="colLast"><span class="typeNameLabel">VerticaMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/athena/connectors/vertica/VerticaMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
-           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
-<div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.elasticsearch">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
-<td class="colLast"><span class="typeNameLabel">ElasticsearchMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/elasticsearch/ElasticsearchMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
-           <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
-<div class="block">Used to split-up the reads required to scan the requested index by shard.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.example">
-<!--   -->
-</a>
-<h3>Uses of <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a> in <a href="../../../../../../../com/amazonaws/connectors/athena/example/package-summary.html">com.amazonaws.connectors.athena.example</a></h3>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing methods, and an explanation">
-<caption><span>Methods in <a href="../../../../../../../com/amazonaws/connectors/athena/example/package-summary.html">com.amazonaws.connectors.athena.example</a> with parameters of type <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colFirst"><code><a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsResponse.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsResponse</a></code></td>
-<td class="colLast"><span class="typeNameLabel">ExampleMetadataHandler.</span><code><span class="memberNameLink"><a href="../../../../../../../com/amazonaws/connectors/athena/example/ExampleMetadataHandler.html#doGetSplits-com.amazonaws.athena.connector.lambda.data.BlockAllocator-com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest-">doGetSplits</a></span>(<a href="../../../../../../../com/amazonaws/athena/connector/lambda/data/BlockAllocator.html" title="interface in com.amazonaws.athena.connector.lambda.data">BlockAllocator</a>&nbsp;allocator,
            <a href="../../../../../../../com/amazonaws/athena/connector/lambda/metadata/GetSplitsRequest.html" title="class in com.amazonaws.athena.connector.lambda.metadata">GetSplitsRequest</a>&nbsp;request)</code>
 <div class="block">Used to split-up the reads required to scan the requested batch of partition(s).</div>
 </td>

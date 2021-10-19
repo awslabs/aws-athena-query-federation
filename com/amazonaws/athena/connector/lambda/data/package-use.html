@@ -175,6 +175,14 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.elasticsearch">com.amazonaws.athena.connectors.elasticsearch</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="#com.amazonaws.athena.connectors.example">com.amazonaws.athena.connectors.example</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.hbase">com.amazonaws.athena.connectors.hbase</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -216,14 +224,6 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="#com.amazonaws.athena.connectors.vertica">com.amazonaws.athena.connectors.vertica</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.elasticsearch">com.amazonaws.connectors.athena.elasticsearch</a></td>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><a href="#com.amazonaws.connectors.athena.example">com.amazonaws.connectors.athena.example</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
 </tbody>
@@ -871,6 +871,70 @@
 </tbody>
 </table>
 </li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.elasticsearch">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/elasticsearch/package-summary.html">com.amazonaws.athena.connectors.elasticsearch</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockAllocator.html#com.amazonaws.athena.connectors.elasticsearch">BlockAllocator</a>
+<div class="block">Defines the interface that should be implemented by all reference counting Apache Arrow resource allocators
+ that are provided by this SDK.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockSpiller.html#com.amazonaws.athena.connectors.elasticsearch">BlockSpiller</a>
+<div class="block">Used to write blocks which may require chunking and optionally spilling via a secondary communication channel.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockWriter.html#com.amazonaws.athena.connectors.elasticsearch">BlockWriter</a>
+<div class="block">Defines an abstraction that can be used to write to a Block without owning the lifecycle of the
+ Block.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/FieldResolver.html#com.amazonaws.athena.connectors.elasticsearch">FieldResolver</a>
+<div class="block">Assists in writing values for complex types like List and Struct by providing a way to extract child field
+ values from the provided complex value.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li class="blockList"><a name="com.amazonaws.athena.connectors.example">
+<!--   -->
+</a>
+<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
+<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a> used by <a href="../../../../../../com/amazonaws/athena/connectors/example/package-summary.html">com.amazonaws.athena.connectors.example</a></span><span class="tabEnd">&nbsp;</span></caption>
+<tr>
+<th class="colOne" scope="col">Class and Description</th>
+</tr>
+<tbody>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockAllocator.html#com.amazonaws.athena.connectors.example">BlockAllocator</a>
+<div class="block">Defines the interface that should be implemented by all reference counting Apache Arrow resource allocators
+ that are provided by this SDK.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockSpiller.html#com.amazonaws.athena.connectors.example">BlockSpiller</a>
+<div class="block">Used to write blocks which may require chunking and optionally spilling via a secondary communication channel.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockWriter.html#com.amazonaws.athena.connectors.example">BlockWriter</a>
+<div class="block">Defines an abstraction that can be used to write to a Block without owning the lifecycle of the
+ Block.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</li>
 <li class="blockList"><a name="com.amazonaws.athena.connectors.hbase">
 <!--   -->
 </a>
@@ -1186,70 +1250,6 @@
 <td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/SchemaBuilder.html#com.amazonaws.athena.connectors.vertica">SchemaBuilder</a>
 <div class="block">Convenience builder that can be used to create new Apache Arrow Schema for common
  types more easily than alternative methods of construction, especially for complex types.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.elasticsearch">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/elasticsearch/package-summary.html">com.amazonaws.connectors.athena.elasticsearch</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockAllocator.html#com.amazonaws.connectors.athena.elasticsearch">BlockAllocator</a>
-<div class="block">Defines the interface that should be implemented by all reference counting Apache Arrow resource allocators
- that are provided by this SDK.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockSpiller.html#com.amazonaws.connectors.athena.elasticsearch">BlockSpiller</a>
-<div class="block">Used to write blocks which may require chunking and optionally spilling via a secondary communication channel.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockWriter.html#com.amazonaws.connectors.athena.elasticsearch">BlockWriter</a>
-<div class="block">Defines an abstraction that can be used to write to a Block without owning the lifecycle of the
- Block.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/FieldResolver.html#com.amazonaws.connectors.athena.elasticsearch">FieldResolver</a>
-<div class="block">Assists in writing values for complex types like List and Struct by providing a way to extract child field
- values from the provided complex value.</div>
-</td>
-</tr>
-</tbody>
-</table>
-</li>
-<li class="blockList"><a name="com.amazonaws.connectors.athena.example">
-<!--   -->
-</a>
-<table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing classes, and an explanation">
-<caption><span>Classes in <a href="../../../../../../com/amazonaws/athena/connector/lambda/data/package-summary.html">com.amazonaws.athena.connector.lambda.data</a> used by <a href="../../../../../../com/amazonaws/connectors/athena/example/package-summary.html">com.amazonaws.connectors.athena.example</a></span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colOne" scope="col">Class and Description</th>
-</tr>
-<tbody>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockAllocator.html#com.amazonaws.connectors.athena.example">BlockAllocator</a>
-<div class="block">Defines the interface that should be implemented by all reference counting Apache Arrow resource allocators
- that are provided by this SDK.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockSpiller.html#com.amazonaws.connectors.athena.example">BlockSpiller</a>
-<div class="block">Used to write blocks which may require chunking and optionally spilling via a secondary communication channel.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colOne"><a href="../../../../../../com/amazonaws/athena/connector/lambda/data/class-use/BlockWriter.html#com.amazonaws.connectors.athena.example">BlockWriter</a>
-<div class="block">Defines an abstraction that can be used to write to a Block without owning the lifecycle of the
- Block.</div>
 </td>
 </tr>
 </tbody>
