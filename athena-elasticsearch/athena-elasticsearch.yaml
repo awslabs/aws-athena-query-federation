@@ -73,7 +73,7 @@ Resources:
           query_timeout_cluster: !Ref QueryTimeoutCluster
           query_timeout_search: !Ref QueryTimeoutSearch
       FunctionName: !Sub "${AthenaCatalogName}"
-      Handler: "com.amazonaws.connectors.athena.elasticsearch.ElasticsearchCompositeHandler"
+      Handler: "com.amazonaws.athena.connectors.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-2021.41.1.jar"
       Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
       Runtime: java8
