@@ -75,7 +75,7 @@ Resources:
           default_vertica: !Ref VerticaConnectionString
 
       FunctionName: !Sub "${AthenaCatalogName}"
-      Handler: "com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler"
+      Handler: "com.amazonaws.athena.connectors.vertica.VerticaCompositeHandler"
       CodeUri: "./target/athena-vertica-2021.41.1.jar"
       Description: "Amazon Athena Vertica Connector"
       Runtime: java8

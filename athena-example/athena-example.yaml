@@ -54,7 +54,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           data_bucket: !Ref DataBucket
       FunctionName: !Sub "${AthenaCatalogName}"
-      Handler: "com.amazonaws.connectors.athena.example.ExampleCompositeHandler"
+      Handler: "com.amazonaws.athena.connectors.example.ExampleCompositeHandler"
       CodeUri: "./target/athena-example-2021.41.1.jar"
       Description: "A guided example for writing and deploying your own federated Amazon Athena connector for a custom source."
       Runtime: java8
