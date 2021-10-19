@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch.integ;
 
-import com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider;
 import com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClient;
 import com.amazonaws.athena.connectors.elasticsearch.AwsRestHighLevelClientFactory;
+import com.amazonaws.athena.connectors.elasticsearch.ElasticsearchDomainMapProvider;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;

@@ -43,13 +43,18 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 //DO NOT REMOVE - this will not be _unused_ when customers go through the tutorial and uncomment
 //the TODOs
+import org.apache.arrow.vector.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * This class is part of an tutorial that will walk you through how to build a connector for your
