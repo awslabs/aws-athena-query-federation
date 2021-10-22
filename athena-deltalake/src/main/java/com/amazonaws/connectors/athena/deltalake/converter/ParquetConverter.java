@@ -32,6 +32,7 @@ import org.apache.parquet.example.data.Group;
 import org.apache.parquet.schema.PrimitiveType;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -194,6 +195,8 @@ public class ParquetConverter {
                                     return BigDecimal.valueOf(record.getLong(fieldName, 0), fieldDecimalType.getScale());
                                 } else if (primitiveTypeName == PrimitiveType.PrimitiveTypeName.INT32) {
                                     return BigDecimal.valueOf(record.getInteger(fieldName, 0), fieldDecimalType.getScale());
+                                } else if (primitiveTypeName == PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY) {
+                                    return new BigDecimal(new BigInteger(record.getBinary(fieldName, 0).getBytes()), fieldDecimalType.getScale());
                                 } else {
                                     throw new UnsupportedOperationException("Parquet physical type used for Decimal not supported: " + primitiveTypeName.name());
                                 }

@@ -20,6 +20,7 @@
 package com.amazonaws.connectors.athena.deltalake.converter;
 
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -76,7 +77,8 @@ public class ParquetConverterTest {
             new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.BINARY, "binaryField"),
             new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "dateField"),
             new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT64, "timestampField"),
-            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT96, "timestampLegacyField")
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.INT96, "timestampLegacyField"),
+            new PrimitiveType(Type.Repetition.OPTIONAL, PrimitiveType.PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY, 5, "decimalFixedLenField")
         );
 
         MessageType schema = new MessageType("record", fields);
@@ -95,6 +97,7 @@ public class ParquetConverterTest {
         record.add(11, 18894);
         record.add(12, 1632235944000L);
         record.add(13, new NanoTime(2459479, 11972));
+        record.add(14, Binary.fromReusedByteArray(new byte[]{1, 3, 5}));
         Field stringField = Field.nullable("stringField", new ArrowType.Utf8());
         Field longField = Field.nullable("longField", new ArrowType.Int(64, true));
         Field integerField = Field.nullable("integerField", new ArrowType.Int(32, true));
@@ -109,6 +112,7 @@ public class ParquetConverterTest {
         Field dateField = Field.nullable("dateField", new ArrowType.Date(DateUnit.DAY));
         Field timestampField = Field.nullable("timestampField", new ArrowType.Date(DateUnit.MILLISECOND));
         Field timestampLegacyField = Field.nullable("timestampLegacyField", new ArrowType.Date(DateUnit.MILLISECOND));
+        Field decimalFixedLenField = Field.nullable("decimalFixedLenField", new ArrowType.Decimal(12, 2, 32));
 
         // String test
         Extractor stringExtractor = getExtractor(stringField);
@@ -164,14 +168,14 @@ public class ParquetConverterTest {
         assertTrue(decimalIntExtractor instanceof DecimalExtractor);
         com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalIntHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
         ((DecimalExtractor)decimalIntExtractor).extract(record, decimalIntHolder);
-        assertEquals(BigDecimal.valueOf(12345, 2), decimalIntHolder.value);
+        assertEquals(new BigDecimal("123.45"), decimalIntHolder.value);
 
         // Decimal long test
         Extractor decimalLongExtractor = getExtractor(decimalLongField);
         assertTrue(decimalLongExtractor instanceof DecimalExtractor);
         com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalLongHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
         ((DecimalExtractor)decimalLongExtractor).extract(record, decimalLongHolder);
-        assertEquals(BigDecimal.valueOf(1234567890L, 2), decimalLongHolder.value);
+        assertEquals(new BigDecimal("12345678.90"), decimalLongHolder.value);
 
         // Boolean test
         Extractor booleanExtractor = getExtractor(booleanField);
@@ -207,6 +211,13 @@ public class ParquetConverterTest {
         NullableDateMilliHolder timestampLegacyHolder = new NullableDateMilliHolder();
         ((DateMilliExtractor)timestampLegacyExtractor).extract(record, timestampLegacyHolder);
         assertEquals(1632182400000L, timestampLegacyHolder.value);
+
+        // Decimal fixed len byte array test
+        Extractor decimalFixedLenExtractor = getExtractor(decimalFixedLenField);
+        assertTrue(decimalFixedLenExtractor instanceof DecimalExtractor);
+        NullableDecimalHolder decimalFixedLenHolder = new NullableDecimalHolder();
+        ((DecimalExtractor)decimalFixedLenExtractor).extract(record, decimalFixedLenHolder);
+        assertEquals(new BigDecimal("663.09"), decimalFixedLenHolder.value);
     }
 
 }
