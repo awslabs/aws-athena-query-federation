@@ -19,6 +19,9 @@
  */
 package com.amazonaws.connectors.athena.deltalake;
 
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -31,6 +34,8 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+
 public class TestBase {
 
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeMetadataHandlerTest.class);
@@ -39,6 +44,8 @@ public class TestBase {
     protected static String S3_ENDPOINT = String.format("http://localhost:%d", S3_ENDPOINT_PORT);
     protected static String S3_REGION = "us-east-1";
     protected static String S3_RESOURCES_FOLDER = "/s3";
+    protected String spillBucket = "spill-bucket";
+    protected String spillPrefix = "spill-prefix";
 
     private static S3Mock api;
     protected static AmazonS3 amazonS3;
@@ -75,4 +82,18 @@ public class TestBase {
         api.shutdown();
     }
 
+    protected static FederatedIdentity fakeIdentity()
+    {
+        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    }
+
+    protected SpillLocation makeSpillLocation(String queryId, String splitId)
+    {
+        return S3SpillLocation.newBuilder()
+                .withBucket(spillBucket)
+                .withPrefix(spillPrefix)
+                .withQueryId(queryId)
+                .withSplitId(splitId)
+                .build();
+    }
 }

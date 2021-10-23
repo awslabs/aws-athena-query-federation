@@ -19,7 +19,6 @@
  */
 package com.amazonaws.connectors.athena.deltalake.converter;
 
-import com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.arrow.vector.types.DateUnit;
@@ -36,8 +35,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.text.ParseException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,19 +61,19 @@ public class DeltaConverterTest {
         Schema arrowSchema = DeltaConverter.getArrowSchema(schemaString);
         Field expectedIntField = createField("a", new ArrowType.Int(32, true), false);
         Field expectedStructField = createField("b", new ArrowType.Struct(), true, Arrays.asList(
-                createField("d", new ArrowType.Decimal(22, 4, 128), false)
+            createField("d", new ArrowType.Decimal(22, 4, 128), false)
         ));
         Field expectedListField = createField("c", new ArrowType.List(), true, Arrays.asList(
-                createField("c.element", new ArrowType.Int(32, true), false)
+            createField("c.element", new ArrowType.Int(32, true), false)
         ));
         Field expectedComplexListField = createField("e", new ArrowType.List(), true, Arrays.asList(
-                createField("e.element", new ArrowType.Struct(), true, Arrays.asList(
-                        createField("d", new ArrowType.Int(32, true), false)
-                ))
+            createField("e.element", new ArrowType.Struct(), true, Arrays.asList(
+                createField("d", new ArrowType.Int(32, true), false)
+            ))
         ));
         Field expectedMapField = createField("f", new ArrowType.Map(true), true, Arrays.asList(
-                createField("f.key", new ArrowType.Utf8(), false),
-                createField("f.value", new ArrowType.Utf8(), true)
+            createField("f.key", new ArrowType.Utf8(), false),
+            createField("f.value", new ArrowType.Utf8(), true)
         ));
 
         List<Field> fields = arrowSchema.getFields();

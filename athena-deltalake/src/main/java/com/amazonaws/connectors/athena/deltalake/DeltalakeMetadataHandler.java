@@ -23,9 +23,9 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
@@ -43,6 +43,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.StringUtils;
@@ -51,7 +52,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -73,8 +73,13 @@ public class DeltalakeMetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeMetadataHandler.class);
 
-    public static String SPLIT_FILE_PROPERTY = "file";
-    public static String SPLIT_PARTITION_VALUES_PROPERTY = "partitions_values";
+    public static final String SPLIT_FILE_PROPERTY = "file";
+    public static final String SPLIT_PARTITION_VALUES_PROPERTY = "partitions_values";
+
+    protected static final int MAX_SPLITS_PER_REQUEST = 1000;
+
+    protected static final String ENHANCED_PARTITION_VALUES_COLUMN = "__reserved_partitionValues__";
+    protected static final String ENHANCED_FILE_PATH_COLUMN = "__reserved_filePath__";
 
     private static final String SOURCE_TYPE = "deltalake";
     public String S3_FOLDER_SUFFIX = "_$folder$";
@@ -101,12 +106,12 @@ public class DeltalakeMetadataHandler
 
     @VisibleForTesting
     protected DeltalakeMetadataHandler(AmazonS3 amazonS3,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager awsSecretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix,
-            String dataBucket)
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        String dataBucket)
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.amazonS3 = amazonS3;
@@ -144,19 +149,19 @@ public class DeltalakeMetadataHandler
      */
     private ListFoldersResult listFolders(String prefix, String continuationToken, Integer maxKeys) {
         ListObjectsV2Request listObjects = new ListObjectsV2Request()
-                .withPrefix(prefix)
-                .withDelimiter("/")
-                .withBucketName(dataBucket);
+            .withPrefix(prefix)
+            .withDelimiter("/")
+            .withBucketName(dataBucket);
         if (maxKeys != null) listObjects.withMaxKeys(maxKeys);
         if (continuationToken != null) listObjects.withContinuationToken(continuationToken);
         ListObjectsV2Result listObjectsResult = amazonS3.listObjectsV2(listObjects);
         Stream<String> listedFolers = listObjectsResult
-                .getObjectSummaries()
-                .stream()
-                .map(S3ObjectSummary::getKey)
-                .filter(s3Object -> s3Object.endsWith(S3_FOLDER_SUFFIX))
-                .map(s3Object -> StringUtils.removeEnd(s3Object, S3_FOLDER_SUFFIX))
-                .map(s3Object -> StringUtils.removeStart(s3Object, prefix));
+            .getObjectSummaries()
+            .stream()
+            .map(S3ObjectSummary::getKey)
+            .filter(s3Object -> s3Object.endsWith(S3_FOLDER_SUFFIX))
+            .map(s3Object -> StringUtils.removeEnd(s3Object, S3_FOLDER_SUFFIX))
+            .map(s3Object -> StringUtils.removeStart(s3Object, prefix));
         return new ListFoldersResult(listedFolers, listObjectsResult.getNextContinuationToken());
     }
 
@@ -210,8 +215,8 @@ public class DeltalakeMetadataHandler
             listedFolders = listFoldersResult.listedFolders;
         }
         Set<TableName> tables = listedFolders
-                .map(table -> new TableName(schemaName, table))
-                .collect(Collectors.toSet());
+            .map(table -> new TableName(schemaName, table))
+            .collect(Collectors.toSet());
         return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
     }
 
@@ -256,9 +261,22 @@ public class DeltalakeMetadataHandler
                     Object castPartitionValue = castPartitionValue(partitionValue.getValue(), partitionType);
                     matched &= block.setValue(partitionName, row, castPartitionValue);
                 }
+                block.setValue(ENHANCED_PARTITION_VALUES_COLUMN, row, serializePartitionValues(file.partitionValues));
+                block.setValue(ENHANCED_FILE_PATH_COLUMN, row, file.path);
                 return matched ? 1 : 0;
             });
         }
+    }
+
+    /**
+     * For each partition (non removed Delta parquet file) we had 2 informations that will be used by doGetSplit:
+     * - one for the file path
+     * - one for the already serialized partition values since they are provided by Delta
+     */
+    @Override
+    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request) {
+        partitionSchemaBuilder.addStringField(ENHANCED_FILE_PATH_COLUMN);
+        partitionSchemaBuilder.addStringField(ENHANCED_PARTITION_VALUES_COLUMN);
     }
 
     /**
@@ -269,41 +287,44 @@ public class DeltalakeMetadataHandler
      * - one for the partition values associated to the file
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException {
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) {
         logger.info("doGetSplits: " + request);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
 
-        String tableName = request.getTableName().getTableName();
-        String schemaName = request.getTableName().getSchemaName();
+        Block partitions = request.getPartitions();
+        int partitionContd = decodeContinuationToken(request);
 
-        DeltaTableSnapshot deltaTableSnapshot = getDeltaSnapshot(schemaName, tableName);
-        Schema schema = request.getSchema();
+        FieldReader partitionValuesReader = partitions.getFieldReader(ENHANCED_PARTITION_VALUES_COLUMN);
+        FieldReader filePathReader = partitions.getFieldReader(ENHANCED_FILE_PATH_COLUMN);
+        for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+            partitionValuesReader.setPosition(curPartition);
+            filePathReader.setPosition(curPartition);
+            String partitionValues = partitionValuesReader.readText().toString();
+            String filePath = filePathReader.readText().toString();
+            Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey());
+            Split split = splitBuilder
+                .add(SPLIT_FILE_PROPERTY, filePath)
+                .add(SPLIT_PARTITION_VALUES_PROPERTY, partitionValues)
+                .build();
+            splits.add(split);
 
-        Collection<DeltaLogAction.AddFile> allFiles = deltaTableSnapshot.files;
-
-        Map<String, ValueSet> constraints = request.getConstraints().getSummary();
-        for (DeltaLogAction.AddFile file: allFiles) {
-            boolean areConstraintsSatisfied = doesPartitionComplyConstraints(constraints, file.partitionValues, schema);
-            if(areConstraintsSatisfied) {
-                Split.Builder splitBuilder = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey());
-                Split split = splitBuilder
-                        .add(SPLIT_FILE_PROPERTY, file.path)
-                        .add(SPLIT_PARTITION_VALUES_PROPERTY, serializePartitionValues(file.partitionValues))
-                        .build();
-                splits.add(split);
+            if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition < partitions.getRowCount() - 1) {
+                return new GetSplitsResponse(request.getCatalogName(),
+                    splits,
+                    encodeContinuationToken(curPartition));
             }
         }
+
         return new GetSplitsResponse(catalogName, splits);
     }
 
-    protected boolean doesPartitionComplyConstraints(Map<String, ValueSet> constraints, Map<String, String> partitionValues, Schema schema) {
-        for (Map.Entry<String, String> partitionElement: partitionValues.entrySet()) {
-            String partitionName = partitionElement.getKey();
-            Object partitionValue = castPartitionValue(partitionElement.getValue(), schema.findField(partitionName).getType());
-            ValueSet partitionConstraint = constraints.get(partitionName);
-            if (partitionConstraint != null && !partitionConstraint.containsValue(partitionValue)) return false;
-        }
-        return true;
+    private int decodeContinuationToken(GetSplitsRequest request) {
+        if (request.hasContinuationToken()) return Integer.parseInt(request.getContinuationToken()) + 1;
+        return 0;
+    }
+
+    private String encodeContinuationToken(int partition) {
+        return String.valueOf(partition);
     }
 }

@@ -23,17 +23,11 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.*;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.arrow.vector.holders.*;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.io.FileUtils;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.NanoTime;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
@@ -43,21 +37,13 @@ import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.junit.Test;
 
-import java.io.File;
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Timestamp;
-import java.text.ParseException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
 import static com.amazonaws.connectors.athena.deltalake.converter.ParquetConverter.getExtractor;
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertTrue;
 
 public class ParquetConverterTest {
 
@@ -119,6 +105,7 @@ public class ParquetConverterTest {
         assertTrue(stringExtractor instanceof VarCharExtractor);
         NullableVarCharHolder stringHolder = new NullableVarCharHolder();
         ((VarCharExtractor)stringExtractor).extract(record, stringHolder);
+        assertEquals(1, stringHolder.isSet);
         assertEquals("text-test", stringHolder.value);
 
         // Long test
@@ -126,6 +113,7 @@ public class ParquetConverterTest {
         assertTrue(longExtractor instanceof BigIntExtractor);
         NullableBigIntHolder longHolder = new NullableBigIntHolder();
         ((BigIntExtractor)longExtractor).extract(record, longHolder);
+        assertEquals(1, longHolder.isSet);
         assertEquals(100_000_000_000L, longHolder.value);
 
         // Int test
@@ -133,6 +121,7 @@ public class ParquetConverterTest {
         assertTrue(intExtractor instanceof IntExtractor);
         NullableIntHolder intHolder = new NullableIntHolder();
         ((IntExtractor)intExtractor).extract(record, intHolder);
+        assertEquals(1, intHolder.isSet);
         assertEquals(100_000_000, intHolder.value);
 
         // Short test
@@ -140,6 +129,7 @@ public class ParquetConverterTest {
         assertTrue(shortExtractor instanceof SmallIntExtractor);
         NullableSmallIntHolder shortHolder = new NullableSmallIntHolder();
         ((SmallIntExtractor)shortExtractor).extract(record, shortHolder);
+        assertEquals(1, shortHolder.isSet);
         assertEquals(10_000, shortHolder.value);
 
         // Byte test
@@ -147,6 +137,7 @@ public class ParquetConverterTest {
         assertTrue(byteExtractor instanceof TinyIntExtractor);
         NullableTinyIntHolder byteHolder = new NullableTinyIntHolder();
         ((TinyIntExtractor)byteExtractor).extract(record, byteHolder);
+        assertEquals(1, byteHolder.isSet);
         assertEquals(100, byteHolder.value);
 
         // Float test
@@ -154,6 +145,7 @@ public class ParquetConverterTest {
         assertTrue(floatExtractor instanceof Float4Extractor);
         NullableFloat4Holder floatHolder = new NullableFloat4Holder();
         ((Float4Extractor)floatExtractor).extract(record, floatHolder);
+        assertEquals(1, floatHolder.isSet);
         assertEquals(100.01f, floatHolder.value, 0.1);
 
         // Double test
@@ -161,6 +153,7 @@ public class ParquetConverterTest {
         assertTrue(doubleExtractor instanceof Float8Extractor);
         NullableFloat8Holder doubleHolder = new NullableFloat8Holder();
         ((Float8Extractor)doubleExtractor).extract(record, doubleHolder);
+        assertEquals(1, doubleHolder.isSet);
         assertEquals(100_000.0001d, doubleHolder.value, 0.1);
 
         // Decimal int test
@@ -168,6 +161,7 @@ public class ParquetConverterTest {
         assertTrue(decimalIntExtractor instanceof DecimalExtractor);
         com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalIntHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
         ((DecimalExtractor)decimalIntExtractor).extract(record, decimalIntHolder);
+        assertEquals(1, decimalIntHolder.isSet);
         assertEquals(new BigDecimal("123.45"), decimalIntHolder.value);
 
         // Decimal long test
@@ -175,6 +169,7 @@ public class ParquetConverterTest {
         assertTrue(decimalLongExtractor instanceof DecimalExtractor);
         com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalLongHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
         ((DecimalExtractor)decimalLongExtractor).extract(record, decimalLongHolder);
+        assertEquals(1, decimalLongHolder.isSet);
         assertEquals(new BigDecimal("12345678.90"), decimalLongHolder.value);
 
         // Boolean test
@@ -182,6 +177,7 @@ public class ParquetConverterTest {
         assertTrue(booleanExtractor instanceof BitExtractor);
         NullableBitHolder booleanHolder = new NullableBitHolder();
         ((BitExtractor)booleanExtractor).extract(record, booleanHolder);
+        assertEquals(1, booleanHolder.isSet);
         assertEquals(1, booleanHolder.value);
 
         // Binary test
@@ -189,6 +185,7 @@ public class ParquetConverterTest {
         assertTrue(binaryExtractor instanceof VarBinaryExtractor);
         com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder binaryHolder = new NullableVarBinaryHolder();
         ((VarBinaryExtractor)binaryExtractor).extract(record, binaryHolder);
+        assertEquals(1, binaryHolder.isSet);
         assertArrayEquals(new byte[]{1, 3, 5}, binaryHolder.value);
 
         // Date test
@@ -196,6 +193,7 @@ public class ParquetConverterTest {
         assertTrue(dateExtractor instanceof DateDayExtractor);
         NullableDateDayHolder dateHolder = new NullableDateDayHolder();
         ((DateDayExtractor)dateExtractor).extract(record, dateHolder);
+        assertEquals(1, dateHolder.isSet);
         assertEquals(18894, dateHolder.value);
 
         // Timestamp test
@@ -203,6 +201,7 @@ public class ParquetConverterTest {
         assertTrue(timestampExtractor instanceof DateMilliExtractor);
         NullableDateMilliHolder timestampHolder = new NullableDateMilliHolder();
         ((DateMilliExtractor)timestampExtractor).extract(record, timestampHolder);
+        assertEquals(1, timestampHolder.isSet);
         assertEquals(1632235944000L, timestampHolder.value);
 
         // Timestamp legacy test
@@ -210,6 +209,7 @@ public class ParquetConverterTest {
         assertTrue(timestampLegacyExtractor instanceof DateMilliExtractor);
         NullableDateMilliHolder timestampLegacyHolder = new NullableDateMilliHolder();
         ((DateMilliExtractor)timestampLegacyExtractor).extract(record, timestampLegacyHolder);
+        assertEquals(1, timestampLegacyHolder.isSet);
         assertEquals(1632182400000L, timestampLegacyHolder.value);
 
         // Decimal fixed len byte array test
@@ -217,7 +217,111 @@ public class ParquetConverterTest {
         assertTrue(decimalFixedLenExtractor instanceof DecimalExtractor);
         NullableDecimalHolder decimalFixedLenHolder = new NullableDecimalHolder();
         ((DecimalExtractor)decimalFixedLenExtractor).extract(record, decimalFixedLenHolder);
+        assertEquals(1, decimalFixedLenHolder.isSet);
         assertEquals(new BigDecimal("663.09"), decimalFixedLenHolder.value);
     }
 
+    @Test
+    public void testExtractorsWithNullValues() throws Exception {
+        List<Type> fields = Collections.emptyList();
+
+        MessageType schema = new MessageType("record", fields);
+        Group record = new SimpleGroupFactory(schema).newGroup();
+        Field stringField = Field.nullable("stringField", new ArrowType.Utf8());
+        Field longField = Field.nullable("longField", new ArrowType.Int(64, true));
+        Field integerField = Field.nullable("integerField", new ArrowType.Int(32, true));
+        Field shortField = Field.nullable("shortField", new ArrowType.Int(16, true));
+        Field byteField = Field.nullable("byteField", new ArrowType.Int(8, true));
+        Field floatField = Field.nullable("floatField", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
+        Field doubleField = Field.nullable("doubleField", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
+        Field decimalField = Field.nullable("decimalField", new ArrowType.Decimal(8, 2, 32));
+        Field booleanField = Field.nullable("booleanField", new ArrowType.Bool());
+        Field binaryField = Field.nullable("binaryField", new ArrowType.Binary());
+        Field dateField = Field.nullable("dateField", new ArrowType.Date(DateUnit.DAY));
+        Field timestampField = Field.nullable("timestampField", new ArrowType.Date(DateUnit.MILLISECOND));
+
+        // String test
+        Extractor stringExtractor = getExtractor(stringField);
+        assertTrue(stringExtractor instanceof VarCharExtractor);
+        NullableVarCharHolder stringHolder = new NullableVarCharHolder();
+        ((VarCharExtractor)stringExtractor).extract(record, stringHolder);
+        assertEquals(0, stringHolder.isSet);
+
+        // Long test
+        Extractor longExtractor = getExtractor(longField);
+        assertTrue(longExtractor instanceof BigIntExtractor);
+        NullableBigIntHolder longHolder = new NullableBigIntHolder();
+        ((BigIntExtractor)longExtractor).extract(record, longHolder);
+        assertEquals(0, longHolder.isSet);
+
+        // Int test
+        Extractor intExtractor = getExtractor(integerField);
+        assertTrue(intExtractor instanceof IntExtractor);
+        NullableIntHolder intHolder = new NullableIntHolder();
+        ((IntExtractor)intExtractor).extract(record, intHolder);
+        assertEquals(0, intHolder.isSet);
+
+        // Short test
+        Extractor shortExtractor = getExtractor(shortField);
+        assertTrue(shortExtractor instanceof SmallIntExtractor);
+        NullableSmallIntHolder shortHolder = new NullableSmallIntHolder();
+        ((SmallIntExtractor)shortExtractor).extract(record, shortHolder);
+        assertEquals(0, shortHolder.isSet);
+
+        // Byte test
+        Extractor byteExtractor = getExtractor(byteField);
+        assertTrue(byteExtractor instanceof TinyIntExtractor);
+        NullableTinyIntHolder byteHolder = new NullableTinyIntHolder();
+        ((TinyIntExtractor)byteExtractor).extract(record, byteHolder);
+        assertEquals(0, byteHolder.isSet);
+
+        // Float test
+        Extractor floatExtractor = getExtractor(floatField);
+        assertTrue(floatExtractor instanceof Float4Extractor);
+        NullableFloat4Holder floatHolder = new NullableFloat4Holder();
+        ((Float4Extractor)floatExtractor).extract(record, floatHolder);
+        assertEquals(0, floatHolder.isSet);
+
+        // Double test
+        Extractor doubleExtractor = getExtractor(doubleField);
+        assertTrue(doubleExtractor instanceof Float8Extractor);
+        NullableFloat8Holder doubleHolder = new NullableFloat8Holder();
+        ((Float8Extractor)doubleExtractor).extract(record, doubleHolder);
+        assertEquals(0, doubleHolder.isSet);
+
+        // Decimal test
+        Extractor decimalExtractor = getExtractor(decimalField);
+        assertTrue(decimalExtractor instanceof DecimalExtractor);
+        com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder decimalHolder = new com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder();
+        ((DecimalExtractor)decimalExtractor).extract(record, decimalHolder);
+        assertEquals(0, decimalHolder.isSet);
+
+        // Boolean test
+        Extractor booleanExtractor = getExtractor(booleanField);
+        assertTrue(booleanExtractor instanceof BitExtractor);
+        NullableBitHolder booleanHolder = new NullableBitHolder();
+        ((BitExtractor)booleanExtractor).extract(record, booleanHolder);
+        assertEquals(0, booleanHolder.isSet);
+
+        // Binary test
+        Extractor binaryExtractor = getExtractor(binaryField);
+        assertTrue(binaryExtractor instanceof VarBinaryExtractor);
+        com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder binaryHolder = new NullableVarBinaryHolder();
+        ((VarBinaryExtractor)binaryExtractor).extract(record, binaryHolder);
+        assertEquals(0, binaryHolder.isSet);
+
+        // Date test
+        Extractor dateExtractor = getExtractor(dateField);
+        assertTrue(dateExtractor instanceof DateDayExtractor);
+        NullableDateDayHolder dateHolder = new NullableDateDayHolder();
+        ((DateDayExtractor)dateExtractor).extract(record, dateHolder);
+        assertEquals(0, dateHolder.isSet);
+
+        // Timestamp test
+        Extractor timestampExtractor = getExtractor(timestampField);
+        assertTrue(timestampExtractor instanceof DateMilliExtractor);
+        NullableDateMilliHolder timestampHolder = new NullableDateMilliHolder();
+        ((DateMilliExtractor)timestampExtractor).extract(record, timestampHolder);
+        assertEquals(0, timestampHolder.isSet);
+    }
 }

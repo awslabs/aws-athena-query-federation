@@ -19,10 +19,7 @@
  */
 package com.amazonaws.connectors.athena.deltalake;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.*;
@@ -36,40 +33,58 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.arrow.vector.util.Text;
 import org.junit.*;
 import org.junit.rules.TestName;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.function.Supplier;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
-import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_FILE_PROPERTY;
-import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_PARTITION_VALUES_PROPERTY;
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
 public class DeltalakeMetadataHandlerTest extends TestBase
 {
-    private DeltalakeMetadataHandler handler;
-
     private static final Logger logger = LoggerFactory.getLogger(DeltalakeMetadataHandlerTest.class);
 
+    private DeltalakeMetadataHandler handler;
+
     private BlockAllocatorImpl allocator;
+
+    private final EncryptionKey encryptionKey = new EncryptionKey(
+        new byte[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+        new byte[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+
+    private final Supplier<SchemaBuilder> partitionsSchemaBuilder = () -> SchemaBuilder.newBuilder()
+        .addBitField("is_valid")
+        .addStringField("region")
+        .addDateDayField("event_date");
+
+    private final Schema enhancedPartitionsSchema = partitionsSchemaBuilder.get()
+        .addStringField(ENHANCED_FILE_PATH_COLUMN)
+        .addStringField(ENHANCED_PARTITION_VALUES_COLUMN)
+        .build();
+
+    private final Schema partitionedTableSchema = partitionsSchemaBuilder.get()
+        .addIntField("amount")
+        .build();
+
+    private final Set<String> partitionCols = ImmutableSet.of("is_valid", "region", "event_date");
 
     @Rule
     public TestName testName = new TestName();
@@ -81,18 +96,17 @@ public class DeltalakeMetadataHandlerTest extends TestBase
         String dataBucket = "test-bucket-1";
 
         this.handler = new DeltalakeMetadataHandler(
-                amazonS3,
-                new LocalKeyFactory(),
-                mock(AWSSecretsManager.class),
-                mock(AmazonAthena.class),
-                "spill-bucket",
-                "spill-prefix",
-                dataBucket);
+            amazonS3,
+            () -> encryptionKey,
+            mock(AWSSecretsManager.class),
+            mock(AmazonAthena.class),
+            spillBucket,
+            spillPrefix,
+            dataBucket);
     }
 
     @After
     public void tearDown()
-            throws Exception
     {
         allocator.close();
         logger.info("{}: exit ", testName.getMethodName());
@@ -103,11 +117,15 @@ public class DeltalakeMetadataHandlerTest extends TestBase
     {
         // Given
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "default");
+        ListSchemasResponse expectedResponse = new ListSchemasResponse("default",
+            new ImmutableList.Builder<String>()
+                .add("test-database-2")
+                .add("test-database-1")
+                .build());
         // When
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
         // Then
-        assertFalse(res.getSchemas().isEmpty());
-        assertArrayEquals(Arrays.asList("test-database-2", "test-database-1").toArray(), res.getSchemas().toArray());
+        assertEquals(expectedResponse, res);
     }
 
     @Test
@@ -116,13 +134,13 @@ public class DeltalakeMetadataHandlerTest extends TestBase
         // Given
         String schemaName = "test-database-1";
         ListTablesRequest request = new ListTablesRequest(fakeIdentity(), "queryId", "default",
-                schemaName, null, UNLIMITED_PAGE_SIZE_VALUE);
+            schemaName, null, UNLIMITED_PAGE_SIZE_VALUE);
         ListTablesResponse expectedResponse = new ListTablesResponse("default",
-                new ImmutableList.Builder<TableName>()
-                        .add(new TableName(schemaName, "test-table-1"))
-                        .add(new TableName(schemaName, "test-table-2"))
-                        .add(new TableName(schemaName, "test-table-3"))
-                        .build(), null);
+            new ImmutableList.Builder<TableName>()
+                .add(new TableName(schemaName, "test-table-1"))
+                .add(new TableName(schemaName, "test-table-2"))
+                .add(new TableName(schemaName, "test-table-3"))
+                .build(), null);
 
         // When
         ListTablesResponse response = handler.doListTables(allocator, request);
@@ -138,12 +156,12 @@ public class DeltalakeMetadataHandlerTest extends TestBase
         String schemaName = "test-database-1";
         int pageSize = 2;
         ListTablesRequest request1 = new ListTablesRequest(fakeIdentity(), "queryId", "default",
-                schemaName, null, pageSize);
+            schemaName, null, pageSize);
         ListTablesResponse expectedResponse1 = new ListTablesResponse("default",
-                new ImmutableList.Builder<TableName>()
-                        .add(new TableName(schemaName, "test-table-1"))
-                        .add(new TableName(schemaName, "test-table-2"))
-                        .build(), "test-database-1/test-table-2_$folder$");
+            new ImmutableList.Builder<TableName>()
+                .add(new TableName(schemaName, "test-table-1"))
+                .add(new TableName(schemaName, "test-table-2"))
+                .build(), "test-database-1/test-table-2_$folder$");
         ListTablesResponse response1 = handler.doListTables(allocator, request1);
         assertEquals(expectedResponse1, response1);
     }
@@ -154,14 +172,21 @@ public class DeltalakeMetadataHandlerTest extends TestBase
         String schemaName = "test-database-1";
         String tableName = "test-table-1";
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "default",
-                new TableName(schemaName, tableName));
+            new TableName(schemaName, tableName));
+        GetTableResponse expectedResponse = new GetTableResponse(
+            "default",
+            new TableName("test-database-1", "test-table-1"),
+            new SchemaBuilder()
+                .addDateMilliField("timestamp")
+                .addDateDayField("date")
+                .build(),
+            Collections.emptySet());
 
         // When
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         // Then
-        assertTrue(res.getSchema().getFields().size() > 0);
-        assertTrue(res.getPartitionColumns().size() == 0);
+        assertEquals(expectedResponse, res);
     }
 
     @Test
@@ -169,29 +194,44 @@ public class DeltalakeMetadataHandlerTest extends TestBase
             throws Exception
     {
         // Given
+        String catalogName = "default";
         String schemaName = "test-database-2";
         String tableName = "partitioned-table";
         TableName table = new TableName(schemaName, tableName);
 
-        Schema tableSchema = SchemaBuilder.newBuilder()
-                .addBitField("is_valid")
-                .addStringField("region")
-                .addDateDayField("event_date")
-                .addIntField("amount")
-                .build();
+        Block expectedPartitions = allocator.createBlock(enhancedPartitionsSchema);
 
-        Set<String> partitionCols = new HashSet<>();
-        partitionCols.add("is_valid");
-        partitionCols.add("region");
-        partitionCols.add("event_date");
+        BlockUtils.setValue(expectedPartitions.getFieldVector("is_valid"), 0,  false);
+        BlockUtils.setValue(expectedPartitions.getFieldVector("region"), 0,  "europe");
+        BlockUtils.setValue(expectedPartitions.getFieldVector("event_date"), 0,  LocalDate.of(2021, 2, 11));
+        BlockUtils.setValue(expectedPartitions.getFieldVector(ENHANCED_FILE_PATH_COLUMN), 0, "is_valid=false/region=europe/event_date=2021-02-11/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-c000.snappy.parquet");
+        BlockUtils.setValue(expectedPartitions.getFieldVector(ENHANCED_PARTITION_VALUES_COLUMN), 0, "{\"is_valid\":\"false\",\"event_date\":\"2021-02-11\",\"region\":\"europe\"}");
 
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        BlockUtils.setValue(expectedPartitions.getFieldVector("is_valid"), 1,  true);
+        BlockUtils.setValue(expectedPartitions.getFieldVector("region"), 1,  "asia");
+        BlockUtils.setValue(expectedPartitions.getFieldVector("event_date"), 1,  LocalDate.of(2021, 12, 21));
+        BlockUtils.setValue(expectedPartitions.getFieldVector(ENHANCED_FILE_PATH_COLUMN), 1, "is_valid=true/region=asia/event_date=2021-12-21/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-c000.snappy.parquet");
+        BlockUtils.setValue(expectedPartitions.getFieldVector(ENHANCED_PARTITION_VALUES_COLUMN), 1, "{\"is_valid\":\"true\",\"event_date\":\"2021-12-21\",\"region\":\"asia\"}");
+
+        expectedPartitions.setRowCount(2);
+
+        ArrowType dateType = partitionedTableSchema.findField("event_date").getType();
+        int lowerDateBound = Math.toIntExact(LocalDate.parse("2021-01-01").toEpochDay());
+        Map<String, ValueSet> constraintsMap = ImmutableMap.<String, ValueSet>builder()
+            .put("event_date",
+                SortedRangeSet
+                    .newBuilder(dateType, false)
+                    .add(Range.greaterThan(allocator, dateType, lowerDateBound))
+                    .build()
+            ).build();
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
             table,
             new Constraints(constraintsMap),
-            tableSchema,
+            partitionedTableSchema,
             partitionCols);
+
+        GetTableLayoutResponse expectedResponse = new GetTableLayoutResponse(catalogName, table, expectedPartitions);
 
         // When
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
@@ -199,117 +239,94 @@ public class DeltalakeMetadataHandlerTest extends TestBase
         // Then
         Block partitions = res.getPartitions();
         assertEquals(2, partitions.getRowCount());
-        assertEquals("[is_valid : true], [event_date : 18617], [region : asia]", BlockUtils.rowToString(partitions, 0));
-        assertEquals("[is_valid : false], [event_date : 18669], [region : europe]", BlockUtils.rowToString(partitions, 1));
+        assertEquals(expectedResponse, res);
     }
 
     @Test
-    public void doGetSplits() throws IOException {
+    public void doGetSplits() {
         // Given
+        UUID splitUuid = UUID.fromString("123e4567-e89b-12d3-a456-426652340000");
+        MockedStatic<UUID> utilities = Mockito.mockStatic(UUID.class);
+        utilities.when(UUID::randomUUID).thenReturn(splitUuid);
+        String catalogName = "catalog_name";
         String schemaName = "test-database-2";
         String tableName = "partitioned-table";
         TableName table = new TableName(schemaName, tableName);
 
-        String isValidCol = "is_valid";
-        String regionCol = "region";
-        String eventDateCol = "event_date";
+        ArrowType dateType = partitionedTableSchema.findField("event_date").getType();
+        int lowerDateBound = Math.toIntExact(LocalDate.parse("2021-01-01").toEpochDay());
+        Map<String, ValueSet> constraintsMap = ImmutableMap.<String, ValueSet>builder()
+            .put("event_date",
+                SortedRangeSet
+                    .newBuilder(dateType, false)
+                    .add(Range.greaterThan(allocator, dateType, lowerDateBound))
+                    .build()
+            ).build();
 
-        Schema tableSchema = SchemaBuilder.newBuilder()
-                .addBitField(isValidCol)
-                .addStringField(regionCol)
-                .addDateDayField(eventDateCol)
-                .addIntField("amount")
-                .build();
+        Block partitions = allocator.createBlock(enhancedPartitionsSchema);
 
-        List<String> partitionCols = Arrays.asList(isValidCol, regionCol, eventDateCol);
-
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
-
-        Block partitions = allocator.createBlock(tableSchema);
-
-        int num_partitions = 10;
+        int num_partitions = MAX_SPLITS_PER_REQUEST + MAX_SPLITS_PER_REQUEST / 2;
         for (int i = 0; i < num_partitions; i++) {
-            BlockUtils.setValue(partitions.getFieldVector(isValidCol), i, true);
-            BlockUtils.setValue(partitions.getFieldVector(regionCol), i, new Text("a"));
-            BlockUtils.setValue(partitions.getFieldVector(eventDateCol), i, LocalDate.of(2021, 3, 24));
+            String partitionValues = "{\"is_valid\":\"false\",\"event_date\":\"2021-02-11\",\"region\":\"europe\"}";
+            String filePath = String.format("is_valid=false/region=europe/event_date=2021-02-11/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-%d.snappy.parquet", i);
+            BlockUtils.setValue(partitions.getFieldVector("is_valid"), i,  false);
+            BlockUtils.setValue(partitions.getFieldVector("region"), i,  "europe");
+            BlockUtils.setValue(partitions.getFieldVector("event_date"), i,  LocalDate.of(2021, 2, 11));
+            BlockUtils.setValue(partitions.getFieldVector(ENHANCED_FILE_PATH_COLUMN), i, filePath);
+            BlockUtils.setValue(partitions.getFieldVector(ENHANCED_PARTITION_VALUES_COLUMN), i, partitionValues);
         }
         partitions.setRowCount(num_partitions);
 
-        String continuationToken = null;
         GetSplitsRequest originalReq = new GetSplitsRequest(fakeIdentity(), "queryId", "catalog_name",
-                table,
-                partitions,
-                partitionCols,
-                new Constraints(constraintsMap),
-                continuationToken);
-        int numContinuations = 0;
-        do {
-            GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
+            table,
+            partitions,
+            new ArrayList<>(partitionCols),
+            new Constraints(constraintsMap),
+            null);
 
-            MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-            assertEquals(MetadataRequestType.GET_SPLITS, rawResponse.getRequestType());
-
-            GetSplitsResponse response = (GetSplitsResponse) rawResponse;
-            continuationToken = response.getContinuationToken();
-
-            for (Split nextSplit : response.getSplits()) {
-                assertNotNull(nextSplit.getProperty(SPLIT_PARTITION_VALUES_PROPERTY));
-                assertNotNull(nextSplit.getProperty(SPLIT_FILE_PROPERTY));
-            }
-
-            assertTrue(!response.getSplits().isEmpty());
-
-            if (continuationToken != null) {
-                numContinuations++;
-            }
+        // First batch of splits
+        GetSplitsRequest request1 = new GetSplitsRequest(originalReq, null);
+        Set<Split> expectedSplits1 = new HashSet<>();
+        int expectedSplitSize1 = MAX_SPLITS_PER_REQUEST;
+        for (int i = 0; i < expectedSplitSize1 ; i++) {
+            String filePath = String.format("is_valid=false/region=europe/event_date=2021-02-11/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-%d.snappy.parquet", i);
+            String partitionValues = "{\"is_valid\":\"false\",\"event_date\":\"2021-02-11\",\"region\":\"europe\"}";
+            expectedSplits1.add(
+                Split.newBuilder(makeSpillLocation(request1.getQueryId(), splitUuid.toString()), encryptionKey)
+                    .add(SPLIT_FILE_PROPERTY, filePath)
+                    .add(SPLIT_PARTITION_VALUES_PROPERTY, partitionValues)
+                    .build()
+            );
         }
-        while (continuationToken != null);
 
-        assertTrue(numContinuations == 0);
-    }
+        String expectedContinuationToken1 = "999";
+        GetSplitsResponse expectedResponse1 = new GetSplitsResponse(
+                catalogName, expectedSplits1, expectedContinuationToken1
+        );
+        GetSplitsResponse response1 = handler.doGetSplits(allocator, request1);
 
-    @Test
-    public void doesPartitionComplyConstraints() {
-        // Given
-        String partitionName1 = "partition1";
-        String partitionName2 = "partition2";
-        ArrowType partitionType1 = new ArrowType.Utf8();
-        ArrowType partitionType2 = new ArrowType.Int(32, true);
-        Schema schema = new Schema(Arrays.asList(
-            Field.nullable(partitionName1, partitionType1),
-            Field.nullable(partitionName2, partitionType2),
-            Field.nullable("nonPartitionColumn", new ArrowType.Int(32, true))
-        ));
-        ValueSet constraintPartition1 = EquatableValueSet
-                .newBuilder(allocator, partitionType1, true, false)
-                .add("value1")
-                .add("value2")
-                .build();
-        ValueSet constraintPartition2 = SortedRangeSet
-                .newBuilder(partitionType2, false)
-                .add(Range.range(allocator, partitionType2, 100, true, 200, true))
-                .build();
-        Map<String, ValueSet> constraints = Maps.newHashMap();
-        constraints.put(partitionName1, constraintPartition1);
-        constraints.put(partitionName2, constraintPartition2);
+        assertEquals(expectedResponse1, response1);
 
-        Map<String, String> partitionValuesInvalid1 = Maps.newHashMap();
-        partitionValuesInvalid1.put(partitionName1, "value3");
-        partitionValuesInvalid1.put(partitionName2, "150");
-        Map<String, String> partitionValuesInvalid2 = Maps.newHashMap();
-        partitionValuesInvalid2.put(partitionName1, "value1");
-        partitionValuesInvalid2.put(partitionName2, "250");;
-        Map<String, String> partitionValuesValid = Maps.newHashMap();
-        partitionValuesValid.put(partitionName1, "value1");
-        partitionValuesValid.put(partitionName2, "150");
+        // End of splits
+        GetSplitsRequest request2 = new GetSplitsRequest(originalReq, expectedContinuationToken1);
+        Set<Split> expectedSplits2 = new HashSet<>();
+        int expectedSplitSize2 = MAX_SPLITS_PER_REQUEST / 2;
+        for (int i = expectedSplitSize1; i < expectedSplitSize1 + expectedSplitSize2 ; i++) {
+            String filePath = String.format("is_valid=false/region=europe/event_date=2021-02-11/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-%d.snappy.parquet", i);
+            String partitionValues = "{\"is_valid\":\"false\",\"event_date\":\"2021-02-11\",\"region\":\"europe\"}";
+            expectedSplits2.add(
+                Split.newBuilder(makeSpillLocation(request1.getQueryId(), splitUuid.toString()), encryptionKey)
+                    .add(SPLIT_FILE_PROPERTY, filePath)
+                    .add(SPLIT_PARTITION_VALUES_PROPERTY, partitionValues)
+                    .build()
+            );
+        }
 
-        assertFalse(handler.doesPartitionComplyConstraints(constraints, partitionValuesInvalid1, schema));
-        assertFalse(handler.doesPartitionComplyConstraints(constraints, partitionValuesInvalid2, schema));
-        assertTrue(handler.doesPartitionComplyConstraints(constraints, partitionValuesValid, schema));
-    }
+        GetSplitsResponse expectedResponse2 = new GetSplitsResponse(
+            catalogName, expectedSplits2, null
+        );
+        GetSplitsResponse response2 = handler.doGetSplits(allocator, request2);
 
-    private static FederatedIdentity fakeIdentity()
-    {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        assertEquals(expectedResponse2, response2);
     }
 }

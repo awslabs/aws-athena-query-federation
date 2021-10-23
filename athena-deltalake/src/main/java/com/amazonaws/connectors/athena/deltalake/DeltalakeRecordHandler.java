@@ -39,15 +39,21 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.example.data.Group;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.example.GroupReadSupport;
+import org.apache.parquet.hadoop.util.HadoopInputFile;
+import org.apache.parquet.io.InvalidRecordException;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
 
-import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.*;
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_FILE_PROPERTY;
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_PARTITION_VALUES_PROPERTY;
 import static com.amazonaws.connectors.athena.deltalake.converter.DeltaConverter.castPartitionValue;
 import static com.amazonaws.connectors.athena.deltalake.converter.ParquetConverter.getExtractor;
 
@@ -98,8 +104,8 @@ public class DeltalakeRecordHandler
         JsonNode schemaJson = mapper.readTree(partitionValuesJson);
         Map<String, String> partitionValues = new HashMap<>();
         Iterator<Map.Entry<String, JsonNode>> fields = schemaJson.fields();
-        for (Iterator<Map.Entry<String, JsonNode>> it = fields; it.hasNext(); ) {
-            Map.Entry<String, JsonNode> field = it.next();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> field = fields.next();
             partitionValues.put(field.getKey(), field.getValue().textValue());
         }
         return partitionValues;
@@ -118,7 +124,6 @@ public class DeltalakeRecordHandler
 
         String relativeFilePath = split.getProperty(SPLIT_FILE_PROPERTY);
 
-
         Map<String, String> partitionValues = deserializePartitionValues(split.getProperty(SPLIT_PARTITION_VALUES_PROPERTY));
         Set<String> partitionNames = partitionValues.keySet();
 
@@ -128,9 +133,17 @@ public class DeltalakeRecordHandler
         String tablePath = String.format("s3a://%s/%s/%s", dataBucket, schemaName, tableName);
         String filePath = String.format("%s/%s", tablePath, relativeFilePath);
 
+        MessageType parquetSchema = ParquetFileReader.open(HadoopInputFile.fromPath(new Path(filePath), conf))
+                .getFooter()
+                .getFileMetaData()
+                .getSchema();
+
         List<Field> fields = recordsRequest.getSchema().getFields();
 
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+
+        // Add projection when reading parquet file
+        Types.MessageTypeBuilder parquetTypeBuilder = Types.buildMessage();
 
         for(Field field : fields) {
             String fieldName = field.getName();
@@ -138,13 +151,19 @@ public class DeltalakeRecordHandler
                 Object partitionValue = castPartitionValue(partitionValues.get(fieldName), field.getType());
                 builder.withExtractor(fieldName, getExtractor(field, Optional.ofNullable(partitionValue)));
             }
-            else builder.withExtractor(fieldName, getExtractor(field));
+            else {
+                builder.withExtractor(fieldName, getExtractor(field));
+                try {
+                    parquetTypeBuilder.addField(parquetSchema.getType(fieldName));
+                } catch (InvalidRecordException ignored) {}
+            }
         }
 
+        this.conf.set(GroupReadSupport.PARQUET_READ_SCHEMA, parquetTypeBuilder.named(tableName).toString());
         ParquetReader<Group> reader = ParquetReader
-                .builder(new GroupReadSupport(), new Path(filePath))
-                .withConf(this.conf)
-                .build();
+            .builder(new GroupReadSupport(), new Path(filePath))
+            .withConf(this.conf)
+            .build();
         GeneratedRowWriter rowWriter = builder.build();
 
         Group record;

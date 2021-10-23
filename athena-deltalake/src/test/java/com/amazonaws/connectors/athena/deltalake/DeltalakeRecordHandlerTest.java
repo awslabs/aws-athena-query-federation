@@ -19,20 +19,14 @@
  */
 package com.amazonaws.connectors.athena.deltalake;
 
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.S3BlockSpillReader;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -41,16 +35,22 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.conf.Configuration;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_FILE_PROPERTY;
 import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.SPLIT_PARTITION_VALUES_PROPERTY;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 public class DeltalakeRecordHandlerTest extends TestBase
@@ -60,8 +60,6 @@ public class DeltalakeRecordHandlerTest extends TestBase
     private DeltalakeRecordHandler handler;
     private BlockAllocatorImpl allocator;
     private Schema schemaForRead;
-    private AWSSecretsManager awsSecretsManager;
-    private AmazonAthena athena;
     private S3BlockSpillReader spillReader;
 
     @Rule
@@ -85,11 +83,12 @@ public class DeltalakeRecordHandlerTest extends TestBase
         String dataBucket = "test-bucket-1";
 
         schemaForRead = SchemaBuilder.newBuilder()
-                .addBitField(isValidCol)
-                .addStringField(regionCol)
-                .addDateDayField(eventDateCol)
-                .addIntField("amount")
-                .build();
+            .addBitField(isValidCol)
+            .addStringField(regionCol)
+            .addDateDayField(eventDateCol)
+            .addIntField("amount")
+            .addDecimalField("amount_decimal", 10, 2)
+            .build();
 
         allocator = new BlockAllocatorImpl();
 
@@ -101,17 +100,17 @@ public class DeltalakeRecordHandlerTest extends TestBase
 
         AwsClientBuilder.EndpointConfiguration endpoint = new AwsClientBuilder.EndpointConfiguration(S3_ENDPOINT, S3_REGION);
         amazonS3 = AmazonS3ClientBuilder
-                .standard()
-                .withPathStyleAccessEnabled(true)
-                .withEndpointConfiguration(endpoint)
-                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-                .build();
+            .standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(endpoint)
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
         this.handler = new DeltalakeRecordHandler(
-                amazonS3,
-                mock(AWSSecretsManager.class),
-                mock(AmazonAthena.class),
-                conf,
-                dataBucket);
+            amazonS3,
+            mock(AWSSecretsManager.class),
+            mock(AmazonAthena.class),
+            conf,
+            dataBucket);
 
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
@@ -120,21 +119,23 @@ public class DeltalakeRecordHandlerTest extends TestBase
     public void doReadRecordsNoSpill()
             throws Exception
     {
+        String catalogName = "catalog";
         for (int i = 0; i < 2; i++) {
             Map<String, ValueSet> constraintsMap = new HashMap<>();
+            String queryId = "queryId-" + System.currentTimeMillis();
 
             ReadRecordsRequest request = new ReadRecordsRequest(fakeIdentity(),
-                    "catalog",
-                    "queryId-" + System.currentTimeMillis(),
-                    new TableName("test-database-2", "partitioned-table"),
-                    schemaForRead,
-                    Split.newBuilder(makeSpillLocation(), null)
-                            .add(SPLIT_PARTITION_VALUES_PROPERTY, "{\"is_valid\":\"true\",\"region\":\"asia\",\"event_date\":\"2020-12-21\"}")
-                            .add(SPLIT_FILE_PROPERTY, "is_valid=true/region=asia/event_date=2020-12-21/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-c000.snappy.parquet")
-                            .build(),
-                    new Constraints(constraintsMap),
-                    100_000_000_000L, //100GB don't expect this to spill
-                    100_000_000_000L
+                catalogName,
+                queryId,
+                new TableName("test-database-2", "partitioned-table"),
+                schemaForRead,
+                Split.newBuilder(makeSpillLocation(queryId, "1234"), null)
+                    .add(SPLIT_PARTITION_VALUES_PROPERTY, "{\"is_valid\":\"true\",\"region\":\"asia\",\"event_date\":\"2020-12-21\"}")
+                    .add(SPLIT_FILE_PROPERTY, "is_valid=true/region=asia/event_date=2020-12-21/part-00000-58828e3c-041e-47b4-80dd-196ae1b1d1a6-c000.snappy.parquet")
+                    .build(),
+                new Constraints(constraintsMap),
+                100_000_000_000L, //100GB don't expect this to spill
+                100_000_000_000L
             );
 
             RecordResponse rawResponse = handler.doReadRecords(allocator, request);
@@ -142,35 +143,37 @@ public class DeltalakeRecordHandlerTest extends TestBase
 
             ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
+            Block expectedBlock = allocator.createBlock(schemaForRead);
+            BlockUtils.setValue(expectedBlock.getFieldVector("is_valid"), 0,  true);
+            BlockUtils.setValue(expectedBlock.getFieldVector("region"), 0,  "asia");
+            BlockUtils.setValue(expectedBlock.getFieldVector("event_date"), 0,  LocalDate.of(2020, 12, 21));
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount"), 0, 100);
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount_decimal"), 0, null);
+
+            BlockUtils.setValue(expectedBlock.getFieldVector("is_valid"), 0,  true);
+            BlockUtils.setValue(expectedBlock.getFieldVector("region"), 0,  "asia");
+            BlockUtils.setValue(expectedBlock.getFieldVector("event_date"), 0,  LocalDate.of(2020, 12, 21));
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount"), 0, 100);
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount_decimal"), 0, null);
+
+            BlockUtils.setValue(expectedBlock.getFieldVector("is_valid"), 1,  true);
+            BlockUtils.setValue(expectedBlock.getFieldVector("region"), 1,  "asia");
+            BlockUtils.setValue(expectedBlock.getFieldVector("event_date"), 1,  LocalDate.of(2020, 12, 21));
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount"), 1, 200);
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount_decimal"), 1, null);
+
+            BlockUtils.setValue(expectedBlock.getFieldVector("is_valid"), 2,  true);
+            BlockUtils.setValue(expectedBlock.getFieldVector("region"), 2,  "asia");
+            BlockUtils.setValue(expectedBlock.getFieldVector("event_date"), 2,  LocalDate.of(2020, 12, 21));
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount"), 2, 350);
+            BlockUtils.setValue(expectedBlock.getFieldVector("amount_decimal"), 2, null);
+
+            expectedBlock.setRowCount(3);
+
+            ReadRecordsResponse expectedResponse = new ReadRecordsResponse(catalogName, expectedBlock);
+
             assertEquals(3, response.getRecords().getRowCount());
-            assertEquals(
-                    "[is_valid : true], [region : asia], [event_date : 18617], [amount : 100]",
-                    BlockUtils.rowToString(response.getRecords(), 0)
-            );
-            assertEquals(
-                    "[is_valid : true], [region : asia], [event_date : 18617], [amount : 200]",
-                    BlockUtils.rowToString(response.getRecords(), 1)
-            );
-            assertEquals(
-                    "[is_valid : true], [region : asia], [event_date : 18617], [amount : 350]",
-                    BlockUtils.rowToString(response.getRecords(), 2)
-            );
+            assertEquals(expectedResponse, response);
         }
-    }
-
-    private static FederatedIdentity fakeIdentity()
-    {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
-    }
-
-    private SpillLocation makeSpillLocation()
-    {
-        return S3SpillLocation.newBuilder()
-                .withBucket("athena-virtuoso-test")
-                .withPrefix("lambda-spill")
-                .withQueryId(UUID.randomUUID().toString())
-                .withSplitId(UUID.randomUUID().toString())
-                .withIsDirectory(true)
-                .build();
     }
 }

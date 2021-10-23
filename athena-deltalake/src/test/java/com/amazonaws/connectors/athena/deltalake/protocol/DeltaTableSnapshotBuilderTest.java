@@ -19,19 +19,16 @@
  */
 package com.amazonaws.connectors.athena.deltalake.protocol;
 
-import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class DeltaTableSnapshotBuilderTest {
@@ -44,24 +41,24 @@ public class DeltaTableSnapshotBuilderTest {
         DeltaTableStorage mockTableStorage = Mockito.mock(DeltaTableStorage.class);
         snapshotBuilder = new DeltaTableSnapshotBuilder(mockTableStorage);
         DeltaTableSnapshotBuilder.CheckpointIdentifier lastCheckpointIdentifier =
-                new DeltaTableSnapshotBuilder.CheckpointIdentifier(3, 100, Optional.empty());
+            new DeltaTableSnapshotBuilder.CheckpointIdentifier(3, 100, Optional.empty());
         DeltaTableSnapshotBuilder.Checkpoint checkpoint =
-                new DeltaTableSnapshotBuilder.Checkpoint(Arrays.asList("checkpoint"), Arrays.asList(
-                        new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
-                        new DeltaLogAction.AddFile("path2", Collections.emptyMap()),
-                        new DeltaLogAction.MetaData("schemaString1", Collections.emptyList()),
-                        new DeltaLogAction.AddFile("path3", Collections.emptyMap())
-                ));
+            new DeltaTableSnapshotBuilder.Checkpoint(Arrays.asList("checkpoint"), Arrays.asList(
+                new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
+                new DeltaLogAction.AddFile("path2", Collections.emptyMap()),
+                new DeltaLogAction.MetaData("schemaString1", Collections.emptyList()),
+                new DeltaLogAction.AddFile("path3", Collections.emptyMap())
+            ));
         List<DeltaTableSnapshotBuilder.DeltaLogEntry> logEntries = Arrays.asList(
-                new DeltaTableSnapshotBuilder.DeltaLogEntry("log1", Arrays.asList(
-                        new DeltaLogAction.AddFile("path5", Collections.emptyMap()),
-                        new DeltaLogAction.RemoveFile("path2")
-                )),
-                new DeltaTableSnapshotBuilder.DeltaLogEntry("log2", Arrays.asList(
-                        new DeltaLogAction.RemoveFile("path5"),
-                        new DeltaLogAction.AddFile("path6", Collections.emptyMap()),
-                        new DeltaLogAction.MetaData("schemaString2", Collections.emptyList())
-                ))
+            new DeltaTableSnapshotBuilder.DeltaLogEntry("log1", Arrays.asList(
+                new DeltaLogAction.AddFile("path5", Collections.emptyMap()),
+                new DeltaLogAction.RemoveFile("path2")
+            )),
+            new DeltaTableSnapshotBuilder.DeltaLogEntry("log2", Arrays.asList(
+                new DeltaLogAction.RemoveFile("path5"),
+                new DeltaLogAction.AddFile("path6", Collections.emptyMap()),
+                new DeltaLogAction.MetaData("schemaString2", Collections.emptyList())
+            ))
         );
         when(mockTableStorage.getLastCheckpointIdentifier()).thenReturn(lastCheckpointIdentifier);
         when(mockTableStorage.getCheckpoint(lastCheckpointIdentifier)).thenReturn(checkpoint);
@@ -86,15 +83,15 @@ public class DeltaTableSnapshotBuilderTest {
         DeltaTableStorage mockTableStorage = Mockito.mock(DeltaTableStorage.class);
         snapshotBuilder = new DeltaTableSnapshotBuilder(mockTableStorage);
         List<DeltaTableSnapshotBuilder.DeltaLogEntry> logEntries = Arrays.asList(
-                new DeltaTableSnapshotBuilder.DeltaLogEntry("log1", Arrays.asList(
-                        new DeltaLogAction.AddFile("path5", Collections.emptyMap()),
-                        new DeltaLogAction.RemoveFile("path2")
-                )),
-                new DeltaTableSnapshotBuilder.DeltaLogEntry("log2", Arrays.asList(
-                        new DeltaLogAction.RemoveFile("path5"),
-                        new DeltaLogAction.AddFile("path6", Collections.emptyMap()),
-                        new DeltaLogAction.MetaData("schemaString1", Collections.emptyList())
-                ))
+            new DeltaTableSnapshotBuilder.DeltaLogEntry("log1", Arrays.asList(
+                new DeltaLogAction.AddFile("path5", Collections.emptyMap()),
+                new DeltaLogAction.RemoveFile("path2")
+            )),
+            new DeltaTableSnapshotBuilder.DeltaLogEntry("log2", Arrays.asList(
+                new DeltaLogAction.RemoveFile("path5"),
+                new DeltaLogAction.AddFile("path6", Collections.emptyMap()),
+                new DeltaLogAction.MetaData("schemaString1", Collections.emptyList())
+            ))
         );
         when(mockTableStorage.getLastCheckpointIdentifier()).thenReturn(null);
         when(mockTableStorage.listAllDeltaLogsEntries()).thenReturn(logEntries);
@@ -119,7 +116,7 @@ public class DeltaTableSnapshotBuilderTest {
             new DeltaLogAction.RemoveFile("path1")
         );
         List<DeltaLogAction> expectedAddFiles = Arrays.asList(
-                new DeltaLogAction.AddFile("path2", Collections.emptyMap())
+            new DeltaLogAction.AddFile("path2", Collections.emptyMap())
         );
 
         // When
@@ -133,14 +130,14 @@ public class DeltaTableSnapshotBuilderTest {
     public void reconciliateDeltaActionsRemoveThenReAddFile() {
         // Given
         List<DeltaLogAction> actions = Arrays.asList(
-                new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
-                new DeltaLogAction.AddFile("path2", Collections.emptyMap()),
-                new DeltaLogAction.RemoveFile("path1"),
-                new DeltaLogAction.AddFile("path1", Collections.emptyMap())
+            new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
+            new DeltaLogAction.AddFile("path2", Collections.emptyMap()),
+            new DeltaLogAction.RemoveFile("path1"),
+            new DeltaLogAction.AddFile("path1", Collections.emptyMap())
         );
         List<DeltaLogAction> expectedAddFiles = Arrays.asList(
-                new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
-                new DeltaLogAction.AddFile("path2", Collections.emptyMap())
+            new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
+            new DeltaLogAction.AddFile("path2", Collections.emptyMap())
         );
 
         // When
@@ -154,9 +151,9 @@ public class DeltaTableSnapshotBuilderTest {
     public void reconciliateDeltaActionsMetaDataUpdate() {
         // Given
         List<DeltaLogAction> actions = Arrays.asList(
-                new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
-                new DeltaLogAction.MetaData("schemaString1", Collections.emptyList()),
-                new DeltaLogAction.MetaData("schemaString2", Arrays.asList("col1"))
+            new DeltaLogAction.AddFile("path1", Collections.emptyMap()),
+            new DeltaLogAction.MetaData("schemaString1", Collections.emptyList()),
+            new DeltaLogAction.MetaData("schemaString2", Arrays.asList("col1"))
         );
         DeltaLogAction.MetaData expectedMetadata = new DeltaLogAction.MetaData("schemaString2", Arrays.asList("col1"));
 
