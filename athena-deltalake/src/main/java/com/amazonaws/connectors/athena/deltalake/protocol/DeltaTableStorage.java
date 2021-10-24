@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.connectors.athena.deltalake.DeltalakeMetadataHandler.S3_FOLDER_DELIMITER;
+
 
 /**
  * Serves as interface between the Delta Protocol logic and the physical storage of the data.
@@ -83,7 +85,7 @@ public class DeltaTableStorage {
      * @return The file name, i.e without the path to the file
      */
     private String extractFileName(String key) {
-        String[] splitted = key.split("/");
+        String[] splitted = key.split(S3_FOLDER_DELIMITER);
         return splitted[splitted.length - 1];
     }
 
@@ -134,7 +136,7 @@ public class DeltaTableStorage {
         List<String> checkpointFiles = listCheckpointFiles(checkpointIdentifier);
         List<DeltaLogAction> deltaActions = new ArrayList<>();
         for(String checkpointFile: checkpointFiles) {
-            String checkpointFilePath = deltaLogDirectoryS3Url() + "/" + checkpointFile;
+            String checkpointFilePath = deltaLogDirectoryS3Url() + S3_FOLDER_DELIMITER + checkpointFile;
             ParquetReader<Group> reader = ParquetReader
                     .builder(new GroupReadSupport(), new Path(checkpointFilePath))
                     .withConf(parquetConf)
@@ -185,8 +187,8 @@ public class DeltaTableStorage {
         String startAfterName = checkpoint != null ? checkpoint.fileNames.get(checkpoint.fileNames.size() - 1) : "";
         ListObjectsV2Request listRequest = new ListObjectsV2Request()
                 .withBucketName(tableLocation.bucket)
-                .withPrefix(deltaLogDirectoryKey() + "/")
-                .withStartAfter(deltaLogDirectoryKey() + "/" + startAfterName);
+                .withPrefix(deltaLogDirectoryKey() + S3_FOLDER_DELIMITER)
+                .withStartAfter(deltaLogDirectoryKey() + S3_FOLDER_DELIMITER + startAfterName);
         ListObjectsV2Result result = amazonS3.listObjectsV2(listRequest);
         List<String> deltaLogsKeys = result.getObjectSummaries().stream()
                 .map(S3ObjectSummary::getKey)

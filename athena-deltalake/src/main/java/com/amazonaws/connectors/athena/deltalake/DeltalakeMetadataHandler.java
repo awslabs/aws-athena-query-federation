@@ -83,6 +83,8 @@ public class DeltalakeMetadataHandler
 
     private static final String SOURCE_TYPE = "deltalake";
     public String S3_FOLDER_SUFFIX = "_$folder$";
+    public static String S3_FOLDER_DELIMITER = "/";
+
     private String dataBucket;
     private final AmazonS3 amazonS3;
 
@@ -150,7 +152,7 @@ public class DeltalakeMetadataHandler
     private ListFoldersResult listFolders(String prefix, String continuationToken, Integer maxKeys) {
         ListObjectsV2Request listObjects = new ListObjectsV2Request()
             .withPrefix(prefix)
-            .withDelimiter("/")
+            .withDelimiter(S3_FOLDER_DELIMITER)
             .withBucketName(dataBucket);
         if (maxKeys != null) listObjects.withMaxKeys(maxKeys);
         if (continuationToken != null) listObjects.withContinuationToken(continuationToken);
@@ -166,7 +168,7 @@ public class DeltalakeMetadataHandler
     }
 
     private String tableKeyPrefix(String schemaName, String tableName) {
-        return schemaName + "/" + tableName;
+        return schemaName + S3_FOLDER_DELIMITER + tableName;
     }
 
     /**
@@ -204,7 +206,7 @@ public class DeltalakeMetadataHandler
         int pageSize = request.getPageSize();
 
         String schemaName = request.getSchemaName();
-        String prefix = schemaName + "/";
+        String prefix = schemaName + S3_FOLDER_DELIMITER;
         Stream<String> listedFolders;
         if(pageSize != ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE) {
             ListFoldersResult listFoldersResult = listFolders(prefix, nextToken, pageSize);

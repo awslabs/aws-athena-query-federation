@@ -68,6 +68,7 @@ To use the Amazon Athena Deltalake Connector in your queries, navigate to AWS Se
   ```
 - This implementation does not handle corrupted delta log multi part checkpoints (see [multi-part checkpoints](https://github.com/delta-io/delta/blob/master/PROTOCOL.md#checkpoints))
 - This implementation does not handle partitions of Binary type (as stated in the [protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md#partition-value-serialization))
+- Database and table name folders in S3 MUST be in lower case
 
 ## License
 
