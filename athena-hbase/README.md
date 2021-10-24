@@ -15,8 +15,8 @@ The Athena HBase Connector supports several configuration options via Lambda env
 1. **spill_bucket** - When the data returned by your Lambda function exceeds Lambda’s limits, this is the bucket that the data will be written to for Athena to read the excess from. (e.g. my_bucket)
 2. **spill_prefix** - (Optional) Defaults to sub-folder in your bucket called 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the above bucket that large responses are spilled to. You should configure an S3 lifecycle on this location to delete old spills after X days/Hours.
 3. **kms_key_id** - (Optional) By default any data that is spilled to S3 is encrypted using AES-GCM and a randomly generated key. Setting a KMS Key ID allows your Lambda function to use KMS for key generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2a1-4d0en2cd8331)
-4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GMC either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
-5. **disable_glue** - (Optional) If present, with any valye, the connector will no longer attempt to retrieve supplemental metadata from Glue.
+4. **disable_spill_encryption** - (Optional) Defaults to False so that any data that is spilled to S3 is encrypted using AES-GCM either with a randomly generated key or using KMS to generate keys. Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
+5. **disable_glue** - (Optional) If present, with any value except false, the connector will no longer attempt to retrieve supplemental metadata from Glue.
 6. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
 7. **default_hbase** If present, this HBase connection string (e.g. master_hostname:hbase_port:zookeeper_port) is used when there is not a catalog specific environment variable (as explained below).
 
@@ -29,11 +29,11 @@ You can also provide one or more properties which define the HBase connection de
 
 To support these two SQL statements we'd need to add two environment variables to our Lambda function:
 
-1. **hbase_instance_1** - The value should be the HBase connection details in the format of: master_hostname:zookeeper_port:hbase_port
-2. **hbase_instance_2** - The value should be the HBase connection details in the format of: master_hostname:zookeeper_port:hbase_port
+1. **hbase_instance_1** - The value should be the HBase connection details in the format of: master_hostname:hbase_port:zookeeper_port
+2. **hbase_instance_2** - The value should be the HBase connection details in the format of: master_hostname:hbase_port:zookeeper_port
 
-You can also optionally use SecretsManager for part or all of the value for the preceeding connection details. For example, if I set a Lambda environment variable for  **hbase_instance_1** to be "${hbase_host_1}:${hbase_master_port_1}:${hbase_zookeeper_port_1}" the Athena Federation SDK will automatically attempt to retrieve a secret from AWS SecretsManager named "hbase_host_1" and inject that value in place of "${hbase_host_1}". It wil do the same for the other secrets: hbase_zookeeper_port_1, hbase_master_port_1. Basically anything between ${...} is attempted as a secret in SecretsManager. If no such secret exists, the text isn't replaced.
-
+You can also optionally use SecretsManager for part or all of the value for the preceding connection details. For example, if I set a Lambda environment variable for  **hbase_instance_1** to be "${hbase_host_1}:${hbase_master_port_1}:${hbase_zookeeper_port_1}" the Athena Federation SDK will automatically attempt to retrieve a secret from AWS SecretsManager named "hbase_host_1" and inject that value in place of "${hbase_host_1}". It wil do the same for the other secrets: hbase_zookeeper_port_1, hbase_master_port_1. Basically anything between ${...} is attempted as a secret in SecretsManager. If no such secret exists, the text isn't replaced.
+To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 ### Setting Up Databases & Tables
 

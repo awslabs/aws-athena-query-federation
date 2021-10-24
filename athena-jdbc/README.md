@@ -45,9 +45,9 @@ Multiplexer provides a way to connect to multiple database instances of any type
 
 |Handler|Class|
 |---	|---	|
-|Composite Handler|com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler|
-|Metadata Handler|com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcMetadataHandler|
-|Record Handler|com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcRecordHandler|
+|Composite Handler|MultiplexingJdbcCompositeHandler|
+|Metadata Handler|MultiplexingJdbcMetadataHandler|
+|Record Handler|MultiplexingJdbcRecordHandler|
 
 
 **Parameters:**
@@ -93,17 +93,17 @@ Database specific metadata and record handlers can also be used to connect to a 
 
 |DB Type|Handler|Class|
 |---|---|---|
-| |Composite Handler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlCompositeHandler|
-|MySql|Metadata Handler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlMetadataHandler|
-| |Record Handler|com.amazonaws.connectors.athena.jdbc.mysql.MySqlRecordHandler|
+| |Composite Handler|MySqlCompositeHandler|
+|MySql|Metadata Handler|MySqlMetadataHandler|
+| |Record Handler|MySqlRecordHandler|
 |	|	|
-| |Composite Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlCompositeHandler|
-|PostGreSql|Metadata Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|
-| |Record Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
+| |Composite Handler|PostGreSqlCompositeHandler|
+|PostGreSql|Metadata Handler|PostGreSqlMetadataHandler|
+| |Record Handler|PostGreSqlRecordHandler|
 |	|	|
-| |Composite Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
-|Redshift|Metadata Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlMetadataHandler|
-| |Record Handler|com.amazonaws.connectors.athena.jdbc.postgresql.PostGreSqlRecordHandler|
+| |Composite Handler|PostGreSqlRecordHandler|
+|Redshift|Metadata Handler|PostGreSqlMetadataHandler|
+| |Record Handler|PostGreSqlRecordHandler|
 
 **Parameters:**
 
@@ -156,7 +156,7 @@ See respective database documentation for conversion between JDBC and database t
 
 We support two ways to input database user name and password:
 
-1. **AWS Secrets Manager:** The name of the secret in AWS Secrets Manager can be embedded in JDBC connection string, which is used to replace with `username` and `password` values from Secret. Support is tightly integrated for AWS RDS database instances. When using AWS RDS, we highly recommend using AWS Secrets Manager, including credential rotation. If your database is not using AWS RDS, store credentials as JSON in the following format `{“username”: “${username}”, “password”: “${password}”}.`.
+1. **AWS Secrets Manager:** The name of the secret in AWS Secrets Manager can be embedded in JDBC connection string, which is used to replace with `username` and `password` values from Secret. Support is tightly integrated for AWS RDS database instances. When using AWS RDS, we highly recommend using AWS Secrets Manager, including credential rotation. If your database is not using AWS RDS, store credentials as JSON in the following format `{“username”: “${username}”, “password”: “${password}”}.`. To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 2. **Connection String:** Username and password can be specified as properties in the JDBC connection string.
 
 # Partitions and Splits
@@ -210,6 +210,7 @@ For latest version information see [pom.xml](./pom.xml).
 * In Mux setup, spill bucket and prefix is shared across all database instances.
 * Any relevant Lambda Limits. See Lambda documentation.
 * Redshift does not support external partitions so all data will be retrieved every time.
+* Athena converts queries to lower case. MySQL table names need to be in lower case to match. For example, Athena queries against "myTable" will fail.
 
 # Performance tuning
 

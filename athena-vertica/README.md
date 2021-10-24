@@ -80,9 +80,9 @@ Database specific metadata and record handlers can also be used to connect to a 
 
 |Handler|Class|
 |---|---|
-|Composite Handler|com.amazonaws.connectors.athena.vertica.VerticaCompositeHandler|
-|Metadata Handler|com.amazonaws.connectors.athena.vertica.VerticaMetadataHandler|
-|Record Handler|com.amazonaws.connectors.athena.vertica.VerticaRecordHandler|
+|Composite Handler|VerticaCompositeHandler|
+|Metadata Handler|VerticaMetadataHandler|
+|Record Handler|VerticaRecordHandler|
 
 **Parameters:**
 
@@ -122,7 +122,7 @@ See respective database documentation for conversion between JDBC and database t
 
 We support two ways to input database user name and password:
 
-1. **AWS Secrets Manager:** The name of the secret in AWS Secrets Manager can be embedded in JDBC connection string, which is used to replace with `vertica-username` and `vertica-password` values from AWS Secrets Manager.
+1. **AWS Secrets Manager:** The name of the secret in AWS Secrets Manager can be embedded in JDBC connection string, which is used to replace with `vertica-username` and `vertica-password` values from AWS Secrets Manager. To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 2. **Connection String:** Username and password can be specified as properties in the JDBC connection string.
 
 ### Deploying The Connector

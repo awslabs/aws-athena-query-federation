@@ -47,7 +47,8 @@ public enum SupportedTypes
     DECIMAL(Types.MinorType.DECIMAL),
     VARCHAR(Types.MinorType.VARCHAR),
     STRUCT(Types.MinorType.STRUCT),
-    LIST(Types.MinorType.LIST);
+    LIST(Types.MinorType.LIST),
+    MAP(Types.MinorType.MAP);
 
     private Types.MinorType arrowMinorType;
 

@@ -58,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -482,6 +483,11 @@ public class ExampleMetadataHandler
                             FieldBuilder.newBuilder("outerlist", new ArrowType.List())
                                     .addListField("innerList", Types.MinorType.VARCHAR.getType())
                                     .build())
+                    .addField(FieldBuilder.newBuilder("simplemap", new ArrowType.Map(false))
+                            .addField("entries", Types.MinorType.STRUCT.getType(), false, Arrays.asList(
+                                    FieldBuilder.newBuilder("key", Types.MinorType.VARCHAR.getType(), false).build(),
+                                    FieldBuilder.newBuilder("value", Types.MinorType.INT.getType()).build()))
+                            .build())
                     .addMetadata("partitionCols", "day,month,year")
                     .addMetadata("randomProp1", "randomPropVal1")
                     .addMetadata("randomProp2", "randomPropVal2").build();

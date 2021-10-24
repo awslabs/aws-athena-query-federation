@@ -187,6 +187,12 @@ public abstract class MetadataHandler
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
     }
 
+    /**
+     * Used to make a spill location for a split. Each split should have a unique spill location, so be sure
+     * to call this method once per split!
+     * @param request 
+     * @return A unique spill location.
+     */
     protected SpillLocation makeSpillLocation(MetadataRequest request)
     {
         return S3SpillLocation.newBuilder()
@@ -214,6 +220,7 @@ public abstract class MetadataHandler
                 if (!(rawReq instanceof MetadataRequest)) {
                     throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
                 }
+                ((MetadataRequest) rawReq).setContext(context);
                 doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
             }
             catch (Exception ex) {
