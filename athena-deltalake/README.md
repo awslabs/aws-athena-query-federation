@@ -36,7 +36,7 @@ This connector handles these [Delta primitive types](https://github.com/delta-io
 
 ### Required Permissions
 
-Review the "Policies" section of the athena-redis.yaml file for full details on the IAM Policies required by this connector. A brief summary is below.
+Review the "Policies" section of the athena-deltalake.yaml file for full details on the IAM Policies required by this connector. A brief summary is below.
 
 1. S3 Write Access - In order to successfully handle large queries, the connector requires write access to a location in S3.
 2. Athena GetQueryExecution - The connector uses this access to fast-fail when the upstream Athena query has terminated.
@@ -47,7 +47,7 @@ To use the Amazon Athena Deltalake Connector in your queries, navigate to AWS Se
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
 2. From the athena-deltalake dir, run `AWS_REGION=eu-west-1 mvn clean install`.
-3. From the athena-deltalake dir, run  `AWS_REGION=eu-west-1 ../tools/publish.sh S3_BUCKET_NAME athena-redis` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
+3. From the athena-deltalake dir, run  `AWS_REGION=eu-west-1 ../tools/publish.sh S3_BUCKET_NAME athena-deltalake` to publish the connector to your private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of the connector's code will be stored for Serverless Application Repository to retrieve it. This will allow users with permission to do so, the ability to deploy instances of the connector via 1-Click form. Then navigate to [Serverless Application Repository](https://aws.amazon.com/serverless/serverlessrepo)
 
 ## Limitations
 

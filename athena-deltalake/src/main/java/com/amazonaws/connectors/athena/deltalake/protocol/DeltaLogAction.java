@@ -138,7 +138,7 @@ public interface DeltaLogAction {
                 JsonNode partitionColumn = partitionColumnsElements.next();
                 partitionColumnsGroup.add(partitionColumn.asText());
             }
-            return new DeltaLogAction.MetaData(schemaString, Collections.emptyList());
+            return new DeltaLogAction.MetaData(schemaString, partitionColumnsGroup);
         }
 
         public static DeltaLogAction.MetaData fromParquet(Group group) {

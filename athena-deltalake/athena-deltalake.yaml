@@ -22,7 +22,7 @@ Parameters:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
   DataBucket:
-      Description: "The bucket where this tutorial's data lives."
+      Description: "The bucket where the Delta tables live."
       Type: String
   SpillPrefix:
     Description: 'The prefix within SpillBucket where this function can spill data.'

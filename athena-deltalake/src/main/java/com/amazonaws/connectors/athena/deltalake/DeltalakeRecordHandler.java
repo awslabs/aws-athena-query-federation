@@ -142,7 +142,7 @@ public class DeltalakeRecordHandler
 
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
 
-        // Add projection when reading parquet file
+        // Apply column pruning by reading only the requested columns
         Types.MessageTypeBuilder parquetTypeBuilder = Types.buildMessage();
 
         for(Field field : fields) {
@@ -159,10 +159,11 @@ public class DeltalakeRecordHandler
             }
         }
 
-        this.conf.set(GroupReadSupport.PARQUET_READ_SCHEMA, parquetTypeBuilder.named(tableName).toString());
+        Configuration readParquetConf = new Configuration(this.conf);
+        readParquetConf.set(GroupReadSupport.PARQUET_READ_SCHEMA, parquetTypeBuilder.named(tableName).toString());
         ParquetReader<Group> reader = ParquetReader
             .builder(new GroupReadSupport(), new Path(filePath))
-            .withConf(this.conf)
+            .withConf(readParquetConf)
             .build();
         GeneratedRowWriter rowWriter = builder.build();
 
