@@ -252,9 +252,10 @@ If everything worked as expected you should see the script generate useful debug
 Ok, now we are ready to try running some queries using our new connector. To do so, configure your workgroup to use Athena Engine Version 2. This feature is only available on the new Athena Engine. See documentation here for more info: https://docs.aws.amazon.com/athena/latest/ug/engine-versions.html. Some good examples to try include (be sure to put in your actual database and table names):
 
 ```sql
-USING EXTERNAL FUNCTION extract_tx_id(value ROW(id INT, completed boolean) ) 
-		RETURNS INT 
-LAMBDA_INVOKE '<function_name>', EXTERNAL FUNCTION decrypt(payload VARCHAR ) 
+USING 
+EXTERNAL FUNCTION extract_tx_id(value ROW(id INT, completed boolean)) 
+		RETURNS INT LAMBDA '<function_name>',
+EXTERNAL FUNCTION decrypt(payload VARCHAR) 
 		RETURNS VARCHAR LAMBDA '<function_name>'
 SELECT year,
          month,
