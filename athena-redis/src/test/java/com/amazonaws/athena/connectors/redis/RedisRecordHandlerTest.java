@@ -129,7 +129,7 @@ public class RedisRecordHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean())).thenReturn(mockConnection);
+        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean(), anyString())).thenReturn(mockConnection);
         when(mockConnection.sync()).thenReturn(mockSyncCommands);
 
         allocator = new BlockAllocatorImpl();

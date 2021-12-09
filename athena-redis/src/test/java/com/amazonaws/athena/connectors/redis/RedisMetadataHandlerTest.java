@@ -66,6 +66,7 @@ import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_CLUSTER_FLAG;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_DB_NUMBER;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_ENDPOINT_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_SSL_FLAG;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
@@ -117,7 +118,7 @@ public class RedisMetadataHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean())).thenReturn(mockConnection);
+        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean(), anyString())).thenReturn(mockConnection);
         when(mockConnection.sync()).thenReturn(mockSyncCommands);
 
         handler = new RedisMetadataHandler(mockGlue, new LocalKeyFactory(), mockSecretsManager, mockAthena, mockFactory, "bucket", "prefix");
@@ -162,7 +163,7 @@ public class RedisMetadataHandlerTest
         }
 
         assertTrue(partitions.getRowCount() > 0);
-        assertEquals(6, partitions.getFields().size());
+        assertEquals(7, partitions.getFields().size());
 
         logger.info("doGetTableLayout: partitions[{}]", partitions.getRowCount());
     }
@@ -210,6 +211,7 @@ public class RedisMetadataHandlerTest
                 .addStringField(ZSET_KEYS_TABLE_PROP)
                 .addStringField(REDIS_SSL_FLAG)
                 .addStringField(REDIS_CLUSTER_FLAG)
+                .addStringField(REDIS_DB_NUMBER)
                 .build();
 
         Block partitions = allocator.createBlock(schema);
@@ -219,6 +221,7 @@ public class RedisMetadataHandlerTest
         partitions.setValue(ZSET_KEYS_TABLE_PROP, 0, prefixes);
         partitions.setValue(REDIS_SSL_FLAG, 0, null);
         partitions.setValue(REDIS_CLUSTER_FLAG, 0, null);
+        partitions.setValue(REDIS_DB_NUMBER, 0, null);
         partitions.setRowCount(1);
 
         String continuationToken = null;
@@ -261,6 +264,7 @@ public class RedisMetadataHandlerTest
                 .addStringField(ZSET_KEYS_TABLE_PROP)
                 .addStringField(REDIS_SSL_FLAG)
                 .addStringField(REDIS_CLUSTER_FLAG)
+                .addStringField(REDIS_DB_NUMBER)
                 .build();
 
         Block partitions = allocator.createBlock(schema);
@@ -270,6 +274,7 @@ public class RedisMetadataHandlerTest
         partitions.setValue(ZSET_KEYS_TABLE_PROP, 0, null);
         partitions.setValue(REDIS_SSL_FLAG, 0, null);
         partitions.setValue(REDIS_CLUSTER_FLAG, 0, null);
+        partitions.setValue(REDIS_DB_NUMBER, 0, null);
         partitions.setRowCount(1);
 
         String continuationToken = null;

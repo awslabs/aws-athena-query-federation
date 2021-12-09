@@ -47,6 +47,8 @@ public class RedisIntegTestHandler
 
     private static final Logger logger = LoggerFactory.getLogger(RedisIntegTestHandler.class);
 
+    private static final String STANDALONE_REDIS_DB_NUMBER = "10";
+
     private final RedisConnectionFactory connectionFactory;
     private final String standaloneConnectionString;
     private final String clusterConnectionString;
@@ -66,7 +68,7 @@ public class RedisIntegTestHandler
         RedisConnectionWrapper<String, String> standaloneConnection = null;
         RedisConnectionWrapper<String, String> clusterConnection = null;
         try {
-            standaloneConnection = connectionFactory.getOrCreateConn(standaloneConnectionString, false, false);
+            standaloneConnection = connectionFactory.getOrCreateConn(standaloneConnectionString, false, false, STANDALONE_REDIS_DB_NUMBER);
             clusterConnection = connectionFactory.getOrCreateConn(clusterConnectionString, true, true);
 
             insertRedisData(standaloneConnection.sync());
