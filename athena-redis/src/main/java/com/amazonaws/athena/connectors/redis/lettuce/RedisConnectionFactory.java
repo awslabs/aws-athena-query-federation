@@ -51,7 +51,7 @@ public class RedisConnectionFactory
                                                                              String dbNumber)
   {
     String conKey = conStr + sslEnabled + isCluster;
-    if (!isCluster && dbNumber != null && !"null".equals(dbNumber)) {
+    if (!isCluster && dbNumber != null) {
       conKey += dbNumber;
     }
     RedisConnectionWrapper<String, String> connection = clientCache.get(conKey);
@@ -101,7 +101,7 @@ public class RedisConnectionFactory
     if (passwordToken != null) {
       redisUriBuilder.withPassword(passwordToken.toCharArray());
     }
-    if (dbNumber != null && !"null".equals(dbNumber) && !dbNumber.isEmpty()) {
+    if (dbNumber != null && !dbNumber.isEmpty()) {
       logger.info("getOrCreateCon: With DB Number {}", dbNumber);
       redisUriBuilder.withDatabase(Integer.parseInt(dbNumber));
     }

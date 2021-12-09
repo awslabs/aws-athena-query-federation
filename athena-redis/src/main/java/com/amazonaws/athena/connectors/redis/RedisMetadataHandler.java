@@ -114,6 +114,7 @@ public class RedisMetadataHandler
     protected static final String REDIS_CLUSTER_FLAG = "redis-cluster-flag";
     //Defines the redis database to use
     protected static final String REDIS_DB_NUMBER = "redis-db-number";
+    protected static final String DEFAULT_REDIS_DB_NUMBER = "0";
 
     //Used to filter out Glue tables which lack a redis endpoint.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(REDIS_ENDPOINT_PROP);
@@ -265,6 +266,10 @@ public class RedisMetadataHandler
             throw new RuntimeException("Table is missing " + VALUE_TYPE_TABLE_PROP + " table property");
         }
 
+        if (dbNumber == null) {
+            dbNumber = DEFAULT_REDIS_DB_NUMBER; // default redis logical database
+        }
+
         logger.info("doGetSplits: Preparing splits for {}", BlockUtils.rowToString(partitions, 0));
 
         KeyType keyType;
@@ -353,7 +358,7 @@ public class RedisMetadataHandler
                     .add(SPLIT_END_INDEX, String.valueOf(endIndex))
                     .add(REDIS_SSL_FLAG, String.valueOf(sslEnabled))
                     .add(REDIS_CLUSTER_FLAG, String.valueOf(isCluster))
-                    .add(REDIS_DB_NUMBER, String.valueOf(dbNumber))
+                    .add(REDIS_DB_NUMBER, dbNumber)
                     .build();
 
             splits.add(split);
