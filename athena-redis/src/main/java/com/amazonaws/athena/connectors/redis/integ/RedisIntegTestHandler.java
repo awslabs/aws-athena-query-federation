@@ -69,7 +69,7 @@ public class RedisIntegTestHandler
         RedisConnectionWrapper<String, String> clusterConnection = null;
         try {
             standaloneConnection = connectionFactory.getOrCreateConn(standaloneConnectionString, false, false, STANDALONE_REDIS_DB_NUMBER);
-            clusterConnection = connectionFactory.getOrCreateConn(clusterConnectionString, true, true, null);
+            clusterConnection = connectionFactory.getOrCreateConn(clusterConnectionString, true, true);
 
             insertRedisData(standaloneConnection.sync());
             insertRedisData(clusterConnection.sync());

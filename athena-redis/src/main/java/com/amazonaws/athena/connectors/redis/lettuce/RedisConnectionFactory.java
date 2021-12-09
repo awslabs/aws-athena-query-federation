@@ -40,11 +40,18 @@ public class RedisConnectionFactory
 
   public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr,
                                                                              boolean sslEnabled,
+                                                                             boolean isCluster)
+  {
+    return getOrCreateConn(conStr, sslEnabled, isCluster, "0");
+  }
+
+  public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr,
+                                                                             boolean sslEnabled,
                                                                              boolean isCluster,
                                                                              String dbNumber)
   {
     String conKey = conStr + sslEnabled + isCluster;
-    if (dbNumber != null && !"null".equals(dbNumber)) {
+    if (!isCluster && dbNumber != null && !"null".equals(dbNumber)) {
       conKey += dbNumber;
     }
     RedisConnectionWrapper<String, String> connection = clientCache.get(conKey);
