@@ -73,7 +73,7 @@ import static io.lettuce.core.ScanCursor.INITIAL;
  * For more detail, please see the module's README.md, some notable characteristics of this class include:
  * <p>
  * 1. Uses Glue table properties (redis-endpoint, redis-value-type, redis-key-prefix, redis-keys-zset, redis-ssl-flag,
- * and redis-cluster-flag) to provide schema as well as connectivity details to Redis.
+ * redis-cluster-flag, and redis-db-number) to provide schema as well as connectivity details to Redis.
  * 2. Attempts to resolve sensitive fields such as redis-endpoint via SecretsManager so that you can substitute
  * variables with values from by doing something like hostname:port:password=${my_secret}
  */
@@ -112,6 +112,9 @@ public class RedisMetadataHandler
     protected static final String REDIS_SSL_FLAG = "redis-ssl-flag";
     //Defines if redis instance is a cluster
     protected static final String REDIS_CLUSTER_FLAG = "redis-cluster-flag";
+    //Defines the redis database to use
+    protected static final String REDIS_DB_NUMBER = "redis-db-number";
+    public static final String DEFAULT_REDIS_DB_NUMBER = "0";
 
     //Used to filter out Glue tables which lack a redis endpoint.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(REDIS_ENDPOINT_PROP);
@@ -148,13 +151,14 @@ public class RedisMetadataHandler
      * @param rawEndpoint The value from the REDIS_ENDPOINT_PROP on the table being queried.
      * @param sslEnabled The value from the REDIS_SSL_FLAG on the table being queried.
      * @param isCluster The value from the REDIS_CLUSTER_FLAG on the table being queried.
+     * @param dbNumber The value from the REDIS_DB_NUMBER on the table being queried.
      * @return A Lettuce client connection.
      * @notes This method first attempts to resolve any secrets (noted by ${secret_name}) using SecretsManager.
      */
-    private RedisConnectionWrapper<String, String> getOrCreateClient(String rawEndpoint, boolean sslEnabled, boolean isCluster)
+    private RedisConnectionWrapper<String, String> getOrCreateClient(String rawEndpoint, boolean sslEnabled, boolean isCluster, String dbNumber)
     {
         String endpoint = resolveSecrets(rawEndpoint);
-        return redisConnectionFactory.getOrCreateConn(endpoint, sslEnabled, isCluster);
+        return redisConnectionFactory.getOrCreateConn(endpoint, sslEnabled, isCluster, dbNumber);
     }
 
     /**
@@ -208,7 +212,8 @@ public class RedisMetadataHandler
                 .addStringField(KEY_PREFIX_TABLE_PROP)
                 .addStringField(ZSET_KEYS_TABLE_PROP)
                 .addStringField(REDIS_SSL_FLAG)
-                .addStringField(REDIS_CLUSTER_FLAG);
+                .addStringField(REDIS_CLUSTER_FLAG)
+                .addStringField(REDIS_DB_NUMBER);
     }
 
     /**
@@ -228,6 +233,7 @@ public class RedisMetadataHandler
             block.setValue(ZSET_KEYS_TABLE_PROP, rowNum, properties.get(ZSET_KEYS_TABLE_PROP));
             block.setValue(REDIS_SSL_FLAG, rowNum, properties.get(REDIS_SSL_FLAG));
             block.setValue(REDIS_CLUSTER_FLAG, rowNum, properties.get(REDIS_CLUSTER_FLAG));
+            block.setValue(REDIS_DB_NUMBER, rowNum, properties.get(REDIS_DB_NUMBER));
             return 1;
         });
     }
@@ -250,6 +256,7 @@ public class RedisMetadataHandler
         String redisValueType = getValue(partitions, 0, VALUE_TYPE_TABLE_PROP);
         boolean sslEnabled = Boolean.parseBoolean(getValue(partitions, 0, REDIS_SSL_FLAG));
         boolean isCluster = Boolean.parseBoolean(getValue(partitions, 0, REDIS_CLUSTER_FLAG));
+        String dbNumber = getValue(partitions, 0, REDIS_DB_NUMBER);
 
         if (redisEndpoint == null) {
             throw new RuntimeException("Table is missing " + REDIS_ENDPOINT_PROP + " table property");
@@ -259,12 +266,16 @@ public class RedisMetadataHandler
             throw new RuntimeException("Table is missing " + VALUE_TYPE_TABLE_PROP + " table property");
         }
 
+        if (dbNumber == null) {
+            dbNumber = DEFAULT_REDIS_DB_NUMBER; // default redis logical database
+        }
+
         logger.info("doGetSplits: Preparing splits for {}", BlockUtils.rowToString(partitions, 0));
 
         KeyType keyType;
         Set<String> splitInputs = new HashSet<>();
 
-        RedisConnectionWrapper<String, String> connection = getOrCreateClient(redisEndpoint, sslEnabled, isCluster);
+        RedisConnectionWrapper<String, String> connection = getOrCreateClient(redisEndpoint, sslEnabled, isCluster, dbNumber);
         RedisCommandsWrapper<String, String> syncCommands = connection.sync();
 
         String keyPrefix = getValue(partitions, 0, KEY_PREFIX_TABLE_PROP);
@@ -295,7 +306,7 @@ public class RedisMetadataHandler
         Set<Split> splits = new HashSet<>();
         for (String next : splitInputs) {
             splits.addAll(makeSplits(request, syncCommands, redisEndpoint, next, keyType, redisValueType, sslEnabled,
-                                     isCluster));
+                                     isCluster, dbNumber));
         }
 
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
@@ -312,11 +323,12 @@ public class RedisMetadataHandler
      * @param valueType The ValueType, used for mapping the values stored at each key to a result row when the split is processed.
      * @param sslEnabled The value from the REDIS_SSL_FLAG on the table being queried.
      * @param isCluster The value from the REDIS_CLUSTER_FLAG on the table being queried.
+     * @param dbNumber The value from the REDIS_DB_NUMBER on the table being queried.
      * @return A Set of splits to optionally parallelize reading the values associated with the keyPrefix.
      */
     private Set<Split> makeSplits(GetSplitsRequest request, RedisCommandsWrapper<String, String> syncCommands,
                                   String endpoint, String keyPrefix, KeyType keyType, String valueType,
-                                  boolean sslEnabled, boolean isCluster)
+                                  boolean sslEnabled, boolean isCluster, String dbNumber)
     {
         Set<Split> splits = new HashSet<>();
         long numberOfKeys = 1;
@@ -346,6 +358,7 @@ public class RedisMetadataHandler
                     .add(SPLIT_END_INDEX, String.valueOf(endIndex))
                     .add(REDIS_SSL_FLAG, String.valueOf(sslEnabled))
                     .add(REDIS_CLUSTER_FLAG, String.valueOf(isCluster))
+                    .add(REDIS_DB_NUMBER, dbNumber)
                     .build();
 
             splits.add(split);

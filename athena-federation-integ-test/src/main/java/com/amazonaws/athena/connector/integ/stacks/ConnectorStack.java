@@ -82,16 +82,16 @@ public class ConnectorStack extends Stack
     protected void initialize()
     {
         logger.info("Initializing stack: {}", this.getClass().getSimpleName());
-        createLambdaFunction();
-        createAthenaDataCatalog();
+        Function function = createLambdaFunction();
+        createAthenaDataCatalog(function);
     }
 
     /**
      * Creates the Connector's CloudFormation stack for the lambda function.
      */
-    private void createLambdaFunction()
+    private Function createLambdaFunction()
     {
-        lambdaFunctionBuilder().build();
+        return lambdaFunctionBuilder().build();
     }
 
     /**
@@ -121,21 +121,21 @@ public class ConnectorStack extends Stack
     /**
      * Creates the Connector's Athena data catalog stack resource, and registers the lambda function with Athena.
      */
-    private void createAthenaDataCatalog()
+    private void createAthenaDataCatalog(Function function)
     {
-        athenaDataCatalogBuilder().build();
+        athenaDataCatalogBuilder(function.getFunctionArn()).build();
     }
 
     /**
      * Builds the Athena data catalog stack resource.
      * @return Athena data catalog Builder.
      */
-    protected CfnDataCatalog.Builder athenaDataCatalogBuilder()
+    protected CfnDataCatalog.Builder athenaDataCatalogBuilder(String functionArn)
     {
         return CfnDataCatalog.Builder.create(this, "AthenaDataCatalog")
                 .name(functionName)
                 .type("LAMBDA")
-                .parameters(ImmutableMap.of("function", "arn:aws:lambda:function:" + functionName));
+                .parameters(ImmutableMap.of("function", functionArn));
     }
 
     /**

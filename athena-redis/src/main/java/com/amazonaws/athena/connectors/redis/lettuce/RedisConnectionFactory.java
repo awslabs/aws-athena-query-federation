@@ -31,6 +31,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.DEFAULT_REDIS_DB_NUMBER;
+
 public class RedisConnectionFactory
 {
   private static final Logger logger = LoggerFactory.getLogger(RedisConnectionFactory.class);
@@ -38,19 +40,33 @@ public class RedisConnectionFactory
   private static final int CONNECTION_TIMEOUT_MS = 2_000;
   private final Map<String, RedisConnectionWrapper<String, String>> clientCache = new HashMap<>();
 
-  public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr, boolean sslEnabled,
+  public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr,
+                                                                             boolean sslEnabled,
                                                                              boolean isCluster)
   {
+    return getOrCreateConn(conStr, sslEnabled, isCluster, DEFAULT_REDIS_DB_NUMBER);
+  }
+
+  public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr,
+                                                                             boolean sslEnabled,
+                                                                             boolean isCluster,
+                                                                             String dbNumber)
+  {
     String conKey = conStr + sslEnabled + isCluster;
+    if (!isCluster && dbNumber != null) {
+      conKey += dbNumber;
+    }
     RedisConnectionWrapper<String, String> connection = clientCache.get(conKey);
     if (connection == null) {
       String[] endpointParts = conStr.split(":");
       if (endpointParts.length == 2) {
         if (isCluster) {
-          connection = getOrCreateClusterCon(endpointParts[0], Integer.parseInt(endpointParts[1]), null, sslEnabled);
+          connection = getOrCreateClusterCon(endpointParts[0], Integer.parseInt(endpointParts[1]), null,
+                                             sslEnabled);
         }
         else {
-          connection = getOrCreateStandaloneCon(endpointParts[0], Integer.parseInt(endpointParts[1]), null, sslEnabled);
+          connection = getOrCreateStandaloneCon(endpointParts[0], Integer.parseInt(endpointParts[1]), null,
+                                                sslEnabled, dbNumber);
         }
       }
       else if (endpointParts.length == 3) {
@@ -60,7 +76,7 @@ public class RedisConnectionFactory
         }
         else {
           connection = getOrCreateStandaloneCon(endpointParts[0], Integer.parseInt(endpointParts[1]), endpointParts[2],
-                                                sslEnabled);
+                                                sslEnabled, dbNumber);
         }
       }
       else {
@@ -71,7 +87,7 @@ public class RedisConnectionFactory
     return connection;
   }
 
-  private RedisConnectionWrapper<String, String> getOrCreateStandaloneCon(String host, int port, String passwordToken, boolean sslEnabled)
+  private RedisConnectionWrapper<String, String> getOrCreateStandaloneCon(String host, int port, String passwordToken, boolean sslEnabled, String dbNumber)
   {
     logger.info("getOrCreateCon: Creating Standalone connection");
     if (passwordToken != null) {
@@ -86,6 +102,10 @@ public class RedisConnectionFactory
                                 .withTimeout(Duration.ofMillis(CONNECTION_TIMEOUT_MS));
     if (passwordToken != null) {
       redisUriBuilder.withPassword(passwordToken.toCharArray());
+    }
+    if (dbNumber != null && !dbNumber.isEmpty()) {
+      logger.info("getOrCreateCon: With DB Number {}", dbNumber);
+      redisUriBuilder.withDatabase(Integer.parseInt(dbNumber));
     }
     RedisClient client = RedisClient.create(redisUriBuilder.build());
     return new RedisConnectionWrapper<>(client.connect(), null, false);

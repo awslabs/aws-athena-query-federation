@@ -55,6 +55,7 @@ import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_COL
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_TYPE;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_CLUSTER_FLAG;
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_DB_NUMBER;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_ENDPOINT_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_SSL_FLAG;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.SPLIT_END_INDEX;
@@ -111,14 +112,15 @@ public class RedisRecordHandler
      * @param rawEndpoint The value from the REDIS_ENDPOINT_PROP on the table being queried.
      * @param sslEnabled The value from the REDIS_SSL_FLAG on the table being queried.
      * @param isCluster The value from the REDIS_CLUSTER_FLAG on the table being queried.
+     * @param dbNumber The value from the REDIS_DB_NUMBER on the table being queried.
      * @return A Lettuce client connection.
      * @notes This method first attempts to resolve any secrets (noted by ${secret_name}) using SecretsManager.
      */
     private RedisConnectionWrapper<String, String> getOrCreateClient(String rawEndpoint, boolean sslEnabled,
-                                                                     boolean isCluster)
+                                                                     boolean isCluster, String dbNumber)
     {
         String endpoint = resolveSecrets(rawEndpoint);
-        return redisConnectionFactory.getOrCreateConn(endpoint, sslEnabled, isCluster);
+        return redisConnectionFactory.getOrCreateConn(endpoint, sslEnabled, isCluster, dbNumber);
     }
 
     /**
@@ -131,12 +133,13 @@ public class RedisRecordHandler
         ScanCursor keyCursor = null;
         boolean sslEnabled = Boolean.parseBoolean(split.getProperty(REDIS_SSL_FLAG));
         boolean isCluster = Boolean.parseBoolean(split.getProperty(REDIS_CLUSTER_FLAG));
+        String dbNumber = split.getProperty(REDIS_DB_NUMBER);
         ValueType valueType = ValueType.fromId(split.getProperty(VALUE_TYPE_TABLE_PROP));
         List<Field> fieldList = recordsRequest.getSchema().getFields().stream()
                 .filter((Field next) -> !KEY_COLUMN_NAME.equals(next.getName())).collect(Collectors.toList());
 
         RedisConnectionWrapper<String, String> connection = getOrCreateClient(split.getProperty(REDIS_ENDPOINT_PROP),
-                                                                              sslEnabled, isCluster);
+                                                                              sslEnabled, isCluster, dbNumber);
         RedisCommandsWrapper<String, String> syncCommands = connection.sync();
 
         do {

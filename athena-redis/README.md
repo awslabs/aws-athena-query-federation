@@ -29,8 +29,11 @@ To enable a Glue Table for use with Redis, you can set the following properties 
 4. **redis-value-type** - (required) Defines how the value for the keys defined by either redis-key-prefix or redis-keys-zset will be mapped to your table. literal maps to a single column. zset also maps to a single column but each key can essentially store N rows. hash allows for each key to be a row with multiple columns. (e.g. hash or literal or zset)
 5. **redis-ssl-flag** - (optional) Defaults to False, setting this to True will create a redis connection with SSL/TLS. (e.g. True or False)
 6. **redis-cluster-flag** - (optional) Defaults to False, setting this to True will enable support for clustered Redis instances. (e.g. True or False)
+7. **redis-db-number** - (optional, only applies for standalone NOT clustered) Defaults to redis logical database 0, set this to read from a non default redis database. (e.g. 1,2,3,...)**
 
 *To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
+
+**This does not refer to a database in Athena/Glue, but a Redis logical database. Refer to [SELECT index](https://redis.io/commands/select) for more information.
 
 ### Data Types
 
