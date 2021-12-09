@@ -114,7 +114,7 @@ public class RedisMetadataHandler
     protected static final String REDIS_CLUSTER_FLAG = "redis-cluster-flag";
     //Defines the redis database to use
     protected static final String REDIS_DB_NUMBER = "redis-db-number";
-    protected static final String DEFAULT_REDIS_DB_NUMBER = "0";
+    public static final String DEFAULT_REDIS_DB_NUMBER = "0";
 
     //Used to filter out Glue tables which lack a redis endpoint.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(REDIS_ENDPOINT_PROP);

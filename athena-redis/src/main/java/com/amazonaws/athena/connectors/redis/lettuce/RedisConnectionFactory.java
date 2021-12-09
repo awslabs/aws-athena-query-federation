@@ -31,6 +31,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.DEFAULT_REDIS_DB_NUMBER;
+
 public class RedisConnectionFactory
 {
   private static final Logger logger = LoggerFactory.getLogger(RedisConnectionFactory.class);
@@ -42,7 +44,7 @@ public class RedisConnectionFactory
                                                                              boolean sslEnabled,
                                                                              boolean isCluster)
   {
-    return getOrCreateConn(conStr, sslEnabled, isCluster, "0");
+    return getOrCreateConn(conStr, sslEnabled, isCluster, DEFAULT_REDIS_DB_NUMBER);
   }
 
   public synchronized RedisConnectionWrapper<String, String> getOrCreateConn(String conStr,
