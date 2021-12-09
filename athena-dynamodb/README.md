@@ -80,3 +80,8 @@ connector via 1-Click form. Then navigate to [Serverless Application Repository]
 
 The Athena DynamoDB Connector does support parallel scans and will attempt to push down predicates as part of its DynamoDB queries.  A hash key predicate with X distinct values will result in X Query
 calls to DynamoDB.  All other predicate scenarios will results in Y number of Scan calls where Y is heuristically determined based on the size of your table and its provisioned throughput.
+
+## Costs
+
+The costs for use of this solution depends on the underlying AWS resources being used. Pay special attention to [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/) since queries using scans can consume a large number of RCU's.
+
