@@ -14,7 +14,6 @@
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
-
         <gremlinDriverVersion>3.4.8</gremlinDriverVersion>
     </properties>
 
