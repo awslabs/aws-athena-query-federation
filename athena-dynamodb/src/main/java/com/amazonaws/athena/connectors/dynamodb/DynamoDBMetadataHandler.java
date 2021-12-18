@@ -217,8 +217,50 @@ public class DynamoDBMetadataHandler
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
             combinedTables.addAll(tableResolver.listTables());
         }
-        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), null);
+        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(filterTables(combinedTables)), null);
     }
+
+ /**
+     * @author vaquar khan
+     * This method is used to filter DyanamoDB tables in Athena 
+     * We enable users to configure optional environment variables with commaseparated List
+     * dynamo_connector_filter (Optional) Can be used to fetch selected tables from DynamoDB.
+     * default the connector will attempt to get all DynamoDB tables while connecting via Athena.(e.g. *  or tbl1,tbl2,tbl3)
+     * @param combinedTables
+     * @return
+     */
+    
+	private Set<TableName> filterTables(Set<TableName> combinedTables)
+	{
+		String dynamoDBFilter = "*";
+		Set<TableName> filterCombinedSetTables = new LinkedHashSet<>();
+		String database = DynamoDBConstants.DEFAULT_SCHEMA;
+		List<String> list = null;
+		boolean flag = false;
+
+		dynamoDBFilter = System.getenv("dynamo_connector_filter");
+
+		if (null == combinedTables || null == dynamoDBFilter) {
+			return combinedTables;
+		}
+
+		if (null != dynamoDBFilter) {
+			flag = dynamoDBFilter.toUpperCase().contains("*");
+		}
+
+		if (!flag) {
+			list = new ArrayList<>(Arrays.asList(dynamoDBFilter.split(",")));
+		} 
+		else {
+			return combinedTables;
+		}
+
+		for (String str : list) {
+			TableName tbl = new TableName(database, str);
+			filterCombinedSetTables.add(tbl);
+		}
+		return filterCombinedSetTables;
+	}
 
     /**
      * Fetches a table's schema from Glue DataCatalog if present and not disabled, otherwise falls
