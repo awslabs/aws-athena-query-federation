@@ -19,6 +19,7 @@ generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2
 Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 5. **disable_glue** - (Optional) If present, with any value except false, the connector will no longer attempt to retrieve supplemental metadata from Glue.
 6. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
+7. **dynamo_connector_filter** - (Optional) Can be used to fetch selected tables from DynamoDB. By default the connector will attempt to get all DynamoDB tables while connect via Athena. . (e.g. *  or tbl1,tbl2,tbl3)
 
 ### Setting Up Databases & Tables in Glue
 
