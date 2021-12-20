@@ -14,7 +14,8 @@
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
-        <log4j2Version>2.15.0</log4j2Version>
+        <log4j2Version>2.17.0</log4j2Version>
+        <aws.lambda-java-log4j2.version>1.5.0</aws.lambda-java-log4j2.version>
         <gremlinDriverVersion>3.4.8</gremlinDriverVersion>
     </properties>
 
@@ -82,7 +83,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-log4j2</artifactId>
-            <version>1.1.0</version>
+            <version>${aws.lambda-java-log4j2.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
