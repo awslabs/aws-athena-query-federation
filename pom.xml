@@ -24,6 +24,7 @@
         <fasterxml.jackson.version>2.10.5</fasterxml.jackson.version>
         <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M5</surefire.failsafe.version>
+        <log4j2Version>2.17.0</log4j2Version>
     </properties>
 
     <organization>
