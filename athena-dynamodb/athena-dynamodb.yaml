@@ -29,8 +29,8 @@ Parameters:
     Default: 900
     Type: Number
   LambdaMemory:
-    Description: 'Lambda memory in MB (min 128 - 3008 max).'
-    Default: 3008
+    Description: 'Lambda memory in MB (min 128 - 10240 max).'
+    Default: 10240
     Type: Number
   DisableSpillEncryption:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
