@@ -7,7 +7,7 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>1.1.9</version>
+    <version>1.1.10</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
@@ -15,9 +15,9 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <aws-sdk.version>1.11.800</aws-sdk.version>
-        <aws-athena-federation-sdk.version>2021.51.1</aws-athena-federation-sdk.version>
+        <aws-athena-federation-sdk.version>2022.02.1</aws-athena-federation-sdk.version>
         <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
-        <aws.lambda-java-log4j2.version>1.5.0</aws.lambda-java-log4j2.version>
+        <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
         <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
         <mockito.version>1.10.19</mockito.version>
         <junit.version>4.13.1</junit.version>
@@ -25,7 +25,7 @@
         <fasterxml.jackson.version>2.10.5</fasterxml.jackson.version>
         <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M5</surefire.failsafe.version>
-        <log4j2Version>2.17.0</log4j2Version>
+        <log4j2Version>2.17.1</log4j2Version>
     </properties>
 
     <organization>
