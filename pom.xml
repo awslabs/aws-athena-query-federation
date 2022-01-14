@@ -17,7 +17,7 @@
         <aws-sdk.version>1.11.800</aws-sdk.version>
         <aws-athena-federation-sdk.version>2021.51.1</aws-athena-federation-sdk.version>
         <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
-        <aws.lambda-java-log4j2.version>1.5.0</aws.lambda-java-log4j2.version>
+        <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
         <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
         <mockito.version>1.10.19</mockito.version>
         <junit.version>4.13.1</junit.version>
@@ -25,7 +25,7 @@
         <fasterxml.jackson.version>2.10.5</fasterxml.jackson.version>
         <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M5</surefire.failsafe.version>
-        <log4j2Version>2.17.0</log4j2Version>
+        <log4j2Version>2.17.1</log4j2Version>
     </properties>
 
     <organization>
