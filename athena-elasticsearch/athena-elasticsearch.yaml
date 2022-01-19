@@ -76,7 +76,7 @@ Resources:
       Handler: "com.amazonaws.athena.connectors.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-2022.2.1.jar"
       Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
-      Runtime: java8
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:
