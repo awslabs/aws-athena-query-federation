@@ -419,7 +419,7 @@ public class ElasticsearchTypeUtilsTest
                 "mydate", new Long("1589796930124"),
                 "mydatestring", new Long("1589883330457"),
                 "mydatelist", new Long("1589969730789"),
-                "mydatestringlist", new Long("1589525370123"));
+                "mydatestringlist", new Long("1589543370123"));
         Map<String, Object> extractedResults = testField(mapping, document);
         logger.info("makeDateMilliExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
