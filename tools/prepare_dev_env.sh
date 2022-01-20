@@ -45,13 +45,12 @@ echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.profile
 echo "export M2_HOME=/opt/apache-maven-3.5.4" >> ~/.bash_profile
 echo "export PATH=\${M2_HOME}/bin:\${PATH}" >> ~/.bash_profile
 
-sudo yum -y install java-1.8.0-openjdk-devel
-sudo update-alternatives --set java /usr/lib/jvm/jre-1.8.0-openjdk.x86_64/bin/java
-sudo update-alternatives --set javac /usr/lib/jvm/java-1.8.0-openjdk.x86_64/bin/javac
+sudo yum -y install java-11-openjdk-devel
+# If using amazon linux and the above doesn't work, you can try this line instead
+# sudo amazon-linux-extras install -y java-openjdk11
 
-# If the above update-alternatives doesn't work and you don't know your path try
-#  sudo update-alternatives --config java
-#  sudo update-alternatives --config javac
+echo "Set the default to the Java 11 installation"
+sudo update-alternatives --config java
 
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
 test -d ~/.linuxbrew && eval $(~/.linuxbrew/bin/brew shellenv)
