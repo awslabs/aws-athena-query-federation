@@ -58,7 +58,7 @@ Resources:
       Handler: "com.amazonaws.athena.connectors.dynamodb.DynamoDBCompositeHandler"
       CodeUri: "./target/athena-dynamodb-2022.2.1.jar"
       Description: "Enables Amazon Athena to communicate with DynamoDB, making your tables accessible via SQL"
-      Runtime: java8
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Role: !GetAtt FunctionRole.Arn

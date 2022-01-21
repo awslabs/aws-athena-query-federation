@@ -13,8 +13,6 @@
     <version>${aws-athena-federation-sdk.version}</version>
 
     <properties>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
         <slf4jVersion>1.7.30</slf4jVersion>
     </properties>
 

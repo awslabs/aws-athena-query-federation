@@ -57,7 +57,7 @@ Resources:
       Handler: "com.amazonaws.athena.connectors.example.ExampleCompositeHandler"
       CodeUri: "./target/athena-example-2022.2.1.jar"
       Description: "A guided example for writing and deploying your own federated Amazon Athena connector for a custom source."
-      Runtime: java8
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:
