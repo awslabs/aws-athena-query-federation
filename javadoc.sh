@@ -1,1 +1,1 @@
-/home/ec2-user/actions-runner/_work/_tool/jdk/8.0.312/x64/jre/../bin/javadoc @options @packages
+/home/ec2-user/actions-runner/_work/_tool/jdk/11.0.14/x64/bin/javadoc @options @packages
