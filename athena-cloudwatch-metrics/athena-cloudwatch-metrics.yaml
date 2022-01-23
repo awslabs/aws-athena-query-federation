@@ -49,7 +49,7 @@ Resources:
       Handler: "com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsCompositeHandler"
       CodeUri: "./target/athena-cloudwatch-metrics-2022.2.1.jar"
       Description: "Enables Amazon Athena to communicate with Cloudwatch Metrics, making your metrics data accessible via SQL"
-      Runtime: java8
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:
