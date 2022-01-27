@@ -41,7 +41,8 @@ public interface JdbcConnectionFactory
     {
         MYSQL("mysql"),
         POSTGRES("postgres"),
-        REDSHIFT("redshift");
+        REDSHIFT("redshift"),
+        SAPHANA("sap");
 
         private final String dbName;
 

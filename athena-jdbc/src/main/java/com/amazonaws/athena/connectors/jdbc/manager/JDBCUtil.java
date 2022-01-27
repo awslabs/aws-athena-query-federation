@@ -26,6 +26,8 @@ import com.amazonaws.athena.connectors.jdbc.mysql.MySqlMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.mysql.MySqlRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlRecordHandler;
+import com.amazonaws.athena.connectors.jdbc.saphana.SapHanaMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.saphana.SapHanaRecordHandler;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 
@@ -103,6 +105,8 @@ public final class JDBCUtil
             case REDSHIFT:
             case POSTGRES:
                 return new PostGreSqlMetadataHandler(databaseConnectionConfig);
+            case SAPHANA:
+                return new SapHanaMetadataHandler(databaseConnectionConfig);
             default:
                 throw new RuntimeException("Mux: Unhandled database engine " + databaseConnectionConfig.getType());
         }
@@ -152,6 +156,8 @@ public final class JDBCUtil
             case REDSHIFT:
             case POSTGRES:
                 return new PostGreSqlRecordHandler(databaseConnectionConfig);
+            case SAPHANA:
+                return new SapHanaRecordHandler(databaseConnectionConfig);
             default:
                 throw new RuntimeException("Mux: Unhandled database engine " + databaseConnectionConfig.getType());
         }

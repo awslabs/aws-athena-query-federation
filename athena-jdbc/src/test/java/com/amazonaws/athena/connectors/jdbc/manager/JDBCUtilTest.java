@@ -23,6 +23,8 @@ import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlMetadataHandler
 import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.mysql.MySqlMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.mysql.MySqlRecordHandler;
+import com.amazonaws.athena.connectors.jdbc.saphana.SapHanaMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.saphana.SapHanaRecordHandler;
 import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,7 +37,7 @@ public class JDBCUtilTest
     private static final int PORT = 1111;
     private static final String CONNECTION_STRING1 = "mysql://jdbc:mysql://hostname/${testSecret}";
     private static final String CONNECTION_STRING2 = "postgres://jdbc:postgresql://hostname/user=testUser&password=testPassword";
-
+    private static final String CONNECTION_STRING3 = "saphana://jdbc:sap://hostname/user=testUser&password=testPassword";
 
     @Test
     public void createJdbcMetadataHandlerMap()
@@ -43,13 +45,15 @@ public class JDBCUtilTest
         Map<String, JdbcMetadataHandler> catalogs = JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
+                .put("testCatalog3_connection_string", CONNECTION_STRING3)
                 .put("default", CONNECTION_STRING2)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build());
 
-        Assert.assertEquals(4, catalogs.size());
+        Assert.assertEquals(5, catalogs.size());
         Assert.assertEquals(catalogs.get("testCatalog1").getClass(), MySqlMetadataHandler.class);
         Assert.assertEquals(catalogs.get("testCatalog2").getClass(), PostGreSqlMetadataHandler.class);
+        Assert.assertEquals(catalogs.get("testCatalog3").getClass(), SapHanaMetadataHandler.class);
         Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), PostGreSqlMetadataHandler.class);
     }
 
@@ -65,6 +69,7 @@ public class JDBCUtilTest
         JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
+                .put("testCatalog3_connection_string", CONNECTION_STRING3)
                 .build());
     }
 
@@ -75,12 +80,14 @@ public class JDBCUtilTest
         Map<String, JdbcRecordHandler> catalogs = JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
+                .put("testCatalog3_connection_string", CONNECTION_STRING3)
                 .put("default", CONNECTION_STRING2)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
                 .build());
 
         Assert.assertEquals(catalogs.get("testCatalog1").getClass(), MySqlRecordHandler.class);
         Assert.assertEquals(catalogs.get("testCatalog2").getClass(), PostGreSqlRecordHandler.class);
+        Assert.assertEquals(catalogs.get("testCatalog3").getClass(), SapHanaRecordHandler.class);
         Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), PostGreSqlRecordHandler.class);
     }
 
@@ -96,6 +103,7 @@ public class JDBCUtilTest
         JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
+                .put("testCatalog3_connection_string", CONNECTION_STRING3)
                 .build());
     }
 }

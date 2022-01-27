@@ -24,6 +24,13 @@
     "mysql_db_name": "<DB Name>",         /* Name of the Db used by the MySql integration tests */
     "mysql_db_port": <Port (Integer)>,    /* Port number associated with the MySql instance endpoint */
     "mysql_table_movies": "<Table Name>",       /* MySql table name */
-    "mysql_table_bday": "<Table Name>"          /* MySql table name */
+    "mysql_table_bday": "<Table Name>",          /* MySql table name */
+    "saphana_db_name": "<DB Name>",             /* Name of the Db used by the HANA integration tests */
+    "saphana_db_port": "<DB Port>",             /* Port number HANA instance */
+    "saphana_table_movies": "<Table Name>",     /* HANA table name */
+    "saphana_table_bday": "<Table Name>",       /* HANA table name */
+    "saphana_software_s3_bucket": "<S3 Bucket>",    /* S3 BUCKET with HANA EXPRESS Software s3://... */
+    "saphana_ec2_iam_role": "<Instance Role>",      /* Instance Role with S3 and SSM Access (debugging) */
+    "saphana_ec2_ami": "<EC2 AMI Id>"          /* AMI -> SLES 15 SP3 */
   }
 }
