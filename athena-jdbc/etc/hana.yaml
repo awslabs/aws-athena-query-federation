@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "SAP HANA Express + AWS SSM Agent"
+Parameters: 
+  SubnetParameter: 
+    Type: "AWS::EC2::Subnet::Id"
+    Description: "Provide Subnet"
+  SecurityGroupParameter: 
+    Type: "AWS::EC2::SecurityGroup::Id"
+    Description: "Provide Security Group ID, Port 39015"
+  SoftwareParameter: 
+    Type: "String"
+    Description: "S3 Bucket with HANA EXPRESS software s3://..."
+  InstanceRoleParameter: 
+    Type: "String"
+    Description: "Access for S3 & SSM (debugging)"
+  AMIParameter: 
+    Type: "String"
+    Description: "SLES 15 SP3"
+  DBPasswordParameter: 
+    Type: "String"
+    Description: "Provide HANA Master Password"
+    NoEcho: true
+Resources:
+  NewInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref AMIParameter
+      InstanceType: "r5.xlarge"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo 'Installing SSM...'
+          mkdir /tmp/ssm
+          cd /tmp/ssm
+          wget https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          sudo rpm --install amazon-ssm-agent.rpm
+          sudo systemctl enable amazon-ssm-agent
+          sudo systemctl restart amazon-ssm-agent
+          echo '...done!'
+          
+          masterpw=${DBPasswordParameter}
+          
+          echo 'Installing SAP HANA...'
+          sudo -i
+          zypper --non-interactive install insserv
+          zypper --non-interactive install libltdl7
+          mkdir /hanaexpress
+          cd /hanaexpress
+          aws s3 cp ${SoftwareParameter} . --recursive
+          tar -xvzf hxe.tgz
+          currenthostname=$(hostname)
+          ./setup_hxe.sh <<EOF
+          y
+          /hanaexpress/HANA_EXPRESS_20
+          HXE
+          90
+          $currenthostname
+          $masterpw
+          $masterpw
+          y
+          EOF
+          
+          echo '...done!'
+      IamInstanceProfile: !Ref InstanceRoleParameter
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sda1"
+        Ebs: 
+          VolumeType: "gp2"
+          DeleteOnTermination: "true"
+          VolumeSize: "500"
+      NetworkInterfaces: 
+      - DeviceIndex: 0
+        Description: "Primary network interface"
+        DeleteOnTermination: true
+        SubnetId: !Ref SubnetParameter
+        Ipv6AddressCount: 0
+        GroupSet: 
+        - !Ref SecurityGroupParameter
+Outputs:
+  DnsName:
+    Description: Server Private Hostname
+    Value: !GetAtt NewInstance.PublicDnsName
+    Export:
+      Name: !Sub "${AWS::StackName}-PublicDnsName"
