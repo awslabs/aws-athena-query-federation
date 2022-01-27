@@ -64,6 +64,8 @@ public class S3BlockSpiller
     private static final long ASYNC_SHUTDOWN_MILLIS = 10_000;
     //The default max number of rows that are allowed to be written per call to writeRows(...)
     private static final int MAX_ROWS_PER_CALL = 100;
+    //Config to set spill queue capacity
+    private static final String SPILL_QUEUE_CAPACITY = "SPILL_QUEUE_CAPACITY";
 
     //Used to write to S3
     private final AmazonS3 amazonS3;
@@ -443,10 +445,15 @@ public class S3BlockSpiller
      */
     private ThreadPoolExecutor makeAsyncSpillPool(SpillConfig config)
     {
+        int spillQueueCapacity = config.getNumSpillThreads();
+        if (System.getenv(SPILL_QUEUE_CAPACITY) != null) {
+            spillQueueCapacity = Integer.parseInt(System.getenv(SPILL_QUEUE_CAPACITY));
+            logger.debug("Setting Spill Queue Capacity to {}", spillQueueCapacity);
+        }
         return new ThreadPoolExecutor(config.getNumSpillThreads(),
                 config.getNumSpillThreads(),
                 0L,
                 TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(config.getNumSpillThreads()));
+                new LinkedBlockingQueue<>(spillQueueCapacity));
     }
 }

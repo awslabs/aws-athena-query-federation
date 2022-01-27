@@ -58,7 +58,7 @@ Resources:
       Handler: "com.amazonaws.athena.connectors.redis.RedisCompositeHandler"
       CodeUri: "./target/athena-redis-2022.2.1.jar"
       Description: "Enables Amazon Athena to communicate with Redis, making your Redis data accessible via SQL"
-      Runtime: java8
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:

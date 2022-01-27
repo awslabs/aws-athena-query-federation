@@ -49,7 +49,7 @@ Resources:
       Handler: "com.amazonaws.athena.connectors.tpcds.TPCDSCompositeHandler"
       CodeUri: "./target/athena-tpcds-2022.2.1.jar"
       Description: "This connector enables Amazon Athena to communicate with a randomly generated TPC-DS data source."
-      Runtime: java8
+      Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:
