@@ -29,6 +29,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -52,14 +53,14 @@ public class MultiplexingJdbcRecordHandler
     private static final int MAX_CATALOGS_TO_MULTIPLEX = 100;
     private final Map<String, JdbcRecordHandler> recordHandlerMap;
 
-    public MultiplexingJdbcRecordHandler()
+    public MultiplexingJdbcRecordHandler(JdbcRecordHandlerFactory jdbcRecordHandlerFactory)
     {
-        this.recordHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcRecordHandlerMap(System.getenv()), "Could not find any delegatee.");
+        this.recordHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcRecordHandlerMap(System.getenv(), jdbcRecordHandlerFactory), "Could not find any delegatee.");
     }
 
     @VisibleForTesting
-    MultiplexingJdbcRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                  final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    protected MultiplexingJdbcRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
+            final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
     {
         super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
         this.recordHandlerMap = Validate.notEmpty(recordHandlerMap, "recordHandlerMap must not be empty");
