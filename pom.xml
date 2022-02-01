@@ -74,6 +74,9 @@
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>
         <module>athena-federation-sdk-tools</module>
+        <module>athena-mysql</module>
+        <module>athena-postgresql</module>
+        <module>athena-redshift</module>
         <module>athena-udfs</module>
         <module>athena-vertica</module>
         <module>athena-timestream</module>
