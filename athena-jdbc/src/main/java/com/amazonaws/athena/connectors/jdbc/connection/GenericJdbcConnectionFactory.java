@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.jdbc.connection;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,23 +46,10 @@ public class GenericJdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
 
-    private static final String MYSQL_DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
-    private static final int MYSQL_DEFAULT_PORT = 3306;
-
-    private static final String POSTGRESQL_DRIVER_CLASS = "org.postgresql.Driver";
-    private static final int POSTGRESQL_DEFAULT_PORT = 5432;
-
-    private static final String REDSHIFT_DRIVER_CLASS = "com.amazon.redshift.jdbc.Driver";
-    private static final int REDSHIFT_DEFAULT_PORT = 5439;
-
     private static final String SECRET_NAME_PATTERN_STRING = "(\\$\\{[a-zA-Z0-9:/_+=.@-]+})";
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
-    private static final ImmutableMap<DatabaseEngine, DatabaseConnectionInfo> CONNECTION_INFO = ImmutableMap.of(
-            DatabaseEngine.MYSQL, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT),
-            DatabaseEngine.POSTGRES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT),
-            DatabaseEngine.REDSHIFT, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT));
-
+    private final DatabaseConnectionInfo databaseConnectionInfo;
     private final DatabaseConnectionConfig databaseConnectionConfig;
     private final Properties jdbcProperties;
 
@@ -71,8 +57,9 @@ public class GenericJdbcConnectionFactory
      * @param databaseConnectionConfig database connection configuration {@link DatabaseConnectionConfig}
      * @param properties JDBC connection properties.
      */
-    public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties)
+    public GenericJdbcConnectionFactory(final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, String> properties, final DatabaseConnectionInfo databaseConnectionInfo)
     {
+        this.databaseConnectionInfo = Validate.notNull(databaseConnectionInfo, "databaseConnectionInfo must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseEngine must not be null");
 
         this.jdbcProperties = new Properties();
@@ -85,8 +72,6 @@ public class GenericJdbcConnectionFactory
     public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
     {
         try {
-            DatabaseConnectionInfo databaseConnectionInfo = CONNECTION_INFO.get(this.databaseConnectionConfig.getType());
-
             final String derivedJdbcString;
             if (jdbcCredentialProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());

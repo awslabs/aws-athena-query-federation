@@ -36,9 +36,9 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
 
@@ -53,7 +53,7 @@ public class MultiplexingJdbcMetadataHandler
         extends JdbcMetadataHandler
 {
     private static final int MAX_CATALOGS_TO_MULTIPLEX = 100;
-    private final Map<String, JdbcMetadataHandler> metadataHandlerMap;
+    protected Map<String, JdbcMetadataHandler> metadataHandlerMap;
 
     static final String CATALOG_NOT_REGISTERED_ERROR_TEMPLATE = "Catalog is not supported in multiplexer. After registering the catalog in Athena, must set " +
             "'%s_connection_string' environment variable in Lambda. See JDBC connector README for further details.";
@@ -61,8 +61,7 @@ public class MultiplexingJdbcMetadataHandler
     /**
      * @param metadataHandlerMap catalog -> JdbcMetadataHandler
      */
-    @VisibleForTesting
-    MultiplexingJdbcMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
+    protected MultiplexingJdbcMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
             final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
@@ -76,9 +75,9 @@ public class MultiplexingJdbcMetadataHandler
     /**
      * Initializes mux routing map. Creates a reverse index of Athena catalogs supported by a database instance. Max 100 catalogs supported currently.
      */
-    public MultiplexingJdbcMetadataHandler()
+    protected MultiplexingJdbcMetadataHandler(JdbcMetadataHandlerFactory jdbcMetadataHandlerFactory)
     {
-        this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(System.getenv()), "Could not find any delegatee.");
+        this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(System.getenv(), jdbcMetadataHandlerFactory), "Could not find any delegatee.");
     }
 
     private void validateMultiplexer(final String catalogName)
