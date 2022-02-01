@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-postgresql
+ * athena-mysql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -18,7 +18,7 @@
  * #L%
  */
 
-package com.amazonaws.athena.connectors.postgresql;
+package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -32,32 +32,32 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
 
-class PostGreSqlMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
+class MySqlMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
 {
     @Override
     public String getEngine()
     {
-        return POSTGRES_NAME;
+        return MYSQL_NAME;
     }
 
     @Override
     public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
     {
-        return new PostGreSqlRecordHandler(config);
+        return new MySqlRecordHandler(config);
     }
 }
 
-public class PostGreSqlMuxRecordHandler extends MultiplexingJdbcRecordHandler
+public class MySqlMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public PostGreSqlMuxRecordHandler()
+    public MySqlMuxRecordHandler()
     {
-        super(new PostGreSqlMuxRecordHandlerFactory());
+        super(new MySqlMuxRecordHandlerFactory());
     }
 
     @VisibleForTesting
-    PostGreSqlMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
+    MySqlMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
             final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
     {
         super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
