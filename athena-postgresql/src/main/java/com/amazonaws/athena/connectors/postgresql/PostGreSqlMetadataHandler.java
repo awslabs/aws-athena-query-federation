@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.postgresql;
+package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -29,8 +29,8 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
@@ -57,6 +57,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRESQL_DEFAULT_PORT;
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRESQL_DRIVER_CLASS;
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
+
 /**
  * Handles metadata for PostGreSql. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
  * information_schema.
@@ -64,14 +68,15 @@ import java.util.Set;
 public class PostGreSqlMetadataHandler
         extends JdbcMetadataHandler
 {
-    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
-    static final String GET_PARTITIONS_QUERY = "SELECT nmsp_child.nspname AS child_schema, child.relname AS child FROM pg_inherits JOIN pg_class parent " +
+    // These are public so that redshift can use them from a different package.
+    public static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
+    public static final String GET_PARTITIONS_QUERY = "SELECT nmsp_child.nspname AS child_schema, child.relname AS child FROM pg_inherits JOIN pg_class parent " +
             "ON pg_inherits.inhparent = parent.oid JOIN pg_class child ON pg_inherits.inhrelid = child.oid JOIN pg_namespace nmsp_parent " +
             "ON nmsp_parent.oid = parent.relnamespace JOIN pg_namespace nmsp_child ON nmsp_child.oid = child.relnamespace where nmsp_parent.nspname = ? " +
             "AND parent.relname = ?";
-    static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
-    static final String BLOCK_PARTITION_SCHEMA_COLUMN_NAME = "partition_schema_name";
-    static final String ALL_PARTITIONS = "*";
+    public static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
+    public static final String BLOCK_PARTITION_SCHEMA_COLUMN_NAME = "partition_schema_name";
+    public static final String ALL_PARTITIONS = "*";
     private static final Logger LOGGER = LoggerFactory.getLogger(PostGreSqlMetadataHandler.class);
     private static final String PARTITION_SCHEMA_NAME = "child_schema";
     private static final String PARTITION_NAME = "child";
@@ -80,16 +85,16 @@ public class PostGreSqlMetadataHandler
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
-     * Recommend using {@link MultiplexingJdbcCompositeHandler} instead.
+     * Recommend using {@link PostGreSqlMuxCompositeHandler} instead.
      */
     public PostGreSqlMetadataHandler()
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.POSTGRES));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(POSTGRES_NAME));
     }
 
     public PostGreSqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)));
     }
 
     @VisibleForTesting
@@ -97,6 +102,11 @@ public class PostGreSqlMetadataHandler
             final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+    }
+
+    protected PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory genericJdbcConnectionFactory)
+    {
+        super(databaseConnectionConfig, genericJdbcConnectionFactory);
     }
 
     @Override

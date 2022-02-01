@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-redshift
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.postgresql;
+package com.amazonaws.athena.connectors.redshift;
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
@@ -33,6 +33,8 @@ import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
+import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
+import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -56,11 +58,14 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
-public class PostGreSqlRecordHandlerTest extends TestBase
-{
-    private static final Logger logger = LoggerFactory.getLogger(PostGreSqlRecordHandlerTest.class);
+import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
 
-    private PostGreSqlRecordHandler postGreSqlRecordHandler;
+public class RedshiftRecordHandlerTest
+        extends TestBase
+{
+    private static final Logger logger = LoggerFactory.getLogger(RedshiftRecordHandlerTest.class);
+
+    private RedshiftRecordHandler redshiftRecordHandler;
     private Connection connection;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
@@ -78,10 +83,10 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"");
-        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", JdbcConnectionFactory.DatabaseEngine.MYSQL,
-                "mysql://jdbc:mysql://hostname/user=A&password=B");
+        final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
+                "redshift://jdbc:redshift://hostname/user=A&password=B");
 
-        this.postGreSqlRecordHandler = new PostGreSqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
     }
 
     @Test
@@ -146,7 +151,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
-        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+        PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1)).setInt(1, 1);
@@ -194,7 +199,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
-        PreparedStatement preparedStatement = this.postGreSqlRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
+        PreparedStatement preparedStatement = this.redshiftRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
         Mockito.verify(preparedStatement, Mockito.times(1))

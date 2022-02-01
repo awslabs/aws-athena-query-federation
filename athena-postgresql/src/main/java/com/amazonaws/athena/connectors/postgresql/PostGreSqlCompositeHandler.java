@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-postgresql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,16 +17,15 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.postgresql;
+package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link PostGreSqlMetadataHandler} and {@link PostGreSqlRecordHandler}.
  *
- * Recommend using {@link MultiplexingJdbcCompositeHandler} instead.
+ * Recommend using {@link PostGreSqlMuxCompositeHandler} instead.
  */
 public class PostGreSqlCompositeHandler
         extends CompositeHandler
