@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-postgresql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.postgresql;
+package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
@@ -34,7 +34,7 @@ import java.util.List;
 public class PostGreSqlQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    PostGreSqlQueryStringBuilder(final String quoteCharacters)
+    public PostGreSqlQueryStringBuilder(final String quoteCharacters)
     {
         super(quoteCharacters);
     }

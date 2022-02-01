@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-mysql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,13 +17,13 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.mysql;
+package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
@@ -45,6 +45,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DEFAULT_PORT;
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DRIVER_CLASS;
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
+
 /**
  * Data handler, user must have necessary permissions to read from necessary tables.
  */
@@ -60,16 +64,16 @@ public class MySqlRecordHandler
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
-     * Recommend using {@link MultiplexingJdbcCompositeHandler} instead.
+     * Recommend using {@link MySqlMuxCompositeHandler} instead.
      */
     public MySqlRecordHandler()
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.MYSQL));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(MYSQL_NAME));
     }
 
     public MySqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, MySqlMetadataHandler.JDBC_PROPERTIES));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, MySqlMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT)));
     }
 
     public MySqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)

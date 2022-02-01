@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-mysql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.mysql;
+package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -29,8 +29,8 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
@@ -56,6 +56,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DEFAULT_PORT;
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_DRIVER_CLASS;
+import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
+
 /**
  * Handles metadata for MySQL. User must have access to `schemata`, `tables`, `columns`, `partitions` tables in
  * information_schema.
@@ -75,11 +79,11 @@ public class MySqlMetadataHandler
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
-     * Recommend using {@link MultiplexingJdbcCompositeHandler} instead.
+     * Recommend using {@link MySqlMuxCompositeHandler} instead.
      */
     public MySqlMetadataHandler()
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.MYSQL));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(MYSQL_NAME));
     }
 
     /**
@@ -87,7 +91,7 @@ public class MySqlMetadataHandler
      */
     public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT)));
     }
 
     public MySqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)

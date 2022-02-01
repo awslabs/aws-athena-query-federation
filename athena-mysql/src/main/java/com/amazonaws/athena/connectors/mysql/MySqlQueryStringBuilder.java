@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-mysql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.mysql;
+package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;

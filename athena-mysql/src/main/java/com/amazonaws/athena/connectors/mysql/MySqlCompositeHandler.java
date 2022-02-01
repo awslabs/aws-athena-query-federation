@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-mysql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,16 +17,15 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.mysql;
+package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link MySqlMetadataHandler} and {@link MySqlRecordHandler}.
  *
- * Recommend using {@link MultiplexingJdbcCompositeHandler} instead.
+ * Recommend using {@link MySqlMuxCompositeHandler} instead.
  */
 public class MySqlCompositeHandler
         extends CompositeHandler

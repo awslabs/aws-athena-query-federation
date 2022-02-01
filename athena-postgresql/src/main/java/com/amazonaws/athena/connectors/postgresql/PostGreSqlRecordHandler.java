@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-postgresql
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,13 +17,13 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.postgresql;
+package com.amazonaws.athena.connectors.postgresql;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JDBCUtil;
@@ -45,6 +45,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRESQL_DEFAULT_PORT;
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRESQL_DRIVER_CLASS;
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
+import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_QUOTE_CHARACTER;
+
 public class PostGreSqlRecordHandler
         extends JdbcRecordHandler
 {
@@ -54,26 +59,24 @@ public class PostGreSqlRecordHandler
 
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 
-    private static final String POSTGRES_QUOTE_CHARACTER = "\"";
-
     /**
      * Instantiates handler to be used by Lambda function directly.
      *
-     * Recommend using {@link MultiplexingJdbcCompositeHandler} instead.
+     * Recommend using {@link PostGreSqlMuxCompositeHandler} instead.
      */
     public PostGreSqlRecordHandler()
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(JdbcConnectionFactory.DatabaseEngine.POSTGRES));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(POSTGRES_NAME));
     }
 
     public PostGreSqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, PostGreSqlMetadataHandler.JDBC_PROPERTIES), new PostGreSqlQueryStringBuilder(POSTGRES_QUOTE_CHARACTER));
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, PostGreSqlMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)), new PostGreSqlQueryStringBuilder(POSTGRES_QUOTE_CHARACTER));
     }
 
     @VisibleForTesting
-    PostGreSqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
+    protected PostGreSqlRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
             final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
     {
         super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);

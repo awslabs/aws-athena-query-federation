@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-jdbc
+ * athena-redshift
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.jdbc.postgresql;
+package com.amazonaws.athena.connectors.redshift;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -38,6 +38,7 @@ import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
+import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
@@ -70,14 +71,14 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class PostGreSqlMetadataHandlerTest
+public class RedshiftMetadataHandlerTest
         extends TestBase
 {
-    private static final Logger logger = LoggerFactory.getLogger(PostGreSqlMetadataHandlerTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(RedshiftMetadataHandlerTest.class);
 
-    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", JdbcConnectionFactory.DatabaseEngine.MYSQL,
-            "mysql://jdbc:mysql://hostname/user=A&password=B");
-    private PostGreSqlMetadataHandler postGreSqlMetadataHandler;
+    private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
+            "redshift://jdbc:redshift://hostname/user=A&password=B");
+    private RedshiftMetadataHandler redshiftMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;
     private FederatedIdentity federatedIdentity;
@@ -92,7 +93,7 @@ public class PostGreSqlMetadataHandlerTest
         Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.postGreSqlMetadataHandler = new PostGreSqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        this.redshiftMetadataHandler = new RedshiftMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
 
@@ -102,7 +103,7 @@ public class PostGreSqlMetadataHandlerTest
         Assert.assertEquals(SchemaBuilder.newBuilder()
                         .addField(PostGreSqlMetadataHandler.BLOCK_PARTITION_SCHEMA_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType())
                         .addField(PostGreSqlMetadataHandler.BLOCK_PARTITION_COLUMN_NAME, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build(),
-                this.postGreSqlMetadataHandler.getPartitionSchema("testCatalogName"));
+                this.redshiftMetadataHandler.getPartitionSchema("testCatalogName"));
     }
 
     @Test
@@ -112,7 +113,7 @@ public class PostGreSqlMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.postGreSqlMetadataHandler.getPartitionSchema("testCatalogName");
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
@@ -127,7 +128,7 @@ public class PostGreSqlMetadataHandlerTest
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
 
-        GetTableLayoutResponse getTableLayoutResponse = this.postGreSqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+        GetTableLayoutResponse getTableLayoutResponse = this.redshiftMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
 
@@ -155,7 +156,7 @@ public class PostGreSqlMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.postGreSqlMetadataHandler.getPartitionSchema("testCatalogName");
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
@@ -170,7 +171,7 @@ public class PostGreSqlMetadataHandlerTest
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
 
-        GetTableLayoutResponse getTableLayoutResponse = this.postGreSqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+        GetTableLayoutResponse getTableLayoutResponse = this.redshiftMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(1, getTableLayoutResponse.getPartitions().getRowCount());
 
@@ -197,7 +198,7 @@ public class PostGreSqlMetadataHandlerTest
     {
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.postGreSqlMetadataHandler.getPartitionSchema("testCatalogName");
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
@@ -205,9 +206,9 @@ public class PostGreSqlMetadataHandlerTest
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        PostGreSqlMetadataHandler postGreSqlMetadataHandler = new PostGreSqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        RedshiftMetadataHandler redshiftMetadataHandler = new RedshiftMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
 
-        postGreSqlMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
+        redshiftMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
 
     @Test
@@ -217,7 +218,7 @@ public class PostGreSqlMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.postGreSqlMetadataHandler.getPartitionSchema("testCatalogName");
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
@@ -232,11 +233,11 @@ public class PostGreSqlMetadataHandlerTest
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
 
-        GetTableLayoutResponse getTableLayoutResponse = this.postGreSqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+        GetTableLayoutResponse getTableLayoutResponse = this.redshiftMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
-        GetSplitsResponse getSplitsResponse = this.postGreSqlMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+        GetSplitsResponse getSplitsResponse = this.redshiftMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(ImmutableMap.of("partition_schema_name", "s0", "partition_name", "p0"));
@@ -253,7 +254,7 @@ public class PostGreSqlMetadataHandlerTest
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         Constraints constraints = Mockito.mock(Constraints.class);
         TableName tableName = new TableName("testSchema", "testTable");
-        Schema partitionSchema = this.postGreSqlMetadataHandler.getPartitionSchema("testCatalogName");
+        Schema partitionSchema = this.redshiftMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
 
@@ -269,11 +270,11 @@ public class PostGreSqlMetadataHandlerTest
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
 
-        GetTableLayoutResponse getTableLayoutResponse = this.postGreSqlMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
+        GetTableLayoutResponse getTableLayoutResponse = this.redshiftMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         BlockAllocator splitBlockAllocator = new BlockAllocatorImpl();
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "1");
-        GetSplitsResponse getSplitsResponse = this.postGreSqlMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
+        GetSplitsResponse getSplitsResponse = this.redshiftMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
         Set<Map<String, String>> expectedSplits = new HashSet<>();
         expectedSplits.add(ImmutableMap.of("partition_schema_name", "s1", "partition_name", "p1"));
@@ -320,7 +321,7 @@ public class PostGreSqlMetadataHandlerTest
                 .addListField("decimal_array", new ArrowType.Decimal(38, 2))
                 .addListField("string_array", new ArrowType.Utf8())
                 .addListField("uuid_array", new ArrowType.Utf8());
-        postGreSqlMetadataHandler.getPartitionSchema("testCatalog").getFields()
+        redshiftMetadataHandler.getPartitionSchema("testCatalog").getFields()
                 .forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
@@ -328,7 +329,7 @@ public class PostGreSqlMetadataHandlerTest
         Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
 
-        GetTableResponse getTableResponse = this.postGreSqlMetadataHandler.doGetTable(new BlockAllocatorImpl(),
+        GetTableResponse getTableResponse = this.redshiftMetadataHandler.doGetTable(new BlockAllocatorImpl(),
                 new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
 
         logger.info("Schema: {}", getTableResponse.getSchema());
