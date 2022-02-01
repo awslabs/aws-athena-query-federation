@@ -33,26 +33,4 @@ public interface JdbcConnectionFactory
      * @return JDBC connection. See {@link Connection}.
      */
     Connection getConnection(JdbcCredentialProvider jdbcCredentialProvider);
-
-    /**
-     * Databases supported to create JDBC connection.
-     */
-    enum DatabaseEngine
-    {
-        MYSQL("mysql"),
-        POSTGRES("postgres"),
-        REDSHIFT("redshift");
-
-        private final String dbName;
-
-        DatabaseEngine(final String dbName)
-        {
-            this.dbName = dbName;
-        }
-
-        public String getDbName()
-        {
-            return this.dbName;
-        }
-    }
 }

@@ -41,22 +41,22 @@ public final class JDBCUtil
     /**
      * Extracts default database configuration for a database. Used when a specific database instance handler is used by Lambda function.
      *
-     * @param databaseEngine database type. See {@link JdbcConnectionFactory.DatabaseEngine}.
+     * @param databaseEngine database type.
      * @return database connection confuiguration. See {@link DatabaseConnectionConfig}.
      */
-    public static DatabaseConnectionConfig getSingleDatabaseConfigFromEnv(final JdbcConnectionFactory.DatabaseEngine databaseEngine)
+    public static DatabaseConnectionConfig getSingleDatabaseConfigFromEnv(final String databaseEngine)
     {
-        List<DatabaseConnectionConfig> databaseConnectionConfigs = DatabaseConnectionConfigBuilder.buildFromSystemEnv();
+        List<DatabaseConnectionConfig> databaseConnectionConfigs = DatabaseConnectionConfigBuilder.buildFromSystemEnv(databaseEngine);
 
         for (DatabaseConnectionConfig databaseConnectionConfig : databaseConnectionConfigs) {
             if (DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY.equals(databaseConnectionConfig.getCatalog())
-                    && databaseEngine.equals(databaseConnectionConfig.getType())) {
+                    && databaseEngine.equals(databaseConnectionConfig.getEngine())) {
                 return databaseConnectionConfig;
             }
         }
 
         throw new RuntimeException(String.format("Must provide default connection string parameter %s for database type %s",
-                DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine.getDbName()));
+                DatabaseConnectionConfigBuilder.DEFAULT_CONNECTION_STRING_PROPERTY, databaseEngine));
     }
 
     /**
