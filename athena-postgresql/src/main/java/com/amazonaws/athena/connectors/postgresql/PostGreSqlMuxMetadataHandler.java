@@ -20,21 +20,21 @@
 
 package com.amazonaws.athena.connectors.postgresql;
 
-import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcRecordHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcMetadataHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandlerFactory;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandler;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcMetadataHandlerFactory;
 import com.amazonaws.services.athena.AmazonAthena;
-import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.util.VisibleForTesting;
 
 import java.util.Map;
 
 import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
 
-class PostGreSqlMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
+class PostGreSqlMetadataHandlerFactory
+        implements JdbcMetadataHandlerFactory
 {
     @Override
     public String getEngine()
@@ -43,23 +43,24 @@ class PostGreSqlMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
     {
-        return new PostGreSqlRecordHandler(config);
+        return new PostGreSqlMetadataHandler(config);
     }
 }
 
-public class PostGreSqlMuxRecordHandler extends MultiplexingJdbcRecordHandler
+public class PostGreSqlMuxMetadataHandler
+        extends MultiplexingJdbcMetadataHandler
 {
-    public PostGreSqlMuxRecordHandler()
+    public PostGreSqlMuxMetadataHandler()
     {
-        super(new PostGreSqlMuxRecordHandlerFactory());
+        super(new PostGreSqlMetadataHandlerFactory());
     }
 
     @VisibleForTesting
-    PostGreSqlMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    protected PostGreSqlMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
+            final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
     }
 }

@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-postgresql
+ * athena-redshift
  * %%
  * Copyright (C) 2019 Amazon Web Services
  * %%
@@ -18,7 +18,7 @@
  * #L%
  */
 
-package com.amazonaws.athena.connectors.postgresql;
+package com.amazonaws.athena.connectors.redshift;
 
 import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcRecordHandler;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -32,32 +32,33 @@ import com.google.common.annotations.VisibleForTesting;
 
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.postgresql.PostGreSqlConstants.POSTGRES_NAME;
+import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
 
-class PostGreSqlMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
+class RedshiftMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
 {
     @Override
     public String getEngine()
     {
-        return POSTGRES_NAME;
+        return REDSHIFT_NAME;
     }
 
     @Override
     public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
     {
-        return new PostGreSqlRecordHandler(config);
+        return new RedshiftRecordHandler(config);
     }
 }
 
-public class PostGreSqlMuxRecordHandler extends MultiplexingJdbcRecordHandler
+public class RedshiftMuxRecordHandler
+        extends MultiplexingJdbcRecordHandler
 {
-    public PostGreSqlMuxRecordHandler()
+    public RedshiftMuxRecordHandler()
     {
-        super(new PostGreSqlMuxRecordHandlerFactory());
+        super(new RedshiftMuxRecordHandlerFactory());
     }
 
     @VisibleForTesting
-    PostGreSqlMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
+    RedshiftMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
             final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
     {
         super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
