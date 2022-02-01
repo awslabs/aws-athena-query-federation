@@ -19,44 +19,122 @@
  */
 package com.amazonaws.athena.connectors.jdbc.manager;
 
-import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlMetadataHandler;
-import com.amazonaws.athena.connectors.jdbc.postgresql.PostGreSqlRecordHandler;
-import com.amazonaws.athena.connectors.jdbc.mysql.MySqlMetadataHandler;
-import com.amazonaws.athena.connectors.jdbc.mysql.MySqlRecordHandler;
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.google.common.collect.ImmutableMap;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 
 public class JDBCUtilTest
 {
-    private static final int PORT = 1111;
-    private static final String CONNECTION_STRING1 = "mysql://jdbc:mysql://hostname/${testSecret}";
-    private static final String CONNECTION_STRING2 = "postgres://jdbc:postgresql://hostname/user=testUser&password=testPassword";
+    private static final String CONNECTION_STRING1 = "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}";
+    private static final String CONNECTION_STRING2 = "notrealdb://jdbc:notrealdb://hostname/user=testUser&password=testPassword";
 
+    class FakeDatabaseJdbcMetadataHandler extends JdbcMetadataHandler {
+
+        @Override
+        public Schema getPartitionSchema(String catalogName)
+        {
+            return null;
+        }
+
+        @Override
+        public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+                throws Exception
+        {
+
+        }
+
+        @Override
+        public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
+        {
+            return null;
+        }
+    }
+
+    class FakeDatabaseJdbcRecordHandler extends JdbcRecordHandler {
+        @Override
+        public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
+                throws SQLException
+        {
+            return null;
+        }
+    }
+
+    class FakeDatabaseMetadataHandlerFactory implements JdbcMetadataHandlerFactory {
+
+        @Override
+        public String getEngine()
+        {
+            return "fakedatabase";
+        }
+
+        @Override
+        public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+        {
+            return new FakeDatabaseJdbcMetadataHandler();
+        }
+    }
+
+    class FakeDatabaseRecordHandlerFactory implements JdbcRecordHandlerFactory {
+
+        @Override
+        public String getEngine()
+        {
+            return "fakedatabase";
+        }
+
+        @Override
+        public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+        {
+            return new FakeDatabaseJdbcRecordHandler();
+        }
+    }
 
     @Test
     public void createJdbcMetadataHandlerMap()
     {
         Map<String, JdbcMetadataHandler> catalogs = JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
+                .put("default", CONNECTION_STRING1)
+                .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
+                .build(), new FakeDatabaseMetadataHandlerFactory());
+
+        Assert.assertEquals(3, catalogs.size());
+        Assert.assertEquals(catalogs.get("testCatalog1").getClass(), FakeDatabaseJdbcMetadataHandler.class);
+        Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), FakeDatabaseJdbcMetadataHandler.class);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void createJdbcMetadataHandlerMapDifferentDatabasesThrows()
+    {
+        Map<String, JdbcMetadataHandler> catalogs = JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
+                .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
                 .put("default", CONNECTION_STRING2)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
-                .build());
-
-        Assert.assertEquals(4, catalogs.size());
-        Assert.assertEquals(catalogs.get("testCatalog1").getClass(), MySqlMetadataHandler.class);
-        Assert.assertEquals(catalogs.get("testCatalog2").getClass(), PostGreSqlMetadataHandler.class);
-        Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), PostGreSqlMetadataHandler.class);
+                .build(), new FakeDatabaseMetadataHandlerFactory());
     }
 
     @Test(expected = RuntimeException.class)
     public void createJdbcMetadataHandlerEmptyConnectionStrings()
     {
-        JDBCUtil.createJdbcMetadataHandlerMap(Collections.emptyMap());
+        JDBCUtil.createJdbcMetadataHandlerMap(Collections.emptyMap(), new FakeDatabaseMetadataHandlerFactory());
     }
 
     @Test(expected = RuntimeException.class)
@@ -65,29 +143,39 @@ public class JDBCUtilTest
         JDBCUtil.createJdbcMetadataHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .build());
+                .put("default", CONNECTION_STRING2)
+                .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
+                .build(), new FakeDatabaseMetadataHandlerFactory());
     }
-
 
     @Test
     public void createJdbcRecordHandlerMap()
     {
         Map<String, JdbcRecordHandler> catalogs = JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
+                .put("default", CONNECTION_STRING1)
+                .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
+                .build(), new FakeDatabaseRecordHandlerFactory());
+
+        Assert.assertEquals(catalogs.get("testCatalog1").getClass(), FakeDatabaseJdbcRecordHandler.class);
+        Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), FakeDatabaseJdbcRecordHandler.class);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void createJdbcRecordHandlerMapDifferentDatabasesThrows()
+    {
+        Map<String, JdbcRecordHandler> catalogs = JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
+                .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
                 .put("default", CONNECTION_STRING2)
                 .put("AWS_LAMBDA_FUNCTION_NAME", "functionName")
-                .build());
-
-        Assert.assertEquals(catalogs.get("testCatalog1").getClass(), MySqlRecordHandler.class);
-        Assert.assertEquals(catalogs.get("testCatalog2").getClass(), PostGreSqlRecordHandler.class);
-        Assert.assertEquals(catalogs.get("lambda:functionName").getClass(), PostGreSqlRecordHandler.class);
+                .build(), new FakeDatabaseRecordHandlerFactory());
     }
 
     @Test(expected = RuntimeException.class)
     public void createJdbcRecordHandlerMapEmptyConnectionStrings()
     {
-        JDBCUtil.createJdbcRecordHandlerMap(Collections.emptyMap());
+        JDBCUtil.createJdbcRecordHandlerMap(Collections.emptyMap(), new FakeDatabaseRecordHandlerFactory());
     }
 
     @Test(expected = RuntimeException.class)
@@ -96,6 +184,6 @@ public class JDBCUtilTest
         JDBCUtil.createJdbcRecordHandlerMap(ImmutableMap.<String, String>builder()
                 .put("testCatalog1_connection_string", CONNECTION_STRING1)
                 .put("testCatalog2_connection_string", CONNECTION_STRING2)
-                .build());
+                .build(), new FakeDatabaseRecordHandlerFactory());
     }
 }
