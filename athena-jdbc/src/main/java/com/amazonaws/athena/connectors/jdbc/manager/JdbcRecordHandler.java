@@ -109,7 +109,7 @@ public abstract class JdbcRecordHandler
     protected JdbcRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, AmazonAthena athena, final DatabaseConnectionConfig databaseConnectionConfig,
             final JdbcConnectionFactory jdbcConnectionFactory)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig.getType().getDbName());
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig.getEngine());
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }

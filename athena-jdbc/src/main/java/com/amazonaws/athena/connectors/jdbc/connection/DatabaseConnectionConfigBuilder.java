@@ -45,16 +45,26 @@ public class DatabaseConnectionConfigBuilder
 
     private Map<String, String> properties;
 
+    private String engine;
+
     /**
      * Utility to build database instance connection configurations from Environment variables.
      *
+     * @param databaseEngine canonical name of engine (e.g. "postgres", "redshift", "mysql")
      * @return List of database connection configurations. See {@link DatabaseConnectionConfig}.
      */
-    public static List<DatabaseConnectionConfig> buildFromSystemEnv()
+    public static List<DatabaseConnectionConfig> buildFromSystemEnv(String databaseEngine)
     {
         return new DatabaseConnectionConfigBuilder()
                 .properties(System.getenv())
+                .engine(databaseEngine)
                 .build();
+    }
+
+    public DatabaseConnectionConfigBuilder engine(String engine)
+    {
+        this.engine = engine;
+        return this;
     }
 
     /**
@@ -123,13 +133,12 @@ public class DatabaseConnectionConfigBuilder
 
         Validate.notBlank(dbType, "Database type must not be blank.");
         Validate.notBlank(jdbcConnectionString, "JDBC Connection string must not be blank.");
-
-        JdbcConnectionFactory.DatabaseEngine databaseEngine = JdbcConnectionFactory.DatabaseEngine.valueOf(dbType.toUpperCase());
+        Validate.isTrue(dbType.equals(this.engine), "JDBC Connection string must be prepended by correct database type.");
 
         final Optional<String> optionalSecretName = extractSecretName(jdbcConnectionString);
 
-        return optionalSecretName.map(s -> new DatabaseConnectionConfig(catalogName, databaseEngine, jdbcConnectionString, s))
-                .orElseGet(() -> new DatabaseConnectionConfig(catalogName, databaseEngine, jdbcConnectionString));
+        return optionalSecretName.map(s -> new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString, s))
+                .orElseGet(() -> new DatabaseConnectionConfig(catalogName, this.engine, jdbcConnectionString));
     }
 
     private Optional<String> extractSecretName(final String jdbcConnectionString)

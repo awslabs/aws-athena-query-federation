@@ -29,43 +29,41 @@ import java.util.Objects;
 public class DatabaseConnectionConfig
 {
     private String catalog;
-    private final JdbcConnectionFactory.DatabaseEngine type;
+    private final String engine;
     private final String jdbcConnectionString;
     private String secret;
 
     /**
      * Creates configuration for credentials managed by AWS Secrets Manager.
-     *
      * @param catalog catalog name passed by Athena.
-     * @param type database type. See {@link JdbcConnectionFactory.DatabaseEngine}.
+     * @param engine database type.
      * @param jdbcConnectionString jdbc native database connection string of database type.
      * @param secret AWS Secrets Manager secret name.
      */
-    public DatabaseConnectionConfig(final String catalog, final JdbcConnectionFactory.DatabaseEngine type, final String jdbcConnectionString, final String secret)
+    public DatabaseConnectionConfig(final String catalog, final String engine, final String jdbcConnectionString, final String secret)
     {
         this.catalog = Validate.notBlank(catalog, "catalog must not be blank");
-        this.type = Validate.notNull(type, "type must not be blank");
+        this.engine = Validate.notBlank(engine, "engine must not be blank");
         this.jdbcConnectionString = Validate.notBlank(jdbcConnectionString, "jdbcConnectionString must not be blank");
         this.secret = Validate.notBlank(secret, "secret must not be blank");
     }
 
     /**
      * Creates configuration for credentials passed through JDBC connection string.
-     *
      * @param catalog catalog name passed by Athena.
-     * @param type database type. See {@link JdbcConnectionFactory.DatabaseEngine}.
+     * @param engine database type.
      * @param jdbcConnectionString jdbc native database connection string of database type.
      */
-    public DatabaseConnectionConfig(final String catalog, final JdbcConnectionFactory.DatabaseEngine type, final String jdbcConnectionString)
+    public DatabaseConnectionConfig(final String catalog, final String engine, final String jdbcConnectionString)
     {
         this.catalog = Validate.notBlank(catalog, "catalog must not be blank");
-        this.type = Validate.notNull(type, "type must not be blank");
+        this.engine = Validate.notBlank(engine, "engine must not be blank");
         this.jdbcConnectionString = Validate.notBlank(jdbcConnectionString, "jdbcConnectionString must not be blank");
     }
 
-    public JdbcConnectionFactory.DatabaseEngine getType()
+    public String getEngine()
     {
-        return type;
+        return engine;
     }
 
     public String getJdbcConnectionString()
@@ -94,7 +92,7 @@ public class DatabaseConnectionConfig
         }
         DatabaseConnectionConfig that = (DatabaseConnectionConfig) o;
         return Objects.equals(getCatalog(), that.getCatalog()) &&
-                getType() == that.getType() &&
+                getEngine().equals(that.getEngine()) &&
                 Objects.equals(getJdbcConnectionString(), that.getJdbcConnectionString()) &&
                 Objects.equals(getSecret(), that.getSecret());
     }
@@ -102,7 +100,7 @@ public class DatabaseConnectionConfig
     @Override
     public int hashCode()
     {
-        return Objects.hash(getCatalog(), getType(), getJdbcConnectionString(), getSecret());
+        return Objects.hash(getCatalog(), getEngine(), getJdbcConnectionString(), getSecret());
     }
 
     @Override
@@ -110,7 +108,7 @@ public class DatabaseConnectionConfig
     {
         return "DatabaseConnectionConfig{" +
                 "catalog='" + catalog + '\'' +
-                ", type=" + type +
+                ", engine=" + engine +
                 ", jdbcConnectionString='" + jdbcConnectionString + '\'' +
                 ", secret='" + secret + '\'' +
                 '}';
