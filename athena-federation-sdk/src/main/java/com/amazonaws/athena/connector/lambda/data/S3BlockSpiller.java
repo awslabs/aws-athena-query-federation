@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -450,10 +452,24 @@ public class S3BlockSpiller
             spillQueueCapacity = Integer.parseInt(System.getenv(SPILL_QUEUE_CAPACITY));
             logger.debug("Setting Spill Queue Capacity to {}", spillQueueCapacity);
         }
+
+        RejectedExecutionHandler rejectedExecutionHandler = (r, executor) -> {
+            if (!executor.isShutdown()) {
+                try {
+                    executor.getQueue().put(r);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RejectedExecutionException("Received an exception while submitting spillBlock task: ", e);
+                }
+            }
+        };
+
         return new ThreadPoolExecutor(config.getNumSpillThreads(),
                 config.getNumSpillThreads(),
                 0L,
                 TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(spillQueueCapacity));
+                new LinkedBlockingQueue<>(spillQueueCapacity),
+                rejectedExecutionHandler);
     }
 }
