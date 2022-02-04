@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.dynamodb.throttling;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.services.dynamodbv2.model.LimitExceededException;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputExceededException;
+import com.amazonaws.services.dynamodbv2.model.RequestLimitExceededException;
 
 /**
  * Used by {@link ThrottlingInvoker} to determine which DynamoDB exceptions are thrown for throttling.
@@ -37,6 +38,7 @@ public class DynamoDBExceptionFilter
     public boolean isMatch(Exception ex)
     {
         return ex instanceof LimitExceededException
-                || ex instanceof ProvisionedThroughputExceededException;
+                || ex instanceof ProvisionedThroughputExceededException
+                || ex instanceof RequestLimitExceededException;
     }
 }
