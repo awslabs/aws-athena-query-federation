@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.cloudwatch.CloudwatchExceptionFilter.EXCEPTION_FILTER;
 
 /**
@@ -172,26 +173,37 @@ public class CloudwatchMetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
             throws TimeoutException
     {
+        String nextToken = null;
         String logGroupName = tableResolver.validateSchema(listTablesRequest.getSchemaName());
         DescribeLogStreamsRequest request = new DescribeLogStreamsRequest(logGroupName);
         DescribeLogStreamsResult result;
         List<TableName> tables = new ArrayList<>();
-        do {
-            if (tables.size() > MAX_RESULTS) {
-                throw new RuntimeException("Too many log streams, exceeded max metadata results for table count.");
+        if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+            do {
+                if (tables.size() > MAX_RESULTS) {
+                    throw new RuntimeException("Too many log streams, exceeded max metadata results for table count.");
+                }
+                result = invoker.invoke(() -> awsLogs.describeLogStreams(request));
+                result.getLogStreams().forEach(next -> tables.add(toTableName(listTablesRequest, next)));
+                request.setNextToken(result.getNextToken());
+                logger.info("doListTables: Listing log streams  with token {} and size {}", result.getNextToken(), tables.size());
             }
+            while (result.getNextToken() != null);
+        }
+        else {
+            request.setNextToken(listTablesRequest.getNextToken());
+            request.setLimit(listTablesRequest.getPageSize());
             result = invoker.invoke(() -> awsLogs.describeLogStreams(request));
             result.getLogStreams().forEach(next -> tables.add(toTableName(listTablesRequest, next)));
-            request.setNextToken(result.getNextToken());
-            logger.info("doListTables: Listing log streams {} {}", result.getNextToken(), tables.size());
+            nextToken = result.getNextToken();
+            logger.info("doListTables: Listing log streams with token {} and size {}", result.getNextToken(), tables.size());
         }
-        while (result.getNextToken() != null);
 
         //We add a special table that represents all log streams. This is helpful depending on how
         //you have your logs organized.
         tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
 
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
     }
 
     /**
