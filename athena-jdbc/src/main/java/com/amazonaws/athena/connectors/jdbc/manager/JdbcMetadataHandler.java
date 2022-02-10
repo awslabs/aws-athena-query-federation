@@ -94,7 +94,7 @@ public abstract class JdbcMetadataHandler
 
     protected JdbcMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
     {
-        super(databaseConnectionConfig.getType().getDbName());
+        super(databaseConnectionConfig.getEngine());
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
 
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
@@ -104,7 +104,7 @@ public abstract class JdbcMetadataHandler
     protected JdbcMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
             final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
     {
-        super(null, secretsManager, athena, databaseConnectionConfig.getType().getDbName(), null, null);
+        super(null, secretsManager, athena, databaseConnectionConfig.getEngine(), null, null);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }

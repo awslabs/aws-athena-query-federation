@@ -28,7 +28,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler;
-import com.amazonaws.athena.connectors.jdbc.mysql.MySqlRecordHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -45,7 +44,7 @@ import java.util.Map;
 public class MultiplexingJdbcRecordHandlerTest
 {
     private Map<String, JdbcRecordHandler> recordHandlerMap;
-    private MySqlRecordHandler mySqlRecordHandler;
+    private JdbcRecordHandler fakeJdbcRecordHandler;
     private JdbcRecordHandler jdbcRecordHandler;
     private AmazonS3 amazonS3;
     private AWSSecretsManager secretsManager;
@@ -56,15 +55,15 @@ public class MultiplexingJdbcRecordHandlerTest
     @Before
     public void setup()
     {
-        this.mySqlRecordHandler = Mockito.mock(MySqlRecordHandler.class);
-        this.recordHandlerMap = Collections.singletonMap("mysql", this.mySqlRecordHandler);
+        this.fakeJdbcRecordHandler = Mockito.mock(JdbcRecordHandler.class);
+        this.recordHandlerMap = Collections.singletonMap("fakedatabase", this.fakeJdbcRecordHandler);
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         this.queryStatusChecker = Mockito.mock(QueryStatusChecker.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", JdbcConnectionFactory.DatabaseEngine.MYSQL,
-                "mysql://jdbc:mysql://hostname/${testSecret}", "testSecret");
+        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
+                "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
         this.jdbcRecordHandler = new MultiplexingJdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap);
     }
 
@@ -73,9 +72,9 @@ public class MultiplexingJdbcRecordHandlerTest
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("mysql");
+        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
         this.jdbcRecordHandler.readWithConstraint(blockSpiller, readRecordsRequest, queryStatusChecker);
-        Mockito.verify(this.mySqlRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
+        Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).readWithConstraint(Mockito.eq(blockSpiller), Mockito.eq(readRecordsRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test(expected = RuntimeException.class)
@@ -92,13 +91,13 @@ public class MultiplexingJdbcRecordHandlerTest
             throws SQLException
     {
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
-        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("mysql");
+        Mockito.when(readRecordsRequest.getCatalogName()).thenReturn("fakedatabase");
         Connection jdbcConnection = Mockito.mock(Connection.class);
         TableName tableName = new TableName("testSchema", "tableName");
         Schema schema = Mockito.mock(Schema.class);
         Constraints constraints = Mockito.mock(Constraints.class);
         Split split = Mockito.mock(Split.class);
-        this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "mysql", tableName, schema, constraints, split);
-        Mockito.verify(this.mySqlRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("mysql"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
+        this.jdbcRecordHandler.buildSplitSql(jdbcConnection, "fakedatabase", tableName, schema, constraints, split);
+        Mockito.verify(this.fakeJdbcRecordHandler, Mockito.times(1)).buildSplitSql(Mockito.eq(jdbcConnection), Mockito.eq("fakedatabase"), Mockito.eq(tableName), Mockito.eq(schema), Mockito.eq(constraints), Mockito.eq(split));
     }
 }
