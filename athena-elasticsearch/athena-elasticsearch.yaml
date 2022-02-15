@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.4.1
+    SemanticVersion: 2022.7.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 # Parameters are CloudFormation features to pass input
@@ -74,7 +74,7 @@ Resources:
           query_timeout_search: !Ref QueryTimeoutSearch
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.elasticsearch.ElasticsearchCompositeHandler"
-      CodeUri: "./target/athena-elasticsearch-2022.4.1.jar"
+      CodeUri: "./target/athena-elasticsearch-2022.7.1.jar"
       Description: "The Elasticsearch Lambda Connector provides Athena users the ability to query data stored on Elasticsearch clusters."
       Runtime: java11
       Timeout: !Ref LambdaTimeout
