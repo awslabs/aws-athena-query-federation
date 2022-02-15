@@ -77,6 +77,7 @@ public class MultiplexingJdbcMetadataHandler
      */
     protected MultiplexingJdbcMetadataHandler(JdbcMetadataHandlerFactory jdbcMetadataHandlerFactory)
     {
+        super(jdbcMetadataHandlerFactory.getEngine());
         this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(System.getenv(), jdbcMetadataHandlerFactory), "Could not find any delegatee.");
     }
 
