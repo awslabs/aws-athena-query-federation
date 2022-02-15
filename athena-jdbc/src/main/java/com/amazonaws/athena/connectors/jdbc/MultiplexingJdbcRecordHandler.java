@@ -55,6 +55,7 @@ public class MultiplexingJdbcRecordHandler
 
     public MultiplexingJdbcRecordHandler(JdbcRecordHandlerFactory jdbcRecordHandlerFactory)
     {
+        super(jdbcRecordHandlerFactory.getEngine());
         this.recordHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcRecordHandlerMap(System.getenv(), jdbcRecordHandlerFactory), "Could not find any delegatee.");
     }
 

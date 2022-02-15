@@ -83,9 +83,9 @@ public abstract class JdbcMetadataHandler
     /**
      * Used only by Multiplexing handler. All calls will be delegated to respective database handler.
      */
-    protected JdbcMetadataHandler()
+    protected JdbcMetadataHandler(String sourceType)
     {
-        super(null);
+        super(sourceType);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
     }

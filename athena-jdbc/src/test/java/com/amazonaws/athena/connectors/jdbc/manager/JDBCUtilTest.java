@@ -47,6 +47,11 @@ public class JDBCUtilTest
 
     class FakeDatabaseJdbcMetadataHandler extends JdbcMetadataHandler {
 
+        public FakeDatabaseJdbcMetadataHandler(String sourceType)
+        {
+            super(sourceType);
+        }
+
         @Override
         public Schema getPartitionSchema(String catalogName)
         {
@@ -68,6 +73,11 @@ public class JDBCUtilTest
     }
 
     class FakeDatabaseJdbcRecordHandler extends JdbcRecordHandler {
+        protected FakeDatabaseJdbcRecordHandler(String sourceType)
+        {
+            super(sourceType);
+        }
+
         @Override
         public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
                 throws SQLException
@@ -87,7 +97,7 @@ public class JDBCUtilTest
         @Override
         public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
         {
-            return new FakeDatabaseJdbcMetadataHandler();
+            return new FakeDatabaseJdbcMetadataHandler("fakedatabase");
         }
     }
 
@@ -102,7 +112,7 @@ public class JDBCUtilTest
         @Override
         public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
         {
-            return new FakeDatabaseJdbcRecordHandler();
+            return new FakeDatabaseJdbcRecordHandler("fakedatabase");
         }
     }
 

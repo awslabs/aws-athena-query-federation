@@ -99,9 +99,9 @@ public abstract class JdbcRecordHandler
     /**
      * Used only by Multiplexing handler. All invocations will be delegated to respective database handler.
      */
-    protected JdbcRecordHandler()
+    protected JdbcRecordHandler(String sourceType)
     {
-        super(null);
+        super(sourceType);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
     }
