@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.integ.providers.ConnectorVpcAttributesProv
 import com.amazonaws.athena.connector.integ.providers.SecretsManagerCredentialsProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
+import com.amazonaws.services.athena.model.Datum;
 import com.amazonaws.services.athena.model.GetQueryExecutionRequest;
 import com.amazonaws.services.athena.model.GetQueryExecutionResult;
 import com.amazonaws.services.athena.model.GetQueryResultsRequest;
@@ -39,14 +40,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 
 /**
  * The Integration-Tests base class from which all connector-specific integration test modules should subclass.
@@ -61,6 +69,22 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_QUERY_RUNNING_STATE = "RUNNING";
     private static final String ATHENA_QUERY_FAILED_STATE = "FAILED";
     private static final String ATHENA_QUERY_CANCELLED_STATE = "CANCELLED";
+
+    // Data for common tests
+    protected static final String TEST_DATATYPES_DATABASE_NAME = "datatypes";
+    protected static final String TEST_DATATYPES_TABLE_NAME = "datatypes_table";
+    protected static final int TEST_DATATYPES_INT_VALUE = Integer.MIN_VALUE;
+    protected static final short TEST_DATATYPES_SHORT_VALUE = Short.MIN_VALUE;
+    protected static final long TEST_DATATYPES_LONG_VALUE = Long.MIN_VALUE;
+    protected static final String TEST_DATATYPES_VARCHAR_VALUE = "John Doe";
+    protected static final boolean TEST_DATATYPES_BOOLEAN_VALUE = true;
+    protected static final float TEST_DATATYPES_SINGLE_PRECISION_VALUE = Float.MIN_VALUE;
+    protected static final double TEST_DATATYPES_DOUBLE_PRECISION_VALUE = Double.MIN_VALUE;
+    protected static final String TEST_DATATYPES_DATE_VALUE = "2013-06-01";
+    protected static final String TEST_DATATYPES_TIMESTAMP_VALUE = "2016-06-22T19:10:25";
+    protected static final byte[] TEST_DATATYPES_BYTE_ARRAY_VALUE = new byte[] {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF};
+    protected static final String TEST_DATATYPES_VARCHAR_ARRAY_VALUE = "[(408)-589-5846, (408)-589-5555]";
+
     private static final long sleepTimeMillis = 5000L;
 
     private final ConnectorStackProvider connectorStackProvider;
@@ -438,5 +462,235 @@ public abstract class IntegrationTestBase
             rows.remove(0);
         }
         return rows;
+
+    @Test
+    public void selectIntegerTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectIntegerTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select int_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Integer> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Integer.parseInt(row.getData().get(0).getVarCharValue())));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Integer not found: " + TEST_DATATYPES_INT_VALUE, values.contains(TEST_DATATYPES_INT_VALUE));
+    }
+
+    @Test
+    public void selectVarcharTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectVarcharTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select varchar_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<String> values = new ArrayList<>();
+        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Varchar not found: " + TEST_DATATYPES_VARCHAR_VALUE, values.contains(TEST_DATATYPES_VARCHAR_VALUE));
+    }
+
+    @Test
+    public void selectBooleanTypeTest() { logger.info("--------------------------------------"); logger.info("Executing selectBooleanTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select boolean_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Boolean> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Boolean.valueOf(row.getData().get(0).getVarCharValue())));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Boolean not found: " + TEST_DATATYPES_BOOLEAN_VALUE, values.contains(TEST_DATATYPES_BOOLEAN_VALUE));
+    }
+
+    @Test
+    public void selectSmallintTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectSmallintTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select smallint_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Short> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Short.valueOf(row.getData().get(0).getVarCharValue())));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Smallint not found: " + TEST_DATATYPES_SHORT_VALUE, values.contains(TEST_DATATYPES_SHORT_VALUE));
+    }
+
+    @Test
+    public void selectBigintTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectBigintTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select bigint_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Long> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Long.valueOf(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Bigint not found: " + TEST_DATATYPES_LONG_VALUE, values.contains(TEST_DATATYPES_LONG_VALUE));
+    }
+
+    @Test
+    public void selectFloat4TypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectFloat4TypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select float4_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Float> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Float.valueOf(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Float4 not found: " + TEST_DATATYPES_SINGLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_SINGLE_PRECISION_VALUE));
+    }
+
+    @Test
+    public void selectFloat8TypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectFloat8TypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select float8_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Double> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Float8 not found: " + TEST_DATATYPES_DOUBLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_DOUBLE_PRECISION_VALUE));
+    }
+
+    @Test
+    public void selectDateTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectDateTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select date_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<LocalDate> values = new ArrayList<>();
+        rows.forEach(row -> values.add(LocalDate.parse(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Date not found: " + TEST_DATATYPES_DATE_VALUE, values.contains(LocalDate.parse(TEST_DATATYPES_DATE_VALUE)));
+    }
+
+    @Test
+    public void selectTimestampTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectTimestampTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select timestamp_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<LocalDateTime> values = new ArrayList<>();
+        // for some reason, timestamps lose their 'T'.
+        rows.forEach(row -> values.add(LocalDateTime.parse(row.getData().get(0).getVarCharValue().replace(' ', 'T'))));
+        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Date not found: " + TEST_DATATYPES_TIMESTAMP_VALUE, values.contains(LocalDateTime.parse(TEST_DATATYPES_TIMESTAMP_VALUE)));
+    }
+
+    @Test
+    public void selectByteArrayTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectByteArrayTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select byte_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<String> values = new ArrayList<>();
+        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
+        Datum actual = rows.get(0).getData().get(0);
+        Datum expected = new Datum();
+        expected.setVarCharValue("de ad be ef");
+        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertEquals("Byte[] not found: " + Arrays.toString(TEST_DATATYPES_BYTE_ARRAY_VALUE), expected, actual);
+    }
+
+    @Test
+    public void selectVarcharListType()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectVarcharListType");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select textarray_type from %s.%s.%s;",
+                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<String> values = new ArrayList<>();
+        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
+        Datum actual = rows.get(0).getData().get(0);
+        Datum expected = new Datum();
+        expected.setVarCharValue(TEST_DATATYPES_VARCHAR_ARRAY_VALUE);
+        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertEquals("List not found: " + TEST_DATATYPES_VARCHAR_ARRAY_VALUE, expected, actual);
     }
 }

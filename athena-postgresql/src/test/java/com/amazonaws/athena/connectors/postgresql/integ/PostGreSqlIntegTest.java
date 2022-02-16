@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
+import com.amazonaws.services.athena.model.Datum;
 import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.rds.AmazonRDS;
 import com.amazonaws.services.rds.AmazonRDSClientBuilder;
@@ -54,7 +55,10 @@ import software.amazon.awscdk.services.rds.PostgresInstanceEngineProps;
 import software.amazon.awscdk.services.rds.StorageType;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -229,6 +233,10 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
         JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(postgresDbName, postgresTableMovies), environmentVars, jdbcProperties, POSTGRES_NAME);
         jdbcUtils.createDbSchema(databaseConnectionInfo);
+
+        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties, POSTGRES_NAME);
+        jdbcUtils.createDbSchema(databaseConnectionInfo);
+
     }
 
     /**
@@ -270,6 +278,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     {
         setUpMoviesTable();
         setUpBdayTable();
+        setUpDatatypesTable();
     }
 
     /**
@@ -305,6 +314,32 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
         bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')", databaseConnectionInfo);
         bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')", databaseConnectionInfo);
         bdayTable.insertRow("'John', 'Smith', date('2006-02-10')", databaseConnectionInfo);
+    }
+
+    /**
+     * Creates the 'datatypes' table and inserts rows.
+     */
+    private void setUpDatatypesTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties, POSTGRES_NAME);
+        datatypesTable.createTable("int_type INTEGER, smallint_type SMALLINT, bigint_type BIGINT, varchar_type CHARACTER VARYING(255), boolean_type BOOLEAN, float4_type REAL, float8_type DOUBLE PRECISION, date_type DATE, timestamp_type TIMESTAMP, byte_type BYTEA, textarray_type TEXT[]", databaseConnectionInfo);
+        String row = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s",
+                TEST_DATATYPES_INT_VALUE,
+                TEST_DATATYPES_SHORT_VALUE,
+                TEST_DATATYPES_LONG_VALUE,
+                "'" + TEST_DATATYPES_VARCHAR_VALUE + "'",
+                TEST_DATATYPES_BOOLEAN_VALUE,
+                TEST_DATATYPES_SINGLE_PRECISION_VALUE,
+                TEST_DATATYPES_DOUBLE_PRECISION_VALUE,
+                "'" + TEST_DATATYPES_DATE_VALUE + "'",
+                "'" + TEST_DATATYPES_TIMESTAMP_VALUE + "'",
+                "decode('DEADBEEF', 'hex')",
+                "ARRAY ['(408)-589-5846','(408)-589-5555']");
+        datatypesTable.insertRow(row, databaseConnectionInfo);
     }
 
     @Test
