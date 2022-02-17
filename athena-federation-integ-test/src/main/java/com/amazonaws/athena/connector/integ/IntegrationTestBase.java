@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
 /**
@@ -71,7 +72,9 @@ public abstract class IntegrationTestBase
     private static final String ATHENA_QUERY_CANCELLED_STATE = "CANCELLED";
 
     // Data for common tests
-    protected static final String TEST_DATATYPES_DATABASE_NAME = "datatypes";
+    protected static final String INTEG_TEST_DATABASE_NAME = "datatypes";
+    protected static final String TEST_NULL_TABLE_NAME = "null_table";
+    protected static final String TEST_EMPTY_TABLE_NAME = "empty_table";
     protected static final String TEST_DATATYPES_TABLE_NAME = "datatypes_table";
     protected static final int TEST_DATATYPES_INT_VALUE = Integer.MIN_VALUE;
     protected static final short TEST_DATATYPES_SHORT_VALUE = Short.MIN_VALUE;
@@ -375,6 +378,7 @@ public abstract class IntegrationTestBase
 
         return athenaClient.getQueryResults(getQueryResultsRequest);
     }
+
     public List<String> fetchDataSelect(String schemaName, String tablename, String lambdaFnName)
             throws RuntimeException
     {
@@ -471,7 +475,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select int_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -492,7 +496,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select varchar_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -510,7 +514,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select boolean_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -531,7 +535,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select smallint_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -552,7 +556,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select bigint_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -572,7 +576,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select float4_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -592,7 +596,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select float8_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -612,7 +616,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select date_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -632,7 +636,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select timestamp_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -654,7 +658,7 @@ public abstract class IntegrationTestBase
         logger.info("--------------------------------------");
 
         String query = String.format("select byte_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -671,14 +675,14 @@ public abstract class IntegrationTestBase
     }
 
     @Test
-    public void selectVarcharListType()
+    public void selectVarcharListTypeTest()
     {
         logger.info("--------------------------------------");
-        logger.info("Executing selectVarcharListType");
+        logger.info("Executing selectVarcharListTypeTest");
         logger.info("--------------------------------------");
 
         String query = String.format("select textarray_type from %s.%s.%s;",
-                lambdaFunctionName, TEST_DATATYPES_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {
             // Remove the column-header row
@@ -692,5 +696,40 @@ public abstract class IntegrationTestBase
         logger.info(rows.get(0).getData().get(0).getVarCharValue());
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertEquals("List not found: " + TEST_DATATYPES_VARCHAR_ARRAY_VALUE, expected, actual);
+    }
+
+    @Test
+    public void selectNullValueTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectNullValueTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select int_type from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        Datum actual = rows.get(0).getData().get(0);
+        assertNull("Value not 'null'. Received: " + actual.getVarCharValue(), actual.getVarCharValue());
+    }
+
+    @Test
+    public void selectEmptyTableTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectEmptyTableTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select int_type from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        assertTrue("Rows should be empty: " + rows.toString(), rows.isEmpty());
     }
 }
