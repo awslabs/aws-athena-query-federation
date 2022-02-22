@@ -32,6 +32,10 @@ Parameters:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'
     Default: 3008
     Type: Number
+  LambdaRole:
+    Description: "(Optional) A custom role to be used by the Connector lambda"
+    Type: String
+    Default: ""
   DisableSpillEncryption:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: 'false'
@@ -43,6 +47,7 @@ Parameters:
 
 Conditions:
  HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
+ HasLambdaRole: !Not [!Equals [!Ref LambdaRole, ""]]
 
 Resources:
   ConnectorConfig:
@@ -61,9 +66,10 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Role: !GetAtt FunctionRole.Arn
+      Role: !If [HasLambdaRole, !Ref LambdaRole, !GetAtt FunctionRole.Arn]
 
   FunctionRole:
+    Condition: !Not HasLambdaRole
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
