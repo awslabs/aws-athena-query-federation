@@ -230,6 +230,9 @@ public class MySqlIntegTest extends IntegrationTestBase
 
         JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(mysqlDbName, mysqlTableMovies), environmentVars, jdbcProperties, MYSQL_NAME);
         jdbcUtils.createDbSchema(databaseConnectionInfo);
+
+        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        jdbcUtils.createDbSchema(databaseConnectionInfo);
     }
 
     /**
@@ -271,6 +274,9 @@ public class MySqlIntegTest extends IntegrationTestBase
     {
         setUpMoviesTable();
         setUpBdayTable();
+        setUpDatatypesTable();
+        setUpNullTable();
+        setUpEmptyTable();
     }
 
     /**
@@ -302,6 +308,63 @@ public class MySqlIntegTest extends IntegrationTestBase
         bdayTable.insertRow("'Joe', 'Schmoe', '2002-05-05'", databaseConnectionInfo);
         bdayTable.insertRow("'Jane', 'Doe', '2005-10-12'", databaseConnectionInfo);
         bdayTable.insertRow("'John', 'Smith', '2006-02-10'", databaseConnectionInfo);
+    }
+
+    /**
+     * Creates the 'datatypes' table and inserts rows.
+     */
+    protected void setUpDatatypesTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        datatypesTable.createTable("int_type INTEGER, smallint_type SMALLINT, bigint_type BIGINT, varchar_type CHARACTER VARYING(255), boolean_type BOOLEAN, float4_type REAL, float8_type DOUBLE PRECISION, date_type DATE, timestamp_type TIMESTAMP, byte_type BINARY(4)", databaseConnectionInfo);
+        String row = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s",
+                TEST_DATATYPES_INT_VALUE,
+                TEST_DATATYPES_SHORT_VALUE,
+                TEST_DATATYPES_LONG_VALUE,
+                "'" + TEST_DATATYPES_VARCHAR_VALUE + "'",
+                TEST_DATATYPES_BOOLEAN_VALUE,
+                TEST_DATATYPES_SINGLE_PRECISION_VALUE,
+                TEST_DATATYPES_DOUBLE_PRECISION_VALUE,
+                "'" + TEST_DATATYPES_DATE_VALUE + "'",
+                "'" + TEST_DATATYPES_TIMESTAMP_VALUE + "'",
+                "0xdeadbeef");
+        datatypesTable.insertRow(row, databaseConnectionInfo);
+    }
+
+    /**
+     * Creates the 'null_table' table and inserts rows.
+     */
+    protected void setUpNullTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_NULL_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
+        datatypesTable.insertRow("NULL", databaseConnectionInfo);
+    }
+
+    /**
+     * Creates the 'empty_table' table and inserts rows.
+     */
+    protected void setUpEmptyTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_EMPTY_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME), environmentVars, jdbcProperties, MYSQL_NAME);
+        datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
+    }
+
+    @Override
+    public void selectVarcharListTypeTest() {
+        // not supported! MySQL doesn't support ARRAY types.
     }
 
     @Test
