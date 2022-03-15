@@ -81,8 +81,8 @@ public abstract class IntegrationTestBase
     protected static final long TEST_DATATYPES_LONG_VALUE = Long.MIN_VALUE;
     protected static final String TEST_DATATYPES_VARCHAR_VALUE = "John Doe";
     protected static final boolean TEST_DATATYPES_BOOLEAN_VALUE = true;
-    protected static final float TEST_DATATYPES_SINGLE_PRECISION_VALUE = Float.MIN_VALUE;
-    protected static final double TEST_DATATYPES_DOUBLE_PRECISION_VALUE = Double.MIN_VALUE;
+    protected static final float TEST_DATATYPES_SINGLE_PRECISION_VALUE = 1E-37f; // unfortunately, redshift can't handle smaller numbers
+    protected static final double TEST_DATATYPES_DOUBLE_PRECISION_VALUE = 1E-307; // unfortunately, redshift can't handle smaller numbers
     protected static final String TEST_DATATYPES_DATE_VALUE = "2013-06-01";
     protected static final String TEST_DATATYPES_TIMESTAMP_VALUE = "2016-06-22T19:10:25";
     protected static final byte[] TEST_DATATYPES_BYTE_ARRAY_VALUE = new byte[] {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF};
@@ -668,10 +668,11 @@ public abstract class IntegrationTestBase
         rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
         Datum actual = rows.get(0).getData().get(0);
         Datum expected = new Datum();
-        expected.setVarCharValue("de ad be ef");
+        expected.setVarCharValue("deadbeef");
         logger.info(rows.get(0).getData().get(0).getVarCharValue());
         assertEquals("Wrong number of DB records found.", 1, values.size());
-        assertEquals("Byte[] not found: " + Arrays.toString(TEST_DATATYPES_BYTE_ARRAY_VALUE), expected, actual);
+        String bytestring = actual.getVarCharValue().replace(" ", "");
+        assertEquals("Byte[] not found: " + Arrays.toString(TEST_DATATYPES_BYTE_ARRAY_VALUE), expected.getVarCharValue(), bytestring);
     }
 
     @Test

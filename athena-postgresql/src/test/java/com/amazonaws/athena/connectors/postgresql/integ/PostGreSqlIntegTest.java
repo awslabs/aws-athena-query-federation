@@ -168,7 +168,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
                 .port(postgresDbPort)
                 .instanceIdentifier(dbInstanceName)
                 .engine(DatabaseInstanceEngine.postgres(PostgresInstanceEngineProps.builder()
-                        .version(PostgresEngineVersion.VER_12_4)
+                        .version(PostgresEngineVersion.VER_12)
                         .build()))
                 .storageType(StorageType.GP2)
                 .allocatedStorage(20)
