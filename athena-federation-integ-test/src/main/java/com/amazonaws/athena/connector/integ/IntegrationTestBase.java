@@ -482,7 +482,7 @@ public abstract class IntegrationTestBase
             rows.remove(0);
         }
         List<Integer> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Integer.parseInt(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Integer.parseInt(row.getData().get(0).getVarCharValue().split("\\.")[0])));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Integer not found: " + TEST_DATATYPES_INT_VALUE, values.contains(TEST_DATATYPES_INT_VALUE));
@@ -542,7 +542,7 @@ public abstract class IntegrationTestBase
             rows.remove(0);
         }
         List<Short> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Short.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Short.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
         logger.info("Titles: {}", values);
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Smallint not found: " + TEST_DATATYPES_SHORT_VALUE, values.contains(TEST_DATATYPES_SHORT_VALUE));
@@ -563,7 +563,7 @@ public abstract class IntegrationTestBase
             rows.remove(0);
         }
         List<Long> values = new ArrayList<>();
-        rows.forEach(row -> values.add(Long.valueOf(row.getData().get(0).getVarCharValue())));
+        rows.forEach(row -> values.add(Long.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
         assertEquals("Wrong number of DB records found.", 1, values.size());
         assertTrue("Bigint not found: " + TEST_DATATYPES_LONG_VALUE, values.contains(TEST_DATATYPES_LONG_VALUE));
     }
