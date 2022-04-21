@@ -1,0 +1,31 @@
+{
+  "connector_name" :  "hive", /* connector name */
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "<secret name>",  /* Secret name used to retrieve user credentials from SecretsManager. */
+  "region": "<region>", /* aws region name */
+  "hive_db_name": "<db name>", /* hive db name */
+  "hive_schema_name": "<schema name>", /* hive schema name */
+  "hive_table_name1": "<table name>", /* hive table name */
+  "hive_table_name2": "<table name>", /* hive table name */
+  "hive_table_name3": "<table name>", /* hive data type table name */
+  "hive_table_name4": "<table name>", /* hive table name */
+  "environment_vars" : {   /* Parameters used by the connector's internal logic */
+    "spill_bucket" : "<spill bucket>", /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill", /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false", /* If set to true encryption for spilled data is disabled (default: false) */
+    "region": "<region>", /* aws region name */
+    "default": "hive://jdbc:hive2://<ip address>:<port>/<db name>;${<secretname>}" /* hive jdbc connection string*/
+  },
+  "vpc_configuration" : {
+    "region": "<region>", /* aws region name */
+    "vpc_id": "<Enter Value>",                      /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": "<Enter Value>",           /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
+  },
+  "user_settings" : { /* User customizable settings */
+    "hive_db_name": "<Enter Value>", /* Name of the Db used by the Hive integration tests */
+    "hive_db_port": <Enter Value>,       /* Port number (int) associated with the hive */
+    "hive_table_test": "<Enter Value>" /* Hive table name */
+  }
+}

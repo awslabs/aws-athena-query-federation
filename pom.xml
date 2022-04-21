@@ -82,6 +82,17 @@
         <module>athena-timestream</module>
         <module>athena-neptune</module>
         <module>athena-federation-integ-test</module>
+        <module>athena-google-bigquery</module>
+        <module>athena-oracle</module>
+        <module>athena-sqlserver</module>
+        <module>athena-synapse</module>
+        <module>athena-datalakegen2</module>
+        <module>athena-snowflake</module>
+        <module>athena-teradata</module>
+        <module>athena-saphana</module>
+        <module>athena-cloudera-hive</module>
+        <module>athena-cloudera-impala</module>
+        <module>athena-hortonworks-hive</module>
     </modules>
 
     <dependencies>

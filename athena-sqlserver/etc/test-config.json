@@ -1,0 +1,27 @@
+{
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "<secret name>",  /* Secret name used to retrieve user credentials from SecretsManager. */
+  "region": "<region>", /* aws region name */
+  "schema_name": "<schema name>", /* sql server schema name */
+  "table_name1":"<table name>",  /* sql server table name */
+  "table_name2":"<table name>", /* sql server table name */
+  "table_name3":"<table name>", /*  sql server table name */
+  "table_name4":"<table name>", /* sql server table name */
+  "table_name5":"<table name>", /* sql server table name */
+  "table_name6":"<table name>", /* sql server table name */
+  "table_name7":"<table name>", /* sql server table name */
+  "environment_vars" : {
+    "spill_bucket" : "<spill bucket>", /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill", /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false", /* If set to true encryption for spilled data is disabled (default: false) */
+    "region": "<region>", /* aws region name */
+    "default": "sqlserver://jdbc:sqlserver://<hostname>;databaseName=<db name>;${<secret name>}"
+  },
+  "vpc_configuration" : {
+    "region": "<region>", /* aws region name */
+    "vpc_id": "<Enter Value>",                      /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": "<Enter Value>",           /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
+  }
+}
