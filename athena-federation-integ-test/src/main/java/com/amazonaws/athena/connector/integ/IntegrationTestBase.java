@@ -33,6 +33,7 @@ import com.amazonaws.services.athena.model.GetQueryResultsRequest;
 import com.amazonaws.services.athena.model.GetQueryResultsResult;
 import com.amazonaws.services.athena.model.ListDatabasesRequest;
 import com.amazonaws.services.athena.model.ListDatabasesResult;
+import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.athena.model.StartQueryExecutionRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -289,7 +290,7 @@ public abstract class IntegrationTestBase
         logger.info("Query: [{}], Query Id: [{}]", query, queryExecutionId);
         waitForAthenaQueryResults(queryExecutionId);
         GetQueryResultsResult getQueryResultsResult = getAthenaQueryResults(queryExecutionId);
-        logger.info("Results: [{}]", getQueryResultsResult.toString());
+        //logger.info("Results: [{}]", getQueryResultsResult.toString());
 
         return getQueryResultsResult;
     }
@@ -349,5 +350,93 @@ public abstract class IntegrationTestBase
                 .withQueryExecutionId(queryExecutionId);
 
         return athenaClient.getQueryResults(getQueryResultsRequest);
+    }
+    public List<String> fetchDataSelect(String schemaName, String tablename, String lambdaFnName)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select * from   \"lambda:%s\".\"%s\".\"%s\";", lambdaFnName, schemaName, tablename));
+    }
+    public List<String> fetchDataSelectCountAll(String schemaName, String tablename, String lambdaFnName)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select count(*) from   \"lambda:%s\".\"%s\".\"%s\";", lambdaFnName, schemaName, tablename));
+    }
+    public List<String> fetchDataWhereClause(String schemaName, String tablename, String lambdaFnName, String whereClauseColumn, String whereClauseValue)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where \"%s\" = \'%s\' ;", lambdaFnName, schemaName, tablename, whereClauseColumn, whereClauseValue));
+    }
+    public List<String> fetchDataWhereClauseLIKE(String schemaName, String tablename, String lambdaFnName, String whereClauseColumn, String whereClauseValue)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" where \"%s\" LIKE \'%s\' ;", lambdaFnName, schemaName, tablename, whereClauseColumn, whereClauseValue));
+    }
+    public List<String> fetchDataGroupBy(String schemaName, String tablename,  String lambdaFnName, String groupByColumn)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select count(\"%s\") from   \"lambda:%s\".\"%s\".\"%s\" group by \"%s\";",
+                groupByColumn, lambdaFnName, schemaName, tablename, groupByColumn));
+    }
+    public List<String> fetchDataGroupByHavingClause(String schemaName, String tablename,  String lambdaFnName,
+                                                     String groupByColumn, String groupByColumnValue)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select count(\'%s\') from   \"lambda:%s\".\"%s\".\"%s\" group by %s having %s = \'%s\' ;",
+                groupByColumn, lambdaFnName, schemaName, tablename, groupByColumn, groupByColumn, groupByColumnValue));
+    }
+    public List<String> fetchDataUnion(String schemaName, String tablename1, String tablename2, String lambdaFnName1,
+                                       String lambdaFnName2, String whereClauseColumn, String whereClauseValue)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" union all " +
+                        "select * from   \"lambda:%s\".\"%s\".\"%s\" where \"%s\" = \'%s\' ;",
+                lambdaFnName1, schemaName, tablename1, lambdaFnName2, schemaName, tablename2, whereClauseColumn, whereClauseValue));
+    }
+    public List<String> fetchDataDistinct(String lambdaFnName, String schemaName, String tablename,
+                                          String distinctColumn, String whereClauseColumn, String whereClauseValue)
+    {
+        return processQuery(String.format("select distinct (%s) from  \"lambda:%s\".\"%s\".\"%s\" where \"%s\" = %s ;",
+                distinctColumn, lambdaFnName, schemaName, tablename, whereClauseColumn, whereClauseValue));
+    }
+    public List<String> fetchDataJoin(String lambdaFnName1, String schemaName1, String tablename1, String lambdaFnName2,
+                                      String schemaName2, String tablename2, String whereClauseColumn1, String whereClauseColumn2)
+            throws RuntimeException
+    {
+        return processQuery(String.format("select * from   \"lambda:%s\".\"%s\".\"%s\" t1, " +
+                        " \"lambda:%s\".\"%s\".\"%s\" t2 where t1.\"%s\" = t2.\"%s\" ;",
+                lambdaFnName1, schemaName1, tablename1, lambdaFnName2, schemaName2, tablename2, whereClauseColumn1, whereClauseColumn2));
+    }
+    public float calculateThroughput(String lambdaFnName, String schemaName, String tableName)
+    {
+        logger.info("Executing calculateThroughput");
+        logger.info("Connector Lambda Name:" + lambdaFnName);
+        logger.info("Schema Name :" + schemaName);
+        logger.info("Table Name :" + tableName);
+        // running the query to get total no of records
+        List<String> list = fetchDataSelectCountAll(schemaName, tableName, lambdaFnName);
+        long numberOfRecords = Long.valueOf(list.get(0).toString());
+        logger.info("Total Record count:" + numberOfRecords);
+        long startTimeInMillis = System.currentTimeMillis();
+        fetchDataSelect(schemaName, tableName, lambdaFnName);
+        long endTimeInMillis = System.currentTimeMillis();
+        float elapsedSeconds = (float) (endTimeInMillis - startTimeInMillis) / 1000F;
+        logger.info("Total time taken in seconds : " + elapsedSeconds);
+        float throughput = numberOfRecords / elapsedSeconds;
+        logger.info("Total throughput(Records per Second) :" + throughput);
+        return throughput;
+    }
+    public List<String> processQuery(String query)
+    {
+        List<String> firstColValues = new ArrayList<>();
+        skipColumnHeaderRow(startQueryExecution(query).getResultSet().getRows())
+                .forEach(row -> firstColValues.add(row.getData().get(0).getVarCharValue()));
+        return firstColValues;
+    }
+    public List<Row> skipColumnHeaderRow(List<Row> rows)
+    {
+        if (!rows.isEmpty()) {
+            rows.remove(0);
+        }
+        return rows;
     }
 }

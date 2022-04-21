@@ -56,6 +56,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.RdsSecretsCredentialProvi
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -192,7 +193,8 @@ public abstract class JdbcRecordHandler
     /**
      * Creates an Extractor for the given field. In this example the extractor just creates some random data.
      */
-    private Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
+    @VisibleForTesting
+    protected Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
 
@@ -275,7 +277,9 @@ public abstract class JdbcRecordHandler
             case VARCHAR:
                 return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
                 {
-                    dst.value = resultSet.getString(fieldName);
+                    if (null != resultSet.getString(fieldName)) { // fixed char issue
+                        dst.value = resultSet.getString(fieldName).trim();
+                    }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case VARBINARY:

@@ -1,0 +1,26 @@
+{
+  "connector_name" :  "oracle", /* connector name */
+  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "<secret name>",  /* Secret name used to retrieve user credentials from SecretsManager. */
+  "region": "<region>", /* aws region name */
+  "oracle_db_name": "<oracle db name>", /* oracle db name */
+  "table_name": "<table name>", /* oracle table name */
+  "table_name1": "<table name>", /* oracle table name */
+  "rangePartitionTable": "<table name>", /* oracle range partition table name */
+  "allDataTypeTable": "<table name>", /* oracle all data types table name */
+  "listPartitionTable": "<table name>", /* oracle all data types table name */
+  "environment_vars" : {
+    "spill_bucket" : "<spill bucket>", /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill", /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false", /* If set to true encryption for spilled data is disabled (default: false) */
+    "region": "<region>", /* aws region name */
+    "default": "oracle://jdbc:oracle:thin:${<secret name>}@//<hostname>:<port>/orcl" /*oracle jdbc connection string*/
+  },
+  "vpc_configuration" : {
+    "region": "<region>", /* aws region name */
+    "vpc_id": "<Enter Value>",                      /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": "<Enter Value>",           /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
+  }
+}

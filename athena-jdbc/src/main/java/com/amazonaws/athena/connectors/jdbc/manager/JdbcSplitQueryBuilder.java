@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -60,13 +61,14 @@ public abstract class JdbcSplitQueryBuilder
     private static final int MILLIS_SHIFT = 12;
 
     private final String quoteCharacters;
+    private final String emptyString = "";
 
     /**
      * @param quoteCharacters database quote character for enclosing identifiers.
      */
     public JdbcSplitQueryBuilder(String quoteCharacters)
     {
-        this.quoteCharacters = Validate.notBlank(quoteCharacters, "quoteCharacters must not be blank");
+        this.quoteCharacters = quoteCharacters;
     }
 
     /**
@@ -82,6 +84,7 @@ public abstract class JdbcSplitQueryBuilder
      * @return prepated statement with SQL. See {@link PreparedStatement}.
      * @throws SQLException JDBC database exception.
      */
+    @SuppressFBWarnings("SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING")
     public PreparedStatement buildSql(
             final Connection jdbcConnection,
             final String catalog,
@@ -105,7 +108,6 @@ public abstract class JdbcSplitQueryBuilder
         if (columnNames.isEmpty()) {
             sql.append("null");
         }
-
         sql.append(getFromClauseWithSplit(catalog, schema, table, split));
 
         List<TypeAndValue> accumulator = new ArrayList<>();
@@ -116,8 +118,8 @@ public abstract class JdbcSplitQueryBuilder
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
-
-        LOGGER.info("Generated SQL : {}", sql.toString());
+        sql.append(appendLimitOffset(split)); // limits and offset support
+        LOGGER.debug("Generated SQL : {}", sql.toString());
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
         // TODO all types, converts Arrow values to JDBC.
@@ -314,5 +316,9 @@ public abstract class JdbcSplitQueryBuilder
                     ", value=" + value +
                     '}';
         }
+    }
+    protected String appendLimitOffset(Split split)
+    {
+        return emptyString;
     }
 }
