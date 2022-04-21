@@ -43,8 +43,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.CompareFilter;
 import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.hadoop.hbase.filter.RowFilter;
 import org.apache.hadoop.hbase.filter.SingleColumnValueFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
@@ -232,17 +234,20 @@ public class HbaseRecordHandler
      * @param constraints The constraints that we can attempt to push into HBase as part of the scan.
      * @return A filter if we found a predicate we can push down, null otherwise/
      * @note Currently this method only supports constraints that can be represented by HBase's SingleColumnValueFilter
-     * and CompareOp of EQUAL. In the future we can add > and < for certain field types.
+     * or RowFilter and CompareOp of EQUAL. In the future we can add > and < for certain field types.
      */
     private Filter pushdownPredicate(boolean isNative, Constraints constraints)
     {
         for (Map.Entry<String, ValueSet> next : constraints.getSummary().entrySet()) {
             if (next.getValue().isSingleValue() && !next.getValue().isNullAllowed()) {
+                byte[] value = HbaseSchemaUtils.toBytes(isNative, next.getValue().getSingleValue());
                 String[] colParts = HbaseSchemaUtils.extractColumnParts(next.getKey());
-                return new SingleColumnValueFilter(colParts[0].getBytes(),
-                        colParts[1].getBytes(),
-                        CompareFilter.CompareOp.EQUAL,
-                        HbaseSchemaUtils.toBytes(isNative, next.getValue().getSingleValue()));
+                CompareFilter.CompareOp compareOp = CompareFilter.CompareOp.EQUAL;
+                boolean isRowKey = next.getKey().equals(HbaseSchemaUtils.ROW_COLUMN_NAME);
+
+                return isRowKey ?
+                       new RowFilter(compareOp, new BinaryComparator(value)) :
+                       new SingleColumnValueFilter(colParts[0].getBytes(), colParts[1].getBytes(), compareOp, value);
             }
         }
 
