@@ -466,6 +466,7 @@ public abstract class IntegrationTestBase
             rows.remove(0);
         }
         return rows;
+    }
 
     @Test
     public void selectIntegerTypeTest()
@@ -510,7 +511,10 @@ public abstract class IntegrationTestBase
     }
 
     @Test
-    public void selectBooleanTypeTest() { logger.info("--------------------------------------"); logger.info("Executing selectBooleanTypeTest");
+    public void selectBooleanTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectBooleanTypeTest");
         logger.info("--------------------------------------");
 
         String query = String.format("select boolean_type from %s.%s.%s;",

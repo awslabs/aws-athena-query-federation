@@ -305,4 +305,71 @@ public class TimestreamIntegTest extends IntegrationTestBase
         assertEquals("Wrong number of DB records found.", 1, conversation.size());
         assertTrue("Did not find correct conversation: " + jokePunchline, conversation.contains(jokePunchline));
     }
+
+    // timestream values are all stored as plain strings or doubles, these don't really apply (or are already tested above)
+    @Override
+    public void selectIntegerTypeTest()
+    {
+    }
+
+    @Override
+    public void selectVarcharTypeTest()
+    {
+    }
+
+    @Override
+    public void selectBooleanTypeTest()
+    {
+    }
+
+    @Override
+    public void selectSmallintTypeTest()
+    {
+    }
+
+    @Override
+    public void selectBigintTypeTest()
+    {
+    }
+
+    @Override
+    public void selectFloat4TypeTest()
+    {
+    }
+
+    @Override
+    public void selectFloat8TypeTest()
+    {
+    }
+
+    @Override
+    public void selectDateTypeTest()
+    {
+    }
+
+    @Override
+    public void selectTimestampTypeTest()
+    {
+    }
+
+    @Override
+    public void selectByteArrayTypeTest()
+    {
+    }
+
+    @Override
+    public void selectVarcharListTypeTest()
+    {
+    }
+
+    @Override
+    public void selectNullValueTest()
+    {
+    }
+
+    @Override
+    public void selectEmptyTableTest()
+    {
+    }
+
 }

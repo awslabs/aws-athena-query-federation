@@ -193,6 +193,7 @@ public class CloudwatchIntegTest extends IntegrationTestBase
         assertEquals("Wrong column type for message.", "varchar",schema.get("message"));
     }
 
+    // cloudwatch logs are all stored as plain strings, these don't really apply
     @Override
     public void selectIntegerTypeTest()
     {
