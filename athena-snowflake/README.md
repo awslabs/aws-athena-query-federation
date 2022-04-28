@@ -52,11 +52,11 @@ Example properties for a Snowflake Mux Lambda function that supports two databas
 
 |Property|Value|
 |---|---|
-|default|snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1&schema=schema1&${Test/RDS/Snowflake1}|
+|default|```snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1&schema=schema1&${Test/RDS/Snowflake1}```|
 |	|	|
-|snowflake_catalog1_connection_string|snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1&schema=schema1${Test/RDS/Snowflake1}|
+|snowflake_catalog1_connection_string|```snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1&schema=schema1${Test/RDS/Snowflake1}```|
 |	|	|
-|snowflake_catalog2_connection_string|snowflake://jdbc:snowflake://snowflake2.host:port/?warehouse=warehousename&db=db1&schema=schema1&user=sample2&password=sample2|
+|snowflake_catalog2_connection_string|```snowflake://jdbc:snowflake://snowflake2.host:port/?warehouse=warehousename&db=db1&schema=schema1&user=sample2&password=sample2```|
 
 Snowflake Connector supports substitution of any string enclosed like *${SecretName}* with *username* and *password* retrieved from AWS Secrets Manager. Example:
 
@@ -95,7 +95,7 @@ These handlers support one database instance and must provide `default` connecti
 
 |Property|Value|
 |---|---|
-|default|snowflake://jdbc:snowflake://snowflake1.host:port/?secret=Test/RDS/Snowflake1|
+|default|```snowflake://jdbc:snowflake://snowflake1.host:port/?secret=Test/RDS/Snowflake1```|
 
 ### Spill parameters:
 
