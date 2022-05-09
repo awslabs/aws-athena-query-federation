@@ -24,18 +24,9 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
@@ -45,7 +36,6 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryResult;
@@ -59,19 +49,16 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -109,6 +96,7 @@ public class DynamoDBRecordHandler
 
     private static final TypeReference<HashMap<String, String>> STRING_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, String>>() {};
     private static final TypeReference<HashMap<String, AttributeValue>> ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, AttributeValue>>() {};
+    private static AtomicLong totalDDB = new AtomicLong();
 
     private final LoadingCache<String, ThrottlingInvoker> invokerCache = CacheBuilder.newBuilder().build(
             new CacheLoader<String, ThrottlingInvoker>() {
@@ -151,170 +139,45 @@ public class DynamoDBRecordHandler
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema());
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
+
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+        //register extract and field writer factory for each field.
         for (Field next : recordsRequest.getSchema().getFields()) {
-            Types.MinorType fieldType = Types.getMinorTypeForArrowType(next.getType());
-            switch (fieldType) {
-                case LIST:
-                    rowWriterBuilder.withFieldWriterFactory(next.getName(), (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
-                            (FieldWriter) (Object context, int rowNum) ->
-                            {
-                                Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
-                                Object value = ItemUtils.toSimpleValue(item.get(next.getName()));
-                                List valueAsList = value != null ? DDBTypeUtils.coerceListToExpectedType(value, next, recordMetadata) : null;
-                                BlockUtils.setComplexValue(vector, rowNum, resolver, valueAsList);
-
-                                return true;
-                            });
-                    break;
-                case STRUCT:
-                    rowWriterBuilder.withFieldWriterFactory(next.getName(), (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
-                            (FieldWriter) (Object context, int rowNum) ->
-                            {
-                                Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
-                                Object value = ItemUtils.toSimpleValue(item.get(next.getName()));
-                                value = DDBTypeUtils.coerceValueToExpectedType(value, next, fieldType, recordMetadata);
-                                BlockUtils.setComplexValue(vector, rowNum, resolver, value);
-                                return true;
-                            });
-                    break;
-                case VARCHAR:
-                    rowWriterBuilder.withExtractor(next.getName(), (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
-                    {
-                        AttributeValue attributeValue = ((Map<String, AttributeValue>) context).get(next.getName());
-                        if (attributeValue != null) {
-                            dst.isSet = 1;
-                            dst.value = attributeValue.getS();
-                        }
-                        else {
-                            dst.isSet = 0;
-                        }
-                    });
-                    break;
-                case DECIMAL:
-                    rowWriterBuilder.withExtractor(next.getName(), (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
-                    {
-                        Object value = ItemUtils.toSimpleValue(((Map<String, AttributeValue>) context).get(next.getName()));
-
-                        if (value != null) {
-                            dst.isSet = 1;
-                            dst.value = (BigDecimal) value;
-                        }
-                        else {
-                            dst.isSet = 0;
-                        }
-                    });
-                    break;
-                case VARBINARY:
-                    rowWriterBuilder.withExtractor(next.getName(), (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
-                    {
-                        Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
-                        Object value = ItemUtils.toSimpleValue(item.get(next.getName()));
-                        value = DDBTypeUtils.coerceValueToExpectedType(value, next, fieldType, recordMetadata);
-
-                        if (value != null) {
-                            dst.isSet = 1;
-                            dst.value = (byte[]) value;
-                        }
-                        else {
-                            dst.isSet = 0;
-                        }
-                    });
-                    break;
-                default:
-                    rowWriterBuilder.withFieldWriterFactory(next.getName(), (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
-                            (FieldWriter) (Object context, int rowNum) ->
-                            {
-                                Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
-                                Object value = ItemUtils.toSimpleValue(item.get(next.getName()));
-                                value = DDBTypeUtils.coerceValueToExpectedType(value, next, fieldType, recordMetadata);
-                                BlockUtils.setValue(vector, rowNum, value);
-                                return true;
-                            });
-
-                    break;
+            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata);
+            //generate extractor for supported data types
+            if (extractor.isPresent()) {
+                rowWriterBuilder.withExtractor(next.getName(), extractor.get());
+            }
+            else {
+                //generate field writer factor for complex data types.
+                rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver));
             }
         }
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-        AtomicLong numResultRows = new AtomicLong(0);
 
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
                 return;
             }
+
+            Map<String, AttributeValue> item = itemIterator.next();
+            if (item == null) {
+                // this can happen regardless of the hasNext() check above for the very first iteration since itemIterator
+                // had not made any DDB calls yet and there may be zero items returned when it does
+                continue;
+            }
             numRows++;
             try {
-                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, itemIterator.next()) ? 1 : 0);
+                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             }
             catch (Exception ex) {
                 logger.warn("Exception while writing rows :{}", ex.getMessage(), ex);
             }
         }
-
-        logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
-
-//        long numRows = 0;
-//        AtomicLong numResultRows = new AtomicLong(0);
-//        while (itemIterator.hasNext()) {
-//            if (!queryStatusChecker.isQueryRunning()) {
-//                // we can stop processing because the query waiting for this data has already terminated
-//                return;
-//            }
-//            numRows++;
-//            spiller.writeRows((Block block, int rowNum) -> {
-//                Map<String, AttributeValue> item = itemIterator.next();
-//                if (item == null) {
-//                    // this can happen regardless of the hasNext() check above for the very first iteration since itemIterator
-//                    // had not made any DDB calls yet and there may be zero items returned when it does
-//                    return 0;
-//                }
-//
-//                boolean matched = true;
-//                numResultRows.getAndIncrement();
-//                // TODO refactor to use GeneratedRowWriter to improve performance
-//                for (Field nextField : recordsRequest.getSchema().getFields()) {
-//                    Object value = ItemUtils.toSimpleValue(item.get(nextField.getName()));
-//                    Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
-//                    value = DDBTypeUtils.coerceValueToExpectedType(value, nextField, fieldType, recordMetadata);
-//
-//                    try {
-//                        switch (fieldType) {
-//                            case LIST:
-//                                // DDB may return Set so coerce to List. Also coerce each List item to the correct type.
-//                                List valueAsList = value != null
-//                                        ? DDBTypeUtils.coerceListToExpectedType(value, nextField, recordMetadata) : null;
-//                                matched &= block.offerComplexValue(nextField.getName(),
-//                                        rowNum,
-//                                        resolver,
-//                                        valueAsList);
-//                                break;
-//                            case STRUCT:
-//                                matched &= block.offerComplexValue(nextField.getName(),
-//                                        rowNum,
-//                                        resolver,
-//                                        value);
-//                                break;
-//                            default:
-//                                matched &= block.offerValue(nextField.getName(), rowNum, value);
-//                                break;
-//                        }
-//
-//                        if (!matched) {
-//                            return 0;
-//                        }
-//                    }
-//                    catch (Exception ex) {
-//                        throw new RuntimeException("Error while processing field " + nextField.getName(), ex);
-//                    }
-//                }
-//                return 1;
-//            });
-//        }
-//
-//        logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
+        logger.info("readWithConstraint: numRows[{}] ", numRows);
     }
 
     /*
@@ -414,14 +277,12 @@ public class DynamoDBRecordHandler
                 try {
                     if (request instanceof QueryRequest) {
                         QueryRequest paginatedRequest = ((QueryRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
-                        logger.info("Invoking DDB with Query request: {}", request);
                         QueryResult queryResult = invokerCache.get(tableName).invoke(() -> ddbClient.query(paginatedRequest));
                         lastKeyEvaluated.set(queryResult.getLastEvaluatedKey());
                         iterator = queryResult.getItems().iterator();
                     }
                     else {
                         ScanRequest paginatedRequest = ((ScanRequest) request).withExclusiveStartKey(lastKeyEvaluated.get());
-                        logger.info("Invoking DDB with Scan request: {}", request);
                         ScanResult scanResult = invokerCache.get(tableName).invoke(() -> ddbClient.scan(paginatedRequest));
                         lastKeyEvaluated.set(scanResult.getLastEvaluatedKey());
                         iterator = scanResult.getItems().iterator();

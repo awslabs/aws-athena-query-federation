@@ -19,7 +19,24 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.util;
 
+import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
+import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
+import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
+import com.amazonaws.services.dynamodbv2.document.ItemUtils;
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -39,6 +56,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -346,5 +364,117 @@ public final class DDBTypeUtils
                     .add(coerceValueToExpectedType(item, childField, fieldType, recordMetadata)));
         }
         return coercedList;
+    }
+
+    /**
+     * Create the appropriate field extractor used for extracting field values from a DDB based on the field type.
+     * @param field
+     * @param recordMetadata
+     * @return
+     */
+    public static Optional<Extractor> makeExtractor(Field field, DDBRecordMetadata recordMetadata)
+    {
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        switch (fieldType) {
+            case VARCHAR:
+                return Optional.of((VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
+                {
+                    AttributeValue attributeValue = ((Map<String, AttributeValue>) context).get(field.getName());
+                    if (attributeValue != null) {
+                        dst.isSet = 1;
+                        dst.value = attributeValue.getS();
+                    }
+                    else {
+                        dst.isSet = 0;
+                    }
+                });
+            case DECIMAL:
+                return Optional.of((DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
+                {
+                    Object value = ItemUtils.toSimpleValue(((Map<String, AttributeValue>) context).get(field.getName()));
+                    if (value != null) {
+                        dst.isSet = 1;
+                        dst.value = (BigDecimal) value;
+                    }
+                    else {
+                        dst.isSet = 0;
+                    }
+                });
+            case VARBINARY:
+                return Optional.of((VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
+                {
+                    Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                    Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                    value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
+
+                    if (value != null) {
+                        dst.isSet = 1;
+                        dst.value = (byte[]) value;
+                    }
+                    else {
+                        dst.isSet = 0;
+                    }
+                });
+            case BIT:
+                return Optional.of((BitExtractor) (Object context, NullableBitHolder dst) ->
+                {
+                    AttributeValue attributeValue = ((Map<String, AttributeValue>) context).get(field.getName());
+                    if (attributeValue != null) {
+                        dst.isSet = 1;
+                        dst.value = attributeValue.getBOOL() ? 1 : 0;
+                    }
+                    else {
+                        dst.isSet = 0;
+                    }
+                });
+            default:
+                return Optional.empty();
+        }
+    }
+
+    /**
+     * Since GeneratedRowWriter doesn't yet support complex types (STRUCT, LIST..etc) we use this to create our own
+     * FieldWriters via a custom FieldWriterFactory.
+     * @param field is used to determine which factory to generate based on the field type.
+     * @param recordMetadata is used to retrieve metadata of ddb types
+     * @param resolver is used to resolve it to proper type
+     * @return
+     */
+    public static FieldWriterFactory makeFactory(Field field, DDBRecordMetadata recordMetadata, DynamoDBFieldResolver resolver)
+    {
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        switch (fieldType) {
+            case LIST:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (FieldWriter) (Object context, int rowNum) ->
+                        {
+                            Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            List valueAsList = value != null ? DDBTypeUtils.coerceListToExpectedType(value, field, recordMetadata) : null;
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, valueAsList);
+
+                            return true;
+                        };
+            case STRUCT:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (FieldWriter) (Object context, int rowNum) ->
+                        {
+                            Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, value);
+                            return true;
+                        };
+            default:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (FieldWriter) (Object context, int rowNum) ->
+                        {
+                            Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
+                            BlockUtils.setValue(vector, rowNum, value);
+                            return true;
+                        };
+        }
     }
 }
