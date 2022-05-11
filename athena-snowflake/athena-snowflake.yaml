@@ -49,13 +49,13 @@ Parameters:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
   PageCount:
-    Description: 'Limit on number of records per partition'
+    Description: 'Limits the number of records per partition'
     Type: Number
     Default: 500000
   PartitionLimit:
-    Description: 'Limit on number of partitions. A large number may cause time-out issue. Please reset to a lower value if you encounter a time-out error '
+    Description: 'Limits the number of partitions. A large number may cause a time-out issue. Please reset to a lower value if you encounter a time-out error'
     Type: Number
-    Default: 1000
+    Default: 10
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
