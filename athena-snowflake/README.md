@@ -106,10 +106,23 @@ spill_bucket    Spill bucket name. Required.
 spill_prefix    Spill bucket key prefix. Required.
 ```
 
+### PageCount parameter
+Limits the number of records per partition
+
+The default value is 500000
+
+### PartitionLimit parameter
+Limits the number of partitions. A large number may cause a time-out issue. Please reset to a lower value if you encounter a time-out error
+
+The default value is 10
+
 # Data types support
 
-
 |Jdbc|Arrow|
+Limit on number of partitions. A large number may cause time-out issue during running the query. Please reset to a lower value if you encounter a time-out error.
+
+Default partition limit is 10
+
 | ---|---|
 |Boolean|Bit|
 |Integer|Tiny|
