@@ -41,10 +41,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.assertEquals;
@@ -68,7 +65,7 @@ public class BigQueryMetadataHandlerTest
     BigQuery bigQuery;
 
     private BigQueryMetadataHandler bigQueryMetadataHandler;
-
+    private int UNLIMITED_PAGE_SIZE_VALUE = 50;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
     private Job job;
@@ -128,14 +125,12 @@ public class BigQueryMetadataHandlerTest
                 new BigQueryPage<>(BigQueryTestUtils.getTableList(BigQueryTestUtils.PROJECT_1_NAME,
                         datasetName, numTables));
 
-        when(bigQuery.listTables(any(DatasetId.class), any(BigQuery.TableListOption.class))).thenReturn(tablesPage);
-
         //This will test case insenstivity
-        ListTablesRequest request = new ListTablesRequest(federatedIdentity,
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase(),
                 datasetName, null, UNLIMITED_PAGE_SIZE_VALUE);
-        ListTablesResponse tableNames = bigQueryMetadataHandler.doListTables(blockAllocator, request);
-
+        when(bigQuery.listTables(any(DatasetId.class), any(BigQuery.TableListOption.class))).thenReturn(tablesPage);
+        ListTablesResponse tableNames = bigQueryMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertNotNull(tableNames);
         assertEquals("Schema count does not match!", numTables, tableNames.getTables().size());
     }

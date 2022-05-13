@@ -131,25 +131,20 @@ public class BigQueryMetadataHandler
         try {
             logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
                     listTablesRequest.getSchemaName());
-
             //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
             final String projectName = BigQueryUtils.getProjectName(listTablesRequest);
             final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
             final DatasetId datasetId = DatasetId.of(projectName, datasetName);
-
-            Page<Table> response = bigQuery.listTables(datasetId, BigQuery.TableListOption.pageSize(100));
             List<TableName> tables = new ArrayList<>();
-            do {
-                for (Table table : response.iterateAll()) {
-                    if (tables.size() > BigQueryConstants.MAX_RESULTS) {
-                        throw new BigQueryExceptions.TooManyTablesException();
-                    }
-                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable().toLowerCase()));
+            Page<Table> response = bigQuery.listTables(datasetId,
+                     BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
+            for (Table table : response.iterateAll()) {
+                if (tables.size() > BigQueryConstants.MAX_RESULTS) {
+                    throw new BigQueryExceptions.TooManyTablesException();
                 }
-            }while (response.hasNextPage());
-            logger.info("Found {} table(s)!", tables.size());
-
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
+                tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+            }
+            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, response.getNextPageToken());
         }
         catch
         (Exception e) {
@@ -211,8 +206,8 @@ public class BigQueryMetadataHandler
         }
         else {
             String projectName = BigQueryUtils.getProjectName(request);
-            String dataSetName = request.getTableName().getSchemaName();
-            String tableName = request.getTableName().getTableName();
+            String dataSetName = fixCaseForDatasetName(projectName, request.getTableName().getSchemaName(), bigQuery);
+            String tableName = fixCaseForTableName(projectName, dataSetName, request.getTableName().getTableName(), bigQuery);
             QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder("SELECT count(*) FROM `" + projectName + "." + dataSetName + "." + tableName + "` ").setUseLegacySql(false).build();
             // Create a job ID so that we can safely retry.
             JobId jobId = JobId.of(UUID.randomUUID().toString());
