@@ -163,7 +163,10 @@ public abstract class JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                connection.commit();
+                String url = connection.getMetaData().getURL();
+                if (!("synapse".equals(this.databaseConnectionConfig.getEngine()) && url.contains("ondemand"))) {
+                    connection.commit();
+                }
             }
         }
         catch (SQLException sqlException) {

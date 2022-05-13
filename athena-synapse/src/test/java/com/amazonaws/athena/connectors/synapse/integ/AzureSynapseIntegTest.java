@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.synapse.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
 import com.amazonaws.athena.connector.integ.data.TestConfig;
-import com.amazonaws.services.athena.model.Row;
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

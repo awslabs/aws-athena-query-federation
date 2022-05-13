@@ -61,8 +61,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -295,28 +297,120 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         LOGGER.info("Inside getSchema");
 
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
+                "C.PRECISION, C.SCALE " +
                 "FROM SYS.COLUMNS C " +
                 "JOIN SYS.TYPES T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
                 "WHERE C.OBJECT_ID=OBJECT_ID(?)";
 
-        String dataType;
-        String columnName;
-        HashMap<String, String> hashMap = new HashMap<>();
-        boolean found = false;
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        SchemaBuilder schemaBuilder;
+        HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
+        List<String> columnDetails;
+        String url;
+
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
-            // fetch data types of columns and prepare map with column name and datatype.
+            // fetch data types of columns and prepare map with column name and datatype information.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
                 while (dataTypeResultSet.next()) {
-                    dataType = dataTypeResultSet.getString("DATA_TYPE");
-                    columnName = dataTypeResultSet.getString("COLUMN_NAME");
-                    hashMap.put(columnName.trim(), dataType.trim());
+                    columnDetails = new ArrayList<>();
+                    columnDetails.add(dataTypeResultSet.getString("DATA_TYPE").trim());
+                    columnDetails.add(dataTypeResultSet.getString("PRECISION"));
+                    columnDetails.add(dataTypeResultSet.getString("SCALE"));
+                    columnNameAndDataTypeMap.put(dataTypeResultSet.getString("COLUMN_NAME").trim(), columnDetails);
                 }
             }
+        }
+
+        url = jdbcConnection.getMetaData().getURL();
+        if (url.contains("ondemand")) {
+            // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
+            // so doing explicit data type conversion
+            schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap, tableName.getSchemaName());
+        }
+        else {
+            schemaBuilder = doDataTypeConversionForNonCompatible(jdbcConnection, tableName, columnNameAndDataTypeMap);
+        }
+        // add partition columns
+        partitionSchema.getFields().forEach(schemaBuilder::addField);
+        return schemaBuilder.build();
+    }
+
+    private SchemaBuilder doDataTypeConversion(HashMap<String, List<String>> columnNameAndDataTypeMap, String schemaName)
+    {
+        String columnName;
+        List<String> dataTypeDetails;
+        String dataType;
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        // Initializing varchar type as default
+        ArrowType columnType = Types.MinorType.VARCHAR.getType();
+
+        for (Map.Entry<String, List<String>> entry : columnNameAndDataTypeMap.entrySet()) {
+            columnName = entry.getKey();
+            dataTypeDetails = entry.getValue();
+            dataType = dataTypeDetails.get(0);
+
+            LOGGER.debug("columnName: " + columnName);
+            LOGGER.debug("dataType: " + dataType);
+
+            if ("char".equalsIgnoreCase(dataType) || "varchar".equalsIgnoreCase(dataType) || "binary".equalsIgnoreCase(dataType) ||
+                    "nchar".equalsIgnoreCase(dataType) || "nvarchar".equalsIgnoreCase(dataType) || "varbinary".equalsIgnoreCase(dataType)
+                    || "time".equalsIgnoreCase(dataType) || "uniqueidentifier".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.VARCHAR.getType();
+            }
+
+            if ("bit".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.TINYINT.getType();
+            }
+
+            if ("tinyint".equalsIgnoreCase(dataType) || "smallint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.SMALLINT.getType();
+            }
+
+            if ("int".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.INT.getType();
+            }
+
+            if ("bigint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.BIGINT.getType();
+            }
+
+            if ("decimal".equalsIgnoreCase(dataType) || "money".equalsIgnoreCase(dataType)) {
+                columnType = ArrowType.Decimal.createDecimal(Integer.parseInt(dataTypeDetails.get(1)), Integer.parseInt(dataTypeDetails.get(2)), 256);
+            }
+
+            if ("numeric".equalsIgnoreCase(dataType) || "float".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT8.getType();
+            }
+
+            if ("real".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT4.getType();
+            }
+
+            if ("date".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEDAY.getType();
+            }
+
+            if ("datetime".equalsIgnoreCase(dataType) || "datetime2".equalsIgnoreCase(dataType)
+                    || "smalldatetime".equalsIgnoreCase(dataType) || "datetimeoffset".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEMILLI.getType();
+            }
+
+            LOGGER.debug("columnType: " + columnType);
+            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+        }
+        return schemaBuilder;
+    }
+
+    private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, List<String>> columnNameAndDataTypeMap) throws SQLException
+    {
+        String columnName;
+        String dataType;
+        boolean found = false;
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
             while (resultSet.next()) {
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
@@ -324,7 +418,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                         resultSet.getInt("DECIMAL_DIGITS"));
                 columnName = resultSet.getString("COLUMN_NAME");
 
-                dataType = hashMap.get(columnName);
+                dataType = columnNameAndDataTypeMap.get(columnName).get(0);
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
 
@@ -385,10 +479,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             if (!found) {
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
-            // add partition columns
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
-            return schemaBuilder.build();
         }
+        return schemaBuilder;
     }
 
     private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)
