@@ -41,7 +41,7 @@ dir=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 
 cd "$dir/../athena-federation-sdk-tools"
 
-if test -f "target/athena-federation-sdk-tools-2021.27.1.jar"; then
+if test -f "target/athena-federation-sdk-tools-2022.20.1.jar"; then
     echo "athena-federation-sdk-tools is already built, skipping compilation."
 else
     mvn clean install
