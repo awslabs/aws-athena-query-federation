@@ -152,7 +152,6 @@ public class ElasticsearchIntegTest extends IntegrationTestBase
     protected void setConnectorEnvironmentVars(final Map environmentVars)
     {
         // No-op.
-//        environmentVars.put("auto_discover_endpoint", "true");
     }
 
     /**
