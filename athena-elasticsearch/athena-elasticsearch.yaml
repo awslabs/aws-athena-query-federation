@@ -59,6 +59,25 @@ Parameters:
     Description: "timeout period (in seconds) for Search queries used in the retrieval of documents from an index (default is 12 minutes)."
     Default: 720
     Type: Number
+  IsVPCAccess:
+    AllowedValues:
+       - true
+       - false
+    Default: false
+    Description: "If ElasticSearch cluster is in VPC select true, [true, false] (default is false)"
+    Type: String
+  SecurityGroupIds:
+    Description: '**If IsVPCAccess is True**. Provide one or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: CommaDelimitedList
+    Default: ""
+  SubnetIds:
+    Description: '**If IsVPCAccess is True**. Provide one or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: CommaDelimitedList
+    Default: ""
+
+Conditions:
+  IsVPCAccessSelected: !Equals [!Ref IsVPCAccess, true]
+
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -108,3 +127,16 @@ Resources:
         #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
         - S3CrudPolicy:
             BucketName: !Ref SpillBucket
+      VpcConfig:
+          SecurityGroupIds:
+            !If
+              - IsVPCAccessSelected
+              -
+                !Ref SecurityGroupIds
+              - !Ref "AWS::NoValue"
+          SubnetIds:
+            !If
+              - IsVPCAccessSelected
+              -
+                !Ref SubnetIds
+              - !Ref "AWS::NoValue"
