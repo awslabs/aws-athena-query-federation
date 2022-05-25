@@ -49,6 +49,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
@@ -61,12 +62,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SynapseMetadataHandler extends JdbcMetadataHandler
@@ -305,8 +307,12 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
         SchemaBuilder schemaBuilder;
         HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
-        List<String> columnDetails;
-        String url;
+        Matcher m = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)").matcher(jdbcConnection.getMetaData().getURL());
+        String hostName = "";
+
+        if (m.find() && m.groupCount() == 3) {
+            hostName = m.group(2);
+        }
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
@@ -314,17 +320,16 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
                 while (dataTypeResultSet.next()) {
-                    columnDetails = new ArrayList<>();
-                    columnDetails.add(dataTypeResultSet.getString("DATA_TYPE").trim());
-                    columnDetails.add(dataTypeResultSet.getString("PRECISION"));
-                    columnDetails.add(dataTypeResultSet.getString("SCALE"));
+                    List<String> columnDetails = List.of(
+                            dataTypeResultSet.getString("DATA_TYPE").trim(),
+                            dataTypeResultSet.getString("PRECISION").trim(),
+                            dataTypeResultSet.getString("SCALE").trim());
                     columnNameAndDataTypeMap.put(dataTypeResultSet.getString("COLUMN_NAME").trim(), columnDetails);
                 }
             }
         }
 
-        url = jdbcConnection.getMetaData().getURL();
-        if (url.contains("ondemand")) {
+        if (StringUtils.isNotBlank(hostName) && hostName.contains("ondemand")) {
             // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
             // so doing explicit data type conversion
             schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap, tableName.getSchemaName());
