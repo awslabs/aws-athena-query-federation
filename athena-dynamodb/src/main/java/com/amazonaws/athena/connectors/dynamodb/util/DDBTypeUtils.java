@@ -25,12 +25,10 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtracto
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.DecimalExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
-import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
-import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
@@ -376,18 +374,6 @@ public final class DDBTypeUtils
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         switch (fieldType) {
-            case VARCHAR:
-                return Optional.of((VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
-                {
-                    AttributeValue attributeValue = ((Map<String, AttributeValue>) context).get(field.getName());
-                    if (attributeValue != null) {
-                        dst.isSet = 1;
-                        dst.value = attributeValue.getS();
-                    }
-                    else {
-                        dst.isSet = 0;
-                    }
-                });
             case DECIMAL:
                 return Optional.of((DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {

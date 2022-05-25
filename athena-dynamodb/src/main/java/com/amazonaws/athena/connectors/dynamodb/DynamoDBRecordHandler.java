@@ -169,15 +169,10 @@ public class DynamoDBRecordHandler
                 // had not made any DDB calls yet and there may be zero items returned when it does
                 continue;
             }
+            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
-            try {
-                spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
-            }
-            catch (Exception ex) {
-                logger.warn("Exception while writing rows :{}", ex.getMessage(), ex);
-            }
         }
-        logger.info("readWithConstraint: numRows[{}] ", numRows);
+        logger.info("readWithConstraint: numRows[{}]", numRows);
     }
 
     /*

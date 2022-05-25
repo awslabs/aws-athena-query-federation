@@ -75,33 +75,6 @@ public class DDBTypeUtilsTest
         ddbRecordMetadata = mock(DDBRecordMetadata.class);
     }
 
-    @Test
-    public void makeVarCharExtractorTest()
-            throws Exception
-    {
-        logger.info("makeVarCharExtractorTest - enter");
-
-        mapping = SchemaBuilder.newBuilder()
-                .addField(col1, Types.MinorType.VARCHAR.getType())
-                .addField(col2, Types.MinorType.VARCHAR.getType())
-                .build();
-
-        String strValue1 = "myValue";
-        String strValue2 = "value123";
-
-        AttributeValue myValue = new AttributeValue(strValue1);
-        AttributeValue myValue2 = new AttributeValue(strValue2);
-        Map<String, AttributeValue> testValue = ImmutableMap.of(col1, myValue, col2, myValue2);
-
-        Map<String, Object> expectedResults = ImmutableMap.of(
-                col1, strValue1,
-                col2, strValue2);
-        Map<String, Object> extractedResults = testField(mapping, testValue);
-        logger.info("makeVarCharExtractorTest - Expected: {}, Extracted: {}", expectedResults, extractedResults);
-        assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
-
-        logger.info("makeVarCharExtractorTest - exit");
-    }
 
     @Test
     public void makeDecimalExtractorTest()
