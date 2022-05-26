@@ -87,7 +87,6 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     String partitionBoundaryFrom;
     String partitionBoundaryTo = "0";
     String partitionColumn;
-    int rowCount = 0;
 
     public SynapseMetadataHandler()
     {
@@ -135,6 +134,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
 
+        int rowCount = 0;
         /**
          * Queries formed through String Template for retrieving Azure Synapse table partitions
          */
@@ -147,28 +147,29 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         rowCountSt.add("name", getTableLayoutRequest.getTableName().getTableName());
         rowCountSt.add("schemaname", getTableLayoutRequest.getTableName().getSchemaName());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (Statement st = connection.createStatement();
-                 Statement st2 = connection.createStatement();
-                 ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
-                 ResultSet resultSet2 = st2.executeQuery(rowCountSt.render())) {
-                // check whether the table have partitions or not using ROW_COUNT_QUERY
-                if (resultSet2.next()) {
-                    rowCount = resultSet2.getInt("ROW_COUNT");
-                    LOGGER.info("rowCount: {}", rowCount);
-                }
-                // create a single split for view/non-partition table
-                if (rowCount == 0) {
-                    LOGGER.debug("Getting as single Partition: ");
-                    blockWriter.writeRows((Block block, int rowNum) ->
-                    {
-                        block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
-                        //we wrote 1 row so we return 1
-                        return 1;
-                    });
-                }
-                else {
-                    LOGGER.debug("Getting data with diff Partitions: ");
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Statement st = connection.createStatement();
+             Statement st2 = connection.createStatement();
+             ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
+             ResultSet resultSet2 = st2.executeQuery(rowCountSt.render())) {
+            // check whether the table have partitions or not using ROW_COUNT_QUERY
+            if (resultSet2.next()) {
+                rowCount = resultSet2.getInt("ROW_COUNT");
+                LOGGER.info("rowCount: {}", rowCount);
+            }
+            // create a single split for view/non-partition table
+            if (rowCount == 0) {
+                LOGGER.debug("Getting as single Partition: ");
+                blockWriter.writeRows((Block block, int rowNum) ->
+                {
+                    block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
+                    //we wrote 1 row so we return 1
+                    return 1;
+                });
+            }
+            else {
+                LOGGER.debug("Getting data with diff Partitions: ");
+
                     /*
                     Synapse supports Range Partitioning. Partition column, partition range values are extracted from Synapse metadata tables.
                     partition boundaries will be formed using those values.
@@ -176,30 +177,29 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                         below partition boundaries will be created to form custom queries for splits
                         1::: :::10:::col1, 2:::10:::200:::col1, 3:::200::: :::col1
                      */
-                    while (resultSet.next()) {
-                        final String partitionNumber = resultSet.getString(PARTITION_NUMBER);
-                        LOGGER.debug("partitionNumber: {}", partitionNumber);
-                        if ("1".equals(partitionNumber)) {
-                            partitionBoundaryFrom = " ";
-                            partitionColumn = resultSet.getString(PARTITION_COLUMN);
-                            LOGGER.debug("partitionColumn: {}", partitionColumn);
-                        }
-                        else {
-                            partitionBoundaryFrom = partitionBoundaryTo;
-                        }
-                        partitionBoundaryTo = resultSet.getString("PARTITION_BOUNDARY_VALUE");
-                        partitionBoundaryTo = (partitionBoundaryTo == null) ? " " : partitionBoundaryTo;
-
-                        // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
-                        // 2. This API is not paginated, we could use order by and limit clause with offsets here.
-                        blockWriter.writeRows((Block block, int rowNum) ->
-                        {
-                            // creating the partition boundaries
-                            block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + ":::" + partitionBoundaryFrom + ":::" + partitionBoundaryTo + ":::" + partitionColumn);
-                            //we wrote 1 row so we return 1
-                            return 1;
-                        });
+                while (resultSet.next()) {
+                    final String partitionNumber = resultSet.getString(PARTITION_NUMBER);
+                    LOGGER.debug("partitionNumber: {}", partitionNumber);
+                    if ("1".equals(partitionNumber)) {
+                        partitionBoundaryFrom = " ";
+                        partitionColumn = resultSet.getString(PARTITION_COLUMN);
+                        LOGGER.debug("partitionColumn: {}", partitionColumn);
                     }
+                    else {
+                        partitionBoundaryFrom = partitionBoundaryTo;
+                    }
+                    partitionBoundaryTo = resultSet.getString("PARTITION_BOUNDARY_VALUE");
+                    partitionBoundaryTo = (partitionBoundaryTo == null) ? " " : partitionBoundaryTo;
+
+                    // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
+                    // 2. This API is not paginated, we could use order by and limit clause with offsets here.
+                    blockWriter.writeRows((Block block, int rowNum) ->
+                    {
+                        // creating the partition boundaries
+                        block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + ":::" + partitionBoundaryFrom + ":::" + partitionBoundaryTo + ":::" + partitionColumn);
+                        //we wrote 1 row so we return 1
+                        return 1;
+                    });
                 }
             }
         }
@@ -344,17 +344,13 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
     private SchemaBuilder doDataTypeConversion(HashMap<String, List<String>> columnNameAndDataTypeMap, String schemaName)
     {
-        String columnName;
-        List<String> dataTypeDetails;
-        String dataType;
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        // Initializing varchar type as default
-        ArrowType columnType = Types.MinorType.VARCHAR.getType();
 
         for (Map.Entry<String, List<String>> entry : columnNameAndDataTypeMap.entrySet()) {
-            columnName = entry.getKey();
-            dataTypeDetails = entry.getValue();
-            dataType = dataTypeDetails.get(0);
+            String columnName = entry.getKey();
+            List<String> dataTypeDetails = entry.getValue();
+            String dataType = dataTypeDetails.get(0);
+            ArrowType columnType = Types.MinorType.VARCHAR.getType();
 
             LOGGER.debug("columnName: " + columnName);
             LOGGER.debug("dataType: " + dataType);
@@ -410,20 +406,18 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
     private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, List<String>> columnNameAndDataTypeMap) throws SQLException
     {
-        String columnName;
-        String dataType;
-        boolean found = false;
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            boolean found = false;
             while (resultSet.next()) {
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"));
-                columnName = resultSet.getString("COLUMN_NAME");
+                String columnName = resultSet.getString("COLUMN_NAME");
+                String dataType = columnNameAndDataTypeMap.get(columnName).get(0);
 
-                dataType = columnNameAndDataTypeMap.get(columnName).get(0);
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
 
