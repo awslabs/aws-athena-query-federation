@@ -51,6 +51,8 @@ import software.amazon.awscdk.core.Stack;
 import software.amazon.awscdk.services.emr.CfnCluster;
 import software.amazon.awscdk.services.iam.PolicyDocument;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -383,5 +385,215 @@ public class HbaseIntegTest extends IntegrationTestBase
         logger.info("Actors: {}", actors);
         assertEquals("Wrong number of DB records found.", 1, actors.size());
         assertTrue("Actor not found: Sigourney Weaver.", actors.contains("Sigourney Weaver"));
+    }
+
+    @Test
+    public void selectIntegerTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectIntegerTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:int_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Integer> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Integer.parseInt(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Integer not found: " + TEST_DATATYPES_INT_VALUE, values.contains(TEST_DATATYPES_INT_VALUE));
+    }
+
+    @Test
+    public void selectVarcharTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectVarcharTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:varchar_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<String> values = new ArrayList<>();
+        rows.forEach(row -> values.add(row.getData().get(0).getVarCharValue()));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Varchar not found: " + TEST_DATATYPES_VARCHAR_VALUE, values.contains(TEST_DATATYPES_VARCHAR_VALUE));
+    }
+
+    @Test
+    public void selectBooleanTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectBooleanTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:boolean_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Boolean> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Boolean.valueOf(row.getData().get(0).getVarCharValue())));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Boolean not found: " + TEST_DATATYPES_BOOLEAN_VALUE, values.contains(TEST_DATATYPES_BOOLEAN_VALUE));
+    }
+
+    @Test
+    public void selectSmallintTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectSmallintTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:smallint_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Short> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Short.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        logger.info("Titles: {}", values);
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Smallint not found: " + TEST_DATATYPES_SHORT_VALUE, values.contains(TEST_DATATYPES_SHORT_VALUE));
+    }
+
+    @Test
+    public void selectBigintTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectBigintTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:bigint_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Long> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Long.valueOf(row.getData().get(0).getVarCharValue().split("\\.")[0])));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Bigint not found: " + TEST_DATATYPES_LONG_VALUE, values.contains(TEST_DATATYPES_LONG_VALUE));
+    }
+
+    @Test
+    public void selectFloat4TypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectFloat4TypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:float4_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Float> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Float.valueOf(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Float4 not found: " + TEST_DATATYPES_SINGLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_SINGLE_PRECISION_VALUE));
+    }
+
+    @Test
+    public void selectFloat8TypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectFloat8TypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:float8_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Double> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Float8 not found: " + TEST_DATATYPES_DOUBLE_PRECISION_VALUE, values.contains(TEST_DATATYPES_DOUBLE_PRECISION_VALUE));
+    }
+
+    @Test
+    public void selectDateTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectDateTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:date_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<LocalDate> values = new ArrayList<>();
+        rows.forEach(row -> values.add(LocalDate.parse(row.getData().get(0).getVarCharValue())));
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Date not found: " + TEST_DATATYPES_DATE_VALUE, values.contains(LocalDate.parse(TEST_DATATYPES_DATE_VALUE)));
+    }
+
+    @Test
+    public void selectTimestampTypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectTimestampTypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select \"datatype:timestamp_type\" from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<LocalDateTime> values = new ArrayList<>();
+        // for some reason, timestamps lose their 'T'.
+        rows.forEach(row -> values.add(LocalDateTime.parse(row.getData().get(0).getVarCharValue().replace(' ', 'T'))));
+        logger.info(rows.get(0).getData().get(0).getVarCharValue());
+        assertEquals("Wrong number of DB records found.", 1, values.size());
+        assertTrue("Date not found: " + TEST_DATATYPES_TIMESTAMP_VALUE, values.contains(LocalDateTime.parse(TEST_DATATYPES_TIMESTAMP_VALUE)));
+    }
+
+    @Test
+    public void selectByteArrayTypeTest()
+    {
+        // not supported
+    }
+
+    @Test
+    public void selectVarcharListTypeTest()
+    {
+        // not supported
+    }
+
+    @Test
+    public void selectNullValueTest()
+    {
+        // TODO: figure out how to write null values
+    }
+
+    @Test
+    public void selectEmptyTableTest()
+    {
+        // TODO: figure out how to set schema of an empty table
     }
 }

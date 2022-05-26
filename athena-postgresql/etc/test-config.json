@@ -1,21 +1,40 @@
 {
-  "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
-  "secrets_manager_secret" : "<secret name>",         /* Secret name used to retrieve user credentials from SecretsManager. */
-  "environment_vars" : {                  /* Parameters used by the connector's internal logic */
-    "spill_bucket" : "<spill bucket>",    /* The S3 bucket used for spilling excess data */
-    "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
-    "disable_spill_encryption" : "false"  /* If set to true encryption for spilled data is disabled (default: false) */
+  "athena_work_group": "FederationIntegrationTests",
+  "secrets_manager_secret": "federation/integ/postgresql",
+  "environment_vars":
+  {
+    "spill_bucket": "kparwal-federation-integ-spills",
+    "spill_prefix": "athena-spill",
+    "disable_spill_encryption": "false"
   },
-  "vpc_configuration" : {                 /* VPC configuration for DB instances within a VPC */
-    "vpc_id": "<VPC Id>",                 /* The VPC Id (e.g. vpc-xxx) */
-    "security_group_id": "<SG Id>",       /* The Security Group Id (e.g. sg-xxx) */
-    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
-    "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
+  "vpc_configuration":
+  {
+    "vpc_id": "vpc-3119604c",
+    "security_group_id": "sg-f035dfe1",
+    "subnet_ids":
+    [
+      "subnet-f7311fa8",
+      "subnet-83f6dbe5",
+      "subnet-764f6457",
+      "subnet-2a36cb66",
+      "subnet-4d49387c",
+      "subnet-55e50254"
+    ],
+    "availability_zones":
+    [
+      "us-east-1a",
+      "us-east-1b",
+      "us-east-1c",
+      "us-east-1d",
+      "us-east-1e",
+      "us-east-1f"
+    ]
   },
-  "user_settings" : {                     /* User customizable settings */
-    "postgres_db_name": "<DB Name>",      /* Name of the Db used by the PostGreSql integration tests */
-    "postgres_db_port": <Port (Integer)>, /* Port number associated with the PostGreSql instance endpoint */
-    "postgres_table_movies": "<Table Name>",    /* PostGreSql table name */
-    "postgres_table_bday": "<Table Name>",      /* PostGreSql table name */
+  "user_settings":
+  {
+    "postgres_db_name": "integ_table",
+    "postgres_db_port": 5432,
+    "postgres_table_movies": "movies",
+    "postgres_table_bday": "bday"
   }
 }

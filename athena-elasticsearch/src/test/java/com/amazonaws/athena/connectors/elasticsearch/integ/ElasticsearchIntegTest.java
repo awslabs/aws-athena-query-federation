@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.AssertJUnit;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -137,7 +138,7 @@ public class ElasticsearchIntegTest extends IntegrationTestBase
     {
         return Optional.of(PolicyDocument.Builder.create()
                 .statements(ImmutableList.of(PolicyStatement.Builder.create()
-                        .actions(ImmutableList.of("es:List*", "es:Describe*", "es:ESHttp*"))
+                        .actions(ImmutableList.of("es:List*", "es:Describe*", "es:ESHttp*", "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"))
                         .resources(ImmutableList.of("*"))
                         .effect(Effect.ALLOW)
                         .build()))
@@ -184,6 +185,33 @@ public class ElasticsearchIntegTest extends IntegrationTestBase
                             "David Gyasi", "Michael Caine", "Jessica Chastain", "Matt Damon", "Casey Affleck")
             ));
         }
+        try (ElasticsearchIndexUtils indexUtils = new ElasticsearchIndexUtils(domainName, TEST_DATATYPES_TABLE_NAME))
+        {
+            Map<String, Object> item = new ImmutableMap.Builder<String, Object>()
+                .put("int_type", TEST_DATATYPES_INT_VALUE)
+                .put("smallint_type", TEST_DATATYPES_SHORT_VALUE)
+                .put("bigint_type", TEST_DATATYPES_LONG_VALUE)
+                .put("varchar_type", TEST_DATATYPES_VARCHAR_VALUE)
+                .put("boolean_type", TEST_DATATYPES_BOOLEAN_VALUE)
+                .put("float4_type", TEST_DATATYPES_SINGLE_PRECISION_VALUE)
+                .put("float8_type", 1e-32)
+//                .put("date_type", Date.parse(TEST_DATATYPES_DATE_VALUE))
+                .put("timestamp_type", TEST_DATATYPES_TIMESTAMP_VALUE)
+                .put("textarray_type", TEST_DATATYPES_VARCHAR_ARRAY_VALUE).build();
+            indexUtils.addDocument(item);
+        }
+
+        ElasticsearchIndexUtils emptyIndex = new ElasticsearchIndexUtils(domainName, TEST_EMPTY_TABLE_NAME);
+        emptyIndex.addDocument(new ImmutableMap.Builder<String, Object>().build());
+        emptyIndex.close();
+
+        try (ElasticsearchIndexUtils indexUtils = new ElasticsearchIndexUtils(domainName, TEST_NULL_TABLE_NAME))
+        {
+            Map<String, Object> item = new ImmutableMap.Builder<String, Object>()
+                    .put("int_type", "null").build();
+            indexUtils.addDocument(item);
+        }
+
     }
 
     @Test
@@ -248,5 +276,49 @@ public class ElasticsearchIntegTest extends IntegrationTestBase
         logger.info("Titles: {}", titles);
         assertEquals("Wrong number of DB records found.", 1, titles.size());
         assertTrue("Movie title not found: Interstellar.", titles.contains("Interstellar"));
+    }
+
+    @Test
+    public void selectFloat8TypeTest()
+    {
+        logger.info("--------------------------------------");
+        logger.info("Executing selectFloat8TypeTest");
+        logger.info("--------------------------------------");
+
+        String query = String.format("select float8_type from %s.%s.%s;",
+                lambdaFunctionName, INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME);
+        List<Row> rows = startQueryExecution(query).getResultSet().getRows();
+        if (!rows.isEmpty()) {
+            // Remove the column-header row
+            rows.remove(0);
+        }
+        List<Double> values = new ArrayList<>();
+        rows.forEach(row -> values.add(Double.valueOf(row.getData().get(0).getVarCharValue())));
+        AssertJUnit.assertEquals("Wrong number of DB records found.", 1, values.size());
+        AssertJUnit.assertTrue("Float8 not found: " + 1e-32, values.contains(1e-32));
+    }
+
+    @Test
+    public void selectByteArrayTypeTest()
+    {
+        // not supported
+    }
+
+    @Test
+    public void selectDateTypeTest()
+    {
+        // TODO: fix this test
+    }
+
+    @Test
+    public void selectNullValueTest()
+    {
+        // not supported
+    }
+
+    @Override
+    public void selectEmptyTableTest()
+    {
+        // not supported
     }
 }

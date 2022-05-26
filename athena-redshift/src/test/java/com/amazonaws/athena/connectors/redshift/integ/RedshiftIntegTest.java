@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.integ.data.SecretsManagerCredentials;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.integ.JdbcTableUtils;
+import com.amazonaws.services.athena.model.Datum;
 import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.redshift.AmazonRedshift;
 import com.amazonaws.services.redshift.AmazonRedshiftClientBuilder;
@@ -34,6 +35,7 @@ import com.amazonaws.services.redshift.model.DescribeClustersResult;
 import com.amazonaws.services.redshift.model.Endpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.AssertJUnit;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -222,6 +224,9 @@ public class RedshiftIntegTest extends IntegrationTestBase
 
         JdbcTableUtils jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(redshiftDbName, redshiftTableMovies), environmentVars, null, REDSHIFT_NAME);
         jdbcUtils.createDbSchema(databaseConnectionInfo);
+
+        jdbcUtils = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, null, REDSHIFT_NAME);
+        jdbcUtils.createDbSchema(databaseConnectionInfo);
     }
 
     /**
@@ -270,6 +275,9 @@ public class RedshiftIntegTest extends IntegrationTestBase
         }
         setUpMoviesTable();
         setUpBdayTable();
+        setUpDatatypesTable();
+        setUpNullTable();
+        setUpEmptyTable();
     }
 
     /**
@@ -303,6 +311,64 @@ public class RedshiftIntegTest extends IntegrationTestBase
         bdayTable.insertRow("'Joe', 'Schmoe', date('2002-05-05')", databaseConnectionInfo);
         bdayTable.insertRow("'Jane', 'Doe', date('2005-10-12')", databaseConnectionInfo);
         bdayTable.insertRow("'John', 'Smith', date('2006-02-10')", databaseConnectionInfo);
+    }
+
+    /**
+     * Creates the 'datatypes' table and inserts rows.
+     */
+    protected void setUpDatatypesTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_DATATYPES_TABLE_NAME), environmentVars, null, REDSHIFT_NAME);
+        datatypesTable.createTable("int_type INTEGER, smallint_type SMALLINT, bigint_type BIGINT, varchar_type CHARACTER VARYING(255), boolean_type BOOLEAN, float4_type REAL, float8_type DOUBLE PRECISION, date_type DATE, timestamp_type TIMESTAMP, byte_type VARBYTE(4)", databaseConnectionInfo);
+        String row = String.format("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s",
+                TEST_DATATYPES_INT_VALUE,
+                TEST_DATATYPES_SHORT_VALUE,
+                TEST_DATATYPES_LONG_VALUE,
+                "'" + TEST_DATATYPES_VARCHAR_VALUE + "'",
+                TEST_DATATYPES_BOOLEAN_VALUE,
+                TEST_DATATYPES_SINGLE_PRECISION_VALUE,
+                TEST_DATATYPES_DOUBLE_PRECISION_VALUE,
+                "'" + TEST_DATATYPES_DATE_VALUE + "'",
+                "'" + TEST_DATATYPES_TIMESTAMP_VALUE + "'",
+                "from_hex('deadbeef')");
+        datatypesTable.insertRow(row, databaseConnectionInfo);
+    }
+
+    @Test
+    public void selectVarcharListTypeTest()
+    {
+        // not supported!
+    }
+
+    /**
+     * Creates the 'null_table' table and inserts rows.
+     */
+    protected void setUpNullTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_NULL_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_NULL_TABLE_NAME), environmentVars, null, REDSHIFT_NAME);
+        datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
+        datatypesTable.insertRow("NULL", databaseConnectionInfo);
+    }
+
+    /**
+     * Creates the 'empty_table' table and inserts rows.
+     */
+    protected void setUpEmptyTable()
+    {
+        logger.info("----------------------------------------------------");
+        logger.info("Setting up DB table: {}", TEST_EMPTY_TABLE_NAME);
+        logger.info("----------------------------------------------------");
+
+        JdbcTableUtils datatypesTable = new JdbcTableUtils(lambdaFunctionName, new TableName(INTEG_TEST_DATABASE_NAME, TEST_EMPTY_TABLE_NAME), environmentVars, null, REDSHIFT_NAME);
+        datatypesTable.createTable("int_type INTEGER", databaseConnectionInfo);
     }
 
     @Test

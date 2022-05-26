@@ -51,14 +51,10 @@ public class DdbTableUtils {
     private static final String CF_STACK_ID = "DdbTable";
     private static final long READ_CAPACITY_UNITS = 10L;
     private static final long WRITE_CAPACITY_UNITS = 10L;
-    private static final String DDB_PARTITION_KEY = "title";
-    private static final String DDB_SORT_KEY = "year";
 
-    private final String tableName;
     private final AmazonDynamoDB client;
 
-    public DdbTableUtils(String tableName) {
-        this.tableName = tableName;
+    public DdbTableUtils() {
         client = AmazonDynamoDBClientBuilder.defaultClient();
     }
 
@@ -66,71 +62,24 @@ public class DdbTableUtils {
      * Sets up the DDB Table's CloudFormation stack.
      * @param stack The current CloudFormation stack.
      */
-    protected void setupTableStack(final Stack stack)
+    protected void setupTableStack(String tableName, String partitionKey, String sortKey, final Stack stack)
     {
-        Table.Builder.create(stack, CF_STACK_ID)
+        Table.Builder.create(stack, tableName + "Stack")
                 .tableName(tableName)
                 .billingMode(BillingMode.PROVISIONED)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .readCapacity(Long.valueOf(READ_CAPACITY_UNITS))
                 .writeCapacity(Long.valueOf(WRITE_CAPACITY_UNITS))
-                .partitionKey(Attribute.builder().name(DDB_PARTITION_KEY).type(AttributeType.STRING).build())
-                .sortKey(Attribute.builder().name(DDB_SORT_KEY).type(AttributeType.NUMBER).build())
+                .partitionKey(Attribute.builder().name(partitionKey).type(AttributeType.STRING).build())
+                .sortKey(Attribute.builder().name(sortKey).type(AttributeType.NUMBER).build())
                 .build();
-    }
-
-    /**
-     * Insert rows into the newly created DDB table.
-     */
-    protected void addItems()
-    {
-        addItem("2014", "Interstellar", "Christopher Nolan",
-                ImmutableList.of("Matthew McConaughey", "John Lithgow", "Ann Hathaway",
-                        "David Gyasi", "Michael Caine", "Jessica Chastain",
-                        "Matt Damon", "Casey Affleck"),
-                ImmutableList.of("Adventure", "Drama", "Sci-Fi", "Thriller"));
-        addItem("1986", "Aliens", "James Cameron",
-                ImmutableList.of("Sigourney Weaver", "Paul Reiser", "Lance Henriksen",
-                        "Bill Paxton"),
-                ImmutableList.of("Adventure", "Action", "Sci-Fi", "Thriller"));
-    }
-
-    /**
-     * Creates a Map containing the item's attributes and adds the item to the table.
-     * @param year Year attribute.
-     * @param title Title attribute.
-     * @param director Director attribute.
-     * @param cast List of cast members.
-     * @param genre List of movie generes.
-     */
-    private void addItem(String year, String title, String director,
-                         List<String> cast, List<String> genre)
-    {
-        logger.info("Add item: year=[{}], title=[{}], director=[{}], cast={}, genre={}",
-                year, title, director, cast, genre);
-
-        List<AttributeValue> castAttrib = new ArrayList<>();
-        cast.forEach(value -> castAttrib.add(new AttributeValue(value)));
-
-        List<AttributeValue> genreAttrib = new ArrayList<>();
-        genre.forEach(value -> genreAttrib.add(new AttributeValue(value)));
-
-        Map<String, AttributeValue> item = ImmutableMap.of(
-                "year", new AttributeValue().withN(year),
-                "title", new AttributeValue(title),
-                "info", new AttributeValue().withM(ImmutableMap.of(
-                        "director", new AttributeValue(director),
-                        "cast", new AttributeValue().withL(castAttrib),
-                        "genre", new AttributeValue().withL(genreAttrib))));
-
-        putItem(item);
     }
 
     /**
      * Adds item to the table.
      * @param item Map of table attributes.
      */
-    protected void putItem(Map<String, AttributeValue> item)
+    protected void putItem(String tableName, Map<String, AttributeValue> item)
     {
         // Table takes a while to initialize, and may require several attempts to insert
         // the first record.

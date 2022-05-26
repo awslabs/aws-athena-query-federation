@@ -87,6 +87,37 @@ public class HbaseIntegTestHandler
             logger.error("Error setting up HBase table: {}", e.getMessage(), e);
         }
 
+        try (HbaseTableUtils tableUtils = new HbaseTableUtils("datatypes", "datatypes_table", connectionStr)) {
+            // Create HBase database/namespace and table.
+            tableUtils.createDbAndTable(ImmutableList.of("datatype"));
+            List<Put> rows = new ImmutableList.Builder<Put>()
+                    .add(new HbaseRowBuilder("1")
+                            .addColumn("datatype", "int_type", String.valueOf(Integer.MIN_VALUE))
+                            .addColumn("datatype", "smallint_type", String.valueOf(Short.MIN_VALUE))
+                            .addColumn("datatype", "bigint_type", String.valueOf(Long.MIN_VALUE))
+                            .addColumn("datatype", "varchar_type", "John Doe")
+                            .addColumn("datatype", "boolean_type", String.valueOf(true))
+                            .addColumn("datatype", "float4_type", String.valueOf(1e-37f))
+                            .addColumn("datatype", "float8_type", String.valueOf(1e-307))
+                            .addColumn("datatype", "date_type", "2013-06-01")
+                            .addColumn("datatype", "timestamp_type", "2016-06-22T19:10:25")
+                            .build())
+                    .build();
+            tableUtils.insertRows(rows);
+            logger.info("New rows inserted successfully.");
+        }
+        catch (IOException e) {
+            logger.error("Error setting up HBase table: {}", e.getMessage(), e);
+        }
+
+        try (HbaseTableUtils tableUtils = new HbaseTableUtils("empty", "empty_table", connectionStr)) {
+            // Create HBase database/namespace and table.
+            tableUtils.createDbAndTable(ImmutableList.of("empty"));
+        }
+        catch (IOException e) {
+            logger.error("Error setting up HBase table: {}", e.getMessage(), e);
+        }
+
         logger.info("handleRequest - exit");
     }
 }
