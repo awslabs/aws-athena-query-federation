@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaSnowflakeConnector
-    Description: 'This connector enables Amazon Athena to communicate with your Teradata instance(s) using JDBC driver.'
+    Description: 'This Amazon Athena connector for Snowflake enables Amazon Athena to run SQL queries on data stored in Snowflake.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -71,7 +71,7 @@ Resources:
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler"
       CodeUri: "./target/athena-snowflake-2022.20.1.jar"
-      Description: "Enables Amazon Athena to communicate with Teradata using JDBC"
+      Description: "Enables Amazon Athena to communicate with Snowflake using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
