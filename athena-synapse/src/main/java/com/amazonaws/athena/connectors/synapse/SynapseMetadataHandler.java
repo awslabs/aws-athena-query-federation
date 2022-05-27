@@ -49,7 +49,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
@@ -67,8 +66,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SynapseMetadataHandler extends JdbcMetadataHandler
@@ -298,7 +295,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("Inside getSchema");
 
-        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
+        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
                 "C.PRECISION, C.SCALE " +
                 "FROM SYS.COLUMNS C " +
                 "JOIN SYS.TYPES T " +
@@ -307,12 +304,6 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
         SchemaBuilder schemaBuilder;
         HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
-        Matcher m = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)").matcher(jdbcConnection.getMetaData().getURL());
-        String hostName = "";
-
-        if (m.find() && m.groupCount() == 3) {
-            hostName = m.group(2);
-        }
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
@@ -329,7 +320,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             }
         }
 
-        if (StringUtils.isNotBlank(hostName) && hostName.contains("ondemand")) {
+        if ("azureServerless".equalsIgnoreCase(JDBCUtil.checkEnvironment(SynapseConstants.NAME, jdbcConnection.getMetaData().getURL()))) {
             // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
             // so doing explicit data type conversion
             schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap, tableName.getSchemaName());

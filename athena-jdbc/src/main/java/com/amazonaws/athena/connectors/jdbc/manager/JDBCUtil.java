@@ -22,10 +22,13 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class JDBCUtil
 {
@@ -127,5 +130,21 @@ public final class JDBCUtil
         }
 
         return recordHandlerMap.build();
+    }
+
+    public static String checkEnvironment(String databaseEngine, String url)
+    {
+        if ("synapse".equals(databaseEngine)) {
+            // checking whether it's Azure serverless environment or not based on host name
+            Matcher m = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)").matcher(url);
+            String hostName = "";
+            if (m.find() && m.groupCount() == 3) {
+                hostName = m.group(2);
+            }
+            if (StringUtils.isNotBlank(hostName) && hostName.contains("ondemand")) {
+                return "azureServerless";
+            }
+        }
+        return null;
     }
 }

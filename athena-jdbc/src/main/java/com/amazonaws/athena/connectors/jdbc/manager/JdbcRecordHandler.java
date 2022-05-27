@@ -86,8 +86,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Abstracts JDBC record handler and provides common reusable split records handling.
@@ -165,21 +163,8 @@ public abstract class JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                boolean isAzureServerless = false;
-                // checking whether it's Azure serverless environment or not based on host name
-                if("synapse".equals(this.databaseConnectionConfig.getEngine())) {
-                    Matcher m = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)").matcher(connection.getMetaData().getURL());
-                    String hostName = "";
-                    if (m.find() && m.groupCount() == 3) {
-                        hostName = m.group(2);
-                    }
-                    if(StringUtils.isNotBlank(hostName) && hostName.contains("ondemand")) {
-                        isAzureServerless = true;
-                    }
-                }
-
                 // Not performing commit() in case of Azure serverless environment
-                if (!isAzureServerless) {
+                if (!"azureServerless".equals(JDBCUtil.checkEnvironment(this.databaseConnectionConfig.getEngine(), connection.getMetaData().getURL()))) {
                     connection.commit();
                 }
             }
