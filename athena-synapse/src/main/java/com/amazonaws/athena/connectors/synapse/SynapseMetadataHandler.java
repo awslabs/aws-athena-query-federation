@@ -81,10 +81,6 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
-    String partitionBoundaryFrom;
-    String partitionBoundaryTo = "0";
-    String partitionColumn;
-
     public SynapseMetadataHandler()
     {
         this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME));
@@ -131,7 +127,6 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
 
-        int rowCount = 0;
         /**
          * Queries formed through String Template for retrieving Azure Synapse table partitions
          */
@@ -149,6 +144,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
              Statement st2 = connection.createStatement();
              ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
              ResultSet resultSet2 = st2.executeQuery(rowCountSt.render())) {
+            int rowCount = 0;
             // check whether the table have partitions or not using ROW_COUNT_QUERY
             if (resultSet2.next()) {
                 rowCount = resultSet2.getInt("ROW_COUNT");
@@ -167,6 +163,10 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             else {
                 LOGGER.debug("Getting data with diff Partitions: ");
 
+                // partitionBoundaryTo, partitionColumn can not be declared in loop scope as they need to retain the value for next iteration.
+                String partitionBoundaryTo = "0";
+                String partitionColumn = "";
+
                     /*
                     Synapse supports Range Partitioning. Partition column, partition range values are extracted from Synapse metadata tables.
                     partition boundaries will be formed using those values.
@@ -175,6 +175,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                         1::: :::10:::col1, 2:::10:::200:::col1, 3:::200::: :::col1
                      */
                 while (resultSet.next()) {
+                    String partitionBoundaryFrom;
                     final String partitionNumber = resultSet.getString(PARTITION_NUMBER);
                     LOGGER.debug("partitionNumber: {}", partitionNumber);
                     if ("1".equals(partitionNumber)) {
@@ -190,10 +191,13 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
 
                     // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
                     // 2. This API is not paginated, we could use order by and limit clause with offsets here.
+
+                    String finalPartitionBoundaryTo = partitionBoundaryTo;
+                    String finalPartitionColumn = partitionColumn;
                     blockWriter.writeRows((Block block, int rowNum) ->
                     {
                         // creating the partition boundaries
-                        block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + ":::" + partitionBoundaryFrom + ":::" + partitionBoundaryTo + ":::" + partitionColumn);
+                        block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + ":::" + partitionBoundaryFrom + ":::" + finalPartitionBoundaryTo + ":::" + finalPartitionColumn);
                         //we wrote 1 row so we return 1
                         return 1;
                     });

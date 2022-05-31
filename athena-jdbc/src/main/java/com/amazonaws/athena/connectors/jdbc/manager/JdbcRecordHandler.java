@@ -163,7 +163,9 @@ public abstract class JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                // Not performing commit() in case of Azure serverless environment
+                // SqlServer jdbc driver is using @@TRANCOUNT while performing commit(), it results below RuntimeException.
+                // com.microsoft.sqlserver.jdbc.SQLServerException:  '@@TRANCOUNT' is not supported.
+                // So we are evading this connection.commit(), in case of Azure serverless environment.
                 if (!"azureServerless".equals(JDBCUtil.checkEnvironment(this.databaseConnectionConfig.getEngine(), connection.getMetaData().getURL()))) {
                     connection.commit();
                 }

@@ -34,6 +34,7 @@ public final class JDBCUtil
 {
     private static final String DEFAULT_CATALOG_PREFIX = "lambda:";
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
+    private static final Pattern SYNAPSE_CONN_STRING_PATTERN = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)");
     private JDBCUtil() {}
 
     /**
@@ -136,7 +137,7 @@ public final class JDBCUtil
     {
         if ("synapse".equals(databaseEngine)) {
             // checking whether it's Azure serverless environment or not based on host name
-            Matcher m = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)").matcher(url);
+            Matcher m = SYNAPSE_CONN_STRING_PATTERN.matcher(url);
             String hostName = "";
             if (m.find() && m.groupCount() == 3) {
                 hostName = m.group(2);
