@@ -28,13 +28,17 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -44,6 +48,8 @@ public class AthenaUDFHandler
         extends UserDefinedFunctionHandler
 {
     private static final String SOURCE_TYPE = "athena_common_udfs";
+    public static final int GCM_IV_LENGTH = 12;
+    public static final int GCM_TAG_LENGTH = 16; // max allowable
 
     private final CachableSecretsManager cachableSecretsManager;
 
@@ -154,9 +160,10 @@ public class AthenaUDFHandler
         byte[] plaintextKey = Base64.getDecoder().decode(secretString);
 
         try {
-            Cipher cipher = getCipher(Cipher.DECRYPT_MODE, plaintextKey);
             byte[] encryptedContent = Base64.getDecoder().decode(ciphertext.getBytes());
-            byte[] plainTextBytes = cipher.doFinal(encryptedContent);
+            // extract IV from first GCM_IV_LENGTH bytes of ciphertext
+            Cipher cipher = getCipher(Cipher.DECRYPT_MODE, plaintextKey, getGCMSpecDecryption(encryptedContent));
+            byte[] plainTextBytes = cipher.doFinal(encryptedContent, GCM_IV_LENGTH, encryptedContent.length - GCM_IV_LENGTH);
             return new String(plainTextBytes);
         }
         catch (IllegalBlockSizeException | BadPaddingException e) {
@@ -180,9 +187,14 @@ public class AthenaUDFHandler
         byte[] plaintextKey = Base64.getDecoder().decode(secretString);
 
         try {
-            Cipher cipher = getCipher(Cipher.ENCRYPT_MODE, plaintextKey);
+            Cipher cipher = getCipher(Cipher.ENCRYPT_MODE, plaintextKey, getGCMSpecEncryption());
             byte[] encryptedContent = cipher.doFinal(plaintext.getBytes());
-            byte[] encodedContent = Base64.getEncoder().encode(encryptedContent);
+            // prepend ciphertext with IV
+            ByteBuffer byteBuffer = ByteBuffer.allocate(GCM_IV_LENGTH + encryptedContent.length);
+            byteBuffer.put(cipher.getIV());
+            byteBuffer.put(encryptedContent);
+
+            byte[] encodedContent = Base64.getEncoder().encode(byteBuffer.array());
             return new String(encodedContent);
         }
         catch (IllegalBlockSizeException | BadPaddingException e) {
@@ -190,15 +202,30 @@ public class AthenaUDFHandler
         }
     }
 
-    private Cipher getCipher(int cipherMode, byte[] plainTextDataKey)
+    private static GCMParameterSpec getGCMSpecDecryption(byte[] encryptedText)
+    {
+        return new GCMParameterSpec(GCM_TAG_LENGTH * Byte.SIZE, encryptedText, 0, GCM_IV_LENGTH);
+    }
+
+    static GCMParameterSpec getGCMSpecEncryption()
+    {
+        byte[] iv = new byte[GCM_IV_LENGTH];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(iv);
+
+        return new GCMParameterSpec(GCM_TAG_LENGTH * Byte.SIZE, iv);
+    }
+
+    static Cipher getCipher(int cipherMode, byte[] plainTextDataKey, GCMParameterSpec gcmParameterSpec)
     {
         try {
-            Cipher cipher = Cipher.getInstance("AES");
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             SecretKeySpec skeySpec = new SecretKeySpec(plainTextDataKey, "AES");
-            cipher.init(cipherMode, skeySpec);
+
+            cipher.init(cipherMode, skeySpec, gcmParameterSpec);
             return cipher;
         }
-        catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException e) {
+        catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             throw new RuntimeException(e);
         }
     }
