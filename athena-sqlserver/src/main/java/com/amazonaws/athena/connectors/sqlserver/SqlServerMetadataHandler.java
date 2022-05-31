@@ -183,7 +183,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                  PreparedStatement preparedStatement2 = new PreparedStatementBuilder().withConnection(connection).withQuery(ROW_COUNT_QUERY).withParameters(parameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery();
                  ResultSet resultSet2 = preparedStatement2.executeQuery()) {
-
                 int rowCount = 0;
                 // check whether the table have partitions or not using ROW_COUNT_QUERY
                 if (resultSet2.next()) {
