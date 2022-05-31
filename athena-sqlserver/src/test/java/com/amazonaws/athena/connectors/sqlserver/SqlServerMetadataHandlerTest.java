@@ -129,7 +129,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         PreparedStatement partFuncPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_FUNCTION_QUERY)).thenReturn(partFuncPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_DETAILS_QUERY)).thenReturn(partFuncPreparedStatement);
         ResultSet partFuncResultSet = mockResultSet(new String[] {"PARTITION FUNCTION", "PARTITIONING COLUMN"}, new int[] {Types.VARCHAR, Types.VARCHAR}, new Object[][] {{"pf", "pc"}}, new AtomicInteger(-1));
         Mockito.when(partFuncPreparedStatement.executeQuery()).thenReturn(partFuncResultSet);
 
@@ -245,7 +245,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         PreparedStatement partFuncPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_FUNCTION_QUERY)).thenReturn(partFuncPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_DETAILS_QUERY)).thenReturn(partFuncPreparedStatement);
         ResultSet partFuncResultSet = mockResultSet(new String[] {"PARTITION FUNCTION", "PARTITIONING COLUMN"}, new int[] {Types.VARCHAR, Types.VARCHAR}, new Object[][] {{"pf", "pc"}}, new AtomicInteger(-1));
         Mockito.when(partFuncPreparedStatement.executeQuery()).thenReturn(partFuncResultSet);
 
@@ -351,7 +351,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         PreparedStatement partFuncPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_FUNCTION_QUERY)).thenReturn(partFuncPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_DETAILS_QUERY)).thenReturn(partFuncPreparedStatement);
         ResultSet partFuncResultSet = mockResultSet(new String[] {"PARTITION FUNCTION", "PARTITIONING COLUMN"}, new int[] {Types.VARCHAR, Types.VARCHAR}, new Object[][] {{"pf", "pc"}}, new AtomicInteger(-1));
         Mockito.when(partFuncPreparedStatement.executeQuery()).thenReturn(partFuncResultSet);
 
