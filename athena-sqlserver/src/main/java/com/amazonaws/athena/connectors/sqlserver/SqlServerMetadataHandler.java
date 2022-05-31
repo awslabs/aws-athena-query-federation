@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -59,6 +59,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,6 +70,8 @@ import java.util.stream.Collectors;
 
 public class SqlServerMetadataHandler extends JdbcMetadataHandler
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerMetadataHandler.class);
+
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "0";
     static final String PARTITION_NUMBER = "PARTITION_NUMBER";
@@ -84,14 +87,14 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * table have both index and partition - rows will be returned with different partition_number as we are using distinct in the query.
      */
     static final String GET_PARTITIONS_QUERY = "select distinct PARTITION_NUMBER from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 "; //'dbo.MyPartitionTable'
-    static final String ROW_COUNT_QUERY = "select  count(*) as row_count from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 ";
-    private static final Logger LOGGER = LoggerFactory.getLogger(SqlServerMetadataHandler.class);
+    static final String ROW_COUNT_QUERY = "select count(distinct PARTITION_NUMBER) as row_count from SYS.DM_DB_PARTITION_STATS where object_id = OBJECT_ID(?) and partition_number > 1 ";
+
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
 
     /**
      * Query for retrieving Sql Server table partition details
      */
-    static final String GET_PARTITION_FUNCTION_QUERY = "SELECT " +
+    static final String GET_PARTITION_DETAILS_QUERY = "SELECT " +
             "c.name AS [Partitioning Column], " +
             "       pf.name AS [Partition Function] " +
             "FROM sys.tables AS t   " +
@@ -111,10 +114,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "WHERE t.object_id = (select object_id from sys.objects o where o.name = ? " +
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
-
-    String partitionFunction;
-    String partitioningColumn;
-    int rowCount;
 
     public SqlServerMetadataHandler()
     {
@@ -177,13 +176,14 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
 
-        List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName() + "." +
-                getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName() + "." +
+                    getTableLayoutRequest.getTableName().getTableName());
             try (PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITIONS_QUERY).withParameters(parameters).build();
                  PreparedStatement preparedStatement2 = new PreparedStatementBuilder().withConnection(connection).withQuery(ROW_COUNT_QUERY).withParameters(parameters).build();
                  ResultSet resultSet = preparedStatement.executeQuery();
                  ResultSet resultSet2 = preparedStatement2.executeQuery()) {
+                int rowCount = 0;
                 // check whether the table have partitions or not using ROW_COUNT_QUERY
                 if (resultSet2.next()) {
                     rowCount = resultSet2.getInt("ROW_COUNT");
@@ -203,12 +203,14 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 else {
                     LOGGER.debug("Getting data with diff Partitions: ");
                     // get partition details from sql server meta data tables
-                    getPartitionFunction(params);
+                    List<String> partitionDetails = getPartitionDetails(params);
+                    String partitionInfo = (!partitionDetails.isEmpty() && partitionDetails.size() == 2) ?
+                            ":::" + partitionDetails.get(0) + ":::" + partitionDetails.get(1) : "";
 
                     // Include the first partition because it's not retrieved from GET_PARTITIONS_QUERY
                     blockWriter.writeRows((Block block, int rowNum) ->
                     {
-                        block.setValue(PARTITION_NUMBER, rowNum, "1");
+                        block.setValue(PARTITION_NUMBER, rowNum, "1" + partitionInfo);
                         return 1;
                     });
                     if (resultSet.next()) {
@@ -218,7 +220,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                             // 2. This API is not paginated, we could use order by and limit clause with offsets here.
                             blockWriter.writeRows((Block block, int rowNum) ->
                             {
-                                block.setValue(PARTITION_NUMBER, rowNum, partitionNumber);
+                                block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + partitionInfo);
                                 //we wrote 1 row so we return 1
                                 return 1;
                             });
@@ -242,6 +244,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator blockAllocator, GetSplitsRequest getSplitsRequest)
     {
         LOGGER.info("{}: Catalog {}, table {}", getSplitsRequest.getQueryId(), getSplitsRequest.getTableName().getSchemaName(), getSplitsRequest.getTableName().getTableName());
+
         int partitionContd = decodeContinuationToken(getSplitsRequest);
         LOGGER.info("partitionContd: {}", partitionContd);
         Set<Split> splits = new HashSet<>();
@@ -253,17 +256,19 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             SpillLocation spillLocation = makeSpillLocation(getSplitsRequest);
             LOGGER.debug("{}: Input partition is {}", getSplitsRequest.getQueryId(), locationReader.readText());
             Split.Builder splitBuilder;
+            String partInfo = String.valueOf(locationReader.readText());
 
             // Included partition information to split if the table is partitioned
-            if (partitionFunction != null && partitioningColumn != null) {
+            if (partInfo.contains(":::")) {
+                String[] partInfoAr = partInfo.split(":::");
                 splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(PARTITION_NUMBER, String.valueOf(locationReader.readText()))
-                        .add(PARTITION_FUNCTION, partitionFunction)
-                        .add(PARTITIONING_COLUMN, partitioningColumn);
+                        .add(PARTITION_NUMBER, partInfoAr[0])
+                        .add(PARTITION_FUNCTION, partInfoAr[1])
+                        .add(PARTITIONING_COLUMN, partInfoAr[2]);
             }
             else {
                 splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(PARTITION_NUMBER, String.valueOf(locationReader.readText()));
+                        .add(PARTITION_NUMBER, partInfo);
             }
             splits.add(splitBuilder.build());
             if (splits.size() >= MAX_SPLITS_PER_REQUEST) {
@@ -294,21 +299,23 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws SQLException
      */
-    private void getPartitionFunction(List<String> parameters) throws SQLException
+    private List<String> getPartitionDetails(List<String> parameters) throws SQLException
     {
+        List<String> partitionDetails = new ArrayList<>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
-             PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITION_FUNCTION_QUERY).withParameters(parameters).build();
+             PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection).withQuery(GET_PARTITION_DETAILS_QUERY).withParameters(parameters).build();
              ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
-                partitionFunction = resultSet.getString("PARTITION FUNCTION");
-                partitioningColumn = resultSet.getString("PARTITIONING COLUMN");
+                partitionDetails.add(resultSet.getString("PARTITION FUNCTION"));
+                partitionDetails.add(resultSet.getString("PARTITIONING COLUMN"));
+                LOGGER.debug("partitionFunction: {}", partitionDetails.get(0));
+                LOGGER.debug("partitioningColumn: {}", partitionDetails.get(1));
             }
-            LOGGER.debug("partitionFunction: {}", partitionFunction);
-            LOGGER.debug("partitioningColumn: {}", partitioningColumn);
         }
         catch (SQLException sqlException) {
             throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
+        return partitionDetails;
     }
 
     /**

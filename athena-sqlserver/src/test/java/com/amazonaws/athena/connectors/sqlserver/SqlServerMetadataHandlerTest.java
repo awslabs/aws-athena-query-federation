@@ -128,6 +128,11 @@ public class SqlServerMetadataHandlerTest
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
+        PreparedStatement partFuncPreparedStatement = Mockito.mock(PreparedStatement.class);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_DETAILS_QUERY)).thenReturn(partFuncPreparedStatement);
+        ResultSet partFuncResultSet = mockResultSet(new String[] {"PARTITION FUNCTION", "PARTITIONING COLUMN"}, new int[] {Types.VARCHAR, Types.VARCHAR}, new Object[][] {{"pf", "pc"}}, new AtomicInteger(-1));
+        Mockito.when(partFuncPreparedStatement.executeQuery()).thenReturn(partFuncResultSet);
+
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
         GetTableLayoutResponse getTableLayoutResponse = this.sqlServerMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -135,7 +140,7 @@ public class SqlServerMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             actualValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 1]","[PARTITION_NUMBER : 2]","[PARTITION_NUMBER : 3]"), actualValues);
+        Assert.assertEquals(Arrays.asList("[PARTITION_NUMBER : 1:::pf:::pc]","[PARTITION_NUMBER : 2:::pf:::pc]","[PARTITION_NUMBER : 3:::pf:::pc]"), actualValues);
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder(sqlServerMetadataHandler.PARTITION_NUMBER, org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
@@ -240,7 +245,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         PreparedStatement partFuncPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_FUNCTION_QUERY)).thenReturn(partFuncPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_DETAILS_QUERY)).thenReturn(partFuncPreparedStatement);
         ResultSet partFuncResultSet = mockResultSet(new String[] {"PARTITION FUNCTION", "PARTITIONING COLUMN"}, new int[] {Types.VARCHAR, Types.VARCHAR}, new Object[][] {{"pf", "pc"}}, new AtomicInteger(-1));
         Mockito.when(partFuncPreparedStatement.executeQuery()).thenReturn(partFuncResultSet);
 
@@ -346,7 +351,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         PreparedStatement partFuncPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_FUNCTION_QUERY)).thenReturn(partFuncPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(sqlServerMetadataHandler.GET_PARTITION_DETAILS_QUERY)).thenReturn(partFuncPreparedStatement);
         ResultSet partFuncResultSet = mockResultSet(new String[] {"PARTITION FUNCTION", "PARTITIONING COLUMN"}, new int[] {Types.VARCHAR, Types.VARCHAR}, new Object[][] {{"pf", "pc"}}, new AtomicInteger(-1));
         Mockito.when(partFuncPreparedStatement.executeQuery()).thenReturn(partFuncResultSet);
 
