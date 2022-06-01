@@ -28,7 +28,6 @@ public class SynapseUtil
 {
     private SynapseUtil()
     {
-
     }
 
     private static final Pattern SYNAPSE_CONN_STRING_PATTERN = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)");
