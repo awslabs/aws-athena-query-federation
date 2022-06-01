@@ -374,6 +374,7 @@ public final class DDBTypeUtils
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         switch (fieldType) {
+            //With schema inference, we translate all number fields(int, double, float..etc) to Decimals. If glue enable, we route to factory default case.
             case DECIMAL:
                 return Optional.of((DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
@@ -452,6 +453,7 @@ public final class DDBTypeUtils
                             return true;
                         };
             default:
+                //Below are using DDBTypeUtils.coerceValueToExpectedType to the correct type user defined from glue.
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                         (FieldWriter) (Object context, int rowNum) ->
                         {
