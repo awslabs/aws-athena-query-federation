@@ -120,7 +120,7 @@ public abstract class JdbcRecordHandler
         return jdbcConnectionFactory;
     }
 
-    private JdbcCredentialProvider getCredentialProvider()
+    protected JdbcCredentialProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
@@ -163,12 +163,7 @@ public abstract class JdbcRecordHandler
                 }
                 LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
 
-                // SqlServer jdbc driver is using @@TRANCOUNT while performing commit(), it results below RuntimeException.
-                // com.microsoft.sqlserver.jdbc.SQLServerException:  '@@TRANCOUNT' is not supported.
-                // So we are evading this connection.commit(), in case of Azure serverless environment.
-                if (!"azureServerless".equals(JDBCUtil.checkEnvironment(this.databaseConnectionConfig.getEngine(), connection.getMetaData().getURL()))) {
-                    connection.commit();
-                }
+                connection.commit();
             }
         }
         catch (SQLException sqlException) {

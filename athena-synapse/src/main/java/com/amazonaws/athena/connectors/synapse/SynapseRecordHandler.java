@@ -19,9 +19,14 @@
  */
 package com.amazonaws.athena.connectors.synapse;
 
+import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -36,14 +41,22 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Map;
+
 public class SynapseRecordHandler extends JdbcRecordHandler
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SynapseRecordHandler.class);
     private static final String QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
@@ -74,5 +87,54 @@ public class SynapseRecordHandler extends JdbcRecordHandler
         // Disable fetching all rows.
         preparedStatement.setFetchSize(FETCH_SIZE);
         return preparedStatement;
+    }
+
+    @Override
+    public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
+    {
+        LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
+                readRecordsRequest.getSplit().getProperties());
+
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
+                    readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
+                 ResultSet resultSet = preparedStatement.executeQuery()) {
+                Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
+
+                GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(readRecordsRequest.getConstraints());
+                for (Field next : readRecordsRequest.getSchema().getFields()) {
+                    if (next.getType() instanceof ArrowType.List) {
+                        rowWriterBuilder.withFieldWriterFactory(next.getName(), makeFactory(next));
+                    }
+                    else {
+                        rowWriterBuilder.withExtractor(next.getName(), makeExtractor(next, resultSet, partitionValues));
+                    }
+                }
+
+                GeneratedRowWriter rowWriter = rowWriterBuilder.build();
+                int rowsReturnedFromDatabase = 0;
+                while (resultSet.next()) {
+                    if (!queryStatusChecker.isQueryRunning()) {
+                        return;
+                    }
+                    blockSpiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, resultSet) ? 1 : 0);
+                    rowsReturnedFromDatabase++;
+                }
+                LOGGER.info("{} rows returned by database.", rowsReturnedFromDatabase);
+
+                /*
+                SqlServer jdbc driver is using @@TRANCOUNT while performing commit(), it results below RuntimeException.
+                com.microsoft.sqlserver.jdbc.SQLServerException:  '@@TRANCOUNT' is not supported.
+                So we are evading this connection.commit(), in case of Azure serverless environment.
+                 */
+                if (!"azureServerless".equals(SynapseUtil.checkEnvironment(connection.getMetaData().getURL()))) {
+                    connection.commit();
+                }
+            }
+        }
+        catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
+        }
     }
 }

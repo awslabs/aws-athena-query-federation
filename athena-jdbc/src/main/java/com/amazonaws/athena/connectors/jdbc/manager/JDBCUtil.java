@@ -22,19 +22,16 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfigBuilder;
 import com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class JDBCUtil
 {
     private static final String DEFAULT_CATALOG_PREFIX = "lambda:";
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
-    private static final Pattern SYNAPSE_CONN_STRING_PATTERN = Pattern.compile("([a-zA-Z]+)://([^;]+);(.*)");
+
     private JDBCUtil() {}
 
     /**
@@ -131,21 +128,5 @@ public final class JDBCUtil
         }
 
         return recordHandlerMap.build();
-    }
-
-    public static String checkEnvironment(String databaseEngine, String url)
-    {
-        if ("synapse".equals(databaseEngine)) {
-            // checking whether it's Azure serverless environment or not based on host name
-            Matcher m = SYNAPSE_CONN_STRING_PATTERN.matcher(url);
-            String hostName = "";
-            if (m.find() && m.groupCount() == 3) {
-                hostName = m.group(2);
-            }
-            if (StringUtils.isNotBlank(hostName) && hostName.contains("ondemand")) {
-                return "azureServerless";
-            }
-        }
-        return null;
     }
 }

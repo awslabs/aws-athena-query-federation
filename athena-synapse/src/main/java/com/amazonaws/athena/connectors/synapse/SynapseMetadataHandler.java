@@ -324,7 +324,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             }
         }
 
-        if ("azureServerless".equalsIgnoreCase(JDBCUtil.checkEnvironment(SynapseConstants.NAME, jdbcConnection.getMetaData().getURL()))) {
+        if ("azureServerless".equalsIgnoreCase(SynapseUtil.checkEnvironment(jdbcConnection.getMetaData().getURL()))) {
             // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
             // so doing explicit data type conversion
             schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap, tableName.getSchemaName());
