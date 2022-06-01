@@ -24,6 +24,8 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -34,7 +36,6 @@ import com.amazonaws.athena.connectors.dynamodb.util.DDBTypeUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.document.ItemUtils;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.QueryRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryResult;
@@ -48,7 +49,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
@@ -57,11 +57,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -138,66 +137,40 @@ public class DynamoDBRecordHandler
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema());
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
+
+        GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+        //register extract and field writer factory for each field.
+        for (Field next : recordsRequest.getSchema().getFields()) {
+            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata);
+            //generate extractor for supported data types
+            if (extractor.isPresent()) {
+                rowWriterBuilder.withExtractor(next.getName(), extractor.get());
+            }
+            else {
+                //generate field writer factor for complex data types.
+                rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver));
+            }
+        }
+
+        GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-        AtomicLong numResultRows = new AtomicLong(0);
+
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
                 return;
             }
+
+            Map<String, AttributeValue> item = itemIterator.next();
+            if (item == null) {
+                // this can happen regardless of the hasNext() check above for the very first iteration since itemIterator
+                // had not made any DDB calls yet and there may be zero items returned when it does
+                continue;
+            }
+            spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
-            spiller.writeRows((Block block, int rowNum) -> {
-                Map<String, AttributeValue> item = itemIterator.next();
-                if (item == null) {
-                    // this can happen regardless of the hasNext() check above for the very first iteration since itemIterator
-                    // had not made any DDB calls yet and there may be zero items returned when it does
-                    return 0;
-                }
-
-                boolean matched = true;
-                numResultRows.getAndIncrement();
-                // TODO refactor to use GeneratedRowWriter to improve performance
-                for (Field nextField : recordsRequest.getSchema().getFields()) {
-                    Object value = ItemUtils.toSimpleValue(item.get(nextField.getName()));
-                    Types.MinorType fieldType = Types.getMinorTypeForArrowType(nextField.getType());
-
-                    value = DDBTypeUtils.coerceValueToExpectedType(value, nextField, fieldType, recordMetadata);
-
-                    try {
-                        switch (fieldType) {
-                            case LIST:
-                                // DDB may return Set so coerce to List. Also coerce each List item to the correct type.
-                                List valueAsList = value != null
-                                        ? DDBTypeUtils.coerceListToExpectedType(value, nextField, recordMetadata) : null;
-                                matched &= block.offerComplexValue(nextField.getName(),
-                                        rowNum,
-                                        resolver,
-                                        valueAsList);
-                                break;
-                            case STRUCT:
-                                matched &= block.offerComplexValue(nextField.getName(),
-                                        rowNum,
-                                        resolver,
-                                        value);
-                                break;
-                            default:
-                                matched &= block.offerValue(nextField.getName(), rowNum, value);
-                                break;
-                        }
-
-                        if (!matched) {
-                            return 0;
-                        }
-                    }
-                    catch (Exception ex) {
-                        throw new RuntimeException("Error while processing field " + nextField.getName(), ex);
-                    }
-                }
-                return 1;
-            });
         }
-
-        logger.info("readWithConstraint: numRows[{}] numResultRows[{}]", numRows, numResultRows.get());
+        logger.info("readWithConstraint: numRows[{}]", numRows);
     }
 
     /*

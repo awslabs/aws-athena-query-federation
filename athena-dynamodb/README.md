@@ -85,3 +85,7 @@ calls to DynamoDB.  All other predicate scenarios will results in Y number of Sc
 
 The costs for use of this solution depends on the underlying AWS resources being used. Pay special attention to [DynamoDB pricing](https://aws.amazon.com/dynamodb/pricing/) since queries using scans can consume a large number of RCU's.
 
+
+## Notes
+
+If glue is disabled, we perform schema inference. Under schema inference, we evaluate all [int, float, double..etc] to Decimal. If you wish to have correct type, please use glue to declare schema.
