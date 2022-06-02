@@ -8,7 +8,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>athena-jdbc</artifactId>
-    <version>${aws-athena-federation-sdk.version}</version>
+    <version>${aws-athena-federation-connectors.version}</version>
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
