@@ -25,8 +25,19 @@ jobs:
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
-      - name: Publish to Apache Maven Central
-        run: mvn clean deploy --batch-mode -P release -pl "athena-federation-sdk,."
+      - name: Publish athena-federation-sdk to Apache Maven Central
+        run: mvn clean deploy --batch-mode -P release -pl "athena-federation-sdk"
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          AWS_REGION: us-east-1
+
+      - name: Clean
+        run: mvn clean
+
+      - name: Publish root pom to Apache Maven Central
+        run: mvn clean deploy --batch-mode -P release -pl "."
         env:
           MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
