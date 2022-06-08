@@ -1,14 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>${aws-athena-federation-sdk.version}</version>
-
+    <version>2022.23.1</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
@@ -16,10 +12,6 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <aws-sdk.version>1.11.800</aws-sdk.version>
-
-        <aws-athena-federation-sdk.version>2022.22.1</aws-athena-federation-sdk.version>
-        <aws-athena-federation-connectors.version>2022.22.1</aws-athena-federation-connectors.version>
-
         <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
         <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
@@ -31,14 +23,11 @@
         <surefire.failsafe.version>3.0.0-M5</surefire.failsafe.version>
         <log4j2Version>2.17.1</log4j2Version>
     </properties>
-
     <organization>
         <name>Amazon Web Services</name>
         <url>https://https://aws.amazon.com//</url>
     </organization>
-
     <inceptionYear>2019</inceptionYear>
-
     <licenses>
         <license>
             <name>Apache License 2.0</name>
@@ -46,7 +35,6 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-
     <developers>
         <developer>
             <id>amazonwebservices</id>
@@ -57,13 +45,11 @@
             </roles>
         </developer>
     </developers>
-
     <scm>
         <connection>scm:git@github.com:awslabs/aws-athena-query-federation.git</connection>
         <url>https://github.com/awslabs/aws-athena-query-federation</url>
         <tag>HEAD</tag>
     </scm>
-
     <modules>
         <module>athena-cloudwatch</module>
         <module>athena-docdb</module>
@@ -98,14 +84,12 @@
         <module>athena-cloudera-impala</module>
         <module>athena-hortonworks-hive</module>
     </modules>
-
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-core</artifactId>
             <version>${aws.lambda-java-core.version}</version>
         </dependency>
-
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -126,7 +110,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
@@ -154,7 +137,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -175,7 +157,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
@@ -197,7 +178,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>license-maven-plugin</artifactId>
@@ -224,7 +204,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -254,7 +233,6 @@
                     </includes>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
@@ -266,7 +244,6 @@
             </plugin>
         </plugins>
     </build>
-
     <profiles>
         <profile>
             <id>release</id>
