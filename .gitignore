@@ -1,5 +1,6 @@
 */target
 */dependency-reduced-pom.xml
+*/*.xml.unformatted
 .idea/
 /target/
 */*.iml
