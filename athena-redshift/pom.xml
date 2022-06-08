@@ -1,29 +1,26 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>${aws-athena-federation-sdk.version}</version>
+        <version>2022.23.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-
     <artifactId>athena-redshift</artifactId>
-    <version>${aws-athena-federation-connectors.version}</version>
-
+    <version>2022.22.1</version>
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
     </properties>
-
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-postgresql</artifactId>
-            <version>${aws-athena-federation-sdk.version}</version>
+            <version>2022.22.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>${aws-athena-federation-sdk.version}</version>
+            <version>2022.23.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -34,7 +31,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>${aws-athena-federation-sdk.version}</version>
+            <version>2022.22.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
@@ -67,7 +64,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
@@ -88,9 +84,8 @@
                     </filters>
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
-                        <transformer
-                                implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer">
-                        </transformer>
+                        <transformer implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer">
+</transformer>
                     </transformers>
                 </configuration>
                 <dependencies>
@@ -111,7 +106,6 @@
             </plugin>
         </plugins>
     </build>
-
     <repositories>
         <repository>
             <id>redshift</id>
