@@ -7,7 +7,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-snowflake</artifactId>
-    <version>2022.22.1</version>
+    <version>2022.23.1</version>
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
     </properties>
@@ -21,12 +21,12 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.22.1</version>
+            <version>2022.23.1</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2022.22.1</version>
+            <version>2022.23.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

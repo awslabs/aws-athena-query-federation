@@ -7,7 +7,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-elasticsearch</artifactId>
-    <version>2022.22.1</version>
+    <version>2022.23.1</version>
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
     </properties>
