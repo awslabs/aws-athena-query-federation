@@ -33,6 +33,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.jdbc.TestBase;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
@@ -79,6 +81,7 @@ public class SqlServerMetadataHandlerTest
     private FederatedIdentity federatedIdentity;
     private AWSSecretsManager secretsManager;
     private AmazonAthena athena;
+    private BlockAllocator allocator;
 
     @Before
     public void setup()
@@ -93,6 +96,7 @@ public class SqlServerMetadataHandlerTest
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
         this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        this.allocator = new BlockAllocatorImpl();
     }
 
     @Test
@@ -399,5 +403,14 @@ public class SqlServerMetadataHandlerTest
         Assert.assertEquals(expected, getTableResponse.getSchema());
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doListSchemaNames()
+    {
+        ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
+        Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("fakedatabase");
+        Assert.assertEquals(new ListSchemasResponse("schemas", Collections.emptyList()).toString(),
+                sqlServerMetadataHandler.doListSchemaNames(this.allocator, listSchemasRequest).toString());
     }
 }

@@ -35,6 +35,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
@@ -46,6 +48,7 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -59,6 +62,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -456,5 +460,36 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 escapeNamePattern(tableHandle.getSchemaName(), escape),
                 escapeNamePattern(tableHandle.getTableName(), escape),
                 null);
+    }
+
+    @Override
+    public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
+            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
+        }
+        catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
+        }
+    }
+
+    private Set<String> listDatabaseNames(final Connection jdbcConnection)
+            throws SQLException
+    {
+        String queryToListUserCreatedSchemas = "select s.name as schema_name from " +
+                "sys.schemas s inner join sys.sysusers u on u.uid = s.principal_id " +
+                "where u.issqluser = 1 " +
+                "and u.name not in ('sys', 'guest', 'INFORMATION_SCHEMA') " +
+                "order by s.name";
+        try (Statement st = jdbcConnection.createStatement();
+                ResultSet resultSet = st.executeQuery(queryToListUserCreatedSchemas)) {
+            ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
+            while (resultSet.next()) {
+                String schemaName = resultSet.getString("schema_name");
+                schemaNames.add(schemaName);
+            }
+            return schemaNames.build();
+        }
     }
 }
