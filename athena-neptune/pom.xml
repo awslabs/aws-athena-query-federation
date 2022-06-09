@@ -7,7 +7,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-neptune</artifactId>
-    <version>2022.22.1</version>
+    <version>2022.23.1</version>
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
         <gremlinDriverVersion>3.4.8</gremlinDriverVersion>
