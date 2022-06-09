@@ -120,7 +120,7 @@ public abstract class JdbcRecordHandler
         return jdbcConnectionFactory;
     }
 
-    private JdbcCredentialProvider getCredentialProvider()
+    protected JdbcCredentialProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {

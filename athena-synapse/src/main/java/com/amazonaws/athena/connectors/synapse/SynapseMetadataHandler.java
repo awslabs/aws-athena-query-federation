@@ -63,6 +63,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -79,11 +80,6 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     static final String PARTITION_COLUMN = "PARTITION_COLUMN";
 
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
-
-    String partitionBoundaryFrom;
-    String partitionBoundaryTo = "0";
-    String partitionColumn;
-    int rowCount = 0;
 
     public SynapseMetadataHandler()
     {
@@ -143,28 +139,34 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
         rowCountSt.add("name", getTableLayoutRequest.getTableName().getTableName());
         rowCountSt.add("schemaname", getTableLayoutRequest.getTableName().getSchemaName());
 
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (Statement st = connection.createStatement();
-                 Statement st2 = connection.createStatement();
-                 ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
-                 ResultSet resultSet2 = st2.executeQuery(rowCountSt.render())) {
-                // check whether the table have partitions or not using ROW_COUNT_QUERY
-                if (resultSet2.next()) {
-                    rowCount = resultSet2.getInt("ROW_COUNT");
-                    LOGGER.info("rowCount: {}", rowCount);
-                }
-                // create a single split for view/non-partition table
-                if (rowCount == 0) {
-                    LOGGER.debug("Getting as single Partition: ");
-                    blockWriter.writeRows((Block block, int rowNum) ->
-                    {
-                        block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
-                        //we wrote 1 row so we return 1
-                        return 1;
-                    });
-                }
-                else {
-                    LOGGER.debug("Getting data with diff Partitions: ");
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+             Statement st = connection.createStatement();
+             Statement st2 = connection.createStatement();
+             ResultSet resultSet = st.executeQuery(getPartitionsSt.render());
+             ResultSet resultSet2 = st2.executeQuery(rowCountSt.render())) {
+            int rowCount = 0;
+            // check whether the table have partitions or not using ROW_COUNT_QUERY
+            if (resultSet2.next()) {
+                rowCount = resultSet2.getInt("ROW_COUNT");
+                LOGGER.info("rowCount: {}", rowCount);
+            }
+            // create a single split for view/non-partition table
+            if (rowCount == 0) {
+                LOGGER.debug("Getting as single Partition: ");
+                blockWriter.writeRows((Block block, int rowNum) ->
+                {
+                    block.setValue(PARTITION_NUMBER, rowNum, ALL_PARTITIONS);
+                    //we wrote 1 row so we return 1
+                    return 1;
+                });
+            }
+            else {
+                LOGGER.debug("Getting data with diff Partitions: ");
+
+                // partitionBoundaryTo, partitionColumn can not be declared in loop scope as they need to retain the value for next iteration.
+                String partitionBoundaryTo = "0";
+                String partitionColumn = "";
+
                     /*
                     Synapse supports Range Partitioning. Partition column, partition range values are extracted from Synapse metadata tables.
                     partition boundaries will be formed using those values.
@@ -172,30 +174,33 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
                         below partition boundaries will be created to form custom queries for splits
                         1::: :::10:::col1, 2:::10:::200:::col1, 3:::200::: :::col1
                      */
-                    while (resultSet.next()) {
-                        final String partitionNumber = resultSet.getString(PARTITION_NUMBER);
-                        LOGGER.debug("partitionNumber: {}", partitionNumber);
-                        if ("1".equals(partitionNumber)) {
-                            partitionBoundaryFrom = " ";
-                            partitionColumn = resultSet.getString(PARTITION_COLUMN);
-                            LOGGER.debug("partitionColumn: {}", partitionColumn);
-                        }
-                        else {
-                            partitionBoundaryFrom = partitionBoundaryTo;
-                        }
-                        partitionBoundaryTo = resultSet.getString("PARTITION_BOUNDARY_VALUE");
-                        partitionBoundaryTo = (partitionBoundaryTo == null) ? " " : partitionBoundaryTo;
-
-                        // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
-                        // 2. This API is not paginated, we could use order by and limit clause with offsets here.
-                        blockWriter.writeRows((Block block, int rowNum) ->
-                        {
-                            // creating the partition boundaries
-                            block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + ":::" + partitionBoundaryFrom + ":::" + partitionBoundaryTo + ":::" + partitionColumn);
-                            //we wrote 1 row so we return 1
-                            return 1;
-                        });
+                while (resultSet.next()) {
+                    String partitionBoundaryFrom;
+                    final String partitionNumber = resultSet.getString(PARTITION_NUMBER);
+                    LOGGER.debug("partitionNumber: {}", partitionNumber);
+                    if ("1".equals(partitionNumber)) {
+                        partitionBoundaryFrom = " ";
+                        partitionColumn = resultSet.getString(PARTITION_COLUMN);
+                        LOGGER.debug("partitionColumn: {}", partitionColumn);
                     }
+                    else {
+                        partitionBoundaryFrom = partitionBoundaryTo;
+                    }
+                    partitionBoundaryTo = resultSet.getString("PARTITION_BOUNDARY_VALUE");
+                    partitionBoundaryTo = (partitionBoundaryTo == null) ? " " : partitionBoundaryTo;
+
+                    // 1. Returns all partitions of table, we are not supporting constraints push down to filter partitions.
+                    // 2. This API is not paginated, we could use order by and limit clause with offsets here.
+
+                    String finalPartitionBoundaryTo = partitionBoundaryTo;
+                    String finalPartitionColumn = partitionColumn;
+                    blockWriter.writeRows((Block block, int rowNum) ->
+                    {
+                        // creating the partition boundaries
+                        block.setValue(PARTITION_NUMBER, rowNum, partitionNumber + ":::" + partitionBoundaryFrom + ":::" + finalPartitionBoundaryTo + ":::" + finalPartitionColumn);
+                        //we wrote 1 row so we return 1
+                        return 1;
+                    });
                 }
             }
         }
@@ -294,37 +299,120 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("Inside getSchema");
 
-        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
+        String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE, " +
+                "C.PRECISION, C.SCALE " +
                 "FROM SYS.COLUMNS C " +
                 "JOIN SYS.TYPES T " +
                 "ON C.USER_TYPE_ID=T.USER_TYPE_ID " +
                 "WHERE C.OBJECT_ID=OBJECT_ID(?)";
 
-        String dataType;
-        String columnName;
-        HashMap<String, String> hashMap = new HashMap<>();
-        boolean found = false;
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
-             Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        SchemaBuilder schemaBuilder;
+        HashMap<String, List<String>> columnNameAndDataTypeMap = new HashMap<>();
+
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              PreparedStatement stmt = connection.prepareStatement(dataTypeQuery)) {
-            // fetch data types of columns and prepare map with column name and datatype.
+            // fetch data types of columns and prepare map with column name and datatype information.
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
                 while (dataTypeResultSet.next()) {
-                    dataType = dataTypeResultSet.getString("DATA_TYPE");
-                    columnName = dataTypeResultSet.getString("COLUMN_NAME");
-                    hashMap.put(columnName.trim(), dataType.trim());
+                    List<String> columnDetails = List.of(
+                            dataTypeResultSet.getString("DATA_TYPE").trim(),
+                            dataTypeResultSet.getString("PRECISION").trim(),
+                            dataTypeResultSet.getString("SCALE").trim());
+                    columnNameAndDataTypeMap.put(dataTypeResultSet.getString("COLUMN_NAME").trim(), columnDetails);
                 }
             }
+        }
+
+        if ("azureServerless".equalsIgnoreCase(SynapseUtil.checkEnvironment(jdbcConnection.getMetaData().getURL()))) {
+            // getColumns() method from SQL Server driver is causing an exception in case of Azure Serverless environment.
+            // so doing explicit data type conversion
+            schemaBuilder = doDataTypeConversion(columnNameAndDataTypeMap, tableName.getSchemaName());
+        }
+        else {
+            schemaBuilder = doDataTypeConversionForNonCompatible(jdbcConnection, tableName, columnNameAndDataTypeMap);
+        }
+        // add partition columns
+        partitionSchema.getFields().forEach(schemaBuilder::addField);
+        return schemaBuilder.build();
+    }
+
+    private SchemaBuilder doDataTypeConversion(HashMap<String, List<String>> columnNameAndDataTypeMap, String schemaName)
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        for (Map.Entry<String, List<String>> entry : columnNameAndDataTypeMap.entrySet()) {
+            String columnName = entry.getKey();
+            List<String> dataTypeDetails = entry.getValue();
+            String dataType = dataTypeDetails.get(0);
+            ArrowType columnType = Types.MinorType.VARCHAR.getType();
+
+            LOGGER.debug("columnName: " + columnName);
+            LOGGER.debug("dataType: " + dataType);
+
+            if ("char".equalsIgnoreCase(dataType) || "varchar".equalsIgnoreCase(dataType) || "binary".equalsIgnoreCase(dataType) ||
+                    "nchar".equalsIgnoreCase(dataType) || "nvarchar".equalsIgnoreCase(dataType) || "varbinary".equalsIgnoreCase(dataType)
+                    || "time".equalsIgnoreCase(dataType) || "uniqueidentifier".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.VARCHAR.getType();
+            }
+
+            if ("bit".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.TINYINT.getType();
+            }
+
+            if ("tinyint".equalsIgnoreCase(dataType) || "smallint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.SMALLINT.getType();
+            }
+
+            if ("int".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.INT.getType();
+            }
+
+            if ("bigint".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.BIGINT.getType();
+            }
+
+            if ("decimal".equalsIgnoreCase(dataType) || "money".equalsIgnoreCase(dataType)) {
+                columnType = ArrowType.Decimal.createDecimal(Integer.parseInt(dataTypeDetails.get(1)), Integer.parseInt(dataTypeDetails.get(2)), 256);
+            }
+
+            if ("numeric".equalsIgnoreCase(dataType) || "float".equalsIgnoreCase(dataType) || "smallmoney".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT8.getType();
+            }
+
+            if ("real".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.FLOAT4.getType();
+            }
+
+            if ("date".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEDAY.getType();
+            }
+
+            if ("datetime".equalsIgnoreCase(dataType) || "datetime2".equalsIgnoreCase(dataType)
+                    || "smalldatetime".equalsIgnoreCase(dataType) || "datetimeoffset".equalsIgnoreCase(dataType)) {
+                columnType = Types.MinorType.DATEMILLI.getType();
+            }
+
+            LOGGER.debug("columnType: " + columnType);
+            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+        }
+        return schemaBuilder;
+    }
+
+    private SchemaBuilder doDataTypeConversionForNonCompatible(Connection jdbcConnection, TableName tableName, HashMap<String, List<String>> columnNameAndDataTypeMap) throws SQLException
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            boolean found = false;
             while (resultSet.next()) {
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
                         resultSet.getInt("DECIMAL_DIGITS"));
-                columnName = resultSet.getString("COLUMN_NAME");
+                String columnName = resultSet.getString("COLUMN_NAME");
+                String dataType = columnNameAndDataTypeMap.get(columnName).get(0);
 
-                dataType = hashMap.get(columnName);
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
 
@@ -385,10 +473,8 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             if (!found) {
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
-            // add partition columns
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
-            return schemaBuilder.build();
         }
+        return schemaBuilder;
     }
 
     private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)

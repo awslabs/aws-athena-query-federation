@@ -31,6 +31,7 @@ public final class JDBCUtil
 {
     private static final String DEFAULT_CATALOG_PREFIX = "lambda:";
     private static final String LAMBDA_FUNCTION_NAME_PROPERTY = "AWS_LAMBDA_FUNCTION_NAME";
+
     private JDBCUtil() {}
 
     /**

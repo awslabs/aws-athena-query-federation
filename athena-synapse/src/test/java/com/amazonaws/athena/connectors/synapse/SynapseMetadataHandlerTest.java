@@ -52,6 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -329,11 +330,17 @@ public class SynapseMetadataHandlerTest
         Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
 
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
-        String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
-        Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
-                {Types.TIMESTAMP, 93, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, "testCol4", 0, 0}};
-        AtomicInteger rowNumber = new AtomicInteger(-1);
-        ResultSet resultSet = mockResultSet(schema, values, rowNumber);
+        String[] schema = {"DATA_TYPE", "COLUMN_NAME", "PRECISION", "SCALE"};
+        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] values = {{Types.INTEGER, "testCol1", 0, 0}, {Types.VARCHAR, "testCol2", 0, 0},
+                    {Types.TIMESTAMP, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, "testCol4", 0, 0}};
+        ResultSet resultSet = mockResultSet(schema, types, values, new AtomicInteger(-1));
+
+        String[] columns = {"DATA_TYPE", "COLUMN_SIZE", "DECIMAL_DIGITS", "COLUMN_NAME"};
+        int[] types2 = {Types.INTEGER, Types.INTEGER, Types.INTEGER, Types.VARCHAR};
+        Object[][] values2 = {{Types.INTEGER, 12, 0, "testCol1"}, {Types.VARCHAR, 25, 0, "testCol2"},
+                {Types.TIMESTAMP, 93, 0, "testCol3"}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, 0, "testCol4"}};
+        ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
 
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("testCol1", org.apache.arrow.vector.types.Types.MinorType.INT.getType()).build());
@@ -343,12 +350,52 @@ public class SynapseMetadataHandlerTest
         PARTITION_SCHEMA.getFields().forEach(expectedSchemaBuilder::addField);
         Schema expected = expectedSchemaBuilder.build();
 
+        PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        Mockito.when(stmt.executeQuery()).thenReturn(resultSet);
+
+        Mockito.when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname;databaseName=fakedatabase");
+
         TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
-        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet);
         Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet2);
+
         GetTableResponse getTableResponse = this.synapseMetadataHandler.doGetTable(
                 blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
         Assert.assertEquals(expected, getTableResponse.getSchema());
+        Assert.assertEquals(inputTableName, getTableResponse.getTableName());
+        Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
+    }
+
+    @Test
+    public void doDataTypeConversion()
+            throws Exception
+    {
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        String[] schema = {"DATA_TYPE", "COLUMN_NAME", "PRECISION", "SCALE"};
+        int[] types = {Types.INTEGER, Types.VARCHAR, Types.VARCHAR, Types.VARCHAR};
+        Object[][] values = {{Types.INTEGER, "testCol1", 0, 0}, {Types.VARCHAR, "testCol2", 0, 0},
+                {Types.TIMESTAMP, "testCol3", 0, 0}, {Types.TIMESTAMP_WITH_TIMEZONE, "testCol4", 0, 0}};
+        ResultSet resultSet = mockResultSet(schema, types, values, new AtomicInteger(-1));
+
+        String[] columns = {"DATA_TYPE", "COLUMN_SIZE", "DECIMAL_DIGITS", "COLUMN_NAME"};
+        int[] types2 = {Types.INTEGER, Types.INTEGER, Types.INTEGER, Types.VARCHAR};
+        Object[][] values2 = {{Types.INTEGER, 12, 0, "testCol1"}, {Types.VARCHAR, 25, 0, "testCol2"},
+                {Types.TIMESTAMP, 93, 0, "testCol3"}, {Types.TIMESTAMP_WITH_TIMEZONE, 93, 0, "testCol4"}};
+        ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
+
+        PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
+        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        Mockito.when(stmt.executeQuery()).thenReturn(resultSet);
+
+        Mockito.when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname-ondemand;databaseName=fakedatabase");
+
+        TableName inputTableName = new TableName("TESTSCHEMA", "TESTTABLE");
+        Mockito.when(connection.getCatalog()).thenReturn("testCatalog");
+        Mockito.when(connection.getMetaData().getColumns("testCatalog", inputTableName.getSchemaName(), inputTableName.getTableName(), null)).thenReturn(resultSet2);
+
+        GetTableResponse getTableResponse = this.synapseMetadataHandler.doGetTable(
+                blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
         Assert.assertEquals(inputTableName, getTableResponse.getTableName());
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
