@@ -314,10 +314,16 @@ public class S3BlockSpiller
             totalBytesSpilled.addAndGet(bytes.length);
 
             logger.info("write: Started spilling block of size {} bytes", bytes.length);
+
+            // Set the contentLength otherwise the s3 client will buffer again since it
+            // only sees the InputStream wrapper.
+            ObjectMetadata objMeta = new ObjectMetadata();
+            objMeta.setContentLength(bytes.length);
+
             amazonS3.putObject(spillLocation.getBucket(),
                     spillLocation.getKey(),
                     new ByteArrayInputStream(bytes),
-                    new ObjectMetadata());
+                    objMeta);
             logger.info("write: Completed spilling block of size {} bytes", bytes.length);
 
             return spillLocation;
