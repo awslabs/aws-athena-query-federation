@@ -97,6 +97,7 @@ Lambda SDK may spill data to S3. All database instances accessed using a single 
 ```
 spill_bucket    Spill bucket name. Required.
 spill_prefix    Spill bucket key prefix. Required.
+spill_put_request_headers    JSON encoded map of request headers and values for the s3 putObject request used for spilling. Example: `{"x-amz-server-side-encryption" : "AES256"}`. For more possible headers see: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
 ```
 
 ### Vertica Data types supported
