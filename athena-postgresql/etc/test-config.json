@@ -5,7 +5,8 @@
   {
     "spill_bucket": "kparwal-federation-integ-spills",
     "spill_prefix": "athena-spill",
-    "disable_spill_encryption": "false"
+    "disable_spill_encryption": "false",
+    "spill_put_request_headers": ""
   },
   "vpc_configuration":
   {

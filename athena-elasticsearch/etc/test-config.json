@@ -5,6 +5,7 @@
     "spill_bucket" : "<Enter Value>",     /* The S3 bucket used for spilling excess data */
     "spill_prefix" : "athena-spill",      /* The prefix within the S3 spill bucket (default: athena-spill) */
     "disable_spill_encryption" : "false",  /* If set to true encryption for spilled data is disabled (default: false) */
+    "spill_put_request_headers": "",  /* JSON encoded map of request headers and values for the s3 putObject request used for spilling. This is a String not an object. Optional.*/
     "auto_discover_endpoint" : "<Enter Value>", /* Set true to use Amazon Elasticsearch Service (true/false)*/
     "query_timeout_cluster" : "<Enter Value>",  /* Set the Lambda's cluster info query timeout (in seconds). */
     "query_timeout_search" : "<Enter Value>"    /* Set the Lambda's search query timeout (in seconds). */
