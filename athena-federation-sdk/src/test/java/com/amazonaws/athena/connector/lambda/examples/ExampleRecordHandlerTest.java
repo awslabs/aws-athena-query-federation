@@ -49,6 +49,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperUtil;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -147,14 +148,14 @@ public class ExampleRecordHandlerTest
         awsSecretsManager = mock(AWSSecretsManager.class);
         athena = mock(AmazonAthena.class);
 
-        when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
+        when(amazonS3.putObject(anyObject()))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
                     public Object answer(InvocationOnMock invocationOnMock)
                             throws Throwable
                     {
-                        InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                        InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                         ByteHolder byteHolder = new ByteHolder();
                         byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                         mockS3Storage.add(byteHolder);

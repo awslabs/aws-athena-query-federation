@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -36,6 +37,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
@@ -128,14 +130,16 @@ public class S3BlockSpillerTest
 
         final ByteHolder byteHolder = new ByteHolder();
 
-        when(mockS3.putObject(eq(bucket), anyString(), anyObject(), anyObject()))
+        ArgumentCaptor<PutObjectRequest> argument = ArgumentCaptor.forClass(PutObjectRequest.class);
+
+        when(mockS3.putObject(anyObject()))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
                     public Object answer(InvocationOnMock invocationOnMock)
                             throws Throwable
                     {
-                        InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                        InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                         byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                         return mock(PutObjectResult.class);
                     }
@@ -147,6 +151,9 @@ public class S3BlockSpillerTest
             assertEquals(bucket, ((S3SpillLocation) blockLocation).getBucket());
             assertEquals(prefix + "/" + requestId + "/" + splitId + ".0", ((S3SpillLocation) blockLocation).getKey());
         }
+        verify(mockS3, times(1)).putObject(argument.capture());
+        assertEquals(argument.getValue().getBucketName(), bucket);
+        assertEquals(argument.getValue().getKey(), prefix + "/" + requestId + "/" + splitId + ".0");
 
         SpillLocation blockLocation2 = blockWriter.write(expected);
 
@@ -155,10 +162,9 @@ public class S3BlockSpillerTest
             assertEquals(prefix + "/" + requestId + "/" + splitId + ".1", ((S3SpillLocation) blockLocation2).getKey());
         }
 
-        verify(mockS3, times(1))
-                .putObject(eq(bucket), eq(prefix + "/" + requestId + "/" + splitId + ".0"), anyObject(), anyObject());
-        verify(mockS3, times(1))
-                .putObject(eq(bucket), eq(prefix + "/" + requestId + "/" + splitId + ".1"), anyObject(), anyObject());
+        verify(mockS3, times(2)).putObject(argument.capture());
+        assertEquals(argument.getValue().getBucketName(), bucket);
+        assertEquals(argument.getValue().getKey(), prefix + "/" + requestId + "/" + splitId + ".1");
 
         verifyNoMoreInteractions(mockS3);
         reset(mockS3);

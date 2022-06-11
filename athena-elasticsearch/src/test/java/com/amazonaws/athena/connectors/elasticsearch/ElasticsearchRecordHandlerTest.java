@@ -39,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -251,9 +252,9 @@ public class ElasticsearchRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.putObject(anyObject(), anyObject(), anyObject(), anyObject()))
+        when(amazonS3.putObject(anyObject()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
-                    InputStream inputStream = (InputStream) invocationOnMock.getArguments()[2];
+                    InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
                     byteHolder.setBytes(ByteStreams.toByteArray(inputStream));
                     synchronized (mockS3Storage) {
