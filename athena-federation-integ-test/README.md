@@ -108,7 +108,8 @@ integration tests:
   "environment_vars" : {
     "spill_bucket" : "athena-results",
     "spill_prefix" : "athena-spill",
-    "disable_spill_encryption" : "false"
+    "disable_spill_encryption" : "false",
+    "spill_put_request_headers": ""
   },
   "vpc_configuration" : {
     "vpc_id": "vpc-569cdc2c",
@@ -149,6 +150,7 @@ To use the Athena Federated Query feature with AWS Secrets Manager, the VPC conn
 **Environment variables** - Parameters used by the connectors' internal logic:
 * **spill_bucket** - The S3 bucket used for spilling excess data.
 * **spill_prefix** - The prefix within the S3 spill bucket (default: `athena-spill`).
+* **spill_put_request_headers** - (Optional) JSON encoded map of request headers and values for the s3 putObject request used for spilling. Example: `{"x-amz-server-side-encryption" : "AES256"}`. For more possible headers see: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
 * **disable_spill_encryption** - If set to `true` encryption for spilled data is disabled (default: `false`).
 
 **VPC configuration** (Optional) - Parameters needed to configure resources within a VPC (e.g. DB cluster):

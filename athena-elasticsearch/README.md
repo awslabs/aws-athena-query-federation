@@ -83,6 +83,8 @@ my_bucket).
 above bucket where large responses spill. You should configure an S3 lifecycle on this 
 location to delete old spills after X days/hours.
 
+3. **spill_put_request_headers** - (Optional) This is a JSON encoded map of request headers and values for the s3 putObject request used for spilling. Example: `{"x-amz-server-side-encryption" : "AES256"}`. For more possible headers see: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
+
 *To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 ## Setting Up Databases & Tables

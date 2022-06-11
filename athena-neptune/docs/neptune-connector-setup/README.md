@@ -61,6 +61,8 @@ Scroll down to “Application Settings” and specify the following field values
 
   * SpillPrefix: Object prefix that you would like to use for data spilled over into the S3 bucket.
 
+  * SpillSSEAlgorithm: Set this to: 'aes256' if you want to turn on server side encryption for spilling.
+
   * SubnetIds: Subnet IDs that you have captured in one of the earlier steps separated by commas.
 
 Provide Acknowledgement on the custom IAM roles creation and click on “Deploy”.
