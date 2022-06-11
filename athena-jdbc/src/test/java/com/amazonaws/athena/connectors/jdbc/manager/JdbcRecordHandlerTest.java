@@ -41,6 +41,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
@@ -139,8 +140,8 @@ public class JdbcRecordHandlerTest
         BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator);
         ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, "testCatalog", "testQueryId", inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
 
-        Mockito.when(amazonS3.putObject(Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any())).thenAnswer((Answer<PutObjectResult>) invocation -> {
-            ByteArrayInputStream byteArrayInputStream = (ByteArrayInputStream) invocation.getArguments()[2];
+        Mockito.when(amazonS3.putObject(Mockito.any())).thenAnswer((Answer<PutObjectResult>) invocation -> {
+            ByteArrayInputStream byteArrayInputStream = (ByteArrayInputStream) ((PutObjectRequest) invocation.getArguments()[0]).getInputStream();
             int n = byteArrayInputStream.available();
             byte[] bytes = new byte[n];
             byteArrayInputStream.read(bytes, 0, n);
