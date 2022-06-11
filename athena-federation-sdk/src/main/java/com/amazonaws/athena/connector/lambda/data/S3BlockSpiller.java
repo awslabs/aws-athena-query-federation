@@ -29,7 +29,10 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
@@ -39,6 +42,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -69,6 +73,7 @@ public class S3BlockSpiller
     //Config to set spill queue capacity
     private static final String SPILL_QUEUE_CAPACITY = "SPILL_QUEUE_CAPACITY";
 
+    private static final String SPILL_PUT_REQUEST_HEADERS_ENV = "spill_put_request_headers";
     //Used to write to S3
     private final AmazonS3 amazonS3;
     //Used to optionally encrypt Blocks.
@@ -300,6 +305,34 @@ public class S3BlockSpiller
     }
 
     /**
+     * Grabs the request headers from env and sets them on the request
+     */
+    private void setRequestHeadersFromEnv(PutObjectRequest request)
+    {
+        String headersFromEnvStr = System.getenv(SPILL_PUT_REQUEST_HEADERS_ENV);
+        if (headersFromEnvStr == null || headersFromEnvStr.isEmpty()) {
+            return;
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>(){};
+            Map<String, String> headers = mapper.readValue(headersFromEnvStr, typeRef);
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                String oldValue = request.putCustomRequestHeader(entry.getKey(), entry.getValue());
+                if (oldValue != null) {
+                    logger.warn("Key: %s has been overwritten with: %s. Old value: %s",
+                            entry.getKey(), entry.getValue(), oldValue);
+                }
+            }
+        }
+        catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            String message = String.format("Invalid value for environment variable: %s : %s",
+                    SPILL_PUT_REQUEST_HEADERS_ENV, headersFromEnvStr);
+            logger.error(message, e);
+        }
+    }
+
+    /**
      * Writes (aka spills) a Block.
      */
     protected SpillLocation write(Block block)
@@ -319,11 +352,13 @@ public class S3BlockSpiller
             // only sees the InputStream wrapper.
             ObjectMetadata objMeta = new ObjectMetadata();
             objMeta.setContentLength(bytes.length);
-
-            amazonS3.putObject(spillLocation.getBucket(),
+            PutObjectRequest request = new PutObjectRequest(
+                    spillLocation.getBucket(),
                     spillLocation.getKey(),
                     new ByteArrayInputStream(bytes),
                     objMeta);
+            setRequestHeadersFromEnv(request);
+            amazonS3.putObject(request);
             logger.info("write: Completed spilling block of size {} bytes", bytes.length);
 
             return spillLocation;
