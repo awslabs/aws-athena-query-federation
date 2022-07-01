@@ -37,7 +37,8 @@ public class GlueFieldLexer
     private static final Logger logger = LoggerFactory.getLogger(GlueFieldLexer.class);
 
     private static final String STRUCT = "struct";
-    private static final String LIST = "array";
+    private static final String ARRAY = "array";
+    private static final String SET = "set";
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 
@@ -89,19 +90,22 @@ public class GlueFieldLexer
                     + " but found " + startToken.getMarker());
         }
 
-        if (startToken.getValue().toLowerCase().equals(STRUCT)) {
+        final String startTokenValueLower = startToken.getValue().toLowerCase();
+
+        if (startTokenValueLower.equals(STRUCT)) {
             fieldBuilder = FieldBuilder.newBuilder(name, Types.MinorType.STRUCT.getType());
         }
-        else if (startToken.getValue().toLowerCase().equals(LIST)) {
+        else if (startTokenValueLower.equals(ARRAY) || startTokenValueLower.equals(SET)) {
             GlueTypeParser.Token arrayType = parser.next();
             Field child;
             String type = arrayType.getValue().toLowerCase();
-            if (type.equals(STRUCT) || type.equals(LIST)) {
+            if (type.equals(STRUCT) || type.equals(ARRAY) || type.equals(SET)) {
                 child = lexComplex(name, arrayType, parser, mapper);
             }
             else {
                 child = mapper.getField(name, arrayType.getValue());
             }
+            // Both Glue "array" and "set" get converted to Arrow LIST
             return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType()).addField(child).build();
         }
         else {
