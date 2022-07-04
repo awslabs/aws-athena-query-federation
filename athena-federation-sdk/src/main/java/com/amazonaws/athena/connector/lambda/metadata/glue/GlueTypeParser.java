@@ -39,6 +39,8 @@ public class GlueTypeParser
     protected static final Character FIELD_DIV = ':';
     protected static final Character FIELD_SEP = ',';
     protected static final Character ESCAPE_CHAR = '\\';
+    protected static final Character FIELD_PARAM_START = '(';
+    protected static final Character FIELD_PARAM_END = ')';
     private static final Set<Character> TOKENS = new HashSet<>();
 
     static {
@@ -83,6 +85,11 @@ public class GlueTypeParser
         StringBuilder sb = new StringBuilder();
         int readPos = pos;
         int lastEscapeChar = -1;
+        // fieldParamsContext is used to ignore tokenization within the field's params
+        // For example: "asdfType(3,2,3,4)"
+        // Without this we would tokenize at the first comma into: "asdfType(3,"
+        // When we really want to just capture the entire type and params: "asdfType(3,2,3,4)"
+        boolean fieldParamsContext = false;
         while (input.length() > readPos) {
             Character last = input.charAt(readPos++);
             if (last.equals(ESCAPE_CHAR)) {
@@ -91,7 +98,16 @@ public class GlueTypeParser
             else if (last.equals(' ')) {
                 //NoOp
             }
+            else if (fieldParamsContext) {
+                if (last == FIELD_PARAM_END) {
+                    fieldParamsContext = false;
+                }
+                sb.append(last);
+            }
             else if (!TOKENS.contains(last) || lastEscapeChar == readPos - 2) {
+                if (last == FIELD_PARAM_START) {
+                    fieldParamsContext = true;
+                }
                 //accumulate if the char is not a TOKEN or is escaped
                 sb.append(last);
             }
