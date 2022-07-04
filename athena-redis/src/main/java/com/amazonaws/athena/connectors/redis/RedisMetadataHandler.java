@@ -399,7 +399,7 @@ public class RedisMetadataHandler
     @Override
     protected Field convertField(String name, String type)
     {
-        return FieldBuilder.newBuilder(name, DefaultGlueType.fromId(type).getArrowType()).build();
+        return FieldBuilder.newBuilder(name, DefaultGlueType.fromId(type)).build();
     }
 
     private String getValue(Block block, int row, String fieldName)
