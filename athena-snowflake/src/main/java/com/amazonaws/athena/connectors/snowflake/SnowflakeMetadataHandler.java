@@ -365,19 +365,26 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                         columnType = Types.MinorType.INT.getType();
                     }
                     if (dataType != null && (dataType.equalsIgnoreCase("DATE"))) {
-                        columnType = Types.MinorType.TIMESTAMPMILLI.getType();
+                        columnType = Types.MinorType.DATEDAY.getType();
                     }
                     /**
-                     * Converting TIMESTAMP data type into TIMESTAMPMILLI
+                     * Converting TIMESTAMP data type into DATEMILLI
                      */
                     if (dataType != null && (dataType.equalsIgnoreCase("TIMESTAMP"))
                     ) {
-                        columnType = Types.MinorType.TIMESTAMPMILLI.getType();
+                        columnType = Types.MinorType.DATEMILLI.getType();
+                    }
+                    if (dataType != null && (dataType.equalsIgnoreCase("TIMESTAMP_LTZ"))
+                    ) {
+                        columnType = Types.MinorType.DATEMILLI.getType();
                     }
                     if (dataType != null && (dataType.equalsIgnoreCase("TIMESTAMP_NTZ"))
                     ) {
-                        LOGGER.debug(" inside TIMESTAMP ");
-                        columnType = Types.MinorType.TIMESTAMPMILLI.getType();
+                        columnType = Types.MinorType.DATEMILLI.getType();
+                    }
+                    if (dataType != null && (dataType.equalsIgnoreCase("TIMESTAMP_TZ"))
+                    ) {
+                        columnType = Types.MinorType.DATEMILLI.getType();
                     }
                     /**
                      * converting into VARCHAR for not supported data types.

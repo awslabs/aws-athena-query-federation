@@ -141,7 +141,11 @@ public class SnowflakeIntegTest extends IntegrationTestBase
         // Test view files
         String  queryTableCreation = "select * from \"lambda:" + lambdaFunctionName + "\"."+ "CMRN" + "." + "VIEWFOREMPLOYEE";
         processQuery( queryTableCreation);
-
+        /**
+         * timestamp test
+         */
+        queryTableCreation = "select * from \"lambda:" + lambdaFunctionName + "\"."+ "CMRN" + "." + "TS_TEST2 WHERE TS_NTZ>=TIMESTAMP '2016-10-19 15:39:47.000' ";
+        processQuery( queryTableCreation);
         /**
          * limit test
          */
@@ -150,7 +154,7 @@ public class SnowflakeIntegTest extends IntegrationTestBase
         processQuery( queryTableCreation);
 
         queryTableCreation = "select * from \"lambda:" + lambdaFunctionName + "\"."+ "CMRN" + "." + "AAB_COMPLETEDACCT" +
-                " where PARSEDDATE='2013-01-01'";
+                " where PARSEDDATE=date('2013-01-01')";
         processQuery( queryTableCreation);
 
 
