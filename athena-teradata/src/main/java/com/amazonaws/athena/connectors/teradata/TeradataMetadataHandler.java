@@ -44,7 +44,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -64,7 +63,6 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,7 +72,6 @@ import java.util.stream.Collectors;
  */
 public class TeradataMetadataHandler extends JdbcMetadataHandler
 {
-    static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String ALL_PARTITIONS = "*";
     static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
 
@@ -99,7 +96,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      */
     public TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
-       this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)));
+       this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)));
     }
 
     public TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
@@ -349,7 +346,9 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                     String columnName = resultSet.getString("COLUMN_NAME");
 
                     LOGGER.info("Column Name: " + columnName);
-                    LOGGER.info("Column Type: " + columnType.getTypeID());
+                    if (columnType != null) {
+                        LOGGER.info("Column Type: " + columnType.getTypeID());
+                    }
 
                     /**
                      * Convert decimal into BigInt
