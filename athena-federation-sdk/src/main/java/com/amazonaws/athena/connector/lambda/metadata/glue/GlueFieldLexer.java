@@ -27,6 +27,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Set;
+
 /**
  * Extracts field definitions, including complex types like List and STRUCT, from AWS Glue Data Catalog's
  * definition of a field. This class makes use of GlueTypeParser to tokenize the definition of the field.
@@ -34,10 +36,15 @@ import org.slf4j.LoggerFactory;
  */
 public class GlueFieldLexer
 {
+    // NOTE:
+    // This entire class and file should really be called a parser instead...
+    // The GlueFieldParser should actually be called a GlueFieldLexer and vice versa.
+
     private static final Logger logger = LoggerFactory.getLogger(GlueFieldLexer.class);
 
     private static final String STRUCT = "struct";
-    private static final String LIST = "array";
+
+    private static final Set<String> LIST_EQUIVALENTS = Set.of("array", "set");
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 
@@ -59,99 +66,85 @@ public class GlueFieldLexer
 
     public static Field lex(String name, String input)
     {
-        ArrowType typeResult = DEFAULT_TYPE_MAPPER.getType(input);
-        if (typeResult != null) {
-            return FieldBuilder.newBuilder(name, typeResult).build();
-        }
-
-        GlueTypeParser parser = new GlueTypeParser(input);
-        return lexComplex(name, parser.next(), parser, DEFAULT_TYPE_MAPPER);
+        return lex(name, input, DEFAULT_TYPE_MAPPER);
     }
 
     public static Field lex(String name, String input, BaseTypeMapper mapper)
     {
-        Field result = mapper.getField(name, input);
-        if (result != null) {
-            return result;
-        }
-
         GlueTypeParser parser = new GlueTypeParser(input);
-        return lexComplex(name, parser.next(), parser, mapper);
+        return lexInternal(name, parser, mapper);
     }
 
-    private static Field lexComplex(String name, GlueTypeParser.Token startToken, GlueTypeParser parser, BaseTypeMapper mapper)
+    private static Field lexInternal(String name, GlueTypeParser parser, BaseTypeMapper mapper)
     {
-        FieldBuilder fieldBuilder;
-
-        logger.debug("lexComplex: enter - {}", name);
-        if (startToken.getMarker() != GlueTypeParser.FIELD_START) {
-            throw new RuntimeException("Parse error, expected " + GlueTypeParser.FIELD_START
-                    + " but found " + startToken.getMarker());
-        }
-
-        if (startToken.getValue().toLowerCase().equals(STRUCT)) {
-            fieldBuilder = FieldBuilder.newBuilder(name, Types.MinorType.STRUCT.getType());
-        }
-        else if (startToken.getValue().toLowerCase().equals(LIST)) {
-            GlueTypeParser.Token arrayType = parser.next();
-            Field child;
-            String type = arrayType.getValue().toLowerCase();
-            if (type.equals(STRUCT) || type.equals(LIST)) {
-                child = lexComplex(name, arrayType, parser, mapper);
+        logger.debug("lexInternal: enter - {}", name);
+        try {
+            GlueTypeParser.Token typeToken = parser.next();
+            final String typeTokenValueLower = typeToken.getValue().toLowerCase();
+            if (typeTokenValueLower.equals(STRUCT)) {
+                return parseStruct(name, typeToken, parser, mapper);
             }
-            else {
-                child = mapper.getField(name, arrayType.getValue());
+            else if (LIST_EQUIVALENTS.contains(typeTokenValueLower)) {
+                return parseList(name, typeToken, parser, mapper);
             }
-            return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType()).addField(child).build();
+            // Primitive case
+            expectTokenMarkerIsFieldEnd(typeToken);
+            return mapper.getField(name, typeTokenValueLower);
         }
-        else {
-            throw new RuntimeException("Unexpected start type " + startToken.getValue());
+        finally {
+            logger.debug("lexInternal: exit - {}", name);
         }
+    }
 
-        while (parser.hasNext() && parser.currentToken().getMarker() != GlueTypeParser.FIELD_END) {
-            Field child = lex(parser.next(), parser, mapper);
+    private static Field parseStruct(String name, GlueTypeParser.Token typeToken, GlueTypeParser parser, BaseTypeMapper mapper)
+    {
+        expectTokenMarkerIsFieldStart(typeToken);
+        FieldBuilder fieldBuilder = FieldBuilder.newBuilder(name, Types.MinorType.STRUCT.getType());
+        // Iterate through the child element types of the STRUCT
+        while (parser.hasNext()) {
+            GlueTypeParser.Token childNameToken = parser.next();
+            if (!childNameToken.getMarker().equals(GlueTypeParser.FIELD_DIV)) {
+                // Current token is not a child if it doesn't have a ":" (FIELD_DIV).
+                // Which means we are done with the struct. Just break out and build.
+                break;
+            }
+            // Recursive call to resolve child type
+            Field child = lexInternal(childNameToken.getValue(), parser, mapper);
             fieldBuilder.addField(child);
-            if (Types.getMinorTypeForArrowType(child.getType()) == Types.MinorType.LIST) {
-                // An ARRAY Glue type (LIST in Arrow) within a STRUCT has the same ending token as a STRUCT (">" or
-                // GlueTypeParser.FIELD_END). If allowed to proceed, the Glue parser will misinterpret the end of the
-                // ARRAY to be the end of the STRUCT (which is currently being processed) ending the loop prematurely
-                // and causing all subsequent fields in the STRUCT to be dropped.
-                // Example: movies: STRUCT<actors:ARRAY<STRING>,genre:ARRAY<STRING>>
-                // will result in Field definition: movies: Struct<actors: List<actors: Utf8>>.
-                // In order to prevent that from happening, we must consume an additional token to get past the LIST's
-                // ending token ">".
-                parser.next();
-            }
         }
-        parser.next();
-
-        logger.debug("lexComplex: exit - {}", name);
+        // Expect that we're ending on the closing token
+        expectTokenMarkerIsFieldEnd(parser.currentToken());
         return fieldBuilder.build();
     }
 
-    private static Field lex(GlueTypeParser.Token startToken, GlueTypeParser parser, BaseTypeMapper mapper)
+    private static Field parseList(String name, GlueTypeParser.Token typeToken, GlueTypeParser parser, BaseTypeMapper mapper)
     {
-        GlueTypeParser.Token nameToken = startToken;
-        logger.debug("lex: enter - {}", nameToken.getValue());
-        if (!nameToken.getMarker().equals(GlueTypeParser.FIELD_DIV)) {
-            throw new RuntimeException("Expected Field DIV but found " + nameToken.getMarker() +
-                    " while processing " + nameToken.getValue());
-        }
+        expectTokenMarkerIsFieldStart(typeToken);
+        // Recursive call to resolve child element type
+        Field child = lexInternal(name, parser, mapper);
+        // The next field must always be a closing token since we are building the field here
+        // So consume the closing token for this field
+        GlueTypeParser.Token closingToken = parser.next();
+        // Note that the closing token is , if the enclosing type is a struct
+        // and > if the enclosing type is a list
+        expectTokenMarkerIsFieldEnd(closingToken);
+        return FieldBuilder.newBuilder(name, Types.MinorType.LIST.getType()).addField(child).build();
+    }
 
-        String name = nameToken.getValue();
+    private static void expectTokenMarkerIsFieldStart(GlueTypeParser.Token token)
+    {
+        if (token.getMarker() != GlueTypeParser.FIELD_START) {
+            throw new RuntimeException("Expected field start: but found " + token.toString());
+        }
+    }
 
-        GlueTypeParser.Token typeToken = parser.next();
-        if (typeToken.getMarker().equals(GlueTypeParser.FIELD_START)) {
-            logger.debug("lex: exit - {}", nameToken.getValue());
-            return lexComplex(name, typeToken, parser, mapper);
+    private static void expectTokenMarkerIsFieldEnd(GlueTypeParser.Token token)
+    {
+        boolean isFieldEnd = (token.getMarker() == null ||
+              token.getMarker().equals(GlueTypeParser.FIELD_SEP) ||
+              token.getMarker().equals(GlueTypeParser.FIELD_END));
+        if (!isFieldEnd) {
+            throw new RuntimeException("Expected field ending but found: " + token.toString());
         }
-        else if (typeToken.getMarker().equals(GlueTypeParser.FIELD_SEP) ||
-                typeToken.getMarker().equals(GlueTypeParser.FIELD_END)
-        ) {
-            logger.debug("lex: exit - {}", nameToken.getValue());
-            return mapper.getField(name, typeToken.getValue());
-        }
-        throw new RuntimeException("Unexpected Token " + typeToken.getValue() + "[" + typeToken.getMarker() + "]"
-                + " @ " + typeToken.getPos() + " while processing " + name);
     }
 }
