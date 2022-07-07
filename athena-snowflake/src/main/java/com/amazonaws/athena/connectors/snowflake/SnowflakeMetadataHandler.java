@@ -525,20 +525,18 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
-            ImmutableSet.Builder<String> catalogNames = ImmutableSet.builder();
             String inputCatalogName = jdbcConnection.getCatalog();
             String inputSchemaName = jdbcConnection.getSchema();
             while (resultSet.next()) {
                 String schemaName = resultSet.getString("TABLE_SCHEM");
                 String catalogName = resultSet.getString("TABLE_CATALOG");
                 // skip internal schemas
-                if (inputSchemaName != null && schemaName.equals(inputSchemaName)  && !schemaName.equals("information_schema") && catalogName.equals(inputCatalogName)) {
+                boolean shouldAddSchema =
+                        ((inputSchemaName == null) || schemaName.equals(inputSchemaName)) &&
+                                (!schemaName.equals("information_schema") && catalogName.equals(inputCatalogName));
+
+                if (shouldAddSchema) {
                     schemaNames.add(schemaName);
-                    catalogNames.add(catalogName);
-                }
-                else if (inputSchemaName == null && !schemaName.equals("information_schema") && catalogName.equals(inputCatalogName)) {
-                    schemaNames.add(schemaName);
-                    catalogNames.add(catalogName);
                 }
             }
             return schemaNames.build();
