@@ -134,7 +134,6 @@ public class SnowflakeIntegTest extends IntegrationTestBase
     @Test
     public void fetchDataTypes()
     {
-
         logger.info("-----------------------------------");
         logger.info("Executing fetchDataTypes");
         logger.info("-----------------------------------");

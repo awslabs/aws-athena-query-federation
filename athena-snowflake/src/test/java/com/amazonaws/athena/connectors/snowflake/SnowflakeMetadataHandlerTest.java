@@ -57,7 +57,7 @@ public class SnowflakeMetadataHandlerTest
     public EnvironmentVariablesRule environmentVariables = new EnvironmentVariablesRule();
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
-    "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
+            "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
     private SnowflakeMetadataHandler snowflakeMetadataHandler;
     private JdbcConnectionFactory jdbcConnectionFactory;
     private Connection connection;

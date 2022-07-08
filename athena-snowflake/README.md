@@ -152,7 +152,6 @@ In order to make the source (Snowflake) and Athena data types compatible, there 
 |TIMESTAMP_TZ| DATEMILLI              |
 |DATE| DATEDAY             |
 |INTEGER| INT                          |
-|DECIMAL| BIGINT                       |
 
 In addition, all the unsupported data types are getting converted to VARCHAR.
 
