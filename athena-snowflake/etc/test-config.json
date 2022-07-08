@@ -23,5 +23,5 @@
     "security_group_id": "<Enter Value>",           /* The Security Group Id (e.g. sg-xxx) */
     "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],     /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
     "availability_zones": ["<Zone 1>", "<Zone 2>"]  /* A list consisting of at least one AZ (e.g. us-east-1a) */
-    }
+  }
 }
