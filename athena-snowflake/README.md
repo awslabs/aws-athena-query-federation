@@ -167,11 +167,12 @@ In order to make the source (Snowflake) and Athena data types compatible, there 
 
 |Source Data Type (Snowflake)| Converted Data Type (Athena) |
 | ---|------------------------------|
-|TIMESTAMP| TIMESTAMPMILLI               |
-|DATE| TIMESTAMPMILLI               |
+|TIMESTAMP| DATEMILLI              |
+|TIMESTAMP_NTZ| DATEMILLI              |
+|TIMESTAMP_LTZ| DATEMILLI              |
+|TIMESTAMP_TZ| DATEMILLI              |
+|DATE| DATEDAY             |
 |INTEGER| INT                          |
-|DECIMAL| BIGINT                       |
-|TIMESTAMP_NTZ| TIMESTAMPMILLI               |
 
 In addition, all the unsupported data types are getting converted to VARCHAR.
 

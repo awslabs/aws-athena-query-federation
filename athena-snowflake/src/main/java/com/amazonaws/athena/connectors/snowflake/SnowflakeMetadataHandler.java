@@ -72,6 +72,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static java.util.Map.entry;
+
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
  * information_schema.
@@ -302,7 +304,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
     {
-       try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName tableName = getTableFromMetadata(connection.getCatalog(), getTableRequest.getTableName(), connection.getMetaData());
             GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
@@ -361,26 +363,16 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     String dataType = hashMap.get(columnName);
                     LOGGER.debug("columnName: " + columnName);
                     LOGGER.debug("dataType: " + dataType);
-                    if (dataType != null && (dataType.equalsIgnoreCase("DECIMAL"))) {
-                        columnType = Types.MinorType.BIGINT.getType();
-                    }
-                    if (dataType != null && (dataType.equalsIgnoreCase("INTEGER"))) {
-                        columnType = Types.MinorType.INT.getType();
-                    }
-                    if (dataType != null && (dataType.equalsIgnoreCase("DATE"))) {
-                        columnType = Types.MinorType.TIMESTAMPMILLI.getType();
-                    }
-                    /**
-                     * Converting TIMESTAMP data type into TIMESTAMPMILLI
-                     */
-                    if (dataType != null && (dataType.equalsIgnoreCase("TIMESTAMP"))
-                    ) {
-                        columnType = Types.MinorType.TIMESTAMPMILLI.getType();
-                    }
-                    if (dataType != null && (dataType.equalsIgnoreCase("TIMESTAMP_NTZ"))
-                    ) {
-                        LOGGER.debug(" inside TIMESTAMP ");
-                        columnType = Types.MinorType.TIMESTAMPMILLI.getType();
+                    final Map<String, ArrowType> stringArrowTypeMap = Map.ofEntries(
+                            entry("INTEGER", Types.MinorType.INT.getType()),
+                            entry("DATE", Types.MinorType.DATEDAY.getType()),
+                            entry("TIMESTAMP", Types.MinorType.DATEMILLI.getType()),
+                            entry("TIMESTAMP_LTZ", Types.MinorType.DATEMILLI.getType()),
+                            entry("TIMESTAMP_NTZ", Types.MinorType.DATEMILLI.getType()),
+                            entry("TIMESTAMP_TZ", Types.MinorType.DATEMILLI.getType())
+                    );
+                    if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
+                        columnType = stringArrowTypeMap.get(dataType.toUpperCase());
                     }
                     /**
                      * converting into VARCHAR for not supported data types.
