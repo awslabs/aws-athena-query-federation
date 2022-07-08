@@ -78,7 +78,7 @@ import static java.util.Map.entry;
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
  * information_schema.
  */
-public class    SnowflakeMetadataHandler extends JdbcMetadataHandler
+public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 {
     static final Map<String, String> JDBC_PROPERTIES = ImmutableMap.of("databaseTerm", "SCHEMA");
     static final String BLOCK_PARTITION_COLUMN_NAME = "partition";
