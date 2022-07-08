@@ -348,7 +348,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                     LOGGER.info("Column Name: " + columnName);
                     if (columnType != null) {
                         LOGGER.info("Column Type: " + columnType.getTypeID());
-                    }else {
+                    } else {
                         LOGGER.warn("Column Type is null for Column Name" + columnName);
                     }
 
