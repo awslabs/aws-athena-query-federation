@@ -56,7 +56,9 @@ Example properties for a Snowflake Mux Lambda function that supports two databas
 |	|	|
 |snowflake_catalog1_connection_string|```snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1&schema=schema1${Test/RDS/Snowflake1}```|
 |	|	|
-|snowflake_catalog2_connection_string|```snowflake://jdbc:snowflake://snowflake2.host:port/?warehouse=warehousename&db=db1&schema=schema1&user=sample2&password=sample2```|
+|snowflake_catalog2_connection_string|```snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1${Test/RDS/Snowflake1}```|
+|	|	|
+|snowflake_catalog3_connection_string|```snowflake://jdbc:snowflake://snowflake2.host:port/?warehouse=warehousename&db=db1&schema=schema1&user=sample2&password=sample2```|
 
 Snowflake Connector supports substitution of any string enclosed like *${SecretName}* with *username* and *password* retrieved from AWS Secrets Manager. Example:
 
@@ -73,6 +75,25 @@ snowflake://jdbc:snowflake://snowflake2.host:port/?warehouse=warehousename&db=db
 Secret Name `Test/RDS/Snowflake1` will be used to retrieve secrets.
 
 Currently Snowflake recognizes `user` and `password` JDBC properties.It will take username and password like username/password without any key `user` and `password`
+
+Please note, If user has provided schema details in connection string, the data source will restrict to tables in that particular schema, If user has not provided schema details, then data source
+will display tables present in the database that has been mentioned in connection string Example:
+
+```
+ snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1&schema=schema1${Test/RDS/Snowflake1}
+```
+Above will load tables present in schema1 and not other schemas present in db1.
+
+```
+snowflake://jdbc:snowflake://snowflake1.host:port/?warehouse=warehousename&db=db1${Test/RDS/Snowflake1}
+```
+Above will load tables present in db1.
+
+### References
+
+```
+https://docs.snowflake.com/en/user-guide/jdbc-configure.html#jdbc-driver-connection-string
+```
 
 ### Single connection handler parameters
 
