@@ -36,6 +36,8 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -48,6 +50,7 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -505,5 +508,38 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             }
         }
         return tableName;
+    }
+    @Override
+    public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
+    {
+        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
+            LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
+            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
+        }
+        catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
+        }
+    }
+    protected static Set<String>  listDatabaseNames(final Connection jdbcConnection)
+            throws SQLException
+    {
+        try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
+            ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
+            String inputCatalogName = jdbcConnection.getCatalog();
+            String inputSchemaName = jdbcConnection.getSchema();
+            while (resultSet.next()) {
+                String schemaName = resultSet.getString("TABLE_SCHEM");
+                String catalogName = resultSet.getString("TABLE_CATALOG");
+                // skip internal schemas
+                boolean shouldAddSchema =
+                        ((inputSchemaName == null) || schemaName.equals(inputSchemaName)) &&
+                                (!schemaName.equals("information_schema") && catalogName.equals(inputCatalogName));
+
+                if (shouldAddSchema) {
+                    schemaNames.add(schemaName);
+                }
+            }
+            return schemaNames.build();
+        }
     }
 }
