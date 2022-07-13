@@ -50,8 +50,12 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
@@ -121,11 +125,12 @@ public class ExampleRecordHandler
          * TODO: Extract information about what we need to read from the split. If you are following the tutorial
          *  this is basically the partition column values for year, month, day.
          *
+         * *
+         *          */
          splitYear = split.getPropertyAsInt("year");
          splitMonth = split.getPropertyAsInt("month");
          splitDay = split.getPropertyAsInt("day");
-         *
-         */
+
 
         String dataBucket = null;
         /**
@@ -150,6 +155,7 @@ public class ExampleRecordHandler
          * optomized code for converting our data to Apache Arrow, automatically minimizing memory overhead, code
          * branches, etc... Later in the code when we call RowWriter for each line in our S3 file
          *
+         * */
          builder.withExtractor("year", (IntExtractor) (Object context, NullableIntHolder value) -> {
              value.isSet = 1;
              value.value = Integer.parseInt(((String[]) context)[0]);
@@ -169,24 +175,26 @@ public class ExampleRecordHandler
              value.isSet = 1;
              value.value = ((String[]) context)[6];
          });
-         */
+
 
         /**
          * TODO: The account_id field is a sensitive field, so we'd like to mask it to the last 4 before
          *  returning it to Athena. Note that this will mean you can only filter (where/having)
          *  on the masked value from Athena.
          *
+         * */
          builder.withExtractor("account_id", (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
              value.isSet = 1;
              String accountId = ((String[]) context)[3];
              value.value = accountId.length() > 4 ? accountId.substring(accountId.length() - 4) : accountId;
          });
-         */
+
 
         /**
          * TODO: Write data for our transaction STRUCT:
          * For complex types like List and Struct, we can build a Map to conveniently set nested values
          *
+         * */
          builder.withFieldWriterFactory("transaction",
                 (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                     (Object context, int rowNum) -> {
@@ -196,7 +204,27 @@ public class ExampleRecordHandler
                          BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, eventMap);
                          return true;    //we don't yet support predicate pushdown on complex types
          });
-         */
+
+
+        builder.withFieldWriterFactory("map_field",
+                (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (Object context, int rowNum) -> {
+                            Map<String, Object> eventMap = new HashMap<>();
+                            String[] entries = (((String[])context)[7]).split("&");
+
+                            List<Object> keys = new ArrayList<>(entries.length);
+                            List<Object> values = new ArrayList<>(entries.length);
+                            for(String entry: entries) {
+                                String[] eachEntry = entry.split("=");
+                                keys.add(eachEntry[0]);
+                                values.add(eachEntry[1]);
+                            }
+                            Map<String, List<Object>> entryMap = new HashMap<>(2);
+                            entryMap.put("key", keys);
+                            entryMap.put("value", values);
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, entryMap);
+                            return true;    //we don't yet support predicate pushdown on complex types
+                        });
 
         //Used some basic code-gen to optimize how we generate response data.
         GeneratedRowWriter rowWriter = builder.build();

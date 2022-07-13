@@ -100,6 +100,7 @@ public class ExampleRecordHandlerTest
                 .addChildField("transaction", "id", Types.MinorType.INT.getType())
                 .addChildField("transaction", "completed", Types.MinorType.BIT.getType())
                 .addMetadata("partitionCols", "year,month,day")
+                .addMapField("map_field")
                 .build();
 
         allocator = new BlockAllocatorImpl();
@@ -132,6 +133,7 @@ public class ExampleRecordHandlerTest
     public void doReadRecordsNoSpill()
             throws Exception
     {
+        /*
         if (!enableTests) {
             //We do this because until you complete the tutorial these tests will fail. When you attempt to publis
             //using ../toos/publish.sh ...  it will set the publishing flag and force these tests. This is how we
@@ -141,6 +143,8 @@ public class ExampleRecordHandlerTest
                     "using maven clean install -Dpublishing=true");
             return;
         }
+
+         */
 
         for (int i = 0; i < 2; i++) {
             Map<String, ValueSet> constraintsMap = new HashMap<>();
@@ -175,17 +179,17 @@ public class ExampleRecordHandlerTest
             throws UnsupportedEncodingException
     {
         StringBuilder sb = new StringBuilder();
-        sb.append("2017,11,1,2122792308,1755604178,false,0UTIXoWnKqtQe8y+BSHNmdEXmWfQalRQH60pobsgwws=\n");
-        sb.append("2017,11,1,2030248245,747575690,false,i9AoMmLI6JidPjw/SFXduBB6HUmE8aXQLMhekhIfE1U=\n");
-        sb.append("2017,11,1,23301515,1720603622,false,HWsLCXAnGFXnnjD8Nc1RbO0+5JzrhnCB/feJ/EzSxto=\n");
-        sb.append("2017,11,1,1342018392,1167647466,false,lqL0mxeOeEesRY7EU95Fi6QEW92nj2mh8xyex69j+8A=\n");
-        sb.append("2017,11,1,945994127,1854103174,true,C57VAyZ6Y0C+xKA2Lv6fOcIP0x6Px8BlEVBGSc74C4I=\n");
-        sb.append("2017,11,1,1102797454,2117019257,true,oO0S69X+N2RSyEhlzHguZSLugO8F2cDVDpcAslg0hhQ=\n");
-        sb.append("2017,11,1,862601609,392155621,true,L/Wpz4gHiRR7Sab1RCBrp4i1k+0IjUuJAV/Yn/7kZnc=\n");
-        sb.append("2017,11,1,1858905353,1131234096,false,w4R3N+vN/EcwrWP7q/h2DwyhyraM1AwLbCbe26a+mQ0=\n");
-        sb.append("2017,11,1,1300070253,247762646,false,cjbs6isGO0K7ib1D65VbN4lZEwQv2Y6Q/PoFZhyyacA=\n");
-        sb.append("2017,11,1,843851309,1886346292,true,sb/xc+uoe/ZXRXTYIv9OTY33Rj+zSS96Mj/3LVPXvRM=\n");
-        sb.append("2017,11,1,2013370128,1783091056,false,9MW9X3OUr40r4B/qeLz55yJIrvw7Gdk8RWUulNadIyw=\n");
+        sb.append("2017,11,1,2122792308,1755604178,false,0UTIXoWnKqtQe8y+BSHNmdEXmWfQalRQH60pobsgwws=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,2030248245,747575690,false,i9AoMmLI6JidPjw/SFXduBB6HUmE8aXQLMhekhIfE1U=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,23301515,1720603622,false,HWsLCXAnGFXnnjD8Nc1RbO0+5JzrhnCB/feJ/EzSxto=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,1342018392,1167647466,false,lqL0mxeOeEesRY7EU95Fi6QEW92nj2mh8xyex69j+8A=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,945994127,1854103174,true,C57VAyZ6Y0C+xKA2Lv6fOcIP0x6Px8BlEVBGSc74C4I=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,1102797454,2117019257,true,oO0S69X+N2RSyEhlzHguZSLugO8F2cDVDpcAslg0hhQ=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,862601609,392155621,true,L/Wpz4gHiRR7Sab1RCBrp4i1k+0IjUuJAV/Yn/7kZnc=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,1858905353,1131234096,false,w4R3N+vN/EcwrWP7q/h2DwyhyraM1AwLbCbe26a+mQ0=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,1300070253,247762646,false,cjbs6isGO0K7ib1D65VbN4lZEwQv2Y6Q/PoFZhyyacA=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,843851309,1886346292,true,sb/xc+uoe/ZXRXTYIv9OTY33Rj+zSS96Mj/3LVPXvRM=,k1=v1&k2=v2\n");
+        sb.append("2017,11,1,2013370128,1783091056,false,9MW9X3OUr40r4B/qeLz55yJIrvw7Gdk8RWUulNadIyw=,k1=v1&k2=v2\n");
         return sb.toString().getBytes("UTF-8");
     }
 
