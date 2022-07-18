@@ -20,9 +20,9 @@
 package com.amazonaws.athena.connectors.timestream.integ;
 
 import com.amazonaws.athena.connector.integ.IntegrationTestBase;
+import com.amazonaws.athena.connectors.timestream.TimestreamClientBuilder;
 import com.amazonaws.services.athena.model.Row;
 import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
-import com.amazonaws.services.timestreamwrite.AmazonTimestreamWriteClientBuilder;
 import com.amazonaws.services.timestreamwrite.model.CreateTableRequest;
 import com.amazonaws.services.timestreamwrite.model.DeleteTableRequest;
 import com.amazonaws.services.timestreamwrite.model.MeasureValueType;
@@ -75,7 +75,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
                 currentTimeMillis + 14_000L, currentTimeMillis + 16_000L, currentTimeMillis + 18_000L,
                 currentTimeMillis + 20_000L, currentTimeMillis + 22_000L, currentTimeMillis + 24_000L,
                 currentTimeMillis + 26_000L};
-        timestreamWriteClient = AmazonTimestreamWriteClientBuilder.defaultClient();
+        timestreamWriteClient = TimestreamClientBuilder.buildWriteClient("timestream");
     }
 
     /**
