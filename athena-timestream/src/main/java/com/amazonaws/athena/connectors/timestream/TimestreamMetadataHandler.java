@@ -42,13 +42,11 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
-import com.amazonaws.services.timestreamquery.AmazonTimestreamQueryClientBuilder;
 import com.amazonaws.services.timestreamquery.model.Datum;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
 import com.amazonaws.services.timestreamquery.model.QueryResult;
 import com.amazonaws.services.timestreamquery.model.Row;
 import com.amazonaws.services.timestreamwrite.AmazonTimestreamWrite;
-import com.amazonaws.services.timestreamwrite.AmazonTimestreamWriteClientBuilder;
 import com.amazonaws.services.timestreamwrite.model.Database;
 import com.amazonaws.services.timestreamwrite.model.ListDatabasesRequest;
 import com.amazonaws.services.timestreamwrite.model.ListDatabasesResult;
@@ -90,8 +88,8 @@ public class TimestreamMetadataHandler
         //Disable Glue if the env var is present and not explicitly set to "false"
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         glue = getAwsGlue();
-        tsQuery = AmazonTimestreamQueryClientBuilder.standard().build();
-        tsMeta = AmazonTimestreamWriteClientBuilder.standard().build();
+        tsQuery = TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE);
+        tsMeta = TimestreamClientBuilder.buildWriteClient(SOURCE_TYPE);
     }
 
     @VisibleForTesting
