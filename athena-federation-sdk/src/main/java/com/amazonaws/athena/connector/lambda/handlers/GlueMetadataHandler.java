@@ -49,6 +49,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
@@ -124,6 +125,13 @@ public abstract class GlueMetadataHandler
     // Table property (optional) that we will create from DATETIME_FORMAT_MAPPING_PROPERTY with normalized column names
     public static final String DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED = "datetimeFormatMappingNormalized";
     public static final String VIEW_METADATA_FIELD = "_view_template";
+
+    // Metadata for indicating whether or not the glue table contained a set or decimal type.
+    // This is needed because we did not used to support these types in the GlueLexer/Parser.
+    // Now that we do, some connectors (like the DDB Connector) needs this information in order to
+    // emulate behavior from prior versions.
+    public static final String GLUE_TABLE_CONTAINS_PREVIOUSLY_UNSUPPORTED_TYPE = "glueTableContainsPreviouslyUnsupportedType";
+
     private final AWSGlue awsGlue;
 
     /**
@@ -336,6 +344,21 @@ public abstract class GlueMetadataHandler
         return doGetTable(blockAllocator, request, null);
     }
 
+    private boolean isPreviouslyUnsupported(String glueType, Field arrowField)
+    {
+        // For the set type we have to compare against the glueType String because they are represented as Lists in Arrow.
+        boolean currentResult = arrowField.getType().getTypeID().equals(ArrowType.ArrowTypeID.Decimal) || glueType.contains("set<");
+        if (!currentResult) {
+            // Need to recursively check the arrowField inner types
+            for (Field child : arrowField.getChildren()) {
+                if (isPreviouslyUnsupported("", child)) {
+                    return true;
+                }
+            }
+        }
+        return currentResult;
+    }
+
     /**
      * Attempts to retrieve a Table (columns and properties) from AWS Glue for the request schema (aka database) and table
      * name with no filtering.
@@ -380,13 +403,15 @@ public abstract class GlueMetadataHandler
                     .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
         }
 
+        boolean glueTableContainsPreviouslyUnsupportedType = false;
         for (Column next : table.getStorageDescriptor().getColumns()) {
             String rawColumnName = next.getName();
             String mappedColumnName = columnNameMapping.getOrDefault(rawColumnName, rawColumnName);
             // apply any type override provided in typeOverrideMapping from metadata
             // this is currently only used for timestamp with timezone support
             logger.info("Column {} with registered type {}", rawColumnName, next.getType());
-            schemaBuilder.addField(convertField(mappedColumnName, next.getType()));
+            Field arrowField = convertField(mappedColumnName, next.getType());
+            schemaBuilder.addField(arrowField);
             // Add non-null non-empty comments to metadata
             if (next.getComment() != null && !next.getComment().trim().isEmpty()) {
                 schemaBuilder.addMetadata(mappedColumnName, next.getComment());
@@ -394,7 +419,13 @@ public abstract class GlueMetadataHandler
             if (dateTimeFormatMapping.containsKey(rawColumnName)) {
                 datetimeFormatMappingWithColumnName.put(mappedColumnName, dateTimeFormatMapping.get(rawColumnName));
             }
+
+            // Indicate that we found a `set` or `decimal` type so that we can set this metadata on the schemaBuilder later on
+            if (glueTableContainsPreviouslyUnsupportedType == false && isPreviouslyUnsupported(next.getType(), arrowField)) {
+                glueTableContainsPreviouslyUnsupportedType = true;
+            }
         }
+
         populateDatetimeFormatMappingIfAvailable(schemaBuilder, datetimeFormatMappingWithColumnName);
 
         populateSourceTableNameIfAvailable(table, schemaBuilder);
@@ -402,6 +433,8 @@ public abstract class GlueMetadataHandler
         if (table.getViewOriginalText() != null && !table.getViewOriginalText().isEmpty()) {
             schemaBuilder.addMetadata(VIEW_METADATA_FIELD, table.getViewOriginalText());
         }
+
+        schemaBuilder.addMetadata(GLUE_TABLE_CONTAINS_PREVIOUSLY_UNSUPPORTED_TYPE, String.valueOf(glueTableContainsPreviouslyUnsupportedType));
 
         return new GetTableResponse(request.getCatalogName(),
                 request.getTableName(),
