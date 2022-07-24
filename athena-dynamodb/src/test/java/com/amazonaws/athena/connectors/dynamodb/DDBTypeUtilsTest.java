@@ -172,7 +172,7 @@ public class DDBTypeUtilsTest
     {
         Map<String, Object> results = new HashMap<>();
         for (Field field : mapping.getFields()) {
-            Optional<Extractor> optionalExtractor = DDBTypeUtils.makeExtractor(field, ddbRecordMetadata);
+            Optional<Extractor> optionalExtractor = DDBTypeUtils.makeExtractor(field, ddbRecordMetadata, false);
 
             if (optionalExtractor.isPresent()) {
                 Extractor extractor = optionalExtractor.get();

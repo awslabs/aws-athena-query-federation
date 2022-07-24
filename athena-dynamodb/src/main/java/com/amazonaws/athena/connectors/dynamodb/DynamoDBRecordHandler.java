@@ -91,6 +91,8 @@ public class DynamoDBRecordHandler
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBRecordHandler.class);
     private static final String sourceType = "ddb";
 
+    private static final String DISABLE_PROJECTION_AND_CASING_ENV = "disable_projection_and_casing";
+
     private static final String HASH_KEY_VALUE_ALIAS = ":hashKeyValue";
 
     private static final TypeReference<HashMap<String, String>> STRING_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, String>>() {};
@@ -134,21 +136,55 @@ public class DynamoDBRecordHandler
         // use the property instead of the request table name because of case sensitivity
         String tableName = split.getProperty(TABLE_METADATA);
         invokerCache.get(tableName).setBlockSpiller(spiller);
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema());
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
+
+        String disableProjectionAndCasingEnvValue = System.getenv().getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
+        logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
+
+        boolean disableProjectionAndCasing = false;
+        if (disableProjectionAndCasingEnvValue.equals("auto")) {
+            // In the automatic case, we will try to mimic the behavior prior to the support of `set` and `decimal` types as much
+            // as possible.
+            //
+            // Previously, when the user used a Glue Table and had `set` and `decimal` types present, the code would have failed over
+            // to using internal type inference.
+            // Internal type inferencing uses the original column names from DDB since it is doing a partial scan of the DDB table and is
+            // therefore able to read the fields with casing.
+            //
+            // To mimic this behavior at a similar cost, we will just disable projection and casing, where we don't need an additional partial
+            // table scan to infer types, because we are using the glue types.
+            // The only side effect of this is increased network bandwidth usage and latency increase (DDB read units remains the same).
+            // If the DDB Connector and DDB Table are within the same region, this does not cost the user anything extra.
+            // Additionally in regards to bandwidth and latency, in many cases, this will be a wash because we avoid doing a partial table scan
+            // for type inference in this situation now.
+            //
+            // If the user is using `columnMapping`, then we will assume that they have correctly mapped their column names, and we will not
+            // disable projection and casing.
+            disableProjectionAndCasing = recordMetadata.getGlueTableContainedPreviouslyUnsupportedTypes() && recordMetadata.getColumnNameMapping().isEmpty();
+            logger.info("GlueTableContainedPreviouslyUnsupportedTypes: " + recordMetadata.getGlueTableContainedPreviouslyUnsupportedTypes());
+            logger.info("ColumnNameMapping isEmpty: " + recordMetadata.getColumnNameMapping().isEmpty());
+            logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
+        }
+        else {
+            // We also support the user turning this on unconditionally to solve their casing issues even when they do not have `set` or `decimal`
+            // columns.
+            disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
+        }
+
+        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), disableProjectionAndCasing);
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         //register extract and field writer factory for each field.
         for (Field next : recordsRequest.getSchema().getFields()) {
-            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata);
+            Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata, disableProjectionAndCasing);
             //generate extractor for supported data types
             if (extractor.isPresent()) {
                 rowWriterBuilder.withExtractor(next.getName(), extractor.get());
             }
             else {
                 //generate field writer factor for complex data types.
-                rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver));
+                rowWriterBuilder.withFieldWriterFactory(next.getName(), DDBTypeUtils.makeFactory(next, recordMetadata, resolver, disableProjectionAndCasing));
             }
         }
 
@@ -176,7 +212,7 @@ public class DynamoDBRecordHandler
     /*
     Converts a split into a Query or Scan request
      */
-    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema)
+    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema, boolean disableProjectionAndCasing)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -195,7 +231,7 @@ public class DynamoDBRecordHandler
         }
 
         // Only read columns that are needed in the query
-        String projectionExpression = schema.getFields()
+        String projectionExpression = disableProjectionAndCasing ? null : schema.getFields()
                 .stream()
                 .map(field -> {
                     String aliasedName = DDBPredicateUtils.aliasColumn(field.getName());
@@ -245,9 +281,9 @@ public class DynamoDBRecordHandler
     /*
     Creates an iterator that can iterate through a Query or Scan, sending paginated requests as necessary
      */
-    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema)
+    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema, boolean disableProjectionAndCasing)
     {
-        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema);
+        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema, disableProjectionAndCasing);
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();
