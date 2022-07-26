@@ -410,6 +410,7 @@ public class ExampleRecordHandler
                             UnionMapWriter writer  = ((MapVector) vector).getWriter();
                             writer.setPosition(rowNum);
                             writer.startMap();
+
                             writer.startEntry();
                             byte[] bytes = "chars".getBytes(Charsets.UTF_8);
                             try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
@@ -419,6 +420,18 @@ public class ExampleRecordHandler
 
                             writer.value().integer("value").writeInt(1001);
                             writer.endEntry();
+
+                            writer.startEntry();
+                            byte[] bytesTwo = "chars2".getBytes(Charsets.UTF_8);
+                            try (ArrowBuf buf = vector.getAllocator().buffer(bytesTwo.length)) {
+                                buf.writeBytes(bytesTwo);
+                                writer.key().varChar("key").writeVarChar(0, (int) (buf.readableBytes()), buf);
+                            }
+
+                            writer.value().integer("value").writeInt(1002);
+                            writer.endEntry();
+
+
                             writer.endMap();
                             ((MapVector) vector).setNotNull(rowNum);
                             return true;
