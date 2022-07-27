@@ -322,4 +322,24 @@ public class GlueFieldLexerTest
         // Just directly compare against the string, its pointless to write code to compare the fields individually
         assertEquals(expectedFieldToString, field.toString());
     }
+
+    @Test
+    public void lexMapTest()
+    {
+        // complex case
+        String input = "map<array<int>, map<string, string>>";
+        Field field = GlueFieldLexer.lex("SomeMap", input);
+        String expectedFieldToString = "SomeMap: Map(false)<ENTRIES: Struct<key: List<key: Int(32, true)> not null, value: Map(false)<ENTRIES: Struct<key: Utf8 not null, value: Utf8> not null>> not null>";
+        assertEquals(expectedFieldToString, field.toString());
+
+        // Extra complex case
+        String innerStruct = "struct<" +
+            "somearrfield0:array<set<struct<somefield:decimal(38,9),someset:set<decimal(11,7)>>>>," +
+            "mapinner0:struct<numberset_deep:set<decimal(23,3,8)>>" +
+            ">";
+        String input2 = "map<" + innerStruct + ", map<string, " + innerStruct + ">>";
+        Field field2 = GlueFieldLexer.lex("SomeMap2", input2);
+        String expectedFieldToString2 = "SomeMap2: Map(false)<ENTRIES: Struct<key: Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>> not null, value: Map(false)<ENTRIES: Struct<key: Utf8 not null, value: Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>>> not null>> not null>";
+        assertEquals(expectedFieldToString2, field2.toString());
+    }
 }
