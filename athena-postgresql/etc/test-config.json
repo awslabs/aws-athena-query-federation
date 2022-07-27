@@ -1,5 +1,6 @@
 {
   "athena_work_group": "FederationIntegrationTests",
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
   "secrets_manager_secret": "federation/integ/postgresql",
   "environment_vars":
   {
