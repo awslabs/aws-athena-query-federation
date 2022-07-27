@@ -24,46 +24,43 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.time.ZoneId;
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static java.util.Map.entry;
 
 /**
  * Defines the default mapping of AWS Glue Data Catalog types to Apache Arrow types. You can override these by
  * overriding convertField(...) on GlueMetadataHandler.
  */
-public class DefaultGlueType
+public enum DefaultGlueType
 {
-    private static final String TIMESTAMPMILLITZ = "timestamptz";
-    private static final Set<String> NON_COMPARABALE_SET = Set.of("TIMESTAMPMILLITZ");
+    INT("int", Types.MinorType.INT.getType()),
+    VARCHAR("varchar", Types.MinorType.VARCHAR.getType()),
+    STRING("string", Types.MinorType.VARCHAR.getType()),
+    BIGINT("bigint", Types.MinorType.BIGINT.getType()),
+    DOUBLE("double", Types.MinorType.FLOAT8.getType()),
+    FLOAT("float", Types.MinorType.FLOAT4.getType()),
+    SMALLINT("smallint", Types.MinorType.SMALLINT.getType()),
+    TINYINT("tinyint", Types.MinorType.TINYINT.getType()),
+    BIT("boolean", Types.MinorType.BIT.getType()),
+    VARBINARY("binary", Types.MinorType.VARBINARY.getType()),
+    TIMESTAMP("timestamp", Types.MinorType.DATEMILLI.getType()),
+    // ZoneId.systemDefault().getId() is just a place holder, each row will have a TZ value
+    // otherwise fall back to the table configured default TZ
+    TIMESTAMPMILLITZ("timestamptz", new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, ZoneId.systemDefault().getId())),
+    DATE("date", Types.MinorType.DATEDAY.getType());
 
-    private static final Map<String, ArrowType> TYPE_MAP = Map.ofEntries(
-        entry("int", Types.MinorType.INT.getType()),
-        entry("varchar", Types.MinorType.VARCHAR.getType()),
-        entry("string", Types.MinorType.VARCHAR.getType()),
-        entry("bigint", Types.MinorType.BIGINT.getType()),
-        entry("double", Types.MinorType.FLOAT8.getType()),
-        entry("float", Types.MinorType.FLOAT4.getType()),
-        entry("smallint", Types.MinorType.SMALLINT.getType()),
-        entry("tinyint", Types.MinorType.TINYINT.getType()),
-        entry("boolean", Types.MinorType.BIT.getType()),
-        entry("binary", Types.MinorType.VARBINARY.getType()),
-        entry("timestamp", Types.MinorType.DATEMILLI.getType()),
-        entry("date", Types.MinorType.DATEDAY.getType()),
-        // ZoneId.systemDefault().getId() is just a place holder, each row will have a TZ value
-        // otherwise fall back to the table configured default TZ
-        entry(TIMESTAMPMILLITZ, new ArrowType.Timestamp(
-                org.apache.arrow.vector.types.TimeUnit.MILLISECOND, ZoneId.systemDefault().getId())));
+    private static final Map<String, DefaultGlueType> TYPE_MAP = new HashMap<>();
+    private static final Set<String> NON_COMPARABALE_SET = new HashSet<>();
 
-    // decimal match examples:
-    // decimal
-    // decimal(1,2)
-    // decimal(3,2,1)
-    private static final Pattern decimalPattern = Pattern.compile("decimal([(](([0-9]+,?){2,3})[)])?");
+    static {
+        for (DefaultGlueType next : DefaultGlueType.values()) {
+            TYPE_MAP.put(next.id, next);
+        }
+
+        NON_COMPARABALE_SET.add(DefaultGlueType.TIMESTAMPMILLITZ.name());
+    }
 
     private String id;
     private ArrowType arrowType;
@@ -74,49 +71,24 @@ public class DefaultGlueType
         this.arrowType = arrowType;
     }
 
-    private static ArrowType getDecimalArrowType(String in)
+    public static DefaultGlueType fromId(String id)
     {
-        Matcher decimalMatcher = decimalPattern.matcher(in);
-        if (!decimalMatcher.matches()) {
-            return null;
-        }
-        try {
-            int[] params = Arrays.stream(decimalMatcher.group(2).split(","))
-                    .mapToInt(Integer::parseInt).toArray();
-            if (params.length == 2) {
-                return new ArrowType.Decimal(params[0], params[1]);
-            }
-            // else this must be 3 because of the regex
-            return new ArrowType.Decimal(params[0], params[1], params[2]);
-        }
-        catch (java.lang.NullPointerException e) {
-            // This is the case where it is only "decimal" with no parameters
-            // Using the default precision and scale that spark sql defaults
-            // to when no parameters are specified.
-            // NOTE: I would prefer to check the decimalMatcher.groupCount() above
-            // rather than a try catch but decimalMatcher.groupCount() always returns
-            // 3 for some reason...
-            return new ArrowType.Decimal(38, 18);
-        }
-    }
-
-    public static ArrowType fromId(String id)
-    {
-        ArrowType result = toArrowType(id);
+        DefaultGlueType result = TYPE_MAP.get(id.toLowerCase());
         if (result == null) {
             throw new IllegalArgumentException("Unknown DefaultGlueType for id: " + id);
         }
+
         return result;
     }
 
     public static ArrowType toArrowType(String id)
     {
-        ArrowType result = TYPE_MAP.get(id.toLowerCase());
+        DefaultGlueType result = TYPE_MAP.get(id.toLowerCase());
         if (result == null) {
-            return getDecimalArrowType(id);
+            return null;
         }
 
-        return result;
+        return result.getArrowType();
     }
 
     public ArrowType getArrowType()

@@ -21,7 +21,6 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  */
 
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -279,47 +278,5 @@ public class GlueFieldLexerTest
             assertEquals(Types.MinorType.BIGINT, Types.getMinorTypeForArrowType(mapinnerField.getChildren().get(0).getChildren().get(0).getType()));
         }
 
-    }
-
-    @Test
-    public void basicLexDecimalTest()
-    {
-        logger.info("basicLexDecimalTest: enter");
-        String input1 = "DECIMAL(13,7)";
-        Field field1 = GlueFieldLexer.lex("testField1", input1);
-        // 128 bits is the default for Arrow Decimal if not specified
-        assertEquals("testField1: Decimal(13, 7, 128)", field1.toString());
-
-        String input2 = "DECIMAL(13,7,8)";
-        Field field2 = GlueFieldLexer.lex("testField2", input2);
-        assertEquals("testField2: Decimal(13, 7, 8)", field2.toString());
-
-        String input3 = "DECIMAL";
-        Field field3 = GlueFieldLexer.lex("testField3", input3);
-        // This is what the default params are
-        assertEquals("testField3: Decimal(38, 18, 128)", field3.toString());
-    }
-
-    @Test
-    public void lexExtraInnerClosingFieldsDecimalsTest()
-    {
-        // Unfortunately we are on Java 11 so we don't have block quotes
-        String input = "struct<" +
-            "somearrfield0:array<set<struct<somefield:decimal(38,9),someset:set<decimal(11,7)>>>>," +
-            "mapinner0:struct<numberset_deep:set<decimal(23,3,8)>>," +
-            "somearrfield1:array<set<struct<somefield:decimal(38,9),someset:set<decimal(11,7)>>>>," +
-            "mapinner1:struct<numberset_deep:set<decimal(23,3,16)>>," +
-            "somearrfield2:array<set<struct<somefield:decimal(38,9),someset:set<decimal(11,7)>>>>," +
-            "mapinner2:struct<numberset_deep:set<decimal(23,3,32)>>>";
-
-        Field field = GlueFieldLexer.lex("testAsdf2", input);
-
-        String expectedFieldToString = "testAsdf2: " +
-            "Struct<somearrfield0: List<somearrfield0: List<somearrfield0: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner0: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 8)>>, " +
-            "somearrfield1: List<somearrfield1: List<somearrfield1: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner1: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 16)>>, " +
-            "somearrfield2: List<somearrfield2: List<somearrfield2: Struct<somefield: Decimal(38, 9, 128), someset: List<someset: Decimal(11, 7, 128)>>>>, mapinner2: Struct<numberset_deep: List<numberset_deep: Decimal(23, 3, 32)>>>";
-
-        // Just directly compare against the string, its pointless to write code to compare the fields individually
-        assertEquals(expectedFieldToString, field.toString());
     }
 }
