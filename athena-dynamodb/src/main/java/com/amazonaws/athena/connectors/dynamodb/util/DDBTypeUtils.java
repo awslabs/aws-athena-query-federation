@@ -466,6 +466,16 @@ public final class DDBTypeUtils
                             BlockUtils.setComplexValue(vector, rowNum, resolver, value);
                             return true;
                         };
+            case MAP:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                        (FieldWriter) (Object context, int rowNum) ->
+                        {
+                            Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
+                            Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
+                            value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, value);
+                            return true;
+                        };
             default:
                 //Below are using DDBTypeUtils.coerceValueToExpectedType to the correct type user defined from glue.
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->

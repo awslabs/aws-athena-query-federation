@@ -353,10 +353,10 @@ public class DynamoDBRecordHandlerTest
     {
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col0").withType("string"));
-        columns.add(new Column().withName("col1").withType("struct"));
+        columns.add(new Column().withName("col1").withType("struct<field1:string, field2:string>"));
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE4,
-                COLUMN_NAME_MAPPING_PROPERTY, "col1=Col1,col2=Col2");
+                COLUMN_NAME_MAPPING_PROPERTY, "col0=Col0,col1=Col1,col2=Col2");
         Table table = new Table()
                 .withParameters(param)
                 .withPartitionKeys()
@@ -371,6 +371,7 @@ public class DynamoDBRecordHandlerTest
         logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
         Schema schema4 = getTableResponse.getSchema();
+
         for (Field f : schema4.getFields()) {
             if (f.getName().equals("Col2")) {
                 assertEquals(2, f.getChildren().size());
@@ -402,7 +403,7 @@ public class DynamoDBRecordHandlerTest
         Block result = response.getRecords();
         assertEquals(1, result.getRowCount());
         assertEquals(schema4, result.getSchema());
-        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1],[field2 : null]}]", BlockUtils.rowToString(response.getRecords(), 0));
     }
 
     @Test
