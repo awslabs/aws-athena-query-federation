@@ -348,7 +348,10 @@ public abstract class GlueMetadataHandler
     private boolean isPreviouslyUnsupported(String glueType, Field arrowField)
     {
         // For the set type we have to compare against the glueType String because they are represented as Lists in Arrow.
-        boolean currentResult = arrowField.getType().getTypeID().equals(ArrowType.ArrowTypeID.Decimal) || glueType.contains("set<");
+        boolean currentResult = arrowField.getType().getTypeID().equals(ArrowType.ArrowTypeID.Decimal) ||
+            arrowField.getType().getTypeID().equals(ArrowType.ArrowTypeID.Map) ||
+            glueType.contains("set<");
+
         if (!currentResult) {
             // Need to recursively check the arrowField inner types
             for (Field child : arrowField.getChildren()) {

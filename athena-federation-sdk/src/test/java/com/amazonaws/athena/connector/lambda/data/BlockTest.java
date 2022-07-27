@@ -692,7 +692,7 @@ public class BlockTest
                             }
 
                             throw new RuntimeException("Unexpected field " + field.getName());
-                        }, new Object());
+                        }, Map.of());
                     }
                     List<Field> children = vector.getField().getChildren();
                     Field keyValueStructField;

@@ -180,7 +180,6 @@ public class BlockUtils
                     pos,
                     value,
                     resolver);
-            writer.endMap();
         }
         else if (vector instanceof ListVector) {
             if (value != null) {
@@ -1077,9 +1076,6 @@ public class BlockUtils
             return;
         }
 
-        //Indicate the beginning of the Map value, this is how Apache Arrow handles the variable length of map types.
-        writer.startMap();
-
         List<Field> children = field.getChildren();
         Field keyValueStructField;
         if (children.size() != 1) {
@@ -1106,33 +1102,15 @@ public class BlockUtils
             }
         }
 
-        for (Field nextChild : keyValueChildren) {
-            //For each child field that comprises the Map, attempt to extract and write the corresponding value
-            //using the FieldResolver.
-            Object childValue = resolver.getFieldValue(nextChild, value);
-            switch (Types.getMinorTypeForArrowType(nextChild.getType())) {
-                case LIST:
-                    writeList(allocator,
-                            (FieldWriter) writer.list(nextChild.getName()),
-                            nextChild,
-                            pos,
-                            ((List) childValue),
-                            resolver);
-                    break;
-                case STRUCT:
-                    writeStruct(allocator,
-                            writer.struct(nextChild.getName()),
-                            nextChild,
-                            pos,
-                            childValue,
-                            resolver);
-                    break;
-                default:
-                    writeMapValue(writer, nextChild, allocator, childValue);
-                    break;
-            }
-        }
-        writer.endEntry();
+        //Indicate the beginning of the Map value, this is how Apache Arrow handles the variable length of map types.
+        writer.startMap();
+        ((Map<Object, Object>) value).entrySet().forEach(entry -> {
+            writer.startEntry();
+            writeMapValue(writer.key(), keyField, allocator, entry.getKey());
+            writeMapValue(writer.value(), valueField, allocator, entry.getValue());
+            writer.endEntry();
+        });
+        writer.endMap();
     }
 
     /**
@@ -1152,17 +1130,6 @@ public class BlockUtils
     @VisibleForTesting
     protected static void writeMapValue(UnionMapWriter writer, Field field, BufferAllocator allocator, Object value)
     {
-        writer.startEntry();
-        if (field.getName().equalsIgnoreCase("key")) {
-            writer = writer.key();
-        }
-        else if (field.getName().equalsIgnoreCase("value")) {
-            writer = writer.value();
-        }
-        else {
-            throw new IllegalStateException("Invalid Arrow Map schema: " + field);
-        }
-
         if (value == null) {
             return;
         }
