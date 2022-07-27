@@ -22,11 +22,9 @@ Parameters:
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   GCPProjectID:
     Description: "The project ID within Google Cloud Platform ."
-    Default: BigQueryCred
     Type: String
   SecretNamePrefix:
     Description: "The secret name within AWS Secrets Manager that contains your Google Cloud Platform Credentials."
-    Default: GoogleCloudPlatformCredentials
     Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
