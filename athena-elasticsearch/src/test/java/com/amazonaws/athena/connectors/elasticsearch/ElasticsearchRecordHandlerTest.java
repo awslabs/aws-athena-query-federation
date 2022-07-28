@@ -374,7 +374,6 @@ public class ElasticsearchRecordHandlerTest
         assertEquals(2, response.getRecords().getRowCount());
         for (int i = 0; i < response.getRecords().getRowCount(); ++i) {
             logger.info("doReadRecordsNoSpill - Row: {}, {}", i, BlockUtils.rowToString(response.getRecords(), i));
-            System.err.println(String.format ("doReadRecordsNoSpill - Row: %d, %s", i, BlockUtils.rowToString(response.getRecords(), i)));
         }
 
         logger.info("doReadRecordsNoSpill: exit");
