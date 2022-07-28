@@ -43,7 +43,7 @@ import java.util.Map;
 public class ElasticsearchFieldResolver
         implements FieldResolver
 {
-    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchTypeUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchFieldResolver.class);
 
     protected ElasticsearchFieldResolver() {}
 
