@@ -104,13 +104,33 @@ property, field names should be fully qualified for nested JSON structures (e.g.
 where street is a nested field inside an address structure).
 
 ``` 
-    Example:
+    Example1:
 
     PUT movies/_mapping
     {
       "_meta": {
         "actor": "list",
         "genre": "list"
+      }
+    }
+    
+    Example2:
+    Data:
+    {
+        "objlistouter": [{
+            "objlistinner": [{
+                "title": "somebook",
+                "author": "author"
+            }],
+            "field": "field"
+        }]
+    }
+    
+    PUT movies/_mapping
+    {
+      "_meta": {
+        "objlistouter": "list",
+        "objlistouter.objlistinner" : "list"
       }
     }
 ```

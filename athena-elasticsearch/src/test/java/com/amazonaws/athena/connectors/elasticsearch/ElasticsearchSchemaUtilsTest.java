@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
@@ -270,5 +269,81 @@ public class ElasticsearchSchemaUtilsTest
                 ElasticsearchSchemaUtils.mappingsEqual(expected, builtSchema));
 
         logger.info("parseSchemaWithListOfStruct - exit");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void parseMappingWithInvalidMeta()
+            throws JsonProcessingException
+    {
+        LinkedHashMap actual = new ObjectMapper().readValue(" {\n" +
+                "      \"_meta\" : {\n" +
+                "        \"objlistouter\" : \"hi\",\n" +
+                "        \"objlistouter.objlistinner\" : \"test\"\n" +
+                "      },\n" +
+                "      \"properties\" : {\n" +
+                "        \"director\" : {\n" +
+                "          \"type\" : \"text\",\n" +
+                "          \"fields\" : {\n" +
+                "            \"keyword\" : {\n" +
+                "              \"type\" : \"keyword\",\n" +
+                "              \"ignore_above\" : 256\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"objlistouter\" : {\n" +
+                "          \"properties\" : {\n" +
+                "            \"objlistinner\" : {\n" +
+                "              \"properties\" : {\n" +
+                "                \"hi\" : {\n" +
+                "                  \"type\" : \"text\",\n" +
+                "                  \"fields\" : {\n" +
+                "                    \"keyword\" : {\n" +
+                "                      \"type\" : \"keyword\",\n" +
+                "                      \"ignore_above\" : 256\n" +
+                "                    }\n" +
+                "                  }\n" +
+                "                },\n" +
+                "                \"title\" : {\n" +
+                "                  \"type\" : \"text\",\n" +
+                "                  \"fields\" : {\n" +
+                "                    \"keyword\" : {\n" +
+                "                      \"type\" : \"keyword\",\n" +
+                "                      \"ignore_above\" : 256\n" +
+                "                    }\n" +
+                "                  }\n" +
+                "                }\n" +
+                "              }\n" +
+                "            },\n" +
+                "            \"test2\" : {\n" +
+                "              \"type\" : \"text\",\n" +
+                "              \"fields\" : {\n" +
+                "                \"keyword\" : {\n" +
+                "                  \"type\" : \"keyword\",\n" +
+                "                  \"ignore_above\" : 256\n" +
+                "                }\n" +
+                "              }\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"title\" : {\n" +
+                "          \"type\" : \"text\",\n" +
+                "          \"fields\" : {\n" +
+                "            \"keyword\" : {\n" +
+                "              \"type\" : \"keyword\",\n" +
+                "              \"ignore_above\" : 256\n" +
+                "            }\n" +
+                "          }\n" +
+                "        },\n" +
+                "        \"year\" : {\n" +
+                "          \"type\" : \"long\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    }", LinkedHashMap.class);
+
+        logger.info("parseMappingWithInvalidMeta - enter");
+
+        Schema builtSchema = ElasticsearchSchemaUtils.parseMapping(actual);
+
+        logger.info("parseMappingWithInvalidMeta - exit");
     }
 }
