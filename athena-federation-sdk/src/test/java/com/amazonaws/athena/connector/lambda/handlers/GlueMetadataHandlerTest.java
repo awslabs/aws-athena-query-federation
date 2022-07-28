@@ -328,6 +328,9 @@ public class GlueMetadataHandlerTest
         columns.add(new Column().withName("col6").withType("timestamptz").withComment("comment"));
         columns.add(new Column().withName("col7").withType("timestamptz").withComment("comment"));
 
+        List<Column> partitionKeys = new ArrayList<>();
+        columns.add(new Column().withName("partition_col1").withType("int").withComment("comment"));
+
         Table mockTable = mock(Table.class);
         StorageDescriptor mockSd = mock(StorageDescriptor.class);
 
@@ -356,13 +359,14 @@ public class GlueMetadataHandlerTest
 
         logger.info("doGetTable - {}", res);
 
-        assertTrue(res.getSchema().getFields().size() == 7);
+        assertTrue(res.getSchema().getFields().size() == 8);
         assertTrue(res.getSchema().getCustomMetadata().size() > 0);
         assertTrue(res.getSchema().getCustomMetadata().containsKey(DATETIME_FORMAT_MAPPING_PROPERTY));
         assertEquals(res.getSchema().getCustomMetadata().get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), "Col2=someformat2,col1=someformat1");
         assertEquals(sourceTable, getSourceTableName(res.getSchema()));
 
         //Verify column name mapping works
+        assertNotNull(res.getSchema().findField("partition_col1"));
         assertNotNull(res.getSchema().findField("col1"));
         assertNotNull(res.getSchema().findField("Col2"));
         assertNotNull(res.getSchema().findField("Col3"));
@@ -372,6 +376,7 @@ public class GlueMetadataHandlerTest
         assertNotNull(res.getSchema().findField("col7"));
 
         //Verify types
+        assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("partition_col1").getType()).equals(Types.MinorType.INT));
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("col1").getType()).equals(Types.MinorType.INT));
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col2").getType()).equals(Types.MinorType.BIGINT));
         assertTrue(Types.getMinorTypeForArrowType(res.getSchema().findField("Col3").getType()).equals(Types.MinorType.VARCHAR));

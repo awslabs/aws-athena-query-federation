@@ -65,6 +65,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
@@ -403,8 +404,13 @@ public abstract class GlueMetadataHandler
                     .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
         }
 
+        // partition columns should be added to the schema if they exist
+        List<Column> allColumns = Stream.of(table.getStorageDescriptor().getColumns(), table.getPartitionKeys() == null ? new ArrayList<Column>() : table.getPartitionKeys())
+                .flatMap(x -> x.stream())
+                .collect(Collectors.toList());
+
         boolean glueTableContainsPreviouslyUnsupportedType = false;
-        for (Column next : table.getStorageDescriptor().getColumns()) {
+        for (Column next : allColumns) {
             String rawColumnName = next.getName();
             String mappedColumnName = columnNameMapping.getOrDefault(rawColumnName, rawColumnName);
             // apply any type override provided in typeOverrideMapping from metadata
