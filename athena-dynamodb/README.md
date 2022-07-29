@@ -98,17 +98,12 @@ If glue is disabled, we perform schema inference. Under schema inference, we eva
     - This disables projection and casing when we see a previously unsupported type
       and we see that the user does not have column name mapping on their table.
     - This is the default setting.
-- true
+- always
     - This disables projection and casing unconditionally.
       This is useful when users have casing in their ddb column names but do not want to
       specify a column name mapping at all.
-- false
-    - This enables projection and casing unconditionally.
-      This is useful when the users want projection enabled (mainly for bandwidth and latency)
-      and are not worried about their columns with casing or already have a column name mapping
-      for those columns.
 
-Caveats with setting this to true or auto:
+Caveats with this new feature:
 
 - May incur higher bandwidth usage depending on your query.
 This not a problem if your lambda is in the same region as your ddb table.

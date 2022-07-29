@@ -142,7 +142,13 @@ public class DynamoDBRecordHandler
         logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
 
         boolean disableProjectionAndCasing = false;
-        if (disableProjectionAndCasingEnvValue.equals("auto")) {
+        if (disableProjectionAndCasingEnvValue.equals("always")) {
+            // This is when the user wants to turn this on unconditionally to
+            // solve their casing issues even when they do not have `set` or
+            // `decimal` columns.
+            disableProjectionAndCasing = true;
+        }
+        else { // *** We default to auto when the variable is not set ***
             // In the automatic case, we will try to mimic the behavior prior to the support of `set` and `decimal` types as much
             // as possible.
             //
@@ -164,11 +170,6 @@ public class DynamoDBRecordHandler
             logger.info("GlueTableContainedPreviouslyUnsupportedTypes: " + recordMetadata.getGlueTableContainedPreviouslyUnsupportedTypes());
             logger.info("ColumnNameMapping isEmpty: " + recordMetadata.getColumnNameMapping().isEmpty());
             logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
-        }
-        else {
-            // We also support the user turning this on unconditionally to solve their casing issues even when they do not have `set` or `decimal`
-            // columns.
-            disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
         }
 
         Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), disableProjectionAndCasing);
