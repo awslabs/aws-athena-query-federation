@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Provides utility methods relating to type handling.
@@ -364,21 +365,34 @@ public final class DDBTypeUtils
         return coercedList;
     }
 
+    private static Map<String, AttributeValue> contextAsMap(Object context, boolean caseInsensitive)
+    {
+        Map<String, AttributeValue> contextAsMap = (Map<String, AttributeValue>) context;
+        if (!caseInsensitive) {
+            return contextAsMap;
+        }
+
+        TreeMap<String, AttributeValue> caseInsensitiveMap = new TreeMap<String, AttributeValue>(String.CASE_INSENSITIVE_ORDER);
+        caseInsensitiveMap.putAll(contextAsMap);
+        return caseInsensitiveMap;
+    }
+
     /**
      * Create the appropriate field extractor used for extracting field values from a DDB based on the field type.
      * @param field
      * @param recordMetadata
      * @return
      */
-    public static Optional<Extractor> makeExtractor(Field field, DDBRecordMetadata recordMetadata)
+    public static Optional<Extractor> makeExtractor(Field field, DDBRecordMetadata recordMetadata, boolean caseInsensitive)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+
         switch (fieldType) {
             //With schema inference, we translate all number fields(int, double, float..etc) to Decimals. If glue enable, we route to factory default case.
             case DECIMAL:
                 return Optional.of((DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
-                    Object value = ItemUtils.toSimpleValue(((Map<String, AttributeValue>) context).get(field.getName()));
+                    Object value = ItemUtils.toSimpleValue(contextAsMap(context, caseInsensitive).get(field.getName()));
                     if (value != null) {
                         dst.isSet = 1;
                         dst.value = (BigDecimal) value;
@@ -390,7 +404,7 @@ public final class DDBTypeUtils
             case VARBINARY:
                 return Optional.of((VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
-                    Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                    Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
                     Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
                     value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
 
@@ -405,7 +419,7 @@ public final class DDBTypeUtils
             case BIT:
                 return Optional.of((BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
-                    AttributeValue attributeValue = ((Map<String, AttributeValue>) context).get(field.getName());
+                    AttributeValue attributeValue = (contextAsMap(context, caseInsensitive)).get(field.getName());
                     if (attributeValue != null) {
                         dst.isSet = 1;
                         dst.value = attributeValue.getBOOL() ? 1 : 0;
@@ -427,7 +441,7 @@ public final class DDBTypeUtils
      * @param resolver is used to resolve it to proper type
      * @return
      */
-    public static FieldWriterFactory makeFactory(Field field, DDBRecordMetadata recordMetadata, DynamoDBFieldResolver resolver)
+    public static FieldWriterFactory makeFactory(Field field, DDBRecordMetadata recordMetadata, DynamoDBFieldResolver resolver, boolean caseInsensitive)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         switch (fieldType) {
@@ -435,7 +449,7 @@ public final class DDBTypeUtils
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                         (FieldWriter) (Object context, int rowNum) ->
                         {
-                            Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                            Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
                             Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
                             List valueAsList = value != null ? DDBTypeUtils.coerceListToExpectedType(value, field, recordMetadata) : null;
                             BlockUtils.setComplexValue(vector, rowNum, resolver, valueAsList);
@@ -446,7 +460,7 @@ public final class DDBTypeUtils
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                         (FieldWriter) (Object context, int rowNum) ->
                         {
-                            Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                            Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
                             Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
                             value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
                             BlockUtils.setComplexValue(vector, rowNum, resolver, value);
@@ -457,7 +471,7 @@ public final class DDBTypeUtils
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                         (FieldWriter) (Object context, int rowNum) ->
                         {
-                            Map<String, AttributeValue> item = (Map<String, AttributeValue>) context;
+                            Map<String, AttributeValue> item = contextAsMap(context, caseInsensitive);
                             Object value = ItemUtils.toSimpleValue(item.get(field.getName()));
                             value = DDBTypeUtils.coerceValueToExpectedType(value, field, fieldType, recordMetadata);
                             BlockUtils.setValue(vector, rowNum, value);

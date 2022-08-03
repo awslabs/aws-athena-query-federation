@@ -292,7 +292,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
         logger.info("Executing selectColumnWithPredicateIntegTest");
         logger.info("--------------------------------------------------");
 
-        String query = String.format("select conversation from %s.%s.%s where subject = '%s' order by time desc limit 1;",
+        String query = String.format("select conversation from \"%s\".\"%s\".\"%s\" where subject = '%s' order by time desc limit 1;",
                 lambdaFunctionName, timestreamDbName, timestreamTableName, jokeProtagonist);
         List<Row> rows = startQueryExecution(query).getResultSet().getRows();
         if (!rows.isEmpty()) {

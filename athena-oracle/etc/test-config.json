@@ -1,6 +1,7 @@
 {
   "connector_name" :  "oracle", /* connector name */
   "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
   "secrets_manager_secret" : "<secret name>",  /* Secret name used to retrieve user credentials from SecretsManager. */
   "region": "<region>", /* aws region name */
   "oracle_db_name": "<oracle db name>", /* oracle db name */
