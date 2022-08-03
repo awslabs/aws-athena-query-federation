@@ -143,9 +143,9 @@ We support two ways to input database username and password:
 # Partitions and Splits
 A partition is represented by a single partition column of type varchar. We leverage partitions defined on a Oracle table, and this column contains partition names. For a table that does not have partition names, * is returned which is equivalent to a single partition. A partition is equivalent to a split.
 
-| Name           | Type    | Description                                             |
-|----------------|---------|---------------------------------------------------------|
-| PARTITION_NAME | Varchar | Named partition in MySql. E.g. P_2006_DEC,P_2006_AUG .. |
+| Name           | Type    | Description                                              |
+|----------------|---------|----------------------------------------------------------|
+| PARTITION_NAME | Varchar | Named partition in Oracle. E.g. P_2006_DEC,P_2006_AUG .. |
 
 # Running Integration Tests
 
