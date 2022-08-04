@@ -57,8 +57,7 @@ public class DynamoDBFieldResolver
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         String fieldName = field.getName();
-        Object fieldValue;
-
+        Object fieldValue = originalValue;
         if (originalValue instanceof Map) {
             if (((Map) originalValue).containsKey(fieldName)) {
                 fieldValue = ((Map) originalValue).get(fieldName);
@@ -67,10 +66,6 @@ public class DynamoDBFieldResolver
                 // Ignore columns that do not exist in the DB record.
                 return null;
             }
-        }
-        else {
-            throw new IllegalArgumentException("Invalid argument type. Expecting a Map, but got: " +
-                    originalValue.getClass().getTypeName());
         }
 
         switch (fieldType) {
