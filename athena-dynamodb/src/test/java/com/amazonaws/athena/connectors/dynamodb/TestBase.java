@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -68,14 +68,23 @@ public class TestBase
     protected static final String TEST_TABLE2 = "Test_table2";
     protected static final String TEST_TABLE3 = "test_table3";
     protected static final String TEST_TABLE4 = "test_table4";
+    protected static final String TEST_TABLE5 = "test_table5";
+    protected static final String TEST_TABLE6 = "test_table6";
+    protected static final String TEST_TABLE7 = "test_table7";
+    protected static final String TEST_TABLE8 = "test_table8";
     protected static final TableName TEST_TABLE_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE);
     protected static final TableName TEST_TABLE_2_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE2);
     protected static final TableName TEST_TABLE_3_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
     protected static final TableName TEST_TABLE_4_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
+    protected static final TableName TEST_TABLE_5_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE5);
+    protected static final TableName TEST_TABLE_6_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
+    protected static final TableName TEST_TABLE_7_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
+    protected static final TableName TEST_TABLE_8_NAME = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
 
     protected static AmazonDynamoDB ddbClient;
     protected static Schema schema;
     protected static Table tableDdbNoGlue;
+
     @BeforeClass
     public static void setupOnce() throws Exception
     {
@@ -228,6 +237,170 @@ public class TestBase
         tableWriteItems.addItemToPut(toItem(item));
         ddb.batchWriteItem(tableWriteItems);
 
+        // Table5
+        attributeDefinitions = new ArrayList<>();
+        attributeDefinitions.add(new AttributeDefinition().withAttributeName("Col0").withAttributeType("S"));
+
+        keySchema = new ArrayList<>();
+        keySchema.add(new KeySchemaElement().withAttributeName("Col0").withKeyType(KeyType.HASH));
+
+        createTableRequest = new CreateTableRequest()
+                .withTableName(TEST_TABLE5)
+                .withKeySchema(keySchema)
+                .withAttributeDefinitions(attributeDefinitions)
+                .withProvisionedThroughput(provisionedThroughput);
+
+        tableDdbNoGlue = ddb.createTable(createTableRequest);
+        tableDdbNoGlue.waitForActive();
+
+        Map<String, ArrayList<String>> nestedCol = new HashMap<>();
+        ArrayList<String> value = new ArrayList();
+        value.add("list1");
+        value.add("list2");
+        nestedCol.put("list", value);
+
+        Map<String, Map<String, String>> listStructCol = new HashMap<>();
+        Map<String, String> structVal = new HashMap<>();
+        structVal.put("key1", "str1");
+        structVal.put("key2", "str2");
+        listStructCol.put("structKey", structVal);
+
+        tableWriteItems = new TableWriteItems(TEST_TABLE5);
+        item = new HashMap<>();
+        item.put("Col0", toAttributeValue("hashVal"));
+        item.put("outermap", toAttributeValue(nestedCol));
+        item.put("structcol", toAttributeValue(listStructCol));
+        tableWriteItems.addItemToPut(toItem(item));
+        ddb.batchWriteItem(tableWriteItems);
+
+        setUpTable6(provisionedThroughput, ddb);
+        setUpTable7(provisionedThroughput, ddb);
+        setUpTable8(provisionedThroughput, ddb);
         return client;
+    }
+
+    private static void setUpTable6(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDB ddb)
+            throws InterruptedException
+    {
+
+        ArrayList<AttributeDefinition> attributeDefinitions = new ArrayList<>();
+        attributeDefinitions.add(new AttributeDefinition().withAttributeName("Col0").withAttributeType("S"));
+
+        ArrayList<KeySchemaElement> keySchema = new ArrayList<>();
+        keySchema.add(new KeySchemaElement().withAttributeName("Col0").withKeyType(KeyType.HASH));
+
+        CreateTableRequest createTableRequest = new CreateTableRequest()
+                .withTableName(TEST_TABLE6)
+                .withKeySchema(keySchema)
+                .withAttributeDefinitions(attributeDefinitions)
+                .withProvisionedThroughput(provisionedThroughput);
+
+        tableDdbNoGlue = ddb.createTable(createTableRequest);
+        tableDdbNoGlue.waitForActive();
+
+        Map<String, ArrayList<String>> nestedCol = new HashMap<>();
+        ArrayList<String> value = new ArrayList();
+        value.add("list1");
+        value.add("list2");
+        nestedCol.put("list", value);
+
+        Map<String, Map<String, String>> listStructCol = new HashMap<>();
+        Map<String, String> structVal = new HashMap<>();
+        structVal.put("key1", "str1");
+        structVal.put("key2", "str2");
+        listStructCol.put("structKey", structVal);
+
+        TableWriteItems tableWriteItems = new TableWriteItems(TEST_TABLE6);
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", toAttributeValue("hashVal"));
+        item.put("outermap", toAttributeValue(nestedCol));
+        item.put("structcol", toAttributeValue(listStructCol));
+        tableWriteItems.addItemToPut(toItem(item));
+        ddb.batchWriteItem(tableWriteItems);
+    }
+
+    private static void setUpTable7(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDB ddb)
+            throws InterruptedException
+    {
+
+        ArrayList<AttributeDefinition> attributeDefinitions = new ArrayList<>();
+        attributeDefinitions.add(new AttributeDefinition().withAttributeName("Col0").withAttributeType("S"));
+
+        ArrayList<KeySchemaElement> keySchema = new ArrayList<>();
+        keySchema.add(new KeySchemaElement().withAttributeName("Col0").withKeyType(KeyType.HASH));
+
+        CreateTableRequest createTableRequest = new CreateTableRequest()
+                .withTableName(TEST_TABLE7)
+                .withKeySchema(keySchema)
+                .withAttributeDefinitions(attributeDefinitions)
+                .withProvisionedThroughput(provisionedThroughput);
+
+        tableDdbNoGlue = ddb.createTable(createTableRequest);
+        tableDdbNoGlue.waitForActive();
+
+        ArrayList<String> stringList = new ArrayList();
+        stringList.add("list1");
+        stringList.add("list2");
+
+        ArrayList<Integer> intList = new ArrayList();
+        intList.add(0);
+        intList.add(1);
+        intList.add(2);
+
+        ArrayList<Map<String, String>> listStructCol = new ArrayList();
+        Map<String, String> structVal = new HashMap<>();
+        structVal.put("key1", "str1");
+        structVal.put("key2", "str2");
+        Map<String, String> structVal2 = new HashMap<>();
+        structVal2.put("key1", "str11");
+        structVal2.put("key2", "str22");
+        listStructCol.add(structVal);
+        listStructCol.add(structVal2);
+
+        TableWriteItems tableWriteItems = new TableWriteItems(TEST_TABLE7);
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", toAttributeValue("hashVal"));
+        item.put("stringList", toAttributeValue(stringList));
+        item.put("intList", toAttributeValue(intList));
+        item.put("listStructCol", toAttributeValue(listStructCol));
+        tableWriteItems.addItemToPut(toItem(item));
+        ddb.batchWriteItem(tableWriteItems);
+    }
+
+    private static void setUpTable8(
+            ProvisionedThroughput provisionedThroughput,
+            DynamoDB ddb)
+            throws InterruptedException
+    {
+
+        ArrayList<AttributeDefinition> attributeDefinitions = new ArrayList<>();
+        attributeDefinitions.add(new AttributeDefinition().withAttributeName("Col0").withAttributeType("S"));
+
+        ArrayList<KeySchemaElement> keySchema = new ArrayList<>();
+        keySchema.add(new KeySchemaElement().withAttributeName("Col0").withKeyType(KeyType.HASH));
+
+        CreateTableRequest createTableRequest = new CreateTableRequest()
+                .withTableName(TEST_TABLE8)
+                .withKeySchema(keySchema)
+                .withAttributeDefinitions(attributeDefinitions)
+                .withProvisionedThroughput(provisionedThroughput);
+
+        tableDdbNoGlue = ddb.createTable(createTableRequest);
+        tableDdbNoGlue.waitForActive();
+
+        Map<String, Integer> numMap = new HashMap<>();
+        numMap.put("key1", 1);
+        numMap.put("key2", 2);
+
+        TableWriteItems tableWriteItems = new TableWriteItems(TEST_TABLE8);
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Col0", toAttributeValue("hashVal"));
+        item.put("nummap", toAttributeValue(numMap));
+        tableWriteItems.addItemToPut(toItem(item));
+        ddb.batchWriteItem(tableWriteItems);
     }
 }
