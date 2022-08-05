@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb.util;
 
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.glue.DefaultGlueType;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
@@ -50,6 +51,7 @@ public class DDBRecordMetadata
     private Map<String, String> columnNameMapping;
     private boolean containsCoercibleType;
     private Set<String> nonComparableColumns;
+    private boolean glueTableContainedPreviouslyUnsupportedTypes;
 
     public DDBRecordMetadata(Schema schema)
     {
@@ -58,6 +60,7 @@ public class DDBRecordMetadata
         columnNameMapping = getColumnNameMapping(schema);
         containsCoercibleType = isContainsCoercibleType(schema);
         nonComparableColumns = getNonComparableColumns(schema);
+        glueTableContainedPreviouslyUnsupportedTypes = checkGlueTableContainedPreviouslyUnsupportedTypes(schema);
     }
 
     /**
@@ -135,10 +138,15 @@ public class DDBRecordMetadata
             String columnNameMappingParam = schema.getCustomMetadata().getOrDefault(
                     COLUMN_NAME_MAPPING_PROPERTY, null);
             if (!Strings.isNullOrEmpty(columnNameMappingParam)) {
-                return new HashMap<>(MAP_SPLITTER.split(columnNameMappingParam));
+                return MAP_SPLITTER.split(columnNameMappingParam);
             }
         }
         return ImmutableMap.of();
+    }
+
+    public Map<String, String> getColumnNameMapping()
+    {
+        return columnNameMapping;
     }
 
     /**
@@ -198,5 +206,19 @@ public class DDBRecordMetadata
         return schema != null && schema.getCustomMetadata() != null
                 ? ZoneId.of(schema.getCustomMetadata().getOrDefault(DEFAULT_TIME_ZONE, UTC))
                 : ZoneId.of(UTC);
+    }
+
+    private boolean checkGlueTableContainedPreviouslyUnsupportedTypes(Schema schema)
+    {
+        if (schema != null && schema.getCustomMetadata() != null) {
+            return Boolean.valueOf(schema.getCustomMetadata().getOrDefault(
+                    GlueMetadataHandler.GLUE_TABLE_CONTAINS_PREVIOUSLY_UNSUPPORTED_TYPE, "false"));
+        }
+        return false;
+    }
+
+    public boolean getGlueTableContainedPreviouslyUnsupportedTypes()
+    {
+        return glueTableContainedPreviouslyUnsupportedTypes;
     }
 }

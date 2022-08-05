@@ -20,6 +20,8 @@ generation for a stronger source of encryption keys. (e.g. a7e63k4b-8loc-40db-a2
 Setting this to false will disable spill encryption. You may wish to disable this for improved performance, especially if your spill location in S3 uses S3 Server Side Encryption. (e.g. True or False)
 6. **disable_glue** - (Optional) If present, with any value except false, the connector will no longer attempt to retrieve supplemental metadata from Glue.
 7. **glue_catalog** - (Optional) Can be used to target a cross-account Glue catalog. By default the connector will attempt to get metadata from its own Glue account.
+8. **disable_projection_and_casing** - (Optional) Defaults to: auto. Can be used to disable projection and casing in order to be able to query DynamoDB tables with casing in their column names without having to specify a "columnMapping" property on their Glue table. Go here for more info [disable_projection_and_casing](#disable_projection_and_casing).
+
 
 ### Setting Up Databases & Tables in Glue
 
@@ -90,3 +92,21 @@ The costs for use of this solution depends on the underlying AWS resources being
 ## Notes
 
 If glue is disabled, we perform schema inference. Under schema inference, we evaluate all [int, float, double..etc] to Decimal. If you wish to have correct type, please use glue to declare schema.
+
+## disable_projection_and_casing
+- auto
+    - This disables projection and casing when we see a previously unsupported type
+      and we see that the user does not have column name mapping on their table.
+    - This is the default setting.
+- always
+    - This disables projection and casing unconditionally.
+      This is useful when users have casing in their ddb column names but do not want to
+      specify a column name mapping at all.
+
+Caveats with this new feature:
+
+- May incur higher bandwidth usage depending on your query.
+This not a problem if your lambda is in the same region as your ddb table.
+
+- Overall latency may increase because there is a larger number of bytes being transferred and also
+higher deserialization time given the larger amount of bytes.

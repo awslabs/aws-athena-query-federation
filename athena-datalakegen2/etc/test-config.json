@@ -1,5 +1,6 @@
 {
   "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
   "secrets_manager_secret" : "",/* Secret name used to retrieve user credentials from SecretsManager. */
   "region": "us-east-1",/* aws region name */
   "schema_name": "<schema name>", /* datalakegen2 schema name */

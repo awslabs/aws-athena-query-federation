@@ -1,6 +1,7 @@
 {
   "connector_name" :  "hive", /* connector name */
   "athena_work_group" : "FederationIntegrationTests", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
   "secrets_manager_secret" : "<secret name>",  /* Secret name used to retrieve user credentials from SecretsManager. */
   "region": "<region>", /* aws region name */
   "hive_db_name": "<db name>", /* hive db name */
@@ -26,7 +27,7 @@
   },
   "user_settings" : { /* User customizable settings */
     "hive_db_name": "<Enter Value>", /* Name of the Db used by the Hive integration tests */
-    "hive_db_port": <Enter Value>,       /* Port number (int) associated with the hive */
+    "hive_db_port": "<Enter Value>",       /* Port number (int) associated with the hive */
     "hive_table_test": "<Enter Value>" /* Hive table name */
   }
 }

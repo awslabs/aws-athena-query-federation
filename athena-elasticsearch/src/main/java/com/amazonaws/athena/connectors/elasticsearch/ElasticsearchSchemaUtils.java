@@ -91,6 +91,7 @@ class ElasticsearchSchemaUtils
     {
         Field field;
 
+        //For ES, only struct will has properties field.
         if (mapping.containsKey("properties")) {
             // Process STRUCT.
             Map<String, Object> childFields = (Map) mapping.get("properties");
@@ -102,7 +103,19 @@ class ElasticsearchSchemaUtils
                 children.add(inferField(childField, qualifiedName + "." + childField, value, meta));
             }
 
-            field = new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
+            //This is to handle the case of List of Struct, if customer put _meta:list on their struct field.
+            if (meta.containsKey(qualifiedName)) {
+                String metaValue = (String) meta.get(qualifiedName);
+                if (!metaValue.equalsIgnoreCase("list")) {
+                    throw new IllegalArgumentException(String.format("_meta only support value `list`, key:%s, value:%s", qualifiedName, metaValue));
+                }
+
+                Field field1 = new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
+                field = new Field(fieldName, FieldType.nullable(Types.MinorType.LIST.getType()),  Collections.singletonList(field1));
+            }
+            else {
+                field = new Field(fieldName, FieldType.nullable(Types.MinorType.STRUCT.getType()), children);
+            }
         }
         else {
             field = new Field(fieldName, toFieldType(mapping), null);

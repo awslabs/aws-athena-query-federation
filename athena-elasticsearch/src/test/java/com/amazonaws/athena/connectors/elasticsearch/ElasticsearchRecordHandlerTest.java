@@ -175,7 +175,8 @@ public class ElasticsearchRecordHandlerTest
                 "      ],\n" +
                 "      \"l2binary\" : \"U29tZSBiaW5hcnkgYmxvYg==\"\n" +
                 "    }\n" +
-                "  }\n" +
+                "  },\n" +
+                "  \"objlistouter\": []" +
                 "}\n", HashMap.class);
 
         Map <String, Object> document2 = new ObjectMapper().readValue(
@@ -216,7 +217,14 @@ public class ElasticsearchRecordHandlerTest
                 "      ],\n" +
                 "      \"l2binary\" : \"U29tZSBiaW5hcnkgYmxvYg==\"\n" +
                 "    }\n" +
-                "  }\n" +
+                "  },\n" +
+                "  \"objlistouter\": [{\n" +
+                "        \"objlistinner\": [{\n" +
+                "            \"title\": \"somebook\",\n" +
+                "            \"hi\": \"hi\"\n" +
+                "        }],\n" +
+                "        \"test2\": \"title\"\n" +
+                "    }]"        +
                 "}\n", HashMap.class);
 
         mapping = SchemaBuilder.newBuilder()
@@ -248,7 +256,18 @@ public class ElasticsearchRecordHandlerTest
                                         Collections.singletonList(new Field("l2short",
                                                 FieldType.nullable(Types.MinorType.SMALLINT.getType()), null))),
                                 new Field("l2binary", FieldType.nullable(Types.MinorType.VARCHAR.getType()),
-                                        null))))).build();
+                                        null)))))
+                .addField("objlistouter", Types.MinorType.LIST.getType(),
+                        ImmutableList.of(
+                                new Field("objlistouter", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                                        ImmutableList.of(
+                                                new Field("objlistinner", FieldType.nullable(Types.MinorType.LIST.getType()),
+                                                        ImmutableList.of(new Field("objlistinner", FieldType.nullable(Types.MinorType.STRUCT.getType()),
+                                                                ImmutableList.of(
+                                                                        new Field("title", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null),
+                                                                        new Field("hi", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null))))),
+                                                new Field("test2", FieldType.nullable(Types.MinorType.VARCHAR.getType()), null)))))
+                .build();
 
         allocator = new BlockAllocatorImpl();
 
