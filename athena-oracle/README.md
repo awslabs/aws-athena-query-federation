@@ -32,11 +32,11 @@ A JDBC Connection string is used to connect to a database instance. Following fo
 
 Multiplexer provides a way to connect to multiple database instances using a single Lambda function. Requests are routed depending on catalog name. Use following classes in Lambda for using multiplexer.
 
-|Handler|Class|
-|---	|---	|
-|Composite Handler|OracleMuxCompositeHandler|
-|Metadata Handler|OracleMuxMetadataHandler|
-|Record Handler|OracleMuxRecordHandler|
+| Handler           | Class                      |
+|-------------------|----------------------------|
+| Composite Handler | OracleMuxCompositeHandler  |
+| Metadata Handler  | OracleMuxMetadataHandler   |
+| Record Handler    | OracleMuxRecordHandler     |
 
 
 **Parameters:**
@@ -50,13 +50,11 @@ default                         Default connection string. Required. This will b
 
 Example properties for a Oracle Mux Lambda function that supports two database instances, oracle1(default) and oracle2:
 
-|Property|Value|
-|---|---|
-|default|oracle://jdbc:oracle:thin:${Test/RDS/Oracle1}@//oracle1.hostname:port/servicename|
-|	|	|
-|oracle_catalog1_connection_string|oracle://jdbc:oracle:thin:${Test/RDS/Oracle2}@//oracle1.hostname:port/servicename|
-|	|	|
-|oracle_catalog2_connection_string|oracle://jdbc:oracle:thin:${Test/RDS/Oracle2}@//oracle2.hostname:port/servicename|
+| Property                          | Value                                                                             |
+|-----------------------------------|-----------------------------------------------------------------------------------|
+| default                           | oracle://jdbc:oracle:thin:${Test/RDS/Oracle1}@//oracle1.hostname:port/servicename |
+| oracle_catalog1_connection_string | oracle://jdbc:oracle:thin:${Test/RDS/Oracle2}@//oracle1.hostname:port/servicename |
+| oracle_catalog2_connection_string | oracle://jdbc:oracle:thin:${Test/RDS/Oracle2}@//oracle2.hostname:port/servicename |
 
 Oracle Connector supports substitution of any string enclosed like *${Test/RDS/Oracle}* with *username* and *password* retrieved from AWS Secrets Manager. Example:
 
@@ -90,12 +88,14 @@ default         Default connection string. Required. This will be used when a ca
 ```
 
 These handlers support one database instance and must provide `default` connection string parameter. All other connection strings are ignored.
+The current version of oracle connector supports ssl based connection for Amazon RDS instances only.
 
 **Example property for a single oracle instance supported by a Lambda function:**
 
-|Property|Value|
-|---|---|
-|default|oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@//hostname:port/servicename|
+| Property | Value                                                                                                                                                                                     |
+|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| default  | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@//hostname:port/servicename (or)                                                                                                             |
+|          | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=<HOST_NAME>)(PORT=<PORT>))(CONNECT_DATA=(SID=<SID>))(SECURITY=(SSL_SERVER_CERT_DN=<PARAMETERS>))) | 
 
 ### Spill parameters:
 
@@ -109,21 +109,21 @@ spill_put_request_headers    JSON encoded map of request headers and values for 
 
 # Data types support
 
-|Jdbc|*Oracle[]|Arrow|
-| ---|---|---|
-|Boolean|boolean[]|Bit
-|Integer|**N/A**|Tiny
-|Short|smallint[]|Smallint
-|Integer|integer[]|Int
-|Long|bigint[]|Bigint
-|float|float4[]|Float4
-|Double|float8[]|Float8
-|Date|date[]|DateDay
-|Timestamp|timestamp[]|DateMilli
-|String|text[]|Varchar
-|Bytes|bytea[]|Varbinary
-|BigDecimal|numeric(p,s)[]|Decimal
-|**\*ARRAY**|**N/A**|List|
+| Jdbc        | *Oracle[]      | Arrow     |
+|-------------|----------------|-----------|
+| Boolean     | boolean[]      | Bit       |   
+| Integer     | **N/A**        | Tiny      | 
+| Short       | smallint[]     | Smallint  | 
+| Integer     | integer[]      | Int       | 
+| Long        | bigint[]       | Bigint    |  
+| float       | float4[]       | Float4    | 
+| Double      | float8[]       | Float8    |
+| Date        | date[]         | DateDay   |
+| Timestamp   | timestamp[]    | DateMilli |
+| String      | text[]         | Varchar   |
+| Bytes       | bytea[]        | Varbinary |
+| BigDecimal  | numeric(p,s)[] | Decimal   | 
+| **\*ARRAY** | **N/A**        | List      |
 
 See Oracle documentation for conversion between JDBC and database types.
 
@@ -137,9 +137,9 @@ We support two ways to input database username and password:
 # Partitions and Splits
 A partition is represented by a single partition column of type varchar. We leverage partitions defined on a Oracle table, and this column contains partition names. For a table that does not have partition names, * is returned which is equivalent to a single partition. A partition is equivalent to a split.
 
-|Name|Type|Description
-|---|---|---|
-|PARTITION_NAME|Varchar|Named partition in MySql. E.g. P_2006_DEC,P_2006_AUG ..|
+| Name           | Type    | Description                                              |
+|----------------|---------|----------------------------------------------------------|
+| PARTITION_NAME | Varchar | Named partition in Oracle. E.g. P_2006_DEC,P_2006_AUG .. |
 
 # Running Integration Tests
 
