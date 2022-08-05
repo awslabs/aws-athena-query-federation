@@ -62,7 +62,6 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
           ssl: !Ref Ssl
-          secret_name: !Ref SecretNamePrefix
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.oracle.OracleMuxCompositeHandler"
       CodeUri: "./target/athena-oracle-2022.24.1.jar"

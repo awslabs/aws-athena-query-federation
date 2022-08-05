@@ -98,10 +98,10 @@ The current version of oracle connector supports ssl based connection for Amazon
 | default  | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@//hostname:port/servicename |
 | ssl      | no                                                                       |
 
-| Property | Value                                                                                                                                                                                |
-|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| default  | oracle://jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=<HOSTNAME>)(PORT=<PORT>))(CONNECT_DATA=(SID=<SID>))(SECURITY=(SSL_SERVER_CERT_DN=<SSL_SERVER_CERT_DN_VALUE>))) |
-| ssl      | yes                                                                                                                                                                                  |
+| Property | Value                                                                                                                                                                                                  |
+|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| default  | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=<HOSTNAME>)(PORT=<PORT>))(CONNECT_DATA=(SID=<SID>))(SECURITY=(SSL_SERVER_CERT_DN=<SSL_SERVER_CERT_DN_VALUE>))) |
+| ssl      | yes                                                                                                                                                                                                    |
 
 ### Spill parameters:
 
