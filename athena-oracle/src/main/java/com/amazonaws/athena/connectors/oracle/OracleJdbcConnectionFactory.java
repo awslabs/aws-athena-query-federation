@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -63,37 +62,28 @@ public class OracleJdbcConnectionFactory extends GenericJdbcConnectionFactory
     {
         try {
             final String derivedJdbcString;
-            final Map<String, String> envVariables = System.getenv();
             Properties properties = new Properties();
 
             if (null != jdbcCredentialProvider) {
-                Matcher connStringMatcher = SSL_CONNECTION_STRING_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                if (OracleConstants.YES.equalsIgnoreCase(envVariables.get("ssl"))) {
-                    if (!connStringMatcher.matches()) {
-                        throw new RuntimeException("Invalid connection string to establish connection over SSL, Please check.");
-                    }
+                if (SSL_CONNECTION_STRING_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString()).matches()) {
+                    LOGGER.info("Establishing connection over SSL..");
                     properties.put("javax.net.ssl.trustStoreType", "JKS");
                     properties.put("javax.net.ssl.trustStorePassword", "changeit");
                     properties.put("oracle.net.ssl_server_dn_match", "true");
-
-                    LOGGER.info("Establishing connection over SSL..");
                 }
                 else {
-                    if (connStringMatcher.matches()) {
-                        throw new RuntimeException("Invalid connection string, Please check.");
-                    }
                     LOGGER.info("Establishing normal connection..");
                 }
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement = String.format("%s/%s", jdbcCredentialProvider.getCredential().getUser(),
                         jdbcCredentialProvider.getCredential().getPassword());
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
+                LOGGER.info("derivedJdbcString: " + derivedJdbcString);
+                return DriverManager.getConnection(derivedJdbcString, properties);
             }
             else {
                 throw new RuntimeException("Invalid connection string, Secret name is required.");
             }
-            LOGGER.info("derivedJdbcString: " + derivedJdbcString);
-            return DriverManager.getConnection(derivedJdbcString, properties);
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);

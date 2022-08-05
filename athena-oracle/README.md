@@ -85,7 +85,6 @@ Record Handler       OracleRecordHandler
 
 ```
 default         Default connection string. Required. This will be used when a catalog is not recognized.
-ssl             SSL. Required. Based on this flag connection will be encrypted over ssl.
 ```
 
 These handlers support one database instance and must provide `default` connection string parameter. All other connection strings are ignored.
@@ -93,15 +92,10 @@ The current version of oracle connector supports ssl based connection for Amazon
 
 **Example property for a single oracle instance supported by a Lambda function:**
 
-| Property | Value                                                                    |
-|----------|--------------------------------------------------------------------------|
-| default  | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@//hostname:port/servicename |
-| ssl      | no                                                                       |
-
-| Property | Value                                                                                                                                                                                                  |
-|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| default  | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=<HOSTNAME>)(PORT=<PORT>))(CONNECT_DATA=(SID=<SID>))(SECURITY=(SSL_SERVER_CERT_DN=<SSL_SERVER_CERT_DN_VALUE>))) |
-| ssl      | yes                                                                                                                                                                                                    |
+| Property | Value                                                                                                                                                                                     |
+|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| default  | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@//hostname:port/servicename (or)                                                                                                             |
+|          | oracle://jdbc:oracle:thin:${Test/RDS/Oracle}@(DESCRIPTION=(ADDRESS=(PROTOCOL=TCPS)(HOST=<HOST_NAME>)(PORT=<PORT>))(CONNECT_DATA=(SID=<SID>))(SECURITY=(SSL_SERVER_CERT_DN=<PARAMETERS>))) | 
 
 ### Spill parameters:
 
