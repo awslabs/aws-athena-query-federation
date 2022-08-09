@@ -28,6 +28,7 @@ public enum TimestreamType
 {
     VARCHAR("varchar", Types.MinorType.VARCHAR),
     DOUBLE("double", Types.MinorType.FLOAT8),
+    BOOLEAN("boolean", Types.MinorType.BIT),
     TIMESTAMP("timestamp", Types.MinorType.DATEMILLI);
 
     private static final Map<String, TimestreamType> TIMESTREAM_TYPEMAP = new HashMap<>();
