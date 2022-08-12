@@ -31,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
@@ -458,6 +459,11 @@ public class DynamoDBRecordHandlerTest
     @Test
     public void testMapWithSchemaFromGlueTable() throws Exception
     {
+        // Disable this test if MAP_DISABLED
+        if (GlueFieldLexer.MAP_DISABLED) {
+            return;
+        }
+
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col0").withType("string"));
         columns.add(new Column().withName("outermap").withType("MAP<STRING,array<STRING,STRING>>"));
@@ -529,8 +535,8 @@ public class DynamoDBRecordHandlerTest
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
         GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
-        logger.info("testMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
-        logger.info("testMapWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
+        logger.info("testStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
+        logger.info("testStructWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
         Schema schema = getTableResponse.getSchema();
 
@@ -554,7 +560,7 @@ public class DynamoDBRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue(rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testMapWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("testStructWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
         Block result = response.getRecords();
         assertEquals(1, result.getRowCount());
         assertEquals(schema, result.getSchema());
@@ -584,8 +590,8 @@ public class DynamoDBRecordHandlerTest
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
         GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
-        logger.info("testMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
-        logger.info("testMapWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
+        logger.info("testListWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
+        logger.info("testListWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
         Schema schema = getTableResponse.getSchema();
 
@@ -609,7 +615,7 @@ public class DynamoDBRecordHandlerTest
         RecordResponse rawResponse = handler.doReadRecords(allocator, request);
         assertTrue(rawResponse instanceof ReadRecordsResponse);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testMapWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        logger.info("testListWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
         Block result = response.getRecords();
         assertEquals(1, result.getRowCount());
         assertEquals(schema, result.getSchema());
@@ -642,6 +648,11 @@ public class DynamoDBRecordHandlerTest
     @Test
     public void testNumMapWithSchemaFromGlueTable() throws Exception
     {
+        // Disable this test if MAP_DISABLED
+        if (GlueFieldLexer.MAP_DISABLED) {
+            return;
+        }
+
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col0").withType("string"));
         columns.add(new Column().withName("nummap").withType("map<String,int>"));

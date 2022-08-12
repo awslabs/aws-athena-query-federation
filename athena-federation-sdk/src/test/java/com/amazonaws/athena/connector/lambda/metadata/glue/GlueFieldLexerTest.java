@@ -326,6 +326,11 @@ public class GlueFieldLexerTest
     @Test
     public void lexMapTest()
     {
+        // Disable this test if MAP_DISABLED
+        if (GlueFieldLexer.MAP_DISABLED) {
+            return;
+        }
+
         // complex case
         String input = "map<array<int>, map<string, string>>";
         Field field = GlueFieldLexer.lex("SomeMap", input);
@@ -343,3 +348,4 @@ public class GlueFieldLexerTest
         assertEquals(expectedFieldToString2, field2.toString());
     }
 }
+
