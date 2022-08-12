@@ -61,8 +61,23 @@ public class SynapseJdbcConnectionFactory extends GenericJdbcConnectionFactory
             final String derivedJdbcString;
             if (null != jdbcCredentialProvider) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                // replace aws secret value with credentials and change username as user
-                final String secretReplacement = String.format("%s;%s", "user=" + jdbcCredentialProvider.getCredential().getUser(), "password=" + jdbcCredentialProvider.getCredential().getPassword());
+                final String secretReplacement;
+                if (databaseConnectionConfig.getJdbcConnectionString().contains("authentication=ActiveDirectoryServicePrincipal")) {
+                    // Set AADSecurePrincipal credentials
+                    secretReplacement = String.format(
+                        "%s;%s",
+                        "AADSecurePrincipalId=" + jdbcCredentialProvider.getCredential().getUser(),
+                        "AADSecurePrincipalSecret=" + jdbcCredentialProvider.getCredential().getPassword()
+                    );
+                }
+                else {
+                    // replace aws secret value with credentials and change username as user
+                    secretReplacement = String.format(
+                        "%s;%s",
+                        "user=" + jdbcCredentialProvider.getCredential().getUser(),
+                        "password=" + jdbcCredentialProvider.getCredential().getPassword()
+                    );
+                }
                 derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(secretReplacement));
             }
             else {
