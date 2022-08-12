@@ -52,6 +52,8 @@ public class GlueFieldLexer
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 
+    public static final boolean MAP_DISABLED = true;
+
     private GlueFieldLexer() {}
 
     public interface BaseTypeMapper
@@ -140,6 +142,10 @@ public class GlueFieldLexer
 
     private static Field parseMap(String name, GlueTypeParser.Token typeToken, GlueTypeParser parser, BaseTypeMapper mapper)
     {
+        if (MAP_DISABLED) {
+            throw new RuntimeException("Map type is currently unsupported");
+        }
+
         expectTokenMarkerIsFieldStart(typeToken);
         // Recursive calls to resolve key and value types
         Field keyType = lexInternal("key", parser, mapper);
