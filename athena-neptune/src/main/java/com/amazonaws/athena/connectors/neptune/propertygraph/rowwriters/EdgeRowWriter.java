@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.neptune.propertygraph.rowwriters;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter.RowWriterBuilder;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BigIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.BitExtractor;
+import com.amazonaws.athena.connector.lambda.data.writers.extractors.DateMilliExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float4Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Float8Extractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.IntExtractor;
@@ -30,6 +31,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCha
 import com.amazonaws.athena.connectors.neptune.propertygraph.Enums.SpecialKeys;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
@@ -39,33 +41,37 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.tinkerpop.gremlin.structure.Direction;
 import org.apache.tinkerpop.gremlin.structure.T;
 
-import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
+
 /**
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class EdgeRowWriter
+public final class EdgeRowWriter 
 {
     private EdgeRowWriter() 
     {
-        super();
+        // Empty private constructor
     }
 
     public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) 
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
+        Boolean enableCaseinsensitivematch = (System.getenv("enable_caseinsensitivematch") == null) ? true : Boolean.parseBoolean(System.getenv("enable_caseinsensitivematch"));
 
         switch (minorType) {
             case BIT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BitExtractor) (Object context, NullableBitHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
-                            if (fieldValue != null) {
+
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 Boolean booleanValue = Boolean.parseBoolean(fieldValue.toString());
                                 value.value = booleanValue ? 1 : 0;
                                 value.isSet = 1;
@@ -76,38 +82,28 @@ public final class EdgeRowWriter
             case VARCHAR:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            String fieldName = field.getName();
                             value.isSet = 0;
-                            String fieldName = field.getName().toLowerCase().trim();
+                            Object fieldValue = obj.get(fieldName);
                             
-                            // check for special keys and parse them separately
-                            if (fieldName.equals(SpecialKeys.ID.toString().toLowerCase())) {
-                                Object fieldValue = obj.get(T.id);
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
+                            if (fieldValue != null) {
+                                value.value = fieldValue.toString();
+                                value.isSet = 1;
                             }
-                            else if (fieldName.equals(SpecialKeys.IN.toString().toLowerCase())) {
-                                Object fieldValue = ((LinkedHashMap) obj.get(Direction.IN)).get(T.id);
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
-                            }
-                            else if (fieldName.equals(SpecialKeys.OUT.toString().toLowerCase())) {
-                                Object fieldValue = ((LinkedHashMap) obj.get(Direction.OUT)).get(T.id);
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
-                            } 
-                            else {
-                                Object fieldValue = obj.get(field.getName());
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
+                        });
+                break;
+
+            case DATEMILLI:
+                rowWriterBuilder.withExtractor(field.getName(),
+                        (DateMilliExtractor) (Object context, NullableDateMilliHolder value) -> {
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
+                            value.isSet = 0;
+
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
+                                value.value = ((Date) fieldValue).getTime();
+                                value.isSet = 1;
                             }
                         });
                 break;
@@ -115,10 +111,11 @@ public final class EdgeRowWriter
             case INT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            value.isSet = 0;
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             Object fieldValue = obj.get(field.getName());
-                            if (fieldValue != null) {
+                            value.isSet = 0;
+
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = Integer.parseInt(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -128,10 +125,11 @@ public final class EdgeRowWriter
             case BIGINT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            value.isSet = 0;
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             Object fieldValue = obj.get(field.getName());
-                            if (fieldValue != null) {
+                            value.isSet = 0;
+
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = Long.parseLong(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -141,11 +139,11 @@ public final class EdgeRowWriter
             case FLOAT4:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
-                            value.isSet = 0;
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             Object fieldValue = obj.get(field.getName());
-                            if (fieldValue != null) {
+                            value.isSet = 0;
+
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = Float.parseFloat(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -155,10 +153,11 @@ public final class EdgeRowWriter
             case FLOAT8:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            value.isSet = 0;
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             Object fieldValue = obj.get(field.getName());
-                            if (fieldValue != null) {
+                            value.isSet = 0;
+
+                            if (fieldValue != null && !fieldValue.toString().trim().isEmpty()) {
                                 value.value = Double.parseDouble(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -166,5 +165,34 @@ public final class EdgeRowWriter
 
                 break;
         }
+    }
+
+    private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive)
+    {
+        Map<String, Object> contextAsMap = (Map<String, Object>) context;
+        Object fieldValueID = contextAsMap.get(T.id);
+        
+        if (fieldValueID != null) {
+            Object fieldValueIN = ((LinkedHashMap) contextAsMap.get(Direction.IN)).get(T.id);
+            Object fieldValueOUT = ((LinkedHashMap) contextAsMap.get(Direction.OUT)).get(T.id);
+
+            contextAsMap.remove(T.id);
+            contextAsMap.remove(T.label);
+            contextAsMap.remove(Direction.IN);
+            contextAsMap.remove(Direction.OUT);
+
+            contextAsMap.put(SpecialKeys.ID.toString(), fieldValueID);
+            contextAsMap.put(SpecialKeys.IN.toString(), fieldValueIN);
+            contextAsMap.put(SpecialKeys.OUT.toString(), fieldValueOUT);         
+        } 
+
+        if (!caseInsensitive) {
+            return contextAsMap;
+        }
+ 
+
+        TreeMap<String, Object> caseInsensitiveMap = new TreeMap<String, Object>(String.CASE_INSENSITIVE_ORDER);
+        caseInsensitiveMap.putAll(contextAsMap);
+        return caseInsensitiveMap;
     }
 }

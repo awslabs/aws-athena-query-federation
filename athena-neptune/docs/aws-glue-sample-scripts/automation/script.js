@@ -5,7 +5,7 @@ const { cwd } = require('process');
 
 //update region to AWS region where Amazon Neptune database resides
 AWS.config.update({
-    region: 'us-west-2'
+    region: 'us-east-1'
 })
 
 var glue = new AWS.Glue();
@@ -36,7 +36,8 @@ function addTable(tableType, tableName, tableColumns) {
             Name: tableName, /* required */
             Parameters: {
                 "separatorChar": ",",
-                "componenttype": tableType
+                "componenttype": tableType,
+                "glabel":tableName
             },
             StorageDescriptor: {
                 Columns: [],
@@ -94,6 +95,13 @@ function addTable(tableType, tableName, tableColumns) {
                     {
                         Name: column.property, /* required */
                         Type: 'int'
+                    });
+                break;
+            case "Date":
+                params.TableInput.StorageDescriptor.Columns.push(
+                    {
+                        Name: column.property, /* required */
+                        Type: 'timestamp'
                     });
                 break;
         }
