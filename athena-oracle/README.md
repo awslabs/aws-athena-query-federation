@@ -88,7 +88,9 @@ default         Default connection string. Required. This will be used when a ca
 ```
 
 These handlers support one database instance and must provide `default` connection string parameter. All other connection strings are ignored.
+
 The current version of oracle connector supports ssl based connection for Amazon RDS instances only.
+  - Specifically support for TLS and only for the authentication of the server by the client (no mutual auth support since RDS does not support it).
 
 **Example property for a single oracle instance supported by a Lambda function:**
 
