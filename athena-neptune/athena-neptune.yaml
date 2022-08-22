@@ -65,6 +65,10 @@ Parameters:
     Description: 'If set to ''true'' the connector uses Signature Version 4 Signing'
     Default: false
     Type: String
+  EnableCaseInsensitiveMatch:
+    Description: 'If set to ''false'' the connector does a case sensetive match for keys'
+    Default: true
+    Type: String
 
 Resources:
   ConnectorConfig:
@@ -82,6 +86,7 @@ Resources:
           iam_enabled: !Ref IAMEnabled
           neptune_graphtype: !Ref NeptuneGraphType
           SERVICE_REGION: !Ref AWS::Region
+          enable_caseinsensitivematch: !Ref EnableCaseInsensitiveMatch
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.neptune.NeptuneCompositeHandler"
       CodeUri: "./target/athena-neptune-2022.34.1.jar"

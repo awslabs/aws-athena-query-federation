@@ -1,4 +1,34 @@
 {
+  "edges" : [ {
+    "label" : "knows",
+    "properties" : [ {
+      "property" : "creaTed",
+      "dataType" : "Date",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "Rating",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "since",
+      "dataType" : "Integer",
+      "isMultiValue" : false,
+      "isNullable" : false
+    } ]
+  }, {
+    "label" : "route",
+    "properties" : [ {
+      "property" : "dist",
+      "dataType" : "Integer",
+      "isMultiValue" : false,
+      "isNullable" : false
+    } ]
+  }, {
+    "label" : "contains",
+    "properties" : [ ]
+  } ],
   "nodes" : [ {
     "label" : "country",
     "properties" : [ {
@@ -30,17 +60,45 @@
       "isMultiValue" : false,
       "isNullable" : false
     }, {
-      "property" : "author",
-      "dataType" : "String",
-      "isMultiValue" : false,
-      "isNullable" : false
-    }, {
       "property" : "type",
       "dataType" : "String",
       "isMultiValue" : false,
       "isNullable" : false
     }, {
+      "property" : "author",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
       "property" : "desc",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    } ]
+  }, {
+    "label" : "person",
+    "properties" : [ {
+      "property" : "lastName",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "created",
+      "dataType" : "Date",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "firstname",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "salary",
+      "dataType" : "Integer",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "JobTitle",
       "dataType" : "String",
       "isMultiValue" : false,
       "isNullable" : false
@@ -66,12 +124,22 @@
   }, {
     "label" : "airport",
     "properties" : [ {
-      "property" : "country",
+      "property" : "code",
       "dataType" : "String",
       "isMultiValue" : false,
       "isNullable" : false
     }, {
-      "property" : "code",
+      "property" : "type",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "desc",
+      "dataType" : "String",
+      "isMultiValue" : false,
+      "isNullable" : false
+    }, {
+      "property" : "country",
       "dataType" : "String",
       "isMultiValue" : false,
       "isNullable" : false
@@ -91,11 +159,6 @@
       "isMultiValue" : false,
       "isNullable" : false
     }, {
-      "property" : "type",
-      "dataType" : "String",
-      "isMultiValue" : false,
-      "isNullable" : false
-    }, {
       "property" : "elev",
       "dataType" : "Integer",
       "isMultiValue" : false,
@@ -106,13 +169,13 @@
       "isMultiValue" : false,
       "isNullable" : false
     }, {
-      "property" : "runways",
-      "dataType" : "Integer",
+      "property" : "region",
+      "dataType" : "String",
       "isMultiValue" : false,
       "isNullable" : false
     }, {
-      "property" : "region",
-      "dataType" : "String",
+      "property" : "runways",
+      "dataType" : "Integer",
       "isMultiValue" : false,
       "isNullable" : false
     }, {
@@ -120,23 +183,6 @@
       "dataType" : "Double",
       "isMultiValue" : false,
       "isNullable" : false
-    }, {
-      "property" : "desc",
-      "dataType" : "String",
-      "isMultiValue" : false,
-      "isNullable" : false
     } ]
-  } ],
-  "edges" : [ {
-    "label" : "route",
-    "properties" : [ {
-      "property" : "dist",
-      "dataType" : "Integer",
-      "isMultiValue" : false,
-      "isNullable" : false
-    } ]
-  }, {
-    "label" : "contains",
-    "properties" : [ ]
   } ]
 }

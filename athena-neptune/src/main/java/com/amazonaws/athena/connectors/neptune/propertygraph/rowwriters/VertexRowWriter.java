@@ -185,11 +185,18 @@ public final class VertexRowWriter
     private static String getFieldName(String fieldName, Map<Object, Object> obj) 
     {
         String sourceFieldName = fieldName;
+        String enableCaseinsensitivematch = System.getenv("enable_caseinsensitivematch");
 
-        for (Object objRef : obj.keySet().toArray()) {
-            if (objRef.toString().toLowerCase().equals(fieldName)) {
-                sourceFieldName = objRef.toString();
-            }
+        if (enableCaseinsensitivematch == null) {
+            enableCaseinsensitivematch = "true";
+        }
+
+        if (enableCaseinsensitivematch.equals("true")) {
+            for (Object objRef : obj.keySet().toArray()) {
+                if (objRef.toString().toLowerCase().equals(fieldName)) {
+                    sourceFieldName = objRef.toString();
+                }
+            }   
         }
 
         return sourceFieldName;

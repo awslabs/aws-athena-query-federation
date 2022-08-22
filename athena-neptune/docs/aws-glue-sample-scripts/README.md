@@ -20,6 +20,7 @@ Here's a reference of the Glue DataTypes that you can use:
 |boolean|BIT|
 |binary|VARBINARY|
 |string|VARCHAR|
+|timestamp|DATEMILLI|
 
 <br/>
 

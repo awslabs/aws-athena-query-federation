@@ -49,7 +49,7 @@ import java.util.Map;
  * This class is a Utility class to create Extractors for each field type as per
  * Schema
  */
-public final class EdgeRowWriter
+public final class EdgeRowWriter 
 {
     private EdgeRowWriter() 
     {
@@ -69,7 +69,7 @@ public final class EdgeRowWriter
                             String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
                             Object fieldValue = obj.get(fieldName);
                             value.isSet = 0;
-                            
+
                             if (fieldValue != null) {
                                 Boolean booleanValue = Boolean.parseBoolean(fieldValue.toString());
                                 value.value = booleanValue ? 1 : 0;
@@ -84,23 +84,23 @@ public final class EdgeRowWriter
                             Map<Object, Object> obj = (Map<Object, Object>) context;
                             String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
                             value.isSet = 0;
-                            
+
                             // check for special keys and parse them separately
-                            if (fieldName.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                            if (fieldName.toLowerCase().equals(SpecialKeys.ID.toString().toLowerCase())) {
                                 Object fieldValue = obj.get(T.id);
                                 if (fieldValue != null) {
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
                                 }
-                            }
-                            else if (fieldName.equals(SpecialKeys.IN.toString().toLowerCase())) {
+                            } 
+                            else if (fieldName.toLowerCase().equals(SpecialKeys.IN.toString().toLowerCase())) {
                                 Object fieldValue = ((LinkedHashMap) obj.get(Direction.IN)).get(T.id);
                                 if (fieldValue != null) {
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
                                 }
-                            }
-                            else if (fieldName.equals(SpecialKeys.OUT.toString().toLowerCase())) {
+                            } 
+                            else if (fieldName.toLowerCase().equals(SpecialKeys.OUT.toString().toLowerCase())) {
                                 Object fieldValue = ((LinkedHashMap) obj.get(Direction.OUT)).get(T.id);
                                 if (fieldValue != null) {
                                     value.value = fieldValue.toString();
@@ -131,7 +131,7 @@ public final class EdgeRowWriter
                             }
                         });
                 break;
-                
+
             case INT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
@@ -184,7 +184,7 @@ public final class EdgeRowWriter
                             String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
                             Object fieldValue = obj.get(fieldName);
                             value.isSet = 0;
-                            
+
                             if (fieldValue != null) {
                                 value.value = Double.parseDouble(fieldValue.toString());
                                 value.isSet = 1;
@@ -198,10 +198,17 @@ public final class EdgeRowWriter
     private static String getFieldName(String fieldName, Map<Object, Object> obj) 
     {
         String sourceFieldName = fieldName;
+        String enableCaseinsensitivematch = System.getenv("enable_caseinsensitivematch");
 
-        for (Object objRef : obj.keySet().toArray()) {
-            if (objRef.toString().toLowerCase().equals(fieldName)) {
-                sourceFieldName = objRef.toString();
+        if (enableCaseinsensitivematch == null) {
+            enableCaseinsensitivematch = "true";
+        }
+
+        if (enableCaseinsensitivematch.equals("true")) {
+            for (Object objRef : obj.keySet().toArray()) {
+                if (objRef.toString().toLowerCase().equals(fieldName)) {
+                    sourceFieldName = objRef.toString(); 
+                }
             }
         }
 
