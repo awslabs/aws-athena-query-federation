@@ -60,7 +60,7 @@ UDFs have access to the same type system. When extending UserDefinedFunctionHand
  | DOUBLE      | java.lang.Double                               |Yes|
  | DECIMAL     | java.math.BigDecimal                           |Yes|
  | BIGINT      | java.lang.Long                                 |Yes|
- | INTEGER     | java.lang.Int                                  |Yes, Int(32)|
+ | INTEGER     | java.lang.Integer                              |Yes, Int(32)|
  | VARCHAR     | java.lang.String                               |Yes|
  | VARBINARY   | byte[]                                         |No|
  | BOOLEAN     | java.lang.Boolean                              |Yes|
