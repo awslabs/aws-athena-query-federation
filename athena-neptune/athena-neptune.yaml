@@ -66,7 +66,7 @@ Parameters:
     Default: false
     Type: String
   EnableCaseInsensitiveMatch:
-    Description: 'If set to ''false'' the connector does a case sensetive match for keys'
+    Description: 'If set to ''false'' the connector does a case sensitive match for keys'
     Default: true
     Type: String
 
