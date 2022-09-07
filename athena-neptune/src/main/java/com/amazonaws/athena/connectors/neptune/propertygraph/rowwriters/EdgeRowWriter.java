@@ -44,6 +44,7 @@ import org.apache.tinkerpop.gremlin.structure.T;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * This class is a Utility class to create Extractors for each field type as per
@@ -53,21 +54,21 @@ public final class EdgeRowWriter
 {
     private EdgeRowWriter() 
     {
-        super();
+        // Empty private constructor
     }
 
     public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) 
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
+        Boolean enableCaseinsensitivematch = (System.getenv("enable_caseinsensitivematch") == null) ? true : Boolean.parseBoolean(System.getenv("enable_caseinsensitivematch"));
 
         switch (minorType) {
             case BIT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BitExtractor) (Object context, NullableBitHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
-                            Object fieldValue = obj.get(fieldName);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
                             if (fieldValue != null) {
@@ -81,27 +82,27 @@ public final class EdgeRowWriter
             case VARCHAR:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            String fieldName = field.getName();
                             value.isSet = 0;
 
                             // check for special keys and parse them separately
-                            if (fieldName.toLowerCase().equals(SpecialKeys.ID.toString().toLowerCase())) {
-                                Object fieldValue = obj.get(T.id);
+                            if (fieldName.equals(SpecialKeys.ID.toString().toLowerCase())) {
+                                Object fieldValue = obj.get(SpecialKeys.ID.toString());
                                 if (fieldValue != null) {
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
                                 }
                             } 
-                            else if (fieldName.toLowerCase().equals(SpecialKeys.IN.toString().toLowerCase())) {
-                                Object fieldValue = ((LinkedHashMap) obj.get(Direction.IN)).get(T.id);
+                            else if (fieldName.equals(SpecialKeys.IN.toString().toLowerCase())) {
+                                Object fieldValue = obj.get(SpecialKeys.IN.toString());
                                 if (fieldValue != null) {
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
                                 }
                             } 
-                            else if (fieldName.toLowerCase().equals(SpecialKeys.OUT.toString().toLowerCase())) {
-                                Object fieldValue = ((LinkedHashMap) obj.get(Direction.OUT)).get(T.id);
+                            else if (fieldName.equals(SpecialKeys.OUT.toString().toLowerCase())) {
+                                Object fieldValue = obj.get(SpecialKeys.OUT.toString());
                                 if (fieldValue != null) {
                                     value.value = fieldValue.toString();
                                     value.isSet = 1;
@@ -120,9 +121,8 @@ public final class EdgeRowWriter
             case DATEMILLI:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (DateMilliExtractor) (Object context, NullableDateMilliHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
-                            Object fieldValue = obj.get(fieldName);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
                             if (fieldValue != null) {
@@ -135,9 +135,8 @@ public final class EdgeRowWriter
             case INT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
-                            Object fieldValue = obj.get(fieldName);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
                             if (fieldValue != null) {
@@ -150,9 +149,8 @@ public final class EdgeRowWriter
             case BIGINT:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
-                            Object fieldValue = obj.get(fieldName);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
                             if (fieldValue != null) {
@@ -165,9 +163,8 @@ public final class EdgeRowWriter
             case FLOAT4:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float4Extractor) (Object context, NullableFloat4Holder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
-                            Object fieldValue = obj.get(fieldName);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
                             if (fieldValue != null) {
@@ -180,9 +177,8 @@ public final class EdgeRowWriter
             case FLOAT8:
                 rowWriterBuilder.withExtractor(field.getName(),
                         (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                            Map<Object, Object> obj = (Map<Object, Object>) context;
-                            String fieldName = getFieldName(field.getName().toLowerCase().trim(), obj);
-                            Object fieldValue = obj.get(fieldName);
+                            Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
+                            Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
                             if (fieldValue != null) {
@@ -195,23 +191,31 @@ public final class EdgeRowWriter
         }
     }
 
-    private static String getFieldName(String fieldName, Map<Object, Object> obj) 
+    private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive)
     {
-        String sourceFieldName = fieldName;
-        String enableCaseinsensitivematch = System.getenv("enable_caseinsensitivematch");
+        Map<String, Object> contextAsMap = (Map<String, Object>) context;
 
-        if (enableCaseinsensitivematch == null) {
-            enableCaseinsensitivematch = "true";
+        if (!caseInsensitive) {
+            return contextAsMap;
         }
 
-        if (enableCaseinsensitivematch.equals("true")) {
-            for (Object objRef : obj.keySet().toArray()) {
-                if (objRef.toString().toLowerCase().equals(fieldName)) {
-                    sourceFieldName = objRef.toString(); 
-                }
-            }
-        }
+        Object fieldValueID = contextAsMap.get(T.id);
+        if (fieldValueID != null) {
+            Object fieldValueIN = ((LinkedHashMap) contextAsMap.get(Direction.IN)).get(T.id);
+            Object fieldValueOUT = ((LinkedHashMap) contextAsMap.get(Direction.OUT)).get(T.id);
 
-        return sourceFieldName;
+            contextAsMap.remove(T.id);
+            contextAsMap.remove(T.label);
+            contextAsMap.remove(Direction.IN);
+            contextAsMap.remove(Direction.OUT);
+
+            contextAsMap.put(SpecialKeys.ID.toString(), fieldValueID);
+            contextAsMap.put(SpecialKeys.IN.toString(), fieldValueIN);
+            contextAsMap.put(SpecialKeys.OUT.toString(), fieldValueOUT);         
+        }  
+
+        TreeMap<String, Object> caseInsensitiveMap = new TreeMap<String, Object>(String.CASE_INSENSITIVE_ORDER);
+        caseInsensitiveMap.putAll(contextAsMap);
+        return caseInsensitiveMap;
     }
 }
