@@ -70,7 +70,7 @@ public final class VertexRowWriter
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null) {
+                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 Boolean booleanValue = Boolean.parseBoolean(objValues.get(0).toString());
                                 value.value = booleanValue ? 1 : 0;
                                 value.isSet = 1;
@@ -112,7 +112,7 @@ public final class VertexRowWriter
                             ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null) {
+                            if (objValues != null && (objValues.get(0) != null) && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = ((Date) objValues.get(0)).getTime();
                                 value.isSet = 1;
                             }
@@ -124,12 +124,11 @@ public final class VertexRowWriter
                         (IntExtractor) (Object context, NullableIntHolder value) -> {
                             String fieldName = field.getName();
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-
                             ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
 
                             value.isSet = 0;
 
-                            if (objValues != null && objValues.get(0) != null) {
+                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Integer.parseInt(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -141,11 +140,10 @@ public final class VertexRowWriter
                         (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
                             String fieldName = field.getName();
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
-
                             ArrayList<Object> objValues = (ArrayList) obj.get(fieldName);
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null) {
+                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Long.parseLong(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -159,7 +157,7 @@ public final class VertexRowWriter
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null) {
+                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Float.parseFloat(objValues.get(0).toString());
                                 value.isSet = 1;
                             }
@@ -173,7 +171,7 @@ public final class VertexRowWriter
                             ArrayList<Object> objValues = (ArrayList) obj.get(field.getName());
 
                             value.isSet = 0;
-                            if (objValues != null && objValues.get(0) != null) {
+                            if (objValues != null && objValues.get(0) != null && !(objValues.get(0).toString().trim().isEmpty())) {
                                 value.value = Double.parseDouble(objValues.get(0).toString());
                                 value.isSet = 1;
                             }

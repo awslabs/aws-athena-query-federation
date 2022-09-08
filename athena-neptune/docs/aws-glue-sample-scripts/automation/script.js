@@ -36,7 +36,8 @@ function addTable(tableType, tableName, tableColumns) {
             Name: tableName, /* required */
             Parameters: {
                 "separatorChar": ",",
-                "componenttype": tableType
+                "componenttype": tableType,
+                "glabel":tableName
             },
             StorageDescriptor: {
                 Columns: [],

@@ -71,7 +71,7 @@ public final class EdgeRowWriter
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
-                            if (fieldValue != null) {
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 Boolean booleanValue = Boolean.parseBoolean(fieldValue.toString());
                                 value.value = booleanValue ? 1 : 0;
                                 value.isSet = 1;
@@ -85,35 +85,11 @@ public final class EdgeRowWriter
                             Map<String, Object> obj = (Map<String, Object>) contextAsMap(context, enableCaseinsensitivematch);
                             String fieldName = field.getName();
                             value.isSet = 0;
-
-                            // check for special keys and parse them separately
-                            if (fieldName.equals(SpecialKeys.ID.toString().toLowerCase())) {
-                                Object fieldValue = obj.get(SpecialKeys.ID.toString());
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
-                            } 
-                            else if (fieldName.equals(SpecialKeys.IN.toString().toLowerCase())) {
-                                Object fieldValue = obj.get(SpecialKeys.IN.toString());
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
-                            } 
-                            else if (fieldName.equals(SpecialKeys.OUT.toString().toLowerCase())) {
-                                Object fieldValue = obj.get(SpecialKeys.OUT.toString());
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
-                            } 
-                            else {
-                                Object fieldValue = obj.get(fieldName);
-                                if (fieldValue != null) {
-                                    value.value = fieldValue.toString();
-                                    value.isSet = 1;
-                                }
+                            Object fieldValue = obj.get(fieldName);
+                            
+                            if (fieldValue != null) {
+                                value.value = fieldValue.toString();
+                                value.isSet = 1;
                             }
                         });
                 break;
@@ -125,7 +101,7 @@ public final class EdgeRowWriter
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
-                            if (fieldValue != null) {
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = ((Date) fieldValue).getTime();
                                 value.isSet = 1;
                             }
@@ -139,7 +115,7 @@ public final class EdgeRowWriter
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
-                            if (fieldValue != null) {
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = Integer.parseInt(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -153,7 +129,7 @@ public final class EdgeRowWriter
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
-                            if (fieldValue != null) {
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = Long.parseLong(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -167,7 +143,7 @@ public final class EdgeRowWriter
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
-                            if (fieldValue != null) {
+                            if (fieldValue != null && !(fieldValue.toString().trim().isEmpty())) {
                                 value.value = Float.parseFloat(fieldValue.toString());
                                 value.isSet = 1;
                             }
@@ -181,7 +157,7 @@ public final class EdgeRowWriter
                             Object fieldValue = obj.get(field.getName());
                             value.isSet = 0;
 
-                            if (fieldValue != null) {
+                            if (fieldValue != null && !fieldValue.toString().trim().isEmpty()) {
                                 value.value = Double.parseDouble(fieldValue.toString());
                                 value.isSet = 1;
                             }
