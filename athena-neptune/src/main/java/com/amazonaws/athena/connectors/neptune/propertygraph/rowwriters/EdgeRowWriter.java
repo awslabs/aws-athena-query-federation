@@ -170,12 +170,8 @@ public final class EdgeRowWriter
     private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive)
     {
         Map<String, Object> contextAsMap = (Map<String, Object>) context;
-
-        if (!caseInsensitive) {
-            return contextAsMap;
-        }
-
         Object fieldValueID = contextAsMap.get(T.id);
+        
         if (fieldValueID != null) {
             Object fieldValueIN = ((LinkedHashMap) contextAsMap.get(Direction.IN)).get(T.id);
             Object fieldValueOUT = ((LinkedHashMap) contextAsMap.get(Direction.OUT)).get(T.id);
@@ -188,7 +184,12 @@ public final class EdgeRowWriter
             contextAsMap.put(SpecialKeys.ID.toString(), fieldValueID);
             contextAsMap.put(SpecialKeys.IN.toString(), fieldValueIN);
             contextAsMap.put(SpecialKeys.OUT.toString(), fieldValueOUT);         
-        }  
+        } 
+
+        if (!caseInsensitive) {
+            return contextAsMap;
+        }
+ 
 
         TreeMap<String, Object> caseInsensitiveMap = new TreeMap<String, Object>(String.CASE_INSENSITIVE_ORDER);
         caseInsensitiveMap.putAll(contextAsMap);

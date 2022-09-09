@@ -184,16 +184,16 @@ public final class VertexRowWriter
     private static Map<String, Object> contextAsMap(Object context, boolean caseInsensitive) 
     {
         Map<String, Object> contextAsMap = (Map<String, Object>) context;
-
-        if (!caseInsensitive) {
-            return contextAsMap;
-        }
-
         Object fieldValueID = contextAsMap.get(T.id);
+
         if (fieldValueID != null) {
             contextAsMap.remove(T.id);
             contextAsMap.remove(T.label);
             contextAsMap.put(SpecialKeys.ID.toString(), fieldValueID);
+        }
+
+        if (!caseInsensitive) {
+            return contextAsMap;
         }
 
         TreeMap<String, Object> caseInsensitiveMap = new TreeMap<String, Object>(String.CASE_INSENSITIVE_ORDER);
