@@ -109,9 +109,15 @@ public class PropertyGraphHandler
         String labelName = recordsRequest.getTableName().getTableName();
         GeneratedRowWriter.RowWriterBuilder builder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
         String type = recordsRequest.getSchema().getCustomMetadata().get("componenttype");
+        String glabel = recordsRequest.getSchema().getCustomMetadata().get("glabel");
         TableSchemaMetaType tableSchemaMetaType = TableSchemaMetaType.valueOf(type.toUpperCase());
-        
+
         logger.debug("readWithConstraint: schema type is " + tableSchemaMetaType.toString());
+        
+        //AWS Glue converts table name to lowercase, table property 'glabel' stores Amazon Neptune Vertex/Edge labels to be used in Gremlin query
+        if (glabel != null && !glabel.trim().isEmpty()) {
+            labelName = glabel;
+        }
 
         if (tableSchemaMetaType != null) {
             switch (tableSchemaMetaType) {
