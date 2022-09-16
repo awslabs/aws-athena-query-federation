@@ -194,6 +194,8 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                                 offset = offset + SnowflakeConstants.PARTITION_RECORD_COUNT;
                             }
                             if (i == SnowflakeConstants.MAX_PARTITION_COUNT) {
+                                //Updating partitionRecord variable to display the remaining records in the last partition.
+                                //we get the value by subtracting the records displayed till 49th partition from the total number of records.
                                 partitionRecord = (int) totalRecordCount - (SnowflakeConstants.PARTITION_RECORD_COUNT * (SnowflakeConstants.MAX_PARTITION_COUNT - 1));
                             }
                             final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + partitionRecord + "-offset-" + offset;
