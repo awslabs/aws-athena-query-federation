@@ -25,6 +25,8 @@ public final class SnowflakeConstants
     public static final String SNOWFLAKE_NAME = "snowflake";
     public static final String SNOWFLAKE_DRIVER_CLASS = "com.snowflake.client.jdbc.SnowflakeDriver";
     public static final int SNOWFLAKE_DEFAULT_PORT = 1025;
+    public static final int PARTITION_RECORD_COUNT = 500000;
+    public static final int MAX_PARTITION_COUNT = 50;
 
     private SnowflakeConstants() {}
 }
