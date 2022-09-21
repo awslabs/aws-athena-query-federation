@@ -50,9 +50,7 @@ public class SchemaSerDe
     public void serialize(Schema schema, OutputStream out)
             throws IOException
     {
-        IpcOption option = new IpcOption();
-        option.metadataVersion = MetadataVersion.V4;
-        option.write_legacy_ipc_format = true;
+        IpcOption option = new IpcOption(true, MetadataVersion.V4);
         MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
     }
 
