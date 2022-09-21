@@ -148,11 +148,16 @@ public class FieldsGenerator {
             Arbitrary<Field> valueField = field(depth, MapVector.VALUE_NAME, DEFAULT_NULLABLE);
 
             FieldType structType = new FieldType(false, ArrowType.Struct.INSTANCE, null);
-            Arbitrary<List<Field>> structField = Combinators.combine(keyField, valueField).as((key, value) ->
-                new Field(MapVector.DATA_VECTOR_NAME,
-                    structType,
-                    List.of(key, value)
-            )).list().ofSize(1);
+
+            Arbitrary<List<Field>> structField = Combinators.combine(keyField, valueField).as((key, value) -> {
+                List<Field> lst = new java.util.ArrayList();
+                lst.add(key);
+                lst.add(value);
+
+                return new Field(MapVector.DATA_VECTOR_NAME,
+                        structType,
+                        lst);
+            }).list().ofSize(1);
             return structField;
         }
 

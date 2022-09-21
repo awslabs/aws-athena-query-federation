@@ -48,7 +48,11 @@ public class GlueFieldLexer
 
     private static final String MAP = "map";
 
-    private static final Set<String> LIST_EQUIVALENTS = Set.of("array", "set");
+    private static final Set<String> LIST_EQUIVALENTS = new java.util.HashSet();
+    static {
+      LIST_EQUIVALENTS.add("array");
+      LIST_EQUIVALENTS.add("set");
+    }
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 

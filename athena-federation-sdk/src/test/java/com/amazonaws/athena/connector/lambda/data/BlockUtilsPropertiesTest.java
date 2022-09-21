@@ -80,9 +80,15 @@ class BlockUtilsPropertiesTest {
         ValuesGenerator generator = new ValuesGenerator();
         FieldVector vector = generator.generateValues(field, allocator);
 
+        java.util.List lstF = new java.util.ArrayList();
+        lstF.add(field);
+
+        java.util.List lstV = new java.util.ArrayList();
+        lstV.add(vector);
+
         VectorSchemaRoot inputSchemaRoot = new VectorSchemaRoot(
-            new Schema(java.util.List.of(field)),
-            java.util.List.of(vector), 1
+            new Schema(lstF),
+            lstV, 1
         );
 
         int valueCount = inputSchemaRoot.getVector(0).getValueCount();

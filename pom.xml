@@ -9,9 +9,7 @@
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
     <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
         <aws-sdk.version>1.11.800</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
@@ -67,38 +65,15 @@
         <tag>HEAD</tag>
     </scm>
     <modules>
-        <module>athena-cloudwatch</module>
-        <module>athena-docdb</module>
-        <module>athena-redis</module>
-        <module>athena-aws-cmdb</module>
-        <module>athena-dynamodb</module>
-        <module>athena-hbase</module>
-        <module>athena-cloudwatch-metrics</module>
-        <module>athena-example</module>
-        <module>athena-elasticsearch</module>
         <module>athena-federation-sdk</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>
         <module>athena-federation-sdk-tools</module>
         <module>athena-mysql</module>
         <module>athena-postgresql</module>
-        <module>athena-redshift</module>
         <module>athena-udfs</module>
-        <module>athena-vertica</module>
-        <module>athena-timestream</module>
-        <module>athena-neptune</module>
+        <module>athena-redshift</module>
         <module>athena-federation-integ-test</module>
-        <module>athena-google-bigquery</module>
-        <module>athena-oracle</module>
-        <module>athena-sqlserver</module>
-        <module>athena-synapse</module>
-        <module>athena-datalakegen2</module>
-        <module>athena-snowflake</module>
-        <module>athena-teradata</module>
-        <module>athena-saphana</module>
-        <module>athena-cloudera-hive</module>
-        <module>athena-cloudera-impala</module>
-        <module>athena-hortonworks-hive</module>
     </modules>
     <dependencies>
         <dependency>
@@ -248,14 +223,15 @@
                 </executions>
             </plugin>
             <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <!-- required if you want to report source code names of property method parameters -->
-                    <compilerArgs>
-                        <arg>-parameters</arg>
-                    </compilerArgs>
-                </configuration>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <version>${maven.compiler.plugin.version}</version>
+              <configuration>
+                <release>8</release>
+                <compilerArgs>
+                    <arg>-parameters</arg>
+                </compilerArgs>
+              </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
