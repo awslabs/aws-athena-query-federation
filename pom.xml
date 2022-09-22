@@ -11,20 +11,34 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
         <aws-sdk.version>1.11.800</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
         <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
         <mockito.version>1.10.19</mockito.version>
         <junit.version>4.13.1</junit.version>
+        <jqwik.version>1.6.3</jqwik.version>
+        <assertj.version>3.22.0</assertj.version>
         <testng.version>7.0.0</testng.version>
         <fasterxml.jackson.version>2.13.4</fasterxml.jackson.version>
         <aws-cdk.version>1.89.0</aws-cdk.version>
-        <surefire.failsafe.version>3.0.0-M5</surefire.failsafe.version>
+        <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
         <log4j2Version>2.17.1</log4j2Version>
         <apache.arrow.version>9.0.0</apache.arrow.version>
         <netty.version>4.1.81.Final</netty.version>
     </properties>
+    <dependencyManagement>
+      <dependencies>
+              <dependency>
+                  <groupId>org.junit</groupId>
+                  <artifactId>junit-bom</artifactId>
+                  <version>5.9.0</version>
+                  <type>pom</type>
+                  <scope>import</scope>
+              </dependency>
+      </dependencies>
+    </dependencyManagement>
     <organization>
         <name>Amazon Web Services</name>
         <url>https://https://aws.amazon.com//</url>
@@ -93,9 +107,36 @@
             <version>${aws.lambda-java-core.version}</version>
         </dependency>
         <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>${jqwik.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -207,16 +248,19 @@
                 </executions>
             </plugin>
             <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <!-- required if you want to report source code names of property method parameters -->
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.failsafe.version}</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.apache.maven.surefire</groupId>
-                        <artifactId>surefire-junit4</artifactId>
-                        <version>${surefire.failsafe.version}</version>
-                    </dependency>
-                </dependencies>
                 <configuration>
                     <excludes>
                         <exclude>*IntegTest</exclude>
