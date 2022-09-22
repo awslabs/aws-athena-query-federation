@@ -59,6 +59,10 @@ Parameters:
     Description: "timeout period (in seconds) for Search queries used in the retrieval of documents from an index (default is 12 minutes)."
     Default: 720
     Type: Number
+  QueryScrollTimeout:
+    Description: "timeout period (in seconds) for scroll timeout used in the retrieval of documents (default is 60 seconds)."
+    Default: 60
+    Type: Number
   IsVPCAccess:
     AllowedValues:
        - true
@@ -91,6 +95,7 @@ Resources:
           domain_mapping: !Ref DomainMapping
           query_timeout_cluster: !Ref QueryTimeoutCluster
           query_timeout_search: !Ref QueryTimeoutSearch
+          query_scroll_timeout: !Ref QueryScrollTimeout
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.elasticsearch.ElasticsearchCompositeHandler"
       CodeUri: "./target/athena-elasticsearch-2022.38.1.jar"
