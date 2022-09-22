@@ -277,8 +277,8 @@ public abstract class JdbcRecordHandler
             case VARCHAR:
                 return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
                 {
-                    if (null != resultSet.getString(fieldName)) { // fixed char issue
-                        dst.value = resultSet.getString(fieldName).trim();
+                    if (null != resultSet.getString(fieldName)) {
+                        dst.value = resultSet.getString(fieldName);
                     }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
