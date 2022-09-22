@@ -60,13 +60,19 @@ class BlockUtilsPropertiesTest {
         return fieldsGenerator.field();
     }
 
+    // Using the default number of tries here (1000)
+    // With a higher recursion level, we will not be able to cover all possible combinations
+    // This will do a random sampling of scenarios
+    // The purpose of this test is to cover depth
     @Property
-    boolean setComplexValuesSetsAllFieldsCorrectlyGivenAnyInputShort(@ForAll("fieldHighRecursion") Field field) {
+    boolean setComplexValuesSetsAllFieldsCorrectlyGivenAnyInputHighRecursion(@ForAll("fieldHighRecursion") Field field) {
         return setComplexValuesSetsAllFieldsCorrectlyGivenAnyInput(field);
     }
 
+    // By setting a lower recursion level, we are able to cover all edge cases with 2000 tries
+    // The purpose of this test is to cover all the different combinations of fields (but with less depth)
     @Property(tries=2000, edgeCases=EdgeCasesMode.FIRST)
-    boolean setComplexValuesSetsAllFieldsCorrectlyGivenAnyInputComprehensive(@ForAll("fieldLowRecursion") Field field) {
+    boolean setComplexValuesSetsAllFieldsCorrectlyGivenAnyInputAllCombinations(@ForAll("fieldLowRecursion") Field field) {
         return setComplexValuesSetsAllFieldsCorrectlyGivenAnyInput(field);
     }
 

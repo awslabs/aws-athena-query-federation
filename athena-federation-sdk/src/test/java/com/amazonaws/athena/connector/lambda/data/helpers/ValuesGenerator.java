@@ -154,12 +154,7 @@ public class ValuesGenerator {
         }
 
         // randomly determine if the value should be null or not
-        boolean isNull = Arbitraries.integers().between(0, 5).sample() == 0 ? true : false;
-        if (!isNull) {
-            return false;
-        }
-
-        return true;
+        return Arbitraries.integers().between(0, 5).sample() == 0 ? true : false;
     }
 
     /*
