@@ -4,7 +4,7 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>2022.34.1</version>
+    <version>2022.38.1</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
@@ -29,15 +29,15 @@
         <netty.version>4.1.81.Final</netty.version>
     </properties>
     <dependencyManagement>
-      <dependencies>
-              <dependency>
-                  <groupId>org.junit</groupId>
-                  <artifactId>junit-bom</artifactId>
-                  <version>5.9.0</version>
-                  <type>pom</type>
-                  <scope>import</scope>
-              </dependency>
-      </dependencies>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>5.9.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
     </dependencyManagement>
     <organization>
         <name>Amazon Web Services</name>
