@@ -355,13 +355,50 @@ public class DynamoDBMetadataHandlerTest
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(HASH_KEY_NAME_METADATA), equalTo("col_4"));
         assertThat(res.getPartitions().getRowCount(), equalTo(2));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_NAME_METADATA), equalTo("col_5"));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0 AND #col_5 <= :v1)"));
+        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 BETWEEN :v0 AND :v1)"));
 
         ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_4", "col_4", "#col_5", "col_5");
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(startTime), ":v1", ItemUtils.toAttributeValue(endTime));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
+
+        // Note that while we were able to fix the inclusive upper and lower bound cases, we cannot fix mixed
+        // inclusion bounds for now.
+        // So this key condition is expected to fail when used against a real DDB instance with:
+        //    "KeyConditionExpressions must only contain one condition per key"
+        // However, we still test the mixed cases below to make sure that we don't accidentally generate the BETWEEN version even though
+        // this will cause customer queries with mixed inclusion to fail.
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+                true /* inclusive lowerbound */, endTime, false /* exclusive upperbound */));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0 AND #col_5 < :v1)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+              false /* exclusive lowerbound */, endTime, true /* inclusive upperbound*/));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0 AND #col_5 <= :v1)"));
+        }
+        // -------------------------------------------------------------------------
     }
 
     @Test
