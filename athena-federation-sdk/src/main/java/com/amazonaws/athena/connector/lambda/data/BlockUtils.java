@@ -719,14 +719,14 @@ public class BlockUtils
             //  eventually we will want to unify this behavior across the SDK and the rest of the connectors.
             //  We just want to limit the blast radius from this change for now
             if (Types.getMinorTypeForArrowType(keyField.getType()) != Types.MinorType.STRUCT) {
-                entryKeyValue = resolver.getFieldValue(keyField, entry.getKey());
+                entryKeyValue = resolver.getMapKey(keyField, entry.getKey());
             }
             writeAllValue((FieldWriter) writer.key(), keyField, allocator, pos, resolver, entryKeyValue, true);
 
             Object entryValValue = entry.getValue();
             if (entryValValue != null) {
                 if (Types.getMinorTypeForArrowType(valueField.getType()) != Types.MinorType.STRUCT) {
-                    entryValValue = resolver.getFieldValue(valueField, entryValValue);
+                    entryValValue = resolver.getMapValue(valueField, entryValValue);
                 }
                 writeAllValue((FieldWriter) writer.value(), valueField, allocator, pos, resolver, entryValValue, true);
             }
