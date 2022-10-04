@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connector.lambda.data.helpers;
 
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -82,60 +81,59 @@ public class ValuesGenerator {
     private static final Long MIN_TIME = Instant.ofEpochMilli(Long.MIN_VALUE).toEpochMilli();
     private static final Long MAX_TIME = Instant.ofEpochMilli(Long.MAX_VALUE).toEpochMilli();
 
-    public FieldVector generateValues(Field field, RootAllocator allocator) {
-        FieldVector vector = field.createVector(allocator);
-        generateValues(field, vector, 0, false);
+    public FieldVector generateValues(Field field, FieldVector vector, CustomFieldVector customVector) {
+        generateValues(field, vector, customVector, 0, false);
         return vector;
     }
 
-    public int generateValues(Field field, FieldVector vector, int length, boolean unique) {
+    public int generateValues(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         switch (vector.getMinorType()) {
             case BIGINT:
-                return setBigInt(field, vector, length, unique);
+                return setBigInt(field, vector, customVector, length, unique);
             case BIT:
-                return setBit(field, vector, length, unique);
+                return setBit(field, vector, customVector, length, unique);
             case DATEDAY:
-                return setDateDay(field, vector, length, unique);
+                return setDateDay(field, vector, customVector, length, unique);
             case DATEMILLI:
-                return setDateMilli(field, vector, length, unique);
+                return setDateMilli(field, vector, customVector, length, unique);
             case DECIMAL:
-                return setDecimal(field, vector, length, unique);
+                return setDecimal(field, vector, customVector, length, unique);
             case FLOAT4:
-                return setFloat4(field, vector, length, unique);
+                return setFloat4(field, vector, customVector, length, unique);
             case FLOAT8:
-                return setFloat8(field, vector, length, unique);
+                return setFloat8(field, vector, customVector, length, unique);
             case INT:
-                return setInt(field, vector, length, unique);
+                return setInt(field, vector, customVector, length, unique);
             case LIST:
-                return setList(field, vector, length, unique);
+                return setList(field, vector, customVector, length, unique);
             case MAP:
-                return setMap(field, vector, length, unique);
+                return setMap(field, vector, customVector, length, unique);
             case SMALLINT:
-                return setSmallInt(field, vector, length, unique);
+                return setSmallInt(field, vector, customVector, length, unique);
             case STRUCT:
-                return setStruct(field, vector, length, unique);
+                return setStruct(field, vector, customVector, length, unique);
             case TIMESTAMPMICROTZ:
-                return setTimestampMicroTz(field, vector, length, unique);
+                return setTimestampMicroTz(field, vector, customVector, length, unique);
             case TIMESTAMPMILLITZ:
-                return setTimestampMilliTz(field, vector, length, unique);
+                return setTimestampMilliTz(field, vector, customVector, length, unique);
             case TIMESTAMPNANOTZ:
-                return setTimestampNanoTz(field, vector, length, unique);
+                return setTimestampNanoTz(field, vector, customVector, length, unique);
             case TIMESTAMPSECTZ:
-                return setTimestampSecTz(field, vector, length, unique);
+                return setTimestampSecTz(field, vector, customVector, length, unique);
             case TINYINT:
-                return setTinyInt(field, vector, length, unique);
+                return setTinyInt(field, vector, customVector, length, unique);
             case UINT1:
-                return setUint1(field, vector, length, unique);
+                return setUint1(field, vector, customVector, length, unique);
             case UINT2:
-                return setUint2(field, vector, length, unique);
+                return setUint2(field, vector, customVector, length, unique);
             case UINT4:
-                return setUint4(field, vector, length, unique);
+                return setUint4(field, vector, customVector, length, unique);
             case UINT8:
-                return setUint8(field, vector, length, unique);
+                return setUint8(field, vector, customVector, length, unique);
             case VARBINARY:
-                return setVarBinary(field, vector, length, unique);
+                return setVarBinary(field, vector, customVector, length, unique);
             case VARCHAR:
-                return setVarChar(field, vector, length, unique);
+                return setVarChar(field, vector, customVector, length, unique);
             default:
                 throw new RuntimeException("Not yet implemented for typeId " + vector.getMinorType());
         }
@@ -161,14 +159,16 @@ public class ValuesGenerator {
      * Complex Types
      */
 
-    private int setStruct(Field field, FieldVector vector, int length, boolean unique) {
+    private int setStruct(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
         int maxChildSize = 0;
 
         for (int i = 0; i < vector.getChildrenFromFields().size(); i++) {
             Field childField = field.getChildren().get(i);
             FieldVector childVector = vector.getChildrenFromFields().get(i);
-            maxChildSize = Math.max(generateValues(childField, childVector, length, false), maxChildSize);
+            CustomFieldVector childCustomVector = new CustomFieldVector(childField);
+            maxChildSize = Math.max(generateValues(childField, childVector, childCustomVector, length, false), maxChildSize);
+            customVector.add(childCustomVector);
         }
 
         for (int i = position; i < maxChildSize; i++) {
@@ -178,7 +178,7 @@ public class ValuesGenerator {
         return vector.getValueCount();
     }
 
-    private int setList(Field field, FieldVector vector, int length, boolean unique) {
+    private int setList(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         assertThat(vector.getChildrenFromFields().size()).isEqualTo(1);
 
         int position = vector.getValueCount();
@@ -188,18 +188,21 @@ public class ValuesGenerator {
 
         int prevChildSize = childVector.getValueCount();
         for (int i = 0; i < length; i++) {
+            CustomFieldVector childCustomVector = null;
             if (!isNull(field)) {
+                childCustomVector = new CustomFieldVector(childField);
                 ((ListVector) vector).startNewValue(position + i);
-                int newChildSize = generateValues(childField, childVector, 0, false);
+                int newChildSize = generateValues(childField, childVector, childCustomVector, 0, false);
                 ((ListVector) vector).endValue(position + i, newChildSize - prevChildSize);
                 prevChildSize = newChildSize;
             }
+            customVector.add(childCustomVector);
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setMap(Field field, FieldVector vector, int length, boolean unique) {
+    private int setMap(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         assertThat(vector.getChildrenFromFields().size()).isEqualTo(1);
 
         int position = vector.getValueCount();
@@ -222,8 +225,11 @@ public class ValuesGenerator {
                 keysValuesLength = 2; // special case if key is of binary/bit type
             }
 
-            generateValues(keysField, keys, keysValuesLength, true);
-            generateValues(valuesField, values, keysValuesLength, false);
+            CustomFieldVector keysCustomVector = new CustomFieldVector(keysField);
+            CustomFieldVector valuesCustomVector = new CustomFieldVector(valuesField);
+            generateValues(keysField, keys, keysCustomVector, keysValuesLength, true);
+            generateValues(valuesField, values, valuesCustomVector, keysValuesLength, false);
+            customVector.addMap(keysCustomVector, valuesCustomVector);
             ((MapVector) vector).endValue(position+i, keysValuesLength);
         }
         vector.setValueCount(position+length);
@@ -239,7 +245,7 @@ public class ValuesGenerator {
      * Primitive Types
      */
 
-    private int setBigInt(Field field, FieldVector vector, int length, boolean unique) {
+    private int setBigInt(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -253,12 +259,13 @@ public class ValuesGenerator {
             } else {
                 ((BigIntVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setBit(Field field, FieldVector vector, int length, boolean unique) {
+    private int setBit(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -273,13 +280,14 @@ public class ValuesGenerator {
             else {
                 ((BitVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setDateDay(Field field, FieldVector vector, int length, boolean unique) {
+    private int setDateDay(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -295,13 +303,14 @@ public class ValuesGenerator {
             else {
                 ((DateDayVector) vector).setSafe(i+position, (int) items.get(i).toEpochDay());
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setDateMilli(Field field, FieldVector vector, int length, boolean unique) {
+    private int setDateMilli(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -317,13 +326,14 @@ public class ValuesGenerator {
             else {
                 ((DateMilliVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setDecimal(Field field, FieldVector vector, int length, boolean unique) {
+    private int setDecimal(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
         length = getLength(length);
         int scale = ((DecimalVector) vector).getScale();
@@ -342,13 +352,14 @@ public class ValuesGenerator {
             } else {
                 ((DecimalVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setFloat4(Field field, FieldVector vector, int length, boolean unique) {
+    private int setFloat4(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -362,13 +373,14 @@ public class ValuesGenerator {
             } else {
                 ((Float4Vector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setFloat8(Field field, FieldVector vector, int length, boolean unique) {
+    private int setFloat8(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -382,13 +394,14 @@ public class ValuesGenerator {
             } else {
                 ((Float8Vector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setInt(Field field, FieldVector vector, int length, boolean unique) {
+    protected int setInt(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -403,12 +416,13 @@ public class ValuesGenerator {
             else {
                 ((IntVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setSmallInt(Field field, FieldVector vector, int length, boolean unique) {
+    private int setSmallInt(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -423,12 +437,13 @@ public class ValuesGenerator {
             else {
                 ((SmallIntVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setTimestampMicroTz(Field field, FieldVector vector, int length, boolean unique) {
+    private int setTimestampMicroTz(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -442,13 +457,14 @@ public class ValuesGenerator {
             } else {
                 ((TimeStampMicroTZVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setTimestampMilliTz(Field field, FieldVector vector, int length, boolean unique) {
+    private int setTimestampMilliTz(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -462,13 +478,14 @@ public class ValuesGenerator {
             } else {
                 ((TimeStampMilliTZVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setTimestampNanoTz(Field field, FieldVector vector, int length, boolean unique) {
+    private int setTimestampNanoTz(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -482,13 +499,14 @@ public class ValuesGenerator {
             } else {
                 ((TimeStampNanoTZVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setTimestampSecTz(Field field, FieldVector vector, int length, boolean unique) {
+    private int setTimestampSecTz(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -502,13 +520,14 @@ public class ValuesGenerator {
             } else {
                 ((TimeStampSecTZVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setTinyInt(Field field, FieldVector vector, int length, boolean unique) {
+    private int setTinyInt(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -523,18 +542,19 @@ public class ValuesGenerator {
             else {
                 ((TinyIntVector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setVarChar(Field field, FieldVector vector, int length, boolean unique) {
+    private int setVarChar(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
         List<String> items = unique ?
-            Arbitraries.strings().list().ofSize(length).uniqueElements().sample() :
-            Arbitraries.strings().list().ofSize(length).sample();
+            Arbitraries.strings().ofMinLength(1).list().ofSize(length).uniqueElements().sample() :
+            Arbitraries.strings().ofMinLength(1).list().ofSize(length).sample();
 
         for (int i = 0; i < length; i++) {
             if (isNull(field)) {
@@ -543,13 +563,14 @@ public class ValuesGenerator {
             else {
                 ((VarCharVector) vector).setSafe(i+position, items.get(i).getBytes());
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setUint1(Field field, FieldVector vector, int length, boolean unique) {
+    private int setUint1(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -563,12 +584,13 @@ public class ValuesGenerator {
             } else {
                 ((UInt1Vector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setUint2(Field field, FieldVector vector, int length, boolean unique) {
+    private int setUint2(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -582,12 +604,13 @@ public class ValuesGenerator {
             } else {
                 ((UInt2Vector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setUint4(Field field, FieldVector vector, int length, boolean unique) {
+    private int setUint4(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -601,12 +624,13 @@ public class ValuesGenerator {
             } else {
                 ((UInt4Vector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setUint8(Field field, FieldVector vector, int length, boolean unique) {
+    private int setUint8(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -620,12 +644,13 @@ public class ValuesGenerator {
             } else {
                 ((UInt8Vector) vector).setSafe(i+position, items.get(i));
             }
+            customVector.add(vector.getObject(i+position));
         }
         vector.setValueCount(position + length);
         return vector.getValueCount();
     }
 
-    private int setVarBinary(Field field, FieldVector vector, int length, boolean unique) {
+    private int setVarBinary(Field field, FieldVector vector, CustomFieldVector customVector, int length, boolean unique) {
         int position = vector.getValueCount();
 
         length = getLength(length);
@@ -640,6 +665,7 @@ public class ValuesGenerator {
             else {
                 ((VarBinaryVector) vector).setSafe(i+position, items.get(i).getBytes());
             }
+            customVector.add(vector.getObject(i+position));
         }
 
         vector.setValueCount(position + length);
