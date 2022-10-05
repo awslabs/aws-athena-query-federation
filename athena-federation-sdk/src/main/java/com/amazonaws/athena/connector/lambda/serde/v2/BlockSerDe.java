@@ -90,9 +90,7 @@ public final class BlockSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption();
-                option.metadataVersion = MetadataVersion.V4;
-                option.write_legacy_ipc_format = true;
+                IpcOption option = new IpcOption(true, MetadataVersion.V4);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch, option);
                 return out.toByteArray();

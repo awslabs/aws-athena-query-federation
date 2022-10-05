@@ -67,9 +67,7 @@ public final class SchemaSerDe
         public void doSerialize(Schema schema, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            IpcOption option = new IpcOption();
-            option.metadataVersion = MetadataVersion.V4;
-            option.write_legacy_ipc_format = true;
+            IpcOption option = new IpcOption(true, MetadataVersion.V4);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), schema, option);
             jgen.writeBinary(out.toByteArray());

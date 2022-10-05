@@ -34,9 +34,14 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchScrollRequest;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
@@ -68,7 +73,11 @@ public class ElasticsearchRecordHandler
 
     // Env. variable that holds the query timeout period for the Search queries.
     private static final String QUERY_TIMEOUT_SEARCH = "query_timeout_search";
+    // Env. variable that holds the scroll timeout for the Search queries.
+    private static final String SCROLL_TIMEOUT = "query_scroll_timeout";
+
     private final long queryTimeout;
+    private final long scrollTimeout;
 
     // Pagination batch size (100 documents).
     private static final int QUERY_BATCH_SIZE = 100;
@@ -85,17 +94,19 @@ public class ElasticsearchRecordHandler
         this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
                 .equalsIgnoreCase("true"));
         this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_SEARCH));
+        this.scrollTimeout = Strings.isNullOrEmpty(getEnv(SCROLL_TIMEOUT)) ? 60L : Long.parseLong(getEnv(SCROLL_TIMEOUT));
     }
 
     @VisibleForTesting
     protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         AwsRestHighLevelClientFactory clientFactory, long queryTimeout)
+                                         AwsRestHighLevelClientFactory clientFactory, long queryTimeout, long scrollTimeout)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
         this.queryTimeout = queryTimeout;
+        this.scrollTimeout = scrollTimeout;
     }
 
     /**
@@ -147,38 +158,45 @@ public class ElasticsearchRecordHandler
                 GeneratedRowWriter rowWriter = createFieldExtractors(recordsRequest);
 
                 // Create a new search-source injected with the projection, predicate, and the pagination batch size.
-                SearchSourceBuilder searchSource = new SearchSourceBuilder().size(QUERY_BATCH_SIZE)
+                SearchSourceBuilder searchSource = new SearchSourceBuilder()
+                        .size(QUERY_BATCH_SIZE)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
                         .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
-                // Create a new search-request for the specified index.
-                SearchRequest searchRequest = new SearchRequest(index).preference(shard);
-                int hitsNum;
-                int currPosition = 0;
-                do {
-                    // Process the search request injecting the search-source, and setting the from position
-                    // used for pagination of results.
-                    SearchResponse searchResponse = client
-                            .getDocuments(searchRequest.source(searchSource.from(currPosition)));
 
-                    // Throw on query timeout.
+                //init scroll
+                Scroll scroll = new Scroll(TimeValue.timeValueSeconds(this.scrollTimeout));
+                // Create a new search-request for the specified index.
+                SearchRequest searchRequest = new SearchRequest(index)
+                        .preference(shard)
+                        .scroll(scroll)
+                        .source(searchSource.from(0));
+
+                //Read the returned scroll id, which points to the search context that’s being kept alive and will be needed in the following search scroll call
+                SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+
+                while (searchResponse.getHits() != null
+                        && searchResponse.getHits().getHits() != null
+                        && searchResponse.getHits().getHits().length > 0
+                        && queryStatusChecker.isQueryRunning()) {
+                    Iterator<SearchHit> finalIterator = searchResponse.getHits().iterator();
+                    while (finalIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
+                        ++numRows;
+                        spiller.writeRows((Block block, int rowNum) ->
+                                rowWriter.writeRow(block, rowNum, client.getDocument(finalIterator.next())) ? 1 : 0);
+                    }
+
+                    //prep for next hits and keep track of scroll id.
+                    SearchScrollRequest scrollRequest = new SearchScrollRequest(searchResponse.getScrollId()).scroll(scroll);
+                    searchResponse = client.scroll(scrollRequest, RequestOptions.DEFAULT);
                     if (searchResponse.isTimedOut()) {
                         throw new RuntimeException("Request for index (" + index + ") " + shard + " timed out.");
                     }
+                }
 
-                    // Increment current position to next batch of results.
-                    currPosition += QUERY_BATCH_SIZE;
-                    // Process hits.
-                    Iterator<SearchHit> hitIterator = searchResponse.getHits().iterator();
-                    hitsNum = searchResponse.getHits().getHits().length;
-
-                    while (hitIterator.hasNext() && queryStatusChecker.isQueryRunning()) {
-                        ++numRows;
-                        spiller.writeRows((Block block, int rowNum) ->
-                                rowWriter.writeRow(block, rowNum, client.getDocument(hitIterator.next())) ? 1 : 0);
-                    }
-                    // if hitsNum < QUERY_BATCH_SIZE, then this is the last batch of documents.
-                } while (hitsNum == QUERY_BATCH_SIZE && queryStatusChecker.isQueryRunning());
+                ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
+                clearScrollRequest.addScrollId(searchResponse.getScrollId());
+                client.clearScroll(clearScrollRequest, RequestOptions.DEFAULT);
             }
             catch (IOException error) {
                 throw new RuntimeException("Error sending search query: " + error.getMessage(), error);

@@ -60,9 +60,7 @@ public class RecordBatchSerDe
             throws IOException
     {
         try {
-            IpcOption option = new IpcOption();
-            option.metadataVersion = MetadataVersion.V4;
-            option.write_legacy_ipc_format = true;
+            IpcOption option = new IpcOption(true, MetadataVersion.V4);
             MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), batch, option);
         }
         finally {

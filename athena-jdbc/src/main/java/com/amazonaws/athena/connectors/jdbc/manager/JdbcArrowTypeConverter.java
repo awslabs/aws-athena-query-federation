@@ -45,7 +45,7 @@ public final class JdbcArrowTypeConverter
      */
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
-        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeForJdbcField(
+        ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
                 new JdbcFieldInfo(jdbcType, precision, scale),
                 null);
 

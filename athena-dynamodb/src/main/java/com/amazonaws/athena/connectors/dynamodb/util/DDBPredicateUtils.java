@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb.util;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -181,6 +182,34 @@ public class DDBPredicateUtils
         return aliasColumn(columnName) + " " + operator + " " + valueName;
     }
 
+    private static void validateColumnRange(Range range)
+    {
+        if (!range.getLow().isLowerUnbounded()) {
+            switch (range.getLow().getBound()) {
+                case ABOVE:
+                    break;
+                case EXACTLY:
+                    break;
+                case BELOW:
+                    throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                default:
+                    throw new AssertionError("Unhandled lower bound: " + range.getLow().getBound());
+            }
+        }
+        if (!range.getHigh().isUpperUnbounded()) {
+            switch (range.getHigh().getBound()) {
+                case ABOVE:
+                    throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                case EXACTLY:
+                    break;
+                case BELOW:
+                    break;
+                default:
+                    throw new AssertionError("Unhandled upper bound: " + range.getHigh().getBound());
+            }
+        }
+    }
+
     /**
      * Generates a filter expression for a single column given a {@link ValueSet} predicate for that column.
      *
@@ -212,41 +241,38 @@ public class DDBPredicateUtils
                 checkState(!range.isAll()); // Already checked
                 if (range.isSingleValue()) {
                     singleValues.add(range.getLow().getValue());
+                    continue;
+                }
+                validateColumnRange(range);
+                List<String> rangeConjuncts = new ArrayList<>();
+                if (range.getLow().getBound().equals(Marker.Bound.EXACTLY) && range.getHigh().getBound().equals(Marker.Bound.EXACTLY)) {
+                    String startBetweenPredicate = toPredicate(originalColumnName, "BETWEEN", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata);
+                    String endBetweenPredicate = valueNameProducer.getNext();
+                    bindValue(originalColumnName, range.getHigh().getValue(), accumulator, recordMetadata);
+                    rangeConjuncts.add(startBetweenPredicate);
+                    rangeConjuncts.add(endBetweenPredicate);
                 }
                 else {
-                    List<String> rangeConjuncts = new ArrayList<>();
-                    if (!range.getLow().isLowerUnbounded()) {
-                        switch (range.getLow().getBound()) {
-                            case ABOVE:
-                                rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                                break;
-                            case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                                break;
-                            case BELOW:
-                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
-                            default:
-                                throw new AssertionError("Unhandled lower bound: " + range.getLow().getBound());
-                        }
+                    switch (range.getLow().getBound()) {
+                        case ABOVE:
+                            rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                            break;
+                        case EXACTLY:
+                            rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                            break;
                     }
-                    if (!range.getHigh().isUpperUnbounded()) {
-                        switch (range.getHigh().getBound()) {
-                            case ABOVE:
-                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
-                            case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                                break;
-                            case BELOW:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                                break;
-                            default:
-                                throw new AssertionError("Unhandled upper bound: " + range.getHigh().getBound());
-                        }
+                    switch (range.getHigh().getBound()) {
+                        case EXACTLY:
+                            rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                            break;
+                        case BELOW:
+                            rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                            break;
                     }
-                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
-                    checkState(!rangeConjuncts.isEmpty());
-                    disjuncts.add("(" + AND_JOINER.join(rangeConjuncts) + ")");
                 }
+                // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
+                checkState(!rangeConjuncts.isEmpty());
+                disjuncts.add("(" + AND_JOINER.join(rangeConjuncts) + ")");
             }
         }
         else {

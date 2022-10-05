@@ -65,9 +65,7 @@ public final class ArrowRecordBatchSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption();
-                option.write_legacy_ipc_format = true;
-                option.metadataVersion = MetadataVersion.V4;
+                IpcOption option = new IpcOption(true, MetadataVersion.V4);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), arrowRecordBatch, option);
                 jgen.writeBinary(out.toByteArray());

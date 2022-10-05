@@ -520,7 +520,7 @@ public class DynamoDBRecordHandlerTest
         List<Column> columns = new ArrayList<>();
         columns.add(new Column().withName("col0").withType("string"));
         columns.add(new Column().withName("outermap").withType("struct<list:array<string>>"));
-        columns.add(new Column().withName("structcol").withType("struct<structKey:STRING,struct<key1:STRING,key2:STRING>>"));
+        columns.add(new Column().withName("structcol").withType("struct<structKey:struct<key1:STRING,key2:STRING>>"));
 
         Map<String, String> param = ImmutableMap.of(
                 SOURCE_TABLE_PROPERTY, TEST_TABLE6,
