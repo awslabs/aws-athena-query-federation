@@ -189,6 +189,16 @@ class ArrowToArrowResolver implements FieldResolver {
         }
         return originalValue;
     }
+
+    @Override
+    public Object getMapKey(Field field, Object originalValue) {
+        return getFieldValue(field, originalValue);
+    }
+
+    @Override
+    public Object getMapValue(Field field, Object originalValue) {
+        return getFieldValue(field, originalValue);
+    }
 }
 
 
