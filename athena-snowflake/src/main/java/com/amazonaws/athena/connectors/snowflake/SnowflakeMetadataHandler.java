@@ -151,24 +151,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        Map<String, String> properties = System.getenv();
         /**
-         * Customized environment variable "pagecount" for pagination based partition. It is currently set to 500000.
+         * "PARTITION_RECORD_COUNT" is currently set to 500000.
          * It means there will be 500000 rows per partition. The number of partition will be total number of rows divided by
-         * pagecount variable value.
-         */
-        String pagecount = properties.get("pagecount");
-        Long totalpagecount = Long.valueOf(pagecount);
-
-        /**
-         * Customized environment variable "partitionlimit" to limit the number of partitions.
+         * PARTITION_RECORD_COUNT variable value.
+         * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
          * this is to handle timeout issues because of huge partitions
          */
-        String partitionlimit = properties.get("partitionlimit");
-        Long totalPartitionlimit = Long.valueOf(partitionlimit);
-
-        LOGGER.info(" Total Partition Limit" + totalPartitionlimit);
-        LOGGER.info(" Total Page  Count" +  totalpagecount);
+        LOGGER.info(" Total Partition Limit" + SnowflakeConstants.MAX_PARTITION_COUNT);
+        LOGGER.info(" Total Page  Count" +  SnowflakeConstants.PARTITION_RECORD_COUNT);
         long offset = 0;
         double limit = 0;
         double totalRecordCount = 0;
@@ -191,30 +182,41 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 while (rs.next()) {
                     totalRecordCount = rs.getInt(1);
                 }
-                double limitValue = totalRecordCount / totalpagecount;
+                double limitValue = totalRecordCount / SnowflakeConstants.PARTITION_RECORD_COUNT;
                 limit = (int) Math.ceil(limitValue);
                 if (totalRecordCount > 0) {
-                    // if number of partitions are more than defined limit as in environment variable "partitionlimit"
-                    // it will be treated as a single partition.
-                    if (limit > totalPartitionlimit) {
-                        final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + totalRecordCount + "-offset-" + offset;
-                        LOGGER.info("partitionVal {} ", partitionVal);
-                        blockWriter.writeRows((Block block, int rowNum) ->
-                        {
-                            block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
-                            return 1;
-                        });
+                    // if number of partitions are more than defined limit "MAX_PARTITION_COUNT"
+                    // it will do maximum 50 partitions,49 partitions will have 500000 records each and last partition will have the remaining number of records.
+                    if (limit > SnowflakeConstants.MAX_PARTITION_COUNT) {
+                        for (int i = 1; i <= SnowflakeConstants.MAX_PARTITION_COUNT; i++) {
+                            int partitionRecord = SnowflakeConstants.PARTITION_RECORD_COUNT;
+                            if (i > 1) {
+                                offset = offset + SnowflakeConstants.PARTITION_RECORD_COUNT;
+                            }
+                            if (i == SnowflakeConstants.MAX_PARTITION_COUNT) {
+                                //Updating partitionRecord variable to display the remaining records in the last partition.
+                                //we get the value by subtracting the records displayed till 49th partition from the total number of records.
+                                partitionRecord = (int) totalRecordCount - (SnowflakeConstants.PARTITION_RECORD_COUNT * (SnowflakeConstants.MAX_PARTITION_COUNT - 1));
+                            }
+                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + partitionRecord + "-offset-" + offset;
+                            LOGGER.info("partitionVal {} ", partitionVal);
+                            blockWriter.writeRows((Block block, int rowNum) ->
+                            {
+                                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
+                                return 1;
+                            });
+                        }
                     }
                     else {
                         /**
                          * Custom pagination based partition logic will be applied with limit and offset clauses.
-                         * the partition values we are setting the limit and offste values like p-limit-3000-offset-0
+                         * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
                          */
                         for (int i = 1; i <= limit; i++) {
                             if (i > 1) {
-                                offset = offset + totalpagecount;
+                                offset = offset + SnowflakeConstants.PARTITION_RECORD_COUNT;
                             }
-                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + pagecount + "-offset-" + offset;
+                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + SnowflakeConstants.PARTITION_RECORD_COUNT + "-offset-" + offset;
                             LOGGER.info("partitionVal {} ", partitionVal);
                             blockWriter.writeRows((Block block, int rowNum) ->
                             {
