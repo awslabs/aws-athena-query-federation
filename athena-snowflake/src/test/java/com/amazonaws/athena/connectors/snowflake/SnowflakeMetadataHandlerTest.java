@@ -181,7 +181,7 @@ public class SnowflakeMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, constraints, partitionSchema, partitionCols);
         PreparedStatement preparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(SnowflakeMetadataHandler.COUNT_RECORDS_QUERY)).thenReturn(preparedStatement);
-        //By changing the value of variable totalRecordCount we can check the maximum number of partitions supported by the table dynamically
+        //By changing the value of variable totalActualRecordCount,we can check the maximum number of partitions supported by the table dynamically
         double totalActualRecordCount = 2500;
         String[] columns = {"partition"};
         int[] types = {Types.VARCHAR};
