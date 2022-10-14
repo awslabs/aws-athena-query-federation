@@ -63,7 +63,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.db2.Db2MuxCompositeHandler"
-      CodeUri: "./target/athena-db2-2022.2.1.jar"
+      CodeUri: "./target/athena-db2-2022.39.1.jar"
       Description: "Enables Amazon Athena to communicate with DB2 using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
