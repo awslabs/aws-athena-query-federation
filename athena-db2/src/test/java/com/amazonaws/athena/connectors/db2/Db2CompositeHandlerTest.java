@@ -46,12 +46,17 @@ public class Db2CompositeHandlerTest
 
     @Test
     public void Db2CompositeHandlerTest() {
-        DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", Db2Constants.NAME,
-                "dbtwo://jdbc:db2://hostname:50001/dummydatabase:user=dummyuser;password=dummypwd");
-        PowerMockito.mockStatic(JDBCUtil.class);
-        PowerMockito.when(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME)).thenReturn(databaseConnectionConfig);
-        db2CompositeHandler = new Db2CompositeHandler();
-        logger.info("Db2CompositeHandler: {}", db2CompositeHandler);
-        Assert.assertTrue(db2CompositeHandler instanceof Db2CompositeHandler);
+        Exception ex = null;
+        try {
+            DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog1", Db2Constants.NAME,
+                    "dbtwo://jdbc:db2://hostname:50001/dummydatabase:user=dummyuser;password=dummypwd");
+            PowerMockito.mockStatic(JDBCUtil.class);
+            PowerMockito.when(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME)).thenReturn(databaseConnectionConfig);
+            db2CompositeHandler = new Db2CompositeHandler();
+            logger.info("Db2CompositeHandler: {}", db2CompositeHandler);
+        } catch (Exception e) {
+            ex = e;
+        }
+        Assert.assertEquals(null, ex);
     }
 }
