@@ -36,10 +36,16 @@ public class FieldsGenerator {
 
     private int counter = 0; // use to guarentee field names are unique for structs
     private boolean DEFAULT_NULLABLE = true;
-    private int max_recursion_depth;
+    private boolean allowComplexKeys = true; // whether key for maps can be complex values
+    private int maxRecursionDepth;
 
-    public FieldsGenerator(int max_recursion_depth) {
-        this.max_recursion_depth = max_recursion_depth;
+    public FieldsGenerator(int maxRecursionDepth) {
+        this.maxRecursionDepth = maxRecursionDepth;
+    }
+
+    public FieldsGenerator(int maxRecursionDepth, boolean allowComplexKeys) {
+        this.maxRecursionDepth = maxRecursionDepth;
+        this.allowComplexKeys = allowComplexKeys;
     }
 
     @Provide
@@ -54,7 +60,7 @@ public class FieldsGenerator {
                     String fieldName = name;
                     if (name == null) {
                         counter++;
-                        fieldName = Arbitraries.strings().sample() + counter;
+                        fieldName = Arbitraries.strings().ofMinLength(1).sample() + counter;
                     }
                     return Arbitraries.just(new Field(fieldName, fieldType, children));
                 })
@@ -124,7 +130,7 @@ public class FieldsGenerator {
     }
 
     private Arbitrary<FieldType> fieldType(int depth, boolean nullable) {
-        if (depth >= max_recursion_depth) {
+        if (depth >= maxRecursionDepth) {
             return primitiveFieldType(nullable);
         }
 
@@ -134,7 +140,7 @@ public class FieldsGenerator {
         );
     }
 
-    private Arbitrary<java.util.List<Field>> fieldChildren(FieldType parentType, int depth) {
+    private Arbitrary<List<Field>> fieldChildren(FieldType parentType, int depth) {
         if (parentType.getType().equals(ArrowType.List.INSTANCE)) {
             return field(depth, null, DEFAULT_NULLABLE).list().ofSize(1);
         }
@@ -144,7 +150,15 @@ public class FieldsGenerator {
         }
 
         if (parentType.getType().getTypeID().equals(ArrowType.Map.TYPE_TYPE)) {
-            Arbitrary<Field> keyField = field(depth, MapVector.KEY_NAME, false);
+            Arbitrary<Field> keyField = null;
+            if (allowComplexKeys) {
+                keyField = field(depth, MapVector.KEY_NAME, false);
+            }
+            else {
+                // If maps of keys cannot be complex values, pass in maxRecursionDepth
+                // to guarantee field will not be complex
+                keyField = field(maxRecursionDepth, MapVector.KEY_NAME, false);
+            }
             Arbitrary<Field> valueField = field(depth, MapVector.VALUE_NAME, DEFAULT_NULLABLE);
 
             FieldType structType = new FieldType(false, ArrowType.Struct.INSTANCE, null);

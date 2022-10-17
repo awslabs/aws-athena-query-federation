@@ -342,6 +342,10 @@ public final class DDBTypeUtils
     public static List<Object> coerceListToExpectedType(Object value, Field field, DDBRecordMetadata recordMetadata)
             throws RuntimeException
     {
+        if (value == null) {
+            return null;
+        }
+
         Field childField = field.getChildren().get(0);
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(childField.getType());
 

@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.data;
  */
 
 import com.amazonaws.athena.connector.lambda.data.helpers.ValuesGenerator;
+import com.amazonaws.athena.connector.lambda.data.helpers.CustomFieldVector;
 import com.amazonaws.athena.connector.lambda.data.helpers.FieldsGenerator;
 
 import org.apache.arrow.vector.complex.MapVector;
@@ -42,22 +43,33 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 
-class BlockUtilsPropertiesTest {
+public class BlockUtilsPropertiesTest {
 
     private static final Logger logger = LoggerFactory.getLogger(BlockUtilsTest.class);
 
-    static final RootAllocator allocator = new RootAllocator();
-
     @Provide
-    private Arbitrary<Field> fieldLowRecursion() {
+    protected Arbitrary<Field> fieldLowRecursion() {
         FieldsGenerator fieldsGenerator = new FieldsGenerator(2);
         return fieldsGenerator.field();
     }
 
     @Provide
-    private Arbitrary<Field> fieldHighRecursion() {
+    protected Arbitrary<Field> fieldHighRecursion() {
         FieldsGenerator fieldsGenerator = new FieldsGenerator(5);
         return fieldsGenerator.field();
+    }
+
+    protected FieldResolver getFieldResolver(Schema schema) {
+        return new ArrowToArrowResolver();
+    }
+
+    protected Object getValue(FieldVector vector, CustomFieldVector customFieldVector, int pos, FieldResolver resolver) {
+        if (vector.getMinorType().equals(MinorType.MAP)) {
+            return resolver.getFieldValue(vector.getField(), vector.getObject(pos));
+        }
+        else {
+            return vector.getObject(pos);
+        }
     }
 
     // Using the default number of tries here (1000)
@@ -78,31 +90,30 @@ class BlockUtilsPropertiesTest {
 
     private boolean setComplexValuesSetsAllFieldsCorrectlyGivenAnyInput(Field field) {
         ValuesGenerator generator = new ValuesGenerator();
-        FieldVector vector = generator.generateValues(field, allocator);
+        RootAllocator allocator = new RootAllocator();
+        FieldVector vector = field.createVector(allocator);
+        CustomFieldVector customFieldVector = new CustomFieldVector(field);
+        generator.generateValues(field, vector, customFieldVector);
 
-        VectorSchemaRoot inputSchemaRoot = new VectorSchemaRoot(
-            new Schema(java.util.List.of(field)),
-            java.util.List.of(vector), 1
-        );
+        Schema schema = new Schema(java.util.List.of(field));
+        VectorSchemaRoot inputSchemaRoot = new VectorSchemaRoot(schema, java.util.List.of(vector), 1);
 
         int valueCount = inputSchemaRoot.getVector(0).getValueCount();
         VectorSchemaRoot outputSchemaRoot = VectorSchemaRoot.create(inputSchemaRoot.getSchema(), allocator);
         outputSchemaRoot.setRowCount(1);
-        ArrowToArrowResolver resolver = new ArrowToArrowResolver();
-
+        FieldResolver resolver = getFieldResolver(schema);
         for (int i = 0; i < valueCount; i++) {
             if (field.getType().isComplex()) {
                 BlockUtils.setComplexValue(
-                    outputSchemaRoot.getVector(0), i, resolver, getValue(vector, i, resolver)
+                    outputSchemaRoot.getVector(0), i, resolver, getValue(vector, customFieldVector, i, resolver)
                 );
             }
             else {
-                BlockUtils.setValue(outputSchemaRoot.getVector(0), i, getValue(vector, i, resolver));
+                BlockUtils.setValue(outputSchemaRoot.getVector(0), i, getValue(vector, customFieldVector, i, resolver));
             }
         }
 
         outputSchemaRoot.getVector(0).setValueCount(valueCount);
-
         if (inputSchemaRoot.equals(outputSchemaRoot)) {
             logger.debug(
                 "Matched for Schema:\n\t"
@@ -127,15 +138,6 @@ class BlockUtilsPropertiesTest {
         }
 
         return true;
-    }
-
-    private Object getValue(FieldVector vector, int pos, FieldResolver resolver) {
-        if (vector.getMinorType().equals(MinorType.MAP)) {
-            return resolver.getFieldValue(vector.getField(), vector.getObject(pos));
-        }
-        else {
-            return vector.getObject(pos);
-        }
     }
 }
 
@@ -188,7 +190,15 @@ class ArrowToArrowResolver implements FieldResolver {
         return originalValue;
     }
 
+    @Override
+    public Object getMapKey(Field field, Object originalValue) {
+        return getFieldValue(field, originalValue);
+    }
 
+    @Override
+    public Object getMapValue(Field field, Object originalValue) {
+        return getFieldValue(field, originalValue);
+    }
 }
 
 
