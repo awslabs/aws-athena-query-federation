@@ -47,4 +47,4 @@ else
     mvn clean install
 fi
 
-java -cp target/athena-federation-sdk-tools-1.0-withdep.jar com.amazonaws.athena.connector.validation.ConnectorValidator $@
+java -cp target/athena-federation-sdk-tools-2022.39.1-withdep.jar com.amazonaws.athena.connector.validation.ConnectorValidator $@
