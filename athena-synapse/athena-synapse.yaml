@@ -12,7 +12,7 @@ Metadata:
       - athena-federation
       - jdbc
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.39.1
+    SemanticVersion: 2022.42.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -62,7 +62,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.synapse.SynapseMuxCompositeHandler"
-      CodeUri: "./target/athena-synapse-2022.39.1.jar"
+      CodeUri: "./target/athena-synapse-2022.42.1.jar"
       Description: "Enables Amazon Athena to communicate with SYNPASE using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
