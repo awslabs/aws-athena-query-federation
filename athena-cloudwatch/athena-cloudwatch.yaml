@@ -46,8 +46,8 @@ Parameters:
     Default: ""
 
 Conditions:
- HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
- HasLambdaRole: !Not [!Equals [!Ref LambdaRole, ""]]
+  HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
+  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
 
 Resources:
   ConnectorConfig:
@@ -66,10 +66,10 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Role: !If [HasLambdaRole, !Ref LambdaRole, !GetAtt FunctionRole.Arn]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
 
   FunctionRole:
-    Condition: !Not HasLambdaRole
+    Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
