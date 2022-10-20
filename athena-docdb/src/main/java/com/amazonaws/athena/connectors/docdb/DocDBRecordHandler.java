@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 
@@ -129,12 +130,18 @@ public class DocDBRecordHandler
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        TableName tableName = recordsRequest.getTableName();
+        TableName tableNameObj = recordsRequest.getTableName();
+        String schemaName = tableNameObj.getSchemaName();
+        String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
+            SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
+
+        logger.info("Resolved tableName to: {}", tableName);
+
         Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
 
         MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db = client.getDatabase(tableName.getSchemaName());
-        MongoCollection<Document> table = db.getCollection(tableName.getTableName());
+        MongoDatabase db = client.getDatabase(schemaName);
+        MongoCollection<Document> table = db.getCollection(tableName);
 
         Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
 
