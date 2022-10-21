@@ -52,5 +52,6 @@ public class Db2CompositeHandlerTest
         PowerMockito.when(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME)).thenReturn(databaseConnectionConfig);
         db2CompositeHandler = new Db2CompositeHandler();
         logger.info("Db2CompositeHandler: {}", db2CompositeHandler);
+        Assert.assertTrue(db2CompositeHandler instanceof Db2CompositeHandler);
     }
 }
