@@ -49,7 +49,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -130,13 +129,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), getSchemaList(connection, Db2Constants.QRY_TO_LIST_SCHEMAS));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
+        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), getSchemaList(connection, Db2Constants.QRY_TO_LIST_SCHEMAS));
     }
 
     /**
@@ -149,15 +144,11 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     @Override
     public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest)
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-            List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
-            List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
+        List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
+        List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
+        return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
     }
 
     /**
@@ -171,16 +162,12 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
     {
-        try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
-            TableName tableName = getTableRequest.getTableName();
-            Schema schema = getSchema(connection, tableName, partitionSchema);
-            Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
-            return new GetTableResponse(getTableRequest.getCatalogName(), tableName, schema, partitionCols);
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
+        Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
+        Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
+        TableName tableName = getTableRequest.getTableName();
+        Schema schema = getSchema(connection, tableName, partitionSchema);
+        Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
+        return new GetTableResponse(getTableRequest.getCatalogName(), tableName, schema, partitionCols);
     }
 
     /**
@@ -247,9 +234,6 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     });
                 } while (resultSet.next());
             }
-        }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
@@ -321,9 +305,6 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 return resultSet.getString("COLNAME");
             }
         }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
         return null;
     }
 
@@ -363,7 +344,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @return List<String>
      * @throws SQLException
      */
-    private List<String> getSchemaList(final Connection connection, String query) throws SQLException
+    private List<String> getSchemaList(final Connection connection, String query)
     {
         List<String> list = new ArrayList<>();
         try (Statement st = connection.createStatement();
@@ -371,6 +352,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             while (rs.next()) {
                 list.add(rs.getString("NAME"));
             }
+        }
+        catch (SQLException e) {
+            throw new RuntimeException(e.getMessage());
         }
         return list;
     }
@@ -383,18 +367,23 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @param query
      * @param schemaName
      * @return List<String>
-     * @throws SQLException
      */
-    private List<String> getTableList(final Connection connection, String query, String schemaName) throws SQLException
+    private List<String> getTableList(final Connection connection, String query, String schemaName)
     {
         List<String> list = new ArrayList<>();
-        try (PreparedStatement ps = connection.prepareStatement(query)) {
+        try (PreparedStatement ps = connection.prepareStatement(query);) {
             ps.setString(1, schemaName);
             try (ResultSet rs = ps.executeQuery();) {
                 while (rs.next()) {
                     list.add(rs.getString("NAME"));
                 }
             }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return list;
     }
@@ -410,7 +399,6 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @throws SQLException
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
     {
         String typeName;
         String columnName;
@@ -474,6 +462,12 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 partitionSchema.getFields().forEach(schemaBuilder::addField);
                 return schemaBuilder.build();
             }
+            catch (Exception e) {
+                throw new RuntimeException(e.getMessage());
+            }
+        }
+        catch (SQLException e) {
+            throw new RuntimeException(e.getMessage());
         }
     }
 
