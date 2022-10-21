@@ -417,7 +417,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     columnName = dataTypeResultSet.getString("colname");
 
                     typeName = dataTypeResultSet.getString("typename");
-                    columnNameMap.put(columnName.trim(), typeName.trim());
+                    columnNameMap.put(columnName, typeName);
                 }
 
                 while (resultSet.next()) {
