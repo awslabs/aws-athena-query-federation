@@ -354,7 +354,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
             }
         }
         catch (SQLException e) {
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException(e);
         }
         return list;
     }
@@ -396,7 +396,6 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
     {
@@ -415,7 +414,6 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 // fetch data types of columns and prepare map with column name and typeName.
                 while (dataTypeResultSet.next()) {
                     columnName = dataTypeResultSet.getString("colname");
-
                     typeName = dataTypeResultSet.getString("typename");
                     columnNameMap.put(columnName, typeName);
                 }
@@ -426,18 +424,27 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                             resultSet.getInt("COLUMN_SIZE"),
                             resultSet.getInt("DECIMAL_DIGITS")
                     );
+
                     columnName = resultSet.getString("COLUMN_NAME");
                     typeName = columnNameMap.get(columnName);
 
-                    /**
-                     * Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
+                    /*
+                      If arrow type is struct then convert to VARCHAR, because
+                      struct is considered as Unhandled type by JdbcRecordHandler's makeExtractor method
+                     */
+                    if (columnType != null && columnType.getTypeID().name().equalsIgnoreCase("Struct")) {
+                        columnType = Types.MinorType.VARCHAR.getType();
+                    }
+
+                    /*
+                      Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
                      */
                     if ("real".equalsIgnoreCase(typeName) || "double".equalsIgnoreCase(typeName) || "decfloat".equalsIgnoreCase(typeName)) {
                         columnType = Types.MinorType.FLOAT8.getType();
                     }
 
-                    /**
-                     * converting into VARCHAR for non supported data types.
+                    /*
+                      converting into VARCHAR for non supported data types.
                      */
                     if (columnType == null) {
                         columnType = Types.MinorType.VARCHAR.getType();
@@ -460,15 +467,15 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                 }
 
                 partitionSchema.getFields().forEach(schemaBuilder::addField);
-                return schemaBuilder.build();
             }
             catch (Exception e) {
-                throw new RuntimeException(e.getMessage());
+                throw new RuntimeException(e);
             }
         }
-        catch (SQLException e) {
-            throw new RuntimeException(e.getMessage());
+        catch (Exception e) {
+            throw new RuntimeException(e);
         }
+        return schemaBuilder.build();
     }
 
     /**
