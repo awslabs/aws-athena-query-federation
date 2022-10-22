@@ -97,6 +97,7 @@ public class MultiplexingJdbcMetadataHandler
 
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
+            throws Exception
     {
         validateMultiplexer(listSchemasRequest.getCatalogName());
         return this.metadataHandlerMap.get(listSchemasRequest.getCatalogName()).doListSchemaNames(blockAllocator, listSchemasRequest);
@@ -104,6 +105,7 @@ public class MultiplexingJdbcMetadataHandler
 
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+            throws Exception
     {
         validateMultiplexer(listTablesRequest.getCatalogName());
         return this.metadataHandlerMap.get(listTablesRequest.getCatalogName()).doListTables(blockAllocator, listTablesRequest);
@@ -111,6 +113,7 @@ public class MultiplexingJdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+            throws Exception
     {
         validateMultiplexer(getTableRequest.getCatalogName());
         return this.metadataHandlerMap.get(getTableRequest.getCatalogName()).doGetTable(blockAllocator, getTableRequest);

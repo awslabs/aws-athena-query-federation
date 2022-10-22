@@ -134,12 +134,11 @@ public class VerticaMetadataHandler
      */
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+            throws SQLException
     {
         logger.info("doListSchemaNames: " + request.getCatalogName());
         List<String> schemas = new ArrayList<>();
-        try
-        {
-            Connection client = getConnection(request);
+        try (Connection client = getConnection(request)) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet rs  = dbMetadata.getTables(null, null, null, TABLE_TYPES);
 
@@ -150,14 +149,6 @@ public class VerticaMetadataHandler
                     schemas.add(rs.getString(TABLE_SCHEMA));
                 }
             }
-        }
-        catch (SQLFeatureNotSupportedException e)
-        {
-            throw new RuntimeException("SQL Feature Not Supported Exception: " + e.getMessage(), e);
-        }
-        catch (SQLException e)
-        {
-            throw new RuntimeException("SQL Exception in doListSchemaNames: " + e.getMessage(), e);
         }
         return new ListSchemasResponse(request.getCatalogName(), schemas);
     }
@@ -172,20 +163,16 @@ public class VerticaMetadataHandler
      */
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, ListTablesRequest request)
+            throws SQLException
     {
         logger.info("doListTables: " + request);
         List<TableName> tables = new ArrayList<>();
-        try {
-            Connection client = getConnection(request);
+        try (Connection client = getConnection(request)) {
             DatabaseMetaData dbMetadata = client.getMetaData();
             ResultSet table = dbMetadata.getTables(null, request.getSchemaName(),null, TABLE_TYPES);
             while (table.next()){
                 tables.add(new TableName(table.getString(TABLE_SCHEMA), table.getString(TABLE_NAME)));
             }
-        }
-        catch (SQLException e)
-        {
-            throw new RuntimeException("SQL Exception in doListTables: " + e.getMessage(), e);
         }
         return new ListTablesResponse(request.getCatalogName(), tables, null);
 
@@ -302,6 +289,7 @@ public class VerticaMetadataHandler
      */
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+            throws SQLException
     {
         //ToDo: implement use of a continuation token to use in case of larger queries
 
@@ -372,24 +360,16 @@ public class VerticaMetadataHandler
      * and executes the queries
      */
     private void executeQueriesOnVertica(Connection connection, String sqlStatement, String awsRegionSql)
+            throws SQLException
     {
-        try
-        {
-            PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
-            PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
+        PreparedStatement setAwsRegion = connection.prepareStatement(awsRegionSql);
+        PreparedStatement exportSQL = connection.prepareStatement(sqlStatement);
 
-            //execute the query to set region
-            setAwsRegion.execute();
+        //execute the query to set region
+        setAwsRegion.execute();
 
-            //execute the query to export the data to S3
-            exportSQL.execute();
-
-        }
-        catch(SQLException e)
-        {
-            throw new RuntimeException("Error in executing queries on Vertica: " + e.getMessage(), e);
-        }
-
+        //execute the query to export the data to S3
+        exportSQL.execute();
     }
 
     /*

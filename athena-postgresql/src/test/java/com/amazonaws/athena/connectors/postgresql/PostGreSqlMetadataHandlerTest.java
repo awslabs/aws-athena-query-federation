@@ -86,6 +86,7 @@ public class PostGreSqlMetadataHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);

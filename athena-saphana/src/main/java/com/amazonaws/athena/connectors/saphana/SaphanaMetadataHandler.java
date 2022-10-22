@@ -137,10 +137,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                 }
                 LOGGER.debug("viewFlag: {}", viewFlag);
             }
-            catch (SQLException sqlException) {
-                LOGGER.debug("Exception while querying view details for view {}", getTableLayoutRequest.getTableName().getTableName());
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-            }
         }
         //For view create a single split
         if (viewFlag) {
@@ -180,9 +176,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                         while (resultSet.next());
                     }
                 }
-            }
-            catch (SQLException sqlException) {
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
     }
@@ -231,6 +224,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
@@ -239,9 +233,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
             return getTableResponse;
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
     }
     /**
      *
@@ -249,100 +240,93 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         LOGGER.debug("SaphanaMetadataHandler:getSchema starting");
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            boolean found = false;
             HashMap<String, String> hashMap = new HashMap<String, String>();
-            try {
-                // fetch data types for columns for appropriate datatype to arrowtype conversions.
-                ResultSet dataTypeResultSet = getColumnDatatype(connection, tableName);
-                String type = "";
-                String name = "";
+            // fetch data types for columns for appropriate datatype to arrowtype conversions.
+            ResultSet dataTypeResultSet = getColumnDatatype(connection, tableName);
+            String type = "";
+            String name = "";
 
-                while (dataTypeResultSet.next()) {
-                    type = dataTypeResultSet.getString("DATA_TYPE");
-                    name = dataTypeResultSet.getString(SaphanaConstants.COLUMN_NAME);
-                    hashMap.put(name.trim().toLowerCase(), type.trim());
+            while (dataTypeResultSet.next()) {
+                type = dataTypeResultSet.getString("DATA_TYPE");
+                name = dataTypeResultSet.getString(SaphanaConstants.COLUMN_NAME);
+                hashMap.put(name.trim().toLowerCase(), type.trim());
+            }
+
+            LOGGER.debug("Data types resolved by column names {}", hashMap);
+
+            if (hashMap.isEmpty() == true) {
+                LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
+            }
+
+            boolean found = false;
+            while (resultSet.next()) {
+                boolean isSpatialDataType = false;
+                String columnName = resultSet.getString(SaphanaConstants.COLUMN_NAME);
+
+                LOGGER.debug("SaphanaMetadataHandler:getSchema determining column type of column {}", columnName);
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"));
+
+                LOGGER.debug("SaphanaMetadataHandler:getSchema column type of column {} is {}",
+                        columnName, columnType);
+                String dataType = hashMap.get(columnName.toLowerCase());
+                LOGGER.debug("columnName: " + columnName);
+                LOGGER.debug("dataType: " + dataType);
+
+                InferredColumnType inferredColumnType = InferredColumnType.fromType(dataType);
+                columnType = inferredColumnType.columnType;
+                isSpatialDataType = inferredColumnType.isSpatialType;
+
+                /**
+                 * converting into VARCHAR not supported by Framework.
+                 */
+                if (columnType == null) {
+                    columnType = Types.MinorType.VARCHAR.getType();
+                }
+                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                    columnType = Types.MinorType.VARCHAR.getType();
                 }
 
-                LOGGER.debug("Data types resolved by column names {}", hashMap);
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    LOGGER.debug("Adding column {} to schema of type {}", columnName, columnType);
 
-                if (hashMap.isEmpty() == true) {
-                    LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
-                }
-
-                while (resultSet.next()) {
-                    boolean isSpatialDataType = false;
-                    String columnName = resultSet.getString(SaphanaConstants.COLUMN_NAME);
-
-                    LOGGER.debug("SaphanaMetadataHandler:getSchema determining column type of column {}", columnName);
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
-
-                    LOGGER.debug("SaphanaMetadataHandler:getSchema column type of column {} is {}",
-                            columnName, columnType);
-                    String dataType = hashMap.get(columnName.toLowerCase());
-                    LOGGER.debug("columnName: " + columnName);
-                    LOGGER.debug("dataType: " + dataType);
-
-                    InferredColumnType inferredColumnType = InferredColumnType.fromType(dataType);
-                    columnType = inferredColumnType.columnType;
-                    isSpatialDataType = inferredColumnType.isSpatialType;
-
-                    /**
-                     * converting into VARCHAR not supported by Framework.
-                     */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        LOGGER.debug("Adding column {} to schema of type {}", columnName, columnType);
-
-                        if (isSpatialDataType) {
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType)
-                                    .addField(new Field(quoteColumnName(columnName) + TO_WELL_KNOWN_TEXT_FUNCTION,
-                                            new FieldType(true, columnType, null), List.of()))
-                                    .build());
-                        }
-                        else {
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        }
-                        found = true;
+                    if (isSpatialDataType) {
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType)
+                                .addField(new Field(quoteColumnName(columnName) + TO_WELL_KNOWN_TEXT_FUNCTION,
+                                        new FieldType(true, columnType, null), List.of()))
+                                .build());
                     }
                     else {
-                        LOGGER.debug("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
                     }
+
+                    found = true;
                 }
-            }
-            catch (SQLException e) {
-                LOGGER.debug("Error getting schema: " + e.getMessage());
-                LOGGER.error(e.toString());
+                else {
+                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                }
             }
 
             if (!found) {
-                LOGGER.error(" Table not found ---  Throwing exception ");
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
 
-            LOGGER.debug(schemaBuilder.toString());
-            return schemaBuilder.build();
+            partitionSchema.getFields().forEach(schemaBuilder::addField);
         }
+        LOGGER.debug(schemaBuilder.toString());
+        return schemaBuilder.build();
     }
 
     private ResultSet getColumns(final String catalogName, final TableName tableHandle, final DatabaseMetaData metadata)

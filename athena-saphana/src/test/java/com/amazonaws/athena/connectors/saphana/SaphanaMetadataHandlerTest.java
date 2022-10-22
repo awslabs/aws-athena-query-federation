@@ -70,6 +70,7 @@ public class SaphanaMetadataHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);

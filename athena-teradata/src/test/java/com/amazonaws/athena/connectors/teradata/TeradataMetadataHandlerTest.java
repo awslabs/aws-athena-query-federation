@@ -290,7 +290,7 @@ public class TeradataMetadataHandlerTest
     }
     @Test
     public void doGetTable()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
         Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},

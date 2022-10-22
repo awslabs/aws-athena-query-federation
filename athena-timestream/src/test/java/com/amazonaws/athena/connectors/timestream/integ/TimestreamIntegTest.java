@@ -84,6 +84,7 @@ public class TimestreamIntegTest extends IntegrationTestBase
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
         try {
             // Invoke the framework's setUp() that also creates the Timestream database.

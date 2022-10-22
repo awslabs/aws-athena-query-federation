@@ -129,6 +129,7 @@ public class OracleMetadataHandler
      */
     @Override
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.debug("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
@@ -161,9 +162,6 @@ public class OracleMetadataHandler
                     while (resultSet.next() && queryStatusChecker.isQueryRunning());
                 }
             }
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
@@ -221,15 +219,13 @@ public class OracleMetadataHandler
     }
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+          throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -263,10 +259,10 @@ public class OracleMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 

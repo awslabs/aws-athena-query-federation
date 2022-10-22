@@ -71,6 +71,7 @@ public class OracleMuxJdbcRecordHandlerTest
 
     @Test
     public void readWithConstraint()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -81,6 +82,7 @@ public class OracleMuxJdbcRecordHandlerTest
 
     @Test(expected = RuntimeException.class)
     public void readWithConstraintWithUnsupportedCatalog()
+            throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

@@ -28,7 +28,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -70,32 +69,25 @@ public class GenericJdbcConnectionFactory
 
     @Override
     public Connection getConnection(final JdbcCredentialProvider jdbcCredentialProvider)
+            throws Exception
     {
-        try {
-            final String derivedJdbcString;
-            if (jdbcCredentialProvider != null) {
-                Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
-                derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
+        final String derivedJdbcString;
+        if (jdbcCredentialProvider != null) {
+            Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
+            derivedJdbcString = secretMatcher.replaceAll(Matcher.quoteReplacement(""));
 
-                jdbcProperties.put("user", jdbcCredentialProvider.getCredential().getUser());
-                jdbcProperties.put("password", jdbcCredentialProvider.getCredential().getPassword());
-            }
-            else {
-                derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
-            }
+            jdbcProperties.put("user", jdbcCredentialProvider.getCredential().getUser());
+            jdbcProperties.put("password", jdbcCredentialProvider.getCredential().getPassword());
+        }
+        else {
+            derivedJdbcString = databaseConnectionConfig.getJdbcConnectionString();
+        }
 
-            // register driver
-            Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
+        // register driver
+        Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
 
-            // create connection
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
-        }
-        catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
-            throw new RuntimeException(ex);
-        }
+        // create connection
+        return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
     }
 
     private String encodeValue(String value)

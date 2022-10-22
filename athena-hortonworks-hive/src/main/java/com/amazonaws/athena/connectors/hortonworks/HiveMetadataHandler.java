@@ -101,11 +101,12 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
      * @param blockWriter Used to write rows (hive partitions) into the Apache Arrow response.
      * @param getTableLayoutRequest Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
-     * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
+     * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      **/
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
-                              QueryStatusChecker queryStatusChecker) throws SQLException
+                              QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
@@ -244,17 +245,13 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(),
                     getSchema(connection, getTableRequest.getTableName(), partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-        catch (SQLException sqlException) {
-            LOGGER.error(sqlException.getMessage());
-            throw new RuntimeException(sqlException.getErrorCode() + ": "
-                    + sqlException.getMessage());
         }
     }
 
@@ -264,9 +261,9 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
      * @param tableName   Holds table name and schema name. see {@link TableName}
      * @param partitionSchema A partition schema for a given table .See {@link Schema}
      * @return Schema  Holds Table schema along with partition schema. See {@link Schema}
-     * @throws SQLException A SQLException should be thrown for database connection failures , query syntax errors and so on.
+     * @throws Exception An Exception should be thrown for database connection failures , query syntax errors and so on.
      */
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws SQLException
+    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
