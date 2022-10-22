@@ -32,5 +32,5 @@ public interface JdbcConnectionFactory
      * @param jdbcCredentialProvider jdbc user and password provider.
      * @return JDBC connection. See {@link Connection}.
      */
-    Connection getConnection(JdbcCredentialProvider jdbcCredentialProvider);
+    Connection getConnection(JdbcCredentialProvider jdbcCredentialProvider) throws Exception;
 }

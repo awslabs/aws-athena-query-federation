@@ -117,6 +117,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
         cloudFormationClient = new CloudFormationClient(theApp, getPostGreSqlStack());
         try {
@@ -222,6 +223,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      * Creates the DB schema used for the integration tests.
      */
     private void createDbSchema()
+            throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB Schema: {}", postgresDbName);
@@ -271,6 +273,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      */
     @Override
     protected void setUpTableData()
+          throws Exception
     {
         setUpMoviesTable();
         setUpBdayTable();
@@ -283,6 +286,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      * Creates the 'movies' table and inserts rows.
      */
     private void setUpMoviesTable()
+          throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", postgresTableMovies);
@@ -302,6 +306,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      * Creates the 'bday' table and inserts rows.
      */
     private void setUpBdayTable()
+          throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", postgresTableBday);
@@ -318,6 +323,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      * Creates the 'datatypes' table and inserts rows.
      */
     protected void setUpDatatypesTable()
+          throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", TEST_DATATYPES_TABLE_NAME);
@@ -344,6 +350,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      * Creates the 'null_table' table and inserts rows.
      */
     protected void setUpNullTable()
+          throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", TEST_NULL_TABLE_NAME);
@@ -358,6 +365,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
      * Creates the 'empty_table' table and inserts rows.
      */
     protected void setUpEmptyTable()
+          throws Exception
     {
         logger.info("----------------------------------------------------");
         logger.info("Setting up DB table: {}", TEST_EMPTY_TABLE_NAME);
@@ -370,6 +378,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
     @Test
     public void listDatabasesIntegTest()
+          throws Exception
     {
         logger.info("--------------------------------------");
         logger.info("Executing listDatabasesIntegTest");
@@ -382,6 +391,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
     @Test
     public void listTablesIntegTest()
+          throws Exception
     {
         logger.info("-----------------------------------");
         logger.info("Executing listTablesIntegTest");
@@ -398,6 +408,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
     @Test
     public void listTableSchemaIntegTest()
+          throws Exception
     {
         logger.info("--------------------------------------");
         logger.info("Executing listTableSchemaIntegTest");
@@ -420,6 +431,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
     @Test
     public void selectColumnWithPredicateIntegTest()
+          throws Exception
     {
         logger.info("--------------------------------------------------");
         logger.info("Executing selectColumnWithPredicateIntegTest");
@@ -441,6 +453,7 @@ public class PostGreSqlIntegTest extends IntegrationTestBase
 
     @Test
     public void selectColumnBetweenDatesIntegTest()
+          throws Exception
     {
         logger.info("--------------------------------------------------");
         logger.info("Executing selectColumnBetweenDatesIntegTest");

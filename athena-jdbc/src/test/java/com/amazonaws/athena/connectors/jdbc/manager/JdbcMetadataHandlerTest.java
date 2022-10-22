@@ -72,6 +72,7 @@ public class JdbcMetadataHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
@@ -112,7 +113,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doListSchemaNames()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"TABLE_SCHEM"};
         Object[][] values = {{"testDB"}, {"testdb2"}, {"information_schema"}};
@@ -126,7 +127,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doListTables()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
         Object[][] values = {{"testSchema", "testTable"}, {"testSchema", "testtable2"}};
@@ -144,7 +145,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doListTablesEscaped()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"TABLE_SCHEM", "TABLE_NAME"};
         Object[][] values = {{"test_Schema", "testTable"}, {"test_Schema", "testtable2"}};
@@ -162,7 +163,7 @@ public class JdbcMetadataHandlerTest
 
     @Test(expected = IllegalArgumentException.class)
     public void doListTablesEscapedException()
-            throws SQLException
+            throws Exception
     {
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenReturn("_");
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,
@@ -171,7 +172,7 @@ public class JdbcMetadataHandlerTest
 
     @Test
     public void doGetTable()
-            throws SQLException
+            throws Exception
     {
         String[] schema = {"DATA_TYPE", "COLUMN_SIZE", "COLUMN_NAME", "DECIMAL_DIGITS", "NUM_PREC_RADIX"};
         Object[][] values = {{Types.INTEGER, 12, "testCol1", 0, 0}, {Types.VARCHAR, 25, "testCol2", 0, 0},
@@ -201,15 +202,16 @@ public class JdbcMetadataHandlerTest
 
     @Test(expected = RuntimeException.class)
     public void doGetTableNoColumns()
+            throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
 
         this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableSQLException()
-            throws SQLException
+            throws Exception
     {
         TableName inputTableName = new TableName("testSchema", "testTable");
         Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
@@ -217,17 +219,17 @@ public class JdbcMetadataHandlerTest
         this.jdbcMetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doListSchemaNamesSQLException()
-            throws SQLException
+            throws Exception
     {
         Mockito.when(this.connection.getMetaData().getSchemas()).thenThrow(new SQLException());
         this.jdbcMetadataHandler.doListSchemaNames(this.blockAllocator, new ListSchemasRequest(this.federatedIdentity, "testQueryId", "testCatalog"));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doListTablesSQLException()
-            throws SQLException
+            throws Exception
     {
         Mockito.when(this.connection.getMetaData().getTables(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any())).thenThrow(new SQLException());
         this.jdbcMetadataHandler.doListTables(this.blockAllocator, new ListTablesRequest(this.federatedIdentity,

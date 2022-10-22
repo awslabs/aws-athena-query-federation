@@ -106,14 +106,9 @@ public class SqlServerIntegTest extends IntegrationTestBase {
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
-        try {
-            super.setUp();
-        }
-        catch (Exception e) {
-
-            throw e;
-        }
+        super.setUp();
     }
 
     public SqlServerIntegTest()

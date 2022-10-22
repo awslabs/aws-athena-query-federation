@@ -176,9 +176,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             }
             LOGGER.info("viewFlag: {}", viewFlag);
         }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
 
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName() + "." +
@@ -233,9 +230,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                     }
                 }
             }
-        }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
@@ -303,7 +297,7 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param parameters
      * @throws SQLException
      */
-    private List<String> getPartitionDetails(List<String> parameters) throws SQLException
+    private List<String> getPartitionDetails(List<String> parameters) throws Exception
     {
         List<String> partitionDetails = new ArrayList<>();
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
@@ -316,9 +310,6 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 LOGGER.debug("partitioningColumn: {}", partitionDetails.get(1));
             }
         }
-        catch (SQLException sqlException) {
-            throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-        }
         return partitionDetails;
     }
 
@@ -329,15 +320,13 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      */
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName().toUpperCase(), getTableRequest.getTableName().getTableName().toUpperCase());
             return new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -347,10 +336,10 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         String dataTypeQuery = "SELECT C.NAME AS COLUMN_NAME, TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE " +
                 "FROM SYS.COLUMNS C " +
@@ -464,13 +453,11 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 

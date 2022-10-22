@@ -227,12 +227,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     LOGGER.info("No Records Found for table {}", getTableLayoutRequest.getTableName().getTableName());
                 }
             }
-            catch (SQLException sqlException) {
-                throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-            }
-            catch (Exception exception) {
-                LOGGER.error("Error occurred while getting the results", exception);
-            }
         }
     }
 
@@ -240,9 +234,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * Check if the input table is a view and returns viewflag accordingly
      * @param getTableLayoutRequest
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
-    private boolean checkForView(GetTableLayoutRequest getTableLayoutRequest) throws SQLException
+    private boolean checkForView(GetTableLayoutRequest getTableLayoutRequest) throws Exception
     {
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
@@ -253,10 +247,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     viewFlag = true;
                 }
                 LOGGER.info("viewFlag: {}", viewFlag);
-            }
-            catch (SQLException sqlException) {
-                LOGGER.info("Exception while querying view details for view {}", getTableLayoutRequest.getTableName().getTableName());
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         return viewFlag;
@@ -302,6 +292,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
@@ -309,9 +300,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
             return getTableResponse;
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -321,10 +309,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     public Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         /**
          * query to fetch column data type to handle appropriate datatype to arrowtype conversions.
@@ -338,71 +326,67 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             stmt.setString(1, tableName.getSchemaName().toUpperCase());
             stmt.setString(2, tableName.getTableName().toUpperCase());
 
-            boolean found = false;
             HashMap<String, String> hashMap = new HashMap<String, String>();
-            try {
-                ResultSet dataTypeResultSet = stmt.executeQuery();
-                String type = "";
-                String name = "";
+            ResultSet dataTypeResultSet = stmt.executeQuery();
 
-                while (dataTypeResultSet.next()) {
-                    type = dataTypeResultSet.getString("DATA_TYPE");
-                    name = dataTypeResultSet.getString(COLUMN_NAME);
-                    hashMap.put(name.trim(), type.trim());
-                }
-                if (hashMap.isEmpty() == true) {
-                    LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
-                }
-                while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
-                    String columnName = resultSet.getString(COLUMN_NAME);
-                    String dataType = hashMap.get(columnName);
-                    LOGGER.debug("columnName: " + columnName);
-                    LOGGER.debug("dataType: " + dataType);
-                    final Map<String, ArrowType> stringArrowTypeMap = Map.ofEntries(
-                            entry("INTEGER", Types.MinorType.INT.getType()),
-                            entry("DATE", Types.MinorType.DATEDAY.getType()),
-                            entry("TIMESTAMP", Types.MinorType.DATEMILLI.getType()),
-                            entry("TIMESTAMP_LTZ", Types.MinorType.DATEMILLI.getType()),
-                            entry("TIMESTAMP_NTZ", Types.MinorType.DATEMILLI.getType()),
-                            entry("TIMESTAMP_TZ", Types.MinorType.DATEMILLI.getType())
-                    );
-                    if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
-                        columnType = stringArrowTypeMap.get(dataType.toUpperCase());
-                    }
-                    /**
-                     * converting into VARCHAR for not supported data types.
-                     */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
+            String type = "";
+            String name = "";
 
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        LOGGER.debug(" AddField Schema Building...()  ");
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        found = true;
-                    }
-                    else {
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                    }
-                }
+            while (dataTypeResultSet.next()) {
+                type = dataTypeResultSet.getString("DATA_TYPE");
+                name = dataTypeResultSet.getString(COLUMN_NAME);
+                hashMap.put(name.trim(), type.trim());
             }
-            catch (SQLException e) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+            if (hashMap.isEmpty() == true) {
+                LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
+            }
+            boolean found = false;
+            while (resultSet.next()) {
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"));
+                String columnName = resultSet.getString(COLUMN_NAME);
+                String dataType = hashMap.get(columnName);
+                LOGGER.debug("columnName: " + columnName);
+                LOGGER.debug("dataType: " + dataType);
+                final Map<String, ArrowType> stringArrowTypeMap = Map.ofEntries(
+                        entry("INTEGER", Types.MinorType.INT.getType()),
+                        entry("DATE", Types.MinorType.DATEDAY.getType()),
+                        entry("TIMESTAMP", Types.MinorType.DATEMILLI.getType()),
+                        entry("TIMESTAMP_LTZ", Types.MinorType.DATEMILLI.getType()),
+                        entry("TIMESTAMP_NTZ", Types.MinorType.DATEMILLI.getType()),
+                        entry("TIMESTAMP_TZ", Types.MinorType.DATEMILLI.getType())
+                );
+                if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
+                    columnType = stringArrowTypeMap.get(dataType.toUpperCase());
+                }
+                /**
+                 * converting into VARCHAR for not supported data types.
+                 */
+                if (columnType == null) {
+                    columnType = Types.MinorType.VARCHAR.getType();
+                }
+                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                    columnType = Types.MinorType.VARCHAR.getType();
+                }
+
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    LOGGER.debug(" AddField Schema Building...()  ");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    found = true;
+                }
+                else {
+                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                }
             }
             if (!found) {
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
-            LOGGER.debug(schemaBuilder.toString());
-            return schemaBuilder.build();
         }
+        LOGGER.debug(schemaBuilder.toString());
+        return schemaBuilder.build();
     }
 
     /**
@@ -502,17 +486,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
     }
-    protected static Set<String>  listDatabaseNames(final Connection jdbcConnection)
-            throws SQLException
+    protected static Set<String> listDatabaseNames(final Connection jdbcConnection)
+            throws Exception
     {
         try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();

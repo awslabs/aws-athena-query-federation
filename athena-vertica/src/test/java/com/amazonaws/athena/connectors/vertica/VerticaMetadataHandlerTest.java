@@ -309,7 +309,7 @@ public class VerticaMetadataHandlerTest extends TestBase
 
 
     @Test
-    public void doGetSplits() {
+    public void doGetSplits() throws SQLException {
 
         logger.info("doGetSplits: enter");
 

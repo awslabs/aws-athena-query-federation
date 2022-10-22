@@ -85,6 +85,7 @@ public class SqlServerMetadataHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
@@ -407,6 +408,7 @@ public class SqlServerMetadataHandlerTest
 
     @Test
     public void doListSchemaNames()
+            throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
         Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("fakedatabase");

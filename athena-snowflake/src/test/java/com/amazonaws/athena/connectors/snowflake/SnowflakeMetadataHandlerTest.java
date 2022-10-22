@@ -68,7 +68,9 @@ public class SnowflakeMetadataHandlerTest
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
 
     @Before
-    public void setup() {
+    public void setup()
+            throws Exception
+    {
 
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class , Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
@@ -408,7 +410,7 @@ public class SnowflakeMetadataHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void doListSchemaNames() throws SQLException {
+    public void doListSchemaNames() throws Exception {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, "queryId", "testCatalog");
 
