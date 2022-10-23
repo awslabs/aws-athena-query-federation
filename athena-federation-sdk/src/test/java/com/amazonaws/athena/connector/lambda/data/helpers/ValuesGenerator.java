@@ -70,6 +70,7 @@ import net.jqwik.api.*;
 import net.jqwik.time.api.*;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -561,7 +562,7 @@ public class ValuesGenerator {
                 ((VarCharVector) vector).setSafe(i+position, new NullableVarCharHolder());
             }
             else {
-                ((VarCharVector) vector).setSafe(i+position, items.get(i).getBytes());
+                ((VarCharVector) vector).setSafe(i+position, items.get(i).getBytes(StandardCharsets.UTF_8));
             }
             customVector.add(vector.getObject(i+position));
         }
