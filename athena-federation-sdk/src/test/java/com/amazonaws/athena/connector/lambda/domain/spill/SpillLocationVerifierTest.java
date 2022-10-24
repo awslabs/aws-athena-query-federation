@@ -119,7 +119,7 @@ public class SpillLocationVerifierTest
             fail("checkBucketAuthZFail failed");
         }
         catch(RuntimeException e) {
-            assertEquals("You do NOT own the spill bucket with the name: " + bucketNotOwn, e.getMessage());
+            assertEquals(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucketNotOwn), e.getMessage());
         }
         verify(spyVerifier, times(1)).updateBucketState();
         verify(spyVerifier, times(1)).passOrFail();
@@ -129,7 +129,7 @@ public class SpillLocationVerifierTest
             fail("checkBucketAuthZFail failed");
         }
         catch(RuntimeException e) {
-            assertEquals("You do NOT own the spill bucket with the name: " + bucketNotOwn, e.getMessage());
+            assertEquals(String.format("spill_bucket: \"%s\" not found under your account. Please make sure you have access to the bucket and spill_bucket input has no trailing '/'", bucketNotOwn), e.getMessage());
         }
         verify(spyVerifier, times(1)).updateBucketState();
         verify(spyVerifier, times(2)).passOrFail();
