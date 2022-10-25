@@ -127,7 +127,7 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
         Mockito.verify(resultSet, Mockito.times(2)).getInt(1);
     }
 
@@ -168,7 +168,8 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
         Mockito.verify(resultSet, Mockito.times(1)).getInt(1);
     }
 
@@ -227,7 +228,8 @@ public class SnowflakeMetadataHandlerTest
         Schema expectedSchema = expectedSchemaBuilder.build();
         Assert.assertEquals(expectedSchema, getTableLayoutResponse.getPartitions().getSchema());
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
-        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getTableName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
+        Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
         Mockito.verify(resultSet, Mockito.times(1)).getInt(1);
     }
 
