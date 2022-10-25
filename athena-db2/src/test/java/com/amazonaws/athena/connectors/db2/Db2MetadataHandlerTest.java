@@ -83,8 +83,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     private AmazonAthena athena;
 
     @Before
-    public void setup()
-    {
+    public void setup() throws Exception {
         System.setProperty("aws.region", "us-east-1");
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
@@ -317,7 +316,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doListSchemaNames() throws SQLException {
+    public void doListSchemaNames() throws Exception {
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, "queryId", "testCatalog");
 
         Statement statement = Mockito.mock(Statement.class);
@@ -332,7 +331,7 @@ public class Db2MetadataHandlerTest extends TestBase {
     }
 
     @Test
-    public void doListTables() throws SQLException {
+    public void doListTables() throws Exception {
         String schemaName = "TESTSCHEMA";
         ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, "queryId", "testCatalog", schemaName, null, 0);
 
