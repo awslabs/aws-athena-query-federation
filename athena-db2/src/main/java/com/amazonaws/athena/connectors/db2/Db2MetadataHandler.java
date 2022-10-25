@@ -421,14 +421,22 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     columnName = resultSet.getString("COLUMN_NAME");
                     typeName = columnNameMap.get(columnName);
 
-                    /**
+                    /*
+                    If arrow type is struct then convert to VARCHAR, because struct is
+                    considered as Unhandled type by JdbcRecordHandler's makeExtractor method.
+                     */
+                    if (columnType != null && columnType.getTypeID().name().equalsIgnoreCase("Struct")) {
+                        columnType = Types.MinorType.VARCHAR.getType();
+                    }
+
+                    /*
                      * Converting REAL, DOUBLE, DECFLOAT data types into FLOAT8 since framework is unable to map it by default
                      */
                     if ("real".equalsIgnoreCase(typeName) || "double".equalsIgnoreCase(typeName) || "decfloat".equalsIgnoreCase(typeName)) {
                         columnType = Types.MinorType.FLOAT8.getType();
                     }
 
-                    /**
+                    /*
                      * converting into VARCHAR for non supported data types.
                      */
                     if (columnType == null) {
