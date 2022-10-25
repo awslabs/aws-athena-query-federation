@@ -49,7 +49,6 @@ import com.amazonaws.athena.connectors.jdbc.manager.PreparedStatementBuilder;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -147,12 +146,8 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
             List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
-            ImmutableList.Builder<TableName> tables = ImmutableList.builder();
-            for (String tableName : tableNames) {
-                tables.add(new TableName(listTablesRequest.getSchemaName(), tableName));
-            }
-            return new ListTablesResponse(listTablesRequest.getCatalogName(),
-                    tables.build(), null);
+            List<TableName> tables = tableNames.stream().map(tableName -> new TableName(listTablesRequest.getSchemaName(), tableName)).collect(Collectors.toList());
+            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, null);
         }
     }
 
