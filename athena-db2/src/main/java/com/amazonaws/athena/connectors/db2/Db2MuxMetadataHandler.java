@@ -61,4 +61,3 @@ public class Db2MuxMetadataHandler
         super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
     }
 }
-

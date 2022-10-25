@@ -142,7 +142,8 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @return
      */
     @Override
-    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest) throws Exception {
+    public ListTablesResponse doListTables(final BlockAllocator blockAllocator, final ListTablesRequest listTablesRequest) throws Exception
+    {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
             List<String> tableNames = getTableList(connection, Db2Constants.QRY_TO_LIST_TABLES_AND_VIEWS, listTablesRequest.getSchemaName());
@@ -160,7 +161,8 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @return
      */
     @Override
-    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest) throws Exception {
+    public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest) throws Exception
+    {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             TableName tableName = getTableRequest.getTableName();
