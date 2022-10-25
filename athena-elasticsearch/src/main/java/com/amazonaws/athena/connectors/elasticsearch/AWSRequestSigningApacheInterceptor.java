@@ -122,6 +122,7 @@ public class AWSRequestSigningApacheInterceptor implements HttpRequestIntercepto
                 signableRequest.setContent(httpEntityEnclosingRequest.getEntity().getContent());
             }
             else {
+                // This is a workaround from here: https://github.com/aws/aws-sdk-java/issues/2078
                 signableRequest.setContent(new ByteArrayInputStream(new byte[0]));
             }
         }
