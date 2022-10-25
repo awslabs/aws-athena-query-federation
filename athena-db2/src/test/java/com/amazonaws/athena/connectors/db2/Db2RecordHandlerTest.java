@@ -57,8 +57,7 @@ public class Db2RecordHandlerTest {
     private AmazonAthena athena;
 
     @Before
-    public void setup()
-    {
+    public void setup() throws Exception {
         System.setProperty("aws.region", "us-east-1");
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
