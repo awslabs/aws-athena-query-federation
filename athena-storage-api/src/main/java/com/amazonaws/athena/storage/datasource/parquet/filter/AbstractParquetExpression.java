@@ -1,0 +1,90 @@
+/*-
+ * #%L
+ * athena-storage-api
+ * %%
+ * Copyright (C) 2019 - 2022 Amazon Web Services
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+package com.amazonaws.athena.storage.datasource.parquet.filter;
+
+public abstract class AbstractParquetExpression<T> implements ParquetExpression
+{
+    /**
+     * {@inheritDoc}
+     */
+    protected final Integer columnIndex;
+
+    /**
+     * Expression of type T
+     */
+    public T expression;
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return
+     */
+    @Override
+    public Integer columnIndex()
+    {
+        return this.columnIndex;
+    }
+
+    /**
+     * Constructs this with only column index
+     *
+     * @param columnIndex Index of the column
+     */
+    public AbstractParquetExpression(Integer columnIndex)
+    {
+        this.columnIndex = columnIndex;
+    }
+
+    /**
+     * Constructs this with column index and an expression
+     *
+     * @param index      Index of the column
+     * @param expression Expression to match
+     */
+    public AbstractParquetExpression(Integer index, T expression)
+    {
+        this.columnIndex = index;
+        this.expression = expression;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param value Column value
+     * @return
+     */
+    @Override
+    public abstract boolean apply(Object value);
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return
+     */
+    @Override
+    public String toString()
+    {
+        return "{" +
+                "'column':'" + columnIndex + "', " +
+                "'expression': '" + expression + "', " +
+                "'type':'" + getClass().getSimpleName()
+                + "'}";
+    }
+}

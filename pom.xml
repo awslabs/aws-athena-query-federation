@@ -99,6 +99,8 @@
         <module>athena-cloudera-hive</module>
         <module>athena-cloudera-impala</module>
         <module>athena-hortonworks-hive</module>
+        <module>athena-gcs</module>
+        <module>athena-storage-api</module>
     </modules>
     <dependencies>
         <dependency>
