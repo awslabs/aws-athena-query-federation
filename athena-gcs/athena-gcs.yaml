@@ -47,19 +47,19 @@ Parameters:
     Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
     Type: 'List<AWS::EC2::SecurityGroup::Id>'
   SecretNameOrPrefix:
-    Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. athena_gcs_*).'
+    Description: 'Secret name (exact) or a prefix as a Secret Name pattern (e.g., <prefix>-<secret name>). Unless the given pattern is present in the Secret Name, invocation of GetSecretValue will be denied'
     Type: String
     Default: "gcs-*"
   GcsSecretName:
-    Description: 'Secret key name in the AWS SecretManager from where the GCS credentials will be retrieved.'
+    Description: 'Secret key name in the AWS Secrets Manager.'
     Type: String
     Default: "gcs-athena"
   GcsCredentialKey:
-    Description: 'GCS credential secret key using what the GCS credentials JSON will be retrieved.'
+    Description: 'GCS credential secret key that contains the GCS credentials JSON value (key in key/value).'
     Type: String
     Default: "gcs_credential_keys"
   FileExtension:
-    Description: File extension to filter file names in a specific storage bucket. It can be any of PARQUET, AVRO, CSV, and JSON. Current version only supports PARQUET, and CSV
+    Description: File extension to filter file names in a specific storage bucket. It can be any of PARQUET, and CSV.
     Type: String
   FileNamePattern:
     Description: File name pattern when records are splitted over multiple part file. For exampel file1, file2 and so on. It does tell the appliction to collect all split recoreds into one single Table named 'file'. In this case the file pattern would be like ([a-zA-Z]+)(\d+)

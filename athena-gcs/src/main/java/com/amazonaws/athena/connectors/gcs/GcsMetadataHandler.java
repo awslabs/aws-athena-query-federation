@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-datalakegen2
+ * athena-gcs
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -48,7 +48,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
@@ -58,19 +57,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
@@ -90,14 +85,12 @@ public class GcsMetadataHandler
     private static final String SOURCE_TYPE = "gcs";
     private final GcsSchemaUtils gcsSchemaUtils;
     private final StorageDatasource datasource;
-    private String appCredentialsJsonString;
 
     public GcsMetadataHandler()
     {
         super(SOURCE_TYPE);
-        setGcsCredentialJsonString();
         gcsSchemaUtils = new GcsSchemaUtils();
-        this.datasource = StorageDatasourceFactory.createDatasource(appCredentialsJsonString, System.getenv());
+        this.datasource = StorageDatasourceFactory.createDatasource(GcsUtil.getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
     @VisibleForTesting
@@ -111,9 +104,8 @@ public class GcsMetadataHandler
                                  AmazonS3 amazonS3)
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
-        setGcsCredentialJsonString();
         this.gcsSchemaUtils = gcsSchemaUtils;
-        this.datasource = StorageDatasourceFactory.createDatasource(appCredentialsJsonString, System.getenv());
+        this.datasource = StorageDatasourceFactory.createDatasource(GcsUtil.getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
     /**
@@ -127,9 +119,6 @@ public class GcsMetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
     {
-        if (datasource == null) {
-            return new ListSchemasResponse(request.getCatalogName(), List.of());
-        }
         LOGGER.debug("doListSchemaNames: {}", request.getCatalogName());
         List<String> schemas = datasource.getAllDatabases();
         return new ListSchemasResponse(request.getCatalogName(), schemas);
@@ -148,9 +137,6 @@ public class GcsMetadataHandler
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=queryId {}",
                 request.getQueryId());
-        if (datasource == null) {
-            return new ListTablesResponse(request.getCatalogName(), List.of(), null);
-        }
         LOGGER.debug("doListTables: {}", request);
         List<TableName> tables = new ArrayList<>();
         String nextToken;
@@ -203,9 +189,6 @@ public class GcsMetadataHandler
         TableName tableInfo = request.getTableName();
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetTable|Message=queryId {}",
                 request.getQueryId());
-        if (this.datasource == null) {
-            throw new RuntimeException("Metastore couldn't be initialized");
-        }
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetTable|Message=Schema name {}, table name {}",
                 tableInfo.getSchemaName(), tableInfo.getTableName());
         datasource.loadAllTables(tableInfo.getSchemaName());
@@ -233,11 +216,6 @@ public class GcsMetadataHandler
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
 
         TableName tableName = request.getTableName();
-        if (this.datasource == null) {
-            throw new RuntimeException("Table " + tableName.getTableName() + " not found in schema "
-                    + tableName.getSchemaName());
-        }
-
         String bucketName = null;
         String objectName = null;
         Optional<StorageTable> optionalTable = datasource.getStorageTable(tableName.getSchemaName(),
@@ -442,30 +420,5 @@ public class GcsMetadataHandler
         }
         splits.add(split);
         return new GetSplitsResponse(request.getCatalogName(), split);
-    }
-
-    /**
-     * Retrieves the GCS credential JSON from secret manager and set to local variable to use later
-     */
-    private void setGcsCredentialJsonString()
-    {
-        try {
-            String json = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
-            if (json != null) {
-                TypeReference<HashMap<String, String>> typeRef
-                        = new TypeReference<>()
-                {
-                };
-                ObjectMapper mapper = new ObjectMapper();
-                Map<String, String> secretKeys = mapper.readValue(json.getBytes(StandardCharsets.UTF_8), typeRef);
-                appCredentialsJsonString = secretKeys.get(System.getenv(GCS_CREDENTIAL_KEYS_ENV_VAR));
-                requireNonNull(appCredentialsJsonString, "GCS credential was null using key "
-                        + GCS_CREDENTIAL_KEYS_ENV_VAR
-                        + " in the secret " + System.getenv(GCS_CREDENTIAL_KEYS_ENV_VAR));
-            }
-        }
-        catch (Throwable throwable) {
-            throw new GcsConnectorException("Unable to set JSON string for GCS credential", throwable);
-        }
     }
 }

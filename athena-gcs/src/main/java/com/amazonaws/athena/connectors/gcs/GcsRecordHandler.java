@@ -33,21 +33,13 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
-import static java.util.Objects.requireNonNull;
 
 public class GcsRecordHandler
         extends RecordHandler
@@ -55,15 +47,13 @@ public class GcsRecordHandler
     private static final Logger logger = LoggerFactory.getLogger(GcsRecordHandler.class);
     private static final String SOURCE_TYPE = "gcs";
 
-    private StorageDatasource datasource;
-    private String appCredentialsJsonString;
+    private final StorageDatasource datasource;
 
     public GcsRecordHandler()
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient());
-        setGcsCredentialJsonString();
     }
 
     /**
@@ -77,7 +67,7 @@ public class GcsRecordHandler
     protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
-        setGcsCredentialJsonString();
+        this.datasource = StorageDatasourceFactory.createDatasource(GcsUtil.getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
     /**
@@ -98,7 +88,6 @@ public class GcsRecordHandler
     {
         Split split = recordsRequest.getSplit();
         TableName tableName = recordsRequest.getTableName();
-        getOrInitResources();
         if (this.datasource == null) {
             throw new RuntimeException("Table " + tableName.getTableName() + " not found in schema "
                     + tableName.getSchemaName());
@@ -110,41 +99,5 @@ public class GcsRecordHandler
         this.datasource.loadAllTables(tableName.getSchemaName());
         datasource.readRecords(recordsRequest.getSchema(), recordsRequest.getConstraints(),
                 recordsRequest.getTableName(), recordsRequest.getSplit(), spiller, queryStatusChecker);
-    }
-
-    // helpers
-    /**
-     * Retrieves the GCS credential JSON from secret manager and set to local variable to use later
-     */
-    private void setGcsCredentialJsonString()
-    {
-        try {
-            String json = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
-            if (json != null) {
-                TypeReference<HashMap<String, String>> typeRef
-                        = new TypeReference<>()
-                {
-                };
-                ObjectMapper mapper = new ObjectMapper();
-                Map<String, String> secretKeys = mapper.readValue(json.getBytes(StandardCharsets.UTF_8), typeRef);
-                appCredentialsJsonString = secretKeys.get(System.getenv(GCS_CREDENTIAL_KEYS_ENV_VAR));
-                requireNonNull(appCredentialsJsonString, "GCS credential was null using key "
-                        + GCS_CREDENTIAL_KEYS_ENV_VAR
-                        + " in the secret " + System.getenv(GCS_CREDENTIAL_KEYS_ENV_VAR));
-            }
-        }
-        catch (Throwable throwable) {
-            throw new GcsConnectorException("Unable to set JSON string for GCS credential", throwable);
-        }
-    }
-
-    /**
-     * Check to see if Google Cloud Storage, if not, it initializes it
-     */
-    private void getOrInitResources()
-    {
-        if (this.datasource == null) {
-            this.datasource = StorageDatasourceFactory.createDatasource(appCredentialsJsonString, System.getenv());
-        }
     }
 }
