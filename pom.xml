@@ -99,6 +99,7 @@
         <module>athena-cloudera-hive</module>
         <module>athena-cloudera-impala</module>
         <module>athena-hortonworks-hive</module>
+        <module>athena-msk</module>
     </modules>
     <dependencies>
         <dependency>
