@@ -44,6 +44,10 @@ Parameters:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Default: ""
     Type: String
+  PermissionBoundary:
+    Description: "(Optional) A custom Permission Boundary to be used by the Connector lambda"
+    Default: ""
+    Type: String
   DisableSpillEncryption:
     Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
     Default: 'false'
@@ -57,6 +61,7 @@ Parameters:
 
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
+  HasPermissionsBoundary: !Not [!Equals [!Ref PermissionBoundary, ""]]
 
 Resources:
   JdbcConnectorConfig:
@@ -82,6 +87,11 @@ Resources:
   FunctionRole:
     Type: AWS::IAM::Role
     Properties:
+      PermissionsBoundary:
+        Fn::If:
+          - HasPermissionsBoundary
+          - Ref: PermissionBoundary
+          - Ref: AWS::NoValue
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
