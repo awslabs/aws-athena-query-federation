@@ -65,11 +65,11 @@ public class JdbcTableUtils
 
     /**
      * Creates a DB schema.
-     * @throws RuntimeException The SQL statement failed.
+     * @throws Exception The SQL statement failed.
      * @param databaseConnectionInfo
      */
     public void createDbSchema(DatabaseConnectionInfo databaseConnectionInfo)
-            throws RuntimeException
+            throws Exception
     {
         try (Connection connection = getDbConnection(databaseConnectionInfo)) {
             // Prepare create schema statement
@@ -80,20 +80,16 @@ public class JdbcTableUtils
             createSchema.execute();
             logger.info("Created the DB schema: {}", schemaName);
         }
-        catch(SQLException e) {
-            throw new RuntimeException(String.format("Unable to create DB schema (%s): %s",
-                    schemaName, e.getMessage()), e);
-        }
     }
 
     /**
      * Creates a DB table.
      * @param tableSchema String representing the table's schema (e.g. "year int, first_name varchar").
      * @param databaseConnectionInfo
-     * @throws RuntimeException The SQL statement failed.
+     * @throws Exception The SQL statement failed.
      */
     public void createTable(String tableSchema, DatabaseConnectionInfo databaseConnectionInfo)
-            throws RuntimeException
+            throws Exception
     {
         try (Connection connection = getDbConnection(databaseConnectionInfo)) {
             // Prepare create table statement
@@ -104,20 +100,16 @@ public class JdbcTableUtils
             createTable.execute();
             logger.info("Created the '{}' table.", tableName);
         }
-        catch(SQLException e) {
-            throw new RuntimeException(String.format("Unable to create table '%s' in DB '%s': %s",
-                    tableName, schemaName, e.getMessage()), e);
-        }
     }
 
     /**
      * Inserts a row into a DB table.
      * @param tableValues String representing the row's values (e.g. "1992, 'James'").
      * @param databaseConnectionInfo
-     * @throws RuntimeException The SQL statement failed.
+     * @throws Exception The SQL statement failed.
      */
     public void insertRow(String tableValues, DatabaseConnectionInfo databaseConnectionInfo)
-            throws RuntimeException
+            throws Exception
     {
         try (Connection connection = getDbConnection(databaseConnectionInfo)) {
 
@@ -129,10 +121,6 @@ public class JdbcTableUtils
             insertValues.execute();
             logger.info("Inserted row into the '{}' table.", tableName);
         }
-        catch(SQLException e) {
-            throw new RuntimeException(String.format("Unable to insert row into table '%s': %s",
-                    tableName, e.getMessage()), e);
-        }
     }
 
     /**
@@ -141,6 +129,7 @@ public class JdbcTableUtils
      * @param databaseConnectionInfo
      */
     protected Connection getDbConnection(DatabaseConnectionInfo databaseConnectionInfo)
+            throws Exception
     {
         DatabaseConnectionConfig connectionConfig = getDbConfig();
         JdbcConnectionFactory connectionFactory = new GenericJdbcConnectionFactory(connectionConfig, properties, databaseConnectionInfo);
@@ -154,7 +143,6 @@ public class JdbcTableUtils
      * environmentVars map.
      */
     protected DatabaseConnectionConfig getDbConfig()
-            throws RuntimeException
     {
         DatabaseConnectionConfigBuilder configBuilder = new DatabaseConnectionConfigBuilder();
         for (DatabaseConnectionConfig config : configBuilder.properties(environmentVars).engine(this.engine).build()) {

@@ -851,6 +851,9 @@ public class BlockUtils
                     if (value == null) {
                         float8Writer.writeNull();
                     }
+                    else if (value instanceof Integer) {
+                        float8Writer.writeFloat8((int) value);
+                    }
                     else {
                         float8Writer.writeFloat8((double) value);
                     }

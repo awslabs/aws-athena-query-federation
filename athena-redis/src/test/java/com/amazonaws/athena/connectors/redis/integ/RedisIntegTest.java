@@ -133,6 +133,7 @@ public class RedisIntegTest extends IntegrationTestBase
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
         cloudFormationClient = new CloudFormationClient(theApp, getRedisStack());
         try {

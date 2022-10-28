@@ -80,6 +80,7 @@ public class ElasticsearchIntegTest extends IntegrationTestBase
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
         cloudFormationClient = new CloudFormationClient(theApp, getElasticsearchStack());
         try {

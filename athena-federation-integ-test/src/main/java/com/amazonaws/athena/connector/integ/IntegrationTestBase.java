@@ -202,7 +202,7 @@ public abstract class IntegrationTestBase
     /**
      * Must be overridden in the extending class to setup the DB table (i.e. insert rows into table, etc...)
      */
-    protected abstract void setUpTableData();
+    protected abstract void setUpTableData() throws Exception;
 
     /**
      * Must be overridden in the extending class (can be a no-op) to create a connector-specific CloudFormation stack
@@ -232,7 +232,7 @@ public abstract class IntegrationTestBase
      * with Athena.
      */
     @BeforeClass
-    protected void setUp()
+    protected void setUp() throws Exception
     {
         cloudFormationClient = new CloudFormationClient(connectorStackProvider.getStack());
         try {

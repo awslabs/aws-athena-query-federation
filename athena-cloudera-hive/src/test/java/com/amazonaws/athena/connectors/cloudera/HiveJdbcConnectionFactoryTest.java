@@ -30,8 +30,8 @@ import java.sql.SQLException;
 import java.util.Map;
 
 public class HiveJdbcConnectionFactoryTest {
-    @Test(expected = RuntimeException.class)
-    public void getConnectionTest() throws ClassNotFoundException, SQLException {
+    @Test(expected = SQLException.class)
+    public void getConnectionTest() throws Exception {
         JdbcCredential expectedCredential = new JdbcCredential("hive", "hive");
         JdbcCredentialProvider jdbcCredentialProvider = new StaticJdbcCredentialProvider(expectedCredential);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,

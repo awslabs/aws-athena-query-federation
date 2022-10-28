@@ -75,7 +75,7 @@ public class ImpalaMuxRecordHandlerTest
     }
 
     @Test
-    public void readWithConstraint() throws SQLException
+    public void readWithConstraint() throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);
@@ -103,7 +103,7 @@ public class ImpalaMuxRecordHandlerTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void readWithConstraintWithUnsupportedCatalog() throws SQLException
+    public void readWithConstraintWithUnsupportedCatalog() throws Exception
     {
         BlockSpiller blockSpiller = Mockito.mock(BlockSpiller.class);
         ReadRecordsRequest readRecordsRequest = Mockito.mock(ReadRecordsRequest.class);

@@ -59,6 +59,7 @@ public class DataLakeRecordHandlerTest
 
     @Before
     public void setup()
+            throws Exception
     {
         System.setProperty("aws.region", "us-east-1");
         this.amazonS3 = Mockito.mock(AmazonS3.class);

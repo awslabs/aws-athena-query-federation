@@ -71,6 +71,7 @@ public class RedshiftMuxJdbcMetadataHandlerTest
 
     @Test
     public void doListSchemaNames()
+            throws Exception
     {
         ListSchemasRequest listSchemasRequest = Mockito.mock(ListSchemasRequest.class);
         Mockito.when(listSchemasRequest.getCatalogName()).thenReturn("redshift");
@@ -80,6 +81,7 @@ public class RedshiftMuxJdbcMetadataHandlerTest
 
     @Test
     public void doListTables()
+            throws Exception
     {
         ListTablesRequest listTablesRequest = Mockito.mock(ListTablesRequest.class);
         Mockito.when(listTablesRequest.getCatalogName()).thenReturn("redshift");
@@ -89,6 +91,7 @@ public class RedshiftMuxJdbcMetadataHandlerTest
 
     @Test
     public void doGetTable()
+            throws Exception
     {
         GetTableRequest getTableRequest = Mockito.mock(GetTableRequest.class);
         Mockito.when(getTableRequest.getCatalogName()).thenReturn("redshift");

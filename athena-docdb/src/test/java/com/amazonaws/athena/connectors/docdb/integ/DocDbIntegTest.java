@@ -108,7 +108,9 @@ public class DocDbIntegTest extends IntegrationTestBase {
      */
     @BeforeClass
     @Override
-    protected void setUp() {
+    protected void setUp()
+            throws Exception
+    {
         cloudFormationClient = new CloudFormationClient(theApp, getDocDbStack());
         try {
             // Create the CloudFormation stack for the DocumentDb cluster.
