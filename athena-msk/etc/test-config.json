@@ -1,25 +1,25 @@
 {
   "connector_name" : "AmazonMsk", /* connector name */
-  "athena_result_location": "msk-connector-test-bucket/athena-spill/", /* The s3 bucket path used to store results of Athena queries */
+  "athena_result_location": <s3_path>, /* The s3 bucket path used to store results of Athena queries */
   "athena_work_group" : "primary", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
-  "secrets_manager_secret" : "AmazonMSK_muzammil", /* Secret name used to retrieve user credentials from SecretsManager. */
-  "region" : "us-west-2", /* aws region name */
+  "secrets_manager_secret" : <secret_manager>, /* Secret name used to retrieve user credentials from SecretsManager. */
+  "region" : <aws_region>, /* aws region name */
   "amazonmsk_db_name" : "default", /* kafka db name */
-  "table_name" : "datetestjson", /* kafka table name */
+  "table_name" : <tables>, /* kafka table name */
   "environment_vars" : {
-    "spill_bucket" : "msk-connector-test-bucket", /* The S3 bucket used for spilling excess data */
+    "spill_bucket" : <bucket>, /* The S3 bucket used for spilling excess data */
     "spill_prefix" : "athena-spill",              /* The prefix within the S3 spill bucket (default: athena-spill) */
     "disable_spill_encryption" : "false",         /* If set to true encryption for spilled data is disabled (default: false) */
-    "auth_type" : "TLS",                        /* Authentication type to kafka node eg:NOAUTH,TLS,SERVERLESS,SCRAM */
-    "certificates_s3_reference" : "s3://msk-connector-test-bucket/mskfiles/", /* The S3 bucket path used to retrieve certificate */
-    "glue_registry_arn" : "arn:aws:glue:us-west-2:430676967608:registry/Athena-MSK", /* Glue Registry ARN to retrieve schema details from AWS Glue */
-    "kafka_node" : "b-1.demoafq.0tc9nl.c14.kafka.us-west-2.amazonaws.com:9094", /* Kafka Node */
-    "secrets_manager_secret" : "AmazonMSK_afq" /* Secret name used to retrieve user kafka credentials from SecretsManager. */
+    "auth_type" : <auth_type>,                        /* Authentication type to kafka node eg:NOAUTH,TLS,SERVERLESS,SCRAM */
+    "certificates_s3_reference" : <bucket_location>, /* The S3 bucket path used to retrieve certificate */
+    "glue_registry_arn" : <glue_registry_arn>, /* Glue Registry ARN to retrieve schema details from AWS Glue */
+    "kafka_node" : <kafka_node_url>, /* Kafka Node */
+    "secrets_manager_secret" : <secrete_manager_secret> /* Secret name used to retrieve user kafka credentials from SecretsManager. */
   },
   "vpc_configuration" : {                         /* VPC configuration for DB instances within a VPC */
-    "vpc_id": "vpc-630d2f04",                     /* The VPC Id (e.g. vpc-xxx) */
-    "security_group_id": "sg-0ae87cf784bc003cb",  /* The Security Group Id (e.g. sg-xxx) */
-    "subnet_ids": ["subnet-5bce2100"],            /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
-    "availability_zones": ["us-west-2c"]          /* A list consisting of at least one AZ (e.g. us-east-1a) */
+    "vpc_id": <vpc_id>,                     /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": <security_group>,  /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": [<subnet_ids>],            /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": [<availibility_zone>]          /* A list consisting of at least one AZ (e.g. us-east-1a) */
   }
 }
