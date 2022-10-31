@@ -27,14 +27,14 @@ Parameters:
   KafkaNodes:
     Description: 'AWS MSK cluster node connection string'
     Type: String
-    Default: b-2-public.demoafq.0tc9nl.c14.kafka.us-west-2.amazonaws.com:9194
+    Default: localhost:9194
   LambdaFunctionName:
     Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SecretNamePrefix:
     Description: "The secret name within AWS Secrets Manager that contains your aws key and secret Credentials."
-    Default: AmazonMSK_afq
+    Default: AmazonMSK_sectret
     Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
@@ -68,7 +68,7 @@ Parameters:
   GlueRegistryArn:
     Description: 'AWS GLUE schema location'
     Type: String
-    Default: arn:aws:glue:us-west-2:430676967608:registry/Athena-MSK
+    Default: glue_arn
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
