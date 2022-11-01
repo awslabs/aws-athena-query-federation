@@ -399,6 +399,62 @@ public class DynamoDBMetadataHandlerTest
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0 AND #col_5 <= :v1)"));
         }
         // -------------------------------------------------------------------------
+        // Single bound constraint tests
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.greaterThan(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.greaterThanOrEqual(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.lessThan(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
+        }
+
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.lessThanOrEqual(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
+            constraintsMap.put("col_5", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
+        }
     }
 
     @Test
