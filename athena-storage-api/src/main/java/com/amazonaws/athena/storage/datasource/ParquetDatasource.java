@@ -204,10 +204,9 @@ public class ParquetDatasource
      * @param bucketName  Name of the bucket
      * @param objectNames Name of the file in the specified bucket
      * @return List of field instances
-     * @throws IOException Raises if any occurs
      */
     @Override
-    protected List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException
+    protected List<Field> getTableFields(String bucketName, List<String> objectNames)
     {
         try {
             requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");

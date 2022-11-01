@@ -67,6 +67,23 @@ public interface StorageDatasource
      */
     Optional<StorageTable> getStorageTable(String databaseName, String tableName);
 
+    default List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
+                                                String bucketName, String objectName) throws IOException
+    {
+        // dummy code for testing for now
+        if (true) {
+            return List.of(StoragePartition.builder()
+                    .objectName("abc.parquet")
+                    .location("bucket1/folder1")
+                    .recordCount(500000L)
+                    .build());
+        }
+
+        throw new RuntimeException(new UnsupportedOperationException("Method List<StorageSplit> getStoragePartitions(Schema," +
+                " Constraints, TableName, Split, String," + " String) not implemented in class "
+                + getClass().getSimpleName()));
+    }
+
     /**
      * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement
      *
