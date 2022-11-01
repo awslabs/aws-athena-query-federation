@@ -40,11 +40,11 @@ Parameters:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'
     Default: 3008
     Type: Number
-  LambdaRole:
+  LambdaRoleARN:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Default: ""
     Type: String
-  PermissionBoundary:
+  PermissionsBoundaryARN:
     Description: "(Optional) A custom Permission Boundary to be used by the Connector lambda"
     Default: ""
     Type: String
@@ -60,8 +60,8 @@ Parameters:
     Type: 'List<AWS::EC2::Subnet::Id>'
 
 Conditions:
-  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
-  HasPermissionsBoundary: !Not [!Equals [!Ref PermissionBoundary, ""]]
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
+  HasPermissionsBoundary: !Not [!Equals [!Ref PermissionsBoundaryARN, ""]]
 
 Resources:
   JdbcConnectorConfig:
@@ -80,7 +80,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
@@ -90,7 +90,7 @@ Resources:
       PermissionsBoundary:
         Fn::If:
           - HasPermissionsBoundary
-          - Ref: PermissionBoundary
+          - Ref: PermissionsBoundaryARN
           - Ref: AWS::NoValue
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
