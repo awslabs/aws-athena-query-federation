@@ -108,6 +108,7 @@ public interface StorageDatasource
      * @param constraints Constraints if any
      * @param tableInfo   Table info containing table and schema name
      * @param split       Current Split instance
+     * @apiNote spiller   An instance of {@link BlockSpiller} to spill records being fetched
      * @param queryStatusChecker An instance of {@link QueryStatusChecker} to decide whether to stop spilling while iterating over the records
      */
     void readRecords(Schema schema, Constraints constraints, TableName tableInfo, Split split, BlockSpiller spiller,

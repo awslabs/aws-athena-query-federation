@@ -98,7 +98,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @return List of database names
      */
     @Override
-    public synchronized List<String> getAllDatabases()
+    public List<String> getAllDatabases()
     {
         Page<Bucket> buckets = storage.list();
         for (Bucket bucket : buckets.iterateAll()) {
@@ -247,7 +247,10 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         else {
             blobs = storage.list(bucketName, maxTableCountOption);
         }
-        Map<String, List<String>> objectNameMap = addTables2FileMap(blobs);
+        // in the following Map, the key is the Table name, and the value is a list of String contains one or more objects (file)
+        // when the file_pattern environment variable is set, usually list String may contain more than one object
+        // And in case a table consists of multiple objects, during read it read data from all the objects
+        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(blobs);
         tableObjects.put(databaseName, objectNameMap);
         String currentNextToken = blobs.getNextPageToken();
         if (currentNextToken == null) {
@@ -269,12 +272,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             throw new DatabaseNotFoundException("Bucket null does not exist for Database " + databaseName);
         }
         Page<Blob> blobs = storage.list(bucketName);
-        Map<String, List<String>> objectNameMap = addTables2FileMap(blobs);
+        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(blobs);
         tableObjects.put(databaseName, objectNameMap);
         markEntitiesLoaded(databaseName);
     }
 
-    protected Map<String, List<String>> addTables2FileMap(Page<Blob> blobs)
+    protected Map<String, List<String>> convertBlobsToTableObjectsMap(Page<Blob> blobs)
     {
         Map<String, List<String>> objectNameMap = new HashMap<>();
         for (Blob blob : blobs.getValues()) {
