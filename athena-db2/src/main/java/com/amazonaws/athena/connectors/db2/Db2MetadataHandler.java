@@ -441,10 +441,7 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     /*
                      * converting into VARCHAR for non supported data types.
                      */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                    if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
                         columnType = Types.MinorType.VARCHAR.getType();
                     }
 

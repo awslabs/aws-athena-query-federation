@@ -98,15 +98,9 @@ public class Db2IntegTest extends IntegrationTestBase {
 
     @BeforeClass
     @Override
-    protected void setUp()
+    protected void setUp() throws Exception
     {
-        try {
-            super.setUp();
-        }
-        catch (Exception e) {
-            //throw e;
-            e.printStackTrace();
-        }
+        super.setUp();
     }
 
     public Db2IntegTest()
