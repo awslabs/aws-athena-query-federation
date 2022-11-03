@@ -93,6 +93,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     static final String COUNT_RECORDS_QUERY = "SELECT row_count\n" +
             "FROM   information_schema.tables\n" +
             "WHERE  table_type = 'BASE TABLE'\n" +
+            "AND table_schema= ?\n" +
             "AND TABLE_NAME = ? ";
     private static final String CASE_UPPER = "upper";
     private static final String CASE_LOWER = "lower";
@@ -173,7 +174,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
         else {
             double totalRecordCount = 0;
             LOGGER.info(COUNT_RECORDS_QUERY);
-            List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getTableName());
+            List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
 
             try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
                  PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection)

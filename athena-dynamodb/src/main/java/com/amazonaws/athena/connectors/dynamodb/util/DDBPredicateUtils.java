@@ -253,21 +253,25 @@ public class DDBPredicateUtils
                     rangeConjuncts.add(endBetweenPredicate);
                 }
                 else {
-                    switch (range.getLow().getBound()) {
-                        case ABOVE:
-                            rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                            break;
-                        case EXACTLY:
-                            rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                            break;
+                    if (!range.getLow().isLowerUnbounded()) {
+                        switch (range.getLow().getBound()) {
+                            case ABOVE:
+                                rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                break;
+                            case EXACTLY:
+                                rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                break;
+                        }
                     }
-                    switch (range.getHigh().getBound()) {
-                        case EXACTLY:
-                            rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                            break;
-                        case BELOW:
-                            rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                            break;
+                    if (!range.getHigh().isUpperUnbounded()) {
+                        switch (range.getHigh().getBound()) {
+                            case EXACTLY:
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                break;
+                            case BELOW:
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                break;
+                        }
                     }
                 }
                 // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
