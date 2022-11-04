@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.42.2
+    SemanticVersion: 2022.44.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -47,7 +47,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.cloudwatch.metrics.MetricsCompositeHandler"
-      CodeUri: "./target/athena-cloudwatch-metrics-2022.42.2.jar"
+      CodeUri: "./target/athena-cloudwatch-metrics-2022.44.1.jar"
       Description: "Enables Amazon Athena to communicate with Cloudwatch Metrics, making your metrics data accessible via SQL"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

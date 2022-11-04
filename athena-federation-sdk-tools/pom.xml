@@ -3,13 +3,13 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.42.2</version>
+        <version>2022.44.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-federation-sdk-tools</artifactId>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK Tools</name>
-    <version>2022.42.2</version>
+    <version>2022.44.1</version>
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
     </properties>
@@ -17,7 +17,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.42.2</version>
+            <version>2022.44.1</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
