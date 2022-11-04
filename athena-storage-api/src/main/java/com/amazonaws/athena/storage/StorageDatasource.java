@@ -68,7 +68,7 @@ public interface StorageDatasource
     Optional<StorageTable> getStorageTable(String databaseName, String tableName);
 
     default List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
-                                                String bucketName, String objectName) throws IOException
+                                                        String bucketName, String objectName) throws IOException
     {
         // dummy code for testing for now
         if (true) {
@@ -121,12 +121,12 @@ public interface StorageDatasource
     /**
      * Retrieves table data for provided arguments
      *
-     * @param schema      Schema of the table
-     * @param constraints Constraints if any
-     * @param tableInfo   Table info containing table and schema name
-     * @param split       Current Split instance
-     * @apiNote spiller   An instance of {@link BlockSpiller} to spill records being fetched
+     * @param schema             Schema of the table
+     * @param constraints        Constraints if any
+     * @param tableInfo          Table info containing table and schema name
+     * @param split              Current Split instance
      * @param queryStatusChecker An instance of {@link QueryStatusChecker} to decide whether to stop spilling while iterating over the records
+     * @apiNote spiller   An instance of {@link BlockSpiller} to spill records being fetched
      */
     void readRecords(Schema schema, Constraints constraints, TableName tableInfo, Split split, BlockSpiller spiller,
                      QueryStatusChecker queryStatusChecker);
@@ -138,7 +138,7 @@ public interface StorageDatasource
      * @param database  For which datastore will be checked
      * @param nextToken Next token for retrieve next page of table list, may be null
      */
-    String checkMetastoreForPagination(String database, String nextToken, int pageSize);
+    String loadTablesWithContinuationToken(String database, String nextToken, int pageSize);
 
     /**
      * Checks datastore for a specific database (bucket). It looks whether the database exists, if it does, it loads all

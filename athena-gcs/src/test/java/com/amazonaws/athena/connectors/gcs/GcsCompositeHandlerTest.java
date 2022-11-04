@@ -39,11 +39,11 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.powermock.api.support.membermodification.MemberMatcher.constructor;
@@ -79,36 +79,28 @@ public class GcsCompositeHandlerTest
 
     @SuppressWarnings("unchecked")
     @Test
-    public void gcsCompositeHandlerTest()
+    public void gcsCompositeHandlerTest() throws IOException
     {
-        Exception ex = null;
-        try {
-            PowerMockito.mockStatic(System.class);
-            HashMap<String, String> map = new HashMap<>();
-            map.put("file_extension", "csv");
-            map.put("gcs_secret_name", "gcs_secret_name");
-            map.put("gcs_credential_key", "athena_gcs_keys");
-            PowerMockito.when(System.getenv("gcs_secret_name")).thenReturn("athena_gcs_key");
-            PowerMockito.when(System.getenv()).thenReturn(map);
-            PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-            PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-            GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(List.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
-            Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
-            PowerMockito.mockStatic(ServiceAccountCredentials.class);
-            PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
-            suppress(constructor(AbstractStorageDatasource.class, com.amazonaws.athena.storage.datasource.GcsDatasourceConfig.class));
-            PowerMockito.mockStatic(StorageDatasourceFactory.class);
-            PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(csvDatasource);
-            PowerMockito.mockStatic(GoogleCredentials.class);
-            //suppress(constructor(GcsMetadataHandler.class));
-            PowerMockito.when(GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
-            PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
-            new GcsCompositeHandler();
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            ex = e;
-        }
-        assertNull(ex);
+        PowerMockito.mockStatic(System.class);
+        HashMap<String, String> map = new HashMap<>();
+        map.put("file_extension", "csv");
+        map.put("gcs_secret_name", "gcs_secret_name");
+        map.put("gcs_credential_key", "athena_gcs_keys");
+        PowerMockito.when(System.getenv("gcs_secret_name")).thenReturn("athena_gcs_key");
+        PowerMockito.when(System.getenv()).thenReturn(map);
+        PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
+        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
+        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(List.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
+        Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
+        PowerMockito.mockStatic(ServiceAccountCredentials.class);
+        PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
+        suppress(constructor(AbstractStorageDatasource.class, com.amazonaws.athena.storage.datasource.GcsDatasourceConfig.class));
+        PowerMockito.mockStatic(StorageDatasourceFactory.class);
+        PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(csvDatasource);
+        PowerMockito.mockStatic(GoogleCredentials.class);
+        //suppress(constructor(GcsMetadataHandler.class));
+        PowerMockito.when(GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
+        PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
+        new GcsCompositeHandler();
     }
 }

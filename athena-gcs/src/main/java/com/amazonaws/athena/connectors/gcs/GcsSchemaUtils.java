@@ -45,27 +45,20 @@ public class GcsSchemaUtils
      */
     protected Schema buildTableSchema(StorageDatasource datasource, String databaseName, String tableName)
     {
-        try {
-            SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(databaseName, tableName);
-            if (optionalStorageTable.isPresent()) {
-                StorageTable table = optionalStorageTable.get();
-                LOGGER.info("Schema Fields\n{}", table.getFields());
-                for (Field field : table.getFields()) {
-                    schemaBuilder.addField(field);
-                }
-                schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
-                return schemaBuilder.build();
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(databaseName, tableName);
+        if (optionalStorageTable.isPresent()) {
+            StorageTable table = optionalStorageTable.get();
+            LOGGER.info("Schema Fields\n{}", table.getFields());
+            for (Field field : table.getFields()) {
+                schemaBuilder.addField(field);
             }
-            else {
-                LOGGER.error("Table '{}' was not found under schema '{}'", tableName, databaseName);
-                throw new GcsConnectorException("Table '" + tableName + "' was not found under schema '" + databaseName
-                        + "'");
-            }
+            schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
+            return schemaBuilder.build();
         }
-        catch (Exception exception) {
-            exception.printStackTrace();
-            throw new GcsConnectorException("Error in building the table schema: " + exception.getMessage(), exception);
+        else {
+            LOGGER.error("Table '{}' was not found under schema '{}'", tableName, databaseName);
+            throw new GcsConnectorException("Table '" + tableName + "' was not found under schema '" + databaseName + "'");
         }
     }
 }

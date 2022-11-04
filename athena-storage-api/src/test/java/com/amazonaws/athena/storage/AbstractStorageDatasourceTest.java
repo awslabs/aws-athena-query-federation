@@ -132,10 +132,10 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         PowerMockito.when(abstractStorageDatasource.loadTablesInternal(anyString(), anyString(), anyInt())).thenReturn("token");
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
-                .checkMetastoreForPagination("test", null, 2);
+                .loadTablesWithContinuationToken("test", null, 2);
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
         Whitebox.setInternalState(abstractStorageDatasource, "metastoreConfig", new GcsDatasourceConfig().credentialsJson(gcsCredentialsJson).properties(properties));
-        String token = abstractStorageDatasource.checkMetastoreForPagination("test", null, 2);
+        String token = abstractStorageDatasource.loadTablesWithContinuationToken("test", null, 2);
         assertNull(token);
 
     }

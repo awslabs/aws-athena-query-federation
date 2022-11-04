@@ -58,7 +58,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
 
     protected final Storage storage;
     protected final String extension;
-    protected final GcsDatasourceConfig metastoreConfig;
+    protected final GcsDatasourceConfig datasourceConfig;
     protected final Map<String, String> databaseBuckets = new HashMap<>();
     protected final Map<String, Map<String, List<String>>> tableObjects = new HashMap<>();
     protected boolean storeCheckingComplete = false;
@@ -72,7 +72,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      */
     protected AbstractStorageDatasource(GcsDatasourceConfig config) throws IOException
     {
-        this.metastoreConfig = requireNonNull(config, "ObjectStorageMetastoreConfig is null");
+        this.datasourceConfig = requireNonNull(config, "ObjectStorageMetastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");
         requireNonNull(config.properties(), "Environment variables were null");
         this.extension = requireNonNull(config.extension(), "File extension is null");
@@ -126,27 +126,30 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         String currentNextToken = null;
         if (!storeCheckingComplete
                 || !tablesLoadedForDatabase(databaseName)) {
-            currentNextToken = this.checkMetastoreForPagination(databaseName, nextToken, pageSize);
+            currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
         }
         List<String> tables = List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
         return new TableListResult(tables, currentNextToken);
     }
 
     /**
-     * Checks datastore for a specific database (bucket). It looks whether the database exists, if it does, it loads all
-     * the tables (files) in it based on extension specified in the environment variables
+     * Loads Tables with continuation token from a specific database (bucket). It looks whether the database exists, if it does, it loads all
+     * the tables (files) in it based on extension specified in the environment variables. It loads tables from the underlying storage provider with a
+     * token and page size (e.g., 10) until all tables (files) are loaded.
      *
-     * @param databaseName For which datastore will be checked
-     * @param nextToken    Next token for retrieve next page of table list, may be null
+     *
+     * @param databaseName  For which datastore will be checked
+     * @param nextToken     Next token for retrieve next page of table list, may be null
+     * @param pageSize      Size of the page in each load with token
      */
     @Override
-    public synchronized String checkMetastoreForPagination(String databaseName, String nextToken, int pageSize)
+    public synchronized String loadTablesWithContinuationToken(String databaseName, String nextToken, int pageSize)
     {
         if (!checkBucketExists(databaseName)) {
             return null;
         }
 
-        if (metastoreConfig.isFilePatterned() && !supportsMultiPartFiles()) {
+        if (datasourceConfig.isFilePatterned() && !supportsMultiPartFiles()) {
             throw new UncheckedStorageDatasourceException("Datasource that reads file with " + extension + " extension does not support reading multiple files");
         }
 
@@ -299,8 +302,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     {
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))) {
-            if (metastoreConfig.isFilePatterned()) {
-                Pattern pattern = metastoreConfig.filePattern();
+            if (datasourceConfig.isFilePatterned()) {
+                Pattern pattern = datasourceConfig.filePattern();
                 String tableName = strLowerObjectName.substring(0, strLowerObjectName.lastIndexOf(extension.toLowerCase(Locale.ROOT)));
                 Matcher matcher = pattern.matcher(tableName);
                 while (matcher.find()) {

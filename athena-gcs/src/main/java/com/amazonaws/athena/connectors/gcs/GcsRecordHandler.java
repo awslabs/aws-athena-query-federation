@@ -26,7 +26,6 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.storage.StorageDatasource;
-import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -38,8 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.datasource.StorageDatasourceFactory.createDatasource;
 
 public class GcsRecordHandler
         extends RecordHandler
@@ -67,7 +68,7 @@ public class GcsRecordHandler
     protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
-        this.datasource = StorageDatasourceFactory.createDatasource(GcsUtil.getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
+        this.datasource = createDatasource(getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
     /**

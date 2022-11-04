@@ -14,7 +14,7 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <aws-athena-federation-sdk.version>2022.2.1</aws-athena-federation-sdk.version>
+        <aws-athena-federation-sdk.version>2022.42.2</aws-athena-federation-sdk.version>
         <argLine>
             -Djdk.attach.allowAttachSelf=true
             --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -43,7 +43,7 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-vector</artifactId>
-            <version>3.0.0</version>
+            <version>${apache.arrow.version}</version>
             <scope>provided</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.parquet/parquet-column -->

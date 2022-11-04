@@ -43,7 +43,7 @@ public class GcsFileByteLoader
 
     /**
      * A byte loader from file resides in Google Cloud Storage. It reads the entire file bytes into a local bytes
-     * array so that it can be retrieved quickly. Otherwise, it needs to do many round tried to read the data bytes
+     * array so that it can be retrieved quickly. Otherwise, it needs to do many round trips to read the data bytes
      * directly from GCS
      *
      * @param storage    An instance of {@link Storage}

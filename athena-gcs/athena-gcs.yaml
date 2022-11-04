@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.10.1
+    SemanticVersion: 2022.42.2
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
@@ -80,7 +80,7 @@ Resources:
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
-      CodeUri: "./target/athena-gcs-2022.2.1.jar"
+      CodeUri: "./target/athena-gcs-2022.42.2.jar"
       Description: "Amazon Athena Gcs Connector"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

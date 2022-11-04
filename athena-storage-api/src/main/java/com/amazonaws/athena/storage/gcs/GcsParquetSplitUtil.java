@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.storage.gcs;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.slf4j.Logger;
@@ -39,22 +37,8 @@ public class GcsParquetSplitUtil
     private static final String CSV_FILE_EXTENSION = ".csv";
     private static final int MAX_CSV_READ_SIZE = 10_000;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-
     private GcsParquetSplitUtil()
     {
-    }
-
-    /**
-     * Builds a string representation of an instance of {@link StorageSplit}
-     *
-     * @param split An instance of {@link StorageSplit}
-     * @return String representation of an instance of {@link StorageSplit}
-     * @throws JsonProcessingException If JSON processing error happens
-     */
-    public static synchronized String splitAsJson(StorageSplit split) throws JsonProcessingException
-    {
-        return objectMapper.writeValueAsString(split);
     }
 
     /**

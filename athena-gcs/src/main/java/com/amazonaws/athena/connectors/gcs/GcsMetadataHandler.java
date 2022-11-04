@@ -41,8 +41,6 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.TableListResult;
-import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
-import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -68,9 +66,12 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.datasource.StorageDatasourceFactory.createDatasource;
 import static java.util.Objects.requireNonNull;
 
 public class GcsMetadataHandler
@@ -90,7 +91,7 @@ public class GcsMetadataHandler
     {
         super(SOURCE_TYPE);
         gcsSchemaUtils = new GcsSchemaUtils();
-        this.datasource = StorageDatasourceFactory.createDatasource(GcsUtil.getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
+        this.datasource = createDatasource(getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
     @VisibleForTesting
@@ -105,7 +106,7 @@ public class GcsMetadataHandler
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.gcsSchemaUtils = gcsSchemaUtils;
-        this.datasource = StorageDatasourceFactory.createDatasource(GcsUtil.getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
+        this.datasource = createDatasource(getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
     /**
@@ -320,7 +321,7 @@ public class GcsMetadataHandler
             StorageSplit storageSplit = storageSplits.get(currentSplitIndex);
             String storageSplitJson;
             try {
-                storageSplitJson = GcsParquetSplitUtil.splitAsJson(storageSplit);
+                storageSplitJson = splitAsJson(storageSplit);
                 LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
                         storageSplitJson);
             }
