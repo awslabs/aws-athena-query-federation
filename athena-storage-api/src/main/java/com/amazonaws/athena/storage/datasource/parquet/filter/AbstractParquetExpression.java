@@ -19,12 +19,16 @@
  */
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
-public abstract class AbstractParquetExpression<T> implements ParquetExpression
+import com.amazonaws.athena.storage.common.FilterExpression;
+
+public abstract class AbstractParquetExpression<T> implements FilterExpression // ParquetExpression
 {
     /**
      * {@inheritDoc}
      */
     protected final Integer columnIndex;
+
+    protected final String columnName;
 
     /**
      * Expression of type T
@@ -43,13 +47,23 @@ public abstract class AbstractParquetExpression<T> implements ParquetExpression
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String columnName()
+    {
+        throw new UnsupportedOperationException("Method column() implemented in class " + getClass().getSimpleName());
+    }
+
+    /**
      * Constructs this with only column index
      *
      * @param columnIndex Index of the column
      */
-    public AbstractParquetExpression(Integer columnIndex)
+    public AbstractParquetExpression(Integer columnIndex, String columnName)
     {
         this.columnIndex = columnIndex;
+        this.columnName = columnName;
     }
 
     /**
@@ -58,9 +72,10 @@ public abstract class AbstractParquetExpression<T> implements ParquetExpression
      * @param index      Index of the column
      * @param expression Expression to match
      */
-    public AbstractParquetExpression(Integer index, T expression)
+    public AbstractParquetExpression(Integer index, String columnName, T expression)
     {
         this.columnIndex = index;
+        this.columnName = columnName;
         this.expression = expression;
     }
 
@@ -71,7 +86,19 @@ public abstract class AbstractParquetExpression<T> implements ParquetExpression
      * @return
      */
     @Override
-    public abstract boolean apply(Object value);
+    public boolean apply(Object value)
+    {
+        throw new UnsupportedOperationException("Method apply(Object) is not implemented in class " + getClass().getSimpleName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean apply(String value)
+    {
+        throw new UnsupportedOperationException("Method apply(String) is not implemented in class " + getClass().getSimpleName());
+    }
 
     /**
      * {@inheritDoc}

@@ -17,18 +17,28 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.storage.datasource.csv;
+package com.amazonaws.athena.storage.common;
 
-public interface CsvExpression
+public interface FilterExpression
 {
+    /**
+     * Index of the column in the column list
+     *
+     * @return Index of the underlying column of this expression
+     */
+    default Integer columnIndex()
+    {
+        throw new UnsupportedOperationException("Method column() implemented in class " + getClass().getSimpleName());
+    }
+
     /**
      * Fluent-styled getter
      *
      * @return Returns the column name against which the expression is being evalluated
      */
-    default String column()
+    default String columnName()
     {
-        throw new UnsupportedOperationException("Method column() implemented in class " + getClass().getSimpleName());
+        throw new UnsupportedOperationException("Method column() is not implemented in class " + getClass().getSimpleName());
     }
 
     /**
@@ -38,4 +48,12 @@ public interface CsvExpression
      * @return True if the expression evaluated to true (matches), false otherwise
      */
     boolean apply(String value);
+
+    /**
+     * Applies the value against this expression
+     *
+     * @param value Column value
+     * @return Return if a match found, false otherwise
+     */
+    boolean apply(Object value);
 }

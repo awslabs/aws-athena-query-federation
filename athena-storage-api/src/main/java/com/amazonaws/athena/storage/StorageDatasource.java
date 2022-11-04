@@ -24,6 +24,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import org.apache.arrow.vector.types.pojo.Schema;
 
@@ -70,16 +72,7 @@ public interface StorageDatasource
     default List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
                                                         String bucketName, String objectName) throws IOException
     {
-        // dummy code for testing for now
-        if (true) {
-            return List.of(StoragePartition.builder()
-                    .objectName("abc.parquet")
-                    .location("bucket1/folder1")
-                    .recordCount(500000L)
-                    .build());
-        }
-
-        throw new RuntimeException(new UnsupportedOperationException("Method List<StorageSplit> getStoragePartitions(Schema," +
+        throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> getStoragePartitions(Schema," +
                 " Constraints, TableName, Split, String," + " String) not implemented in class "
                 + getClass().getSimpleName()));
     }
@@ -154,4 +147,6 @@ public interface StorageDatasource
      * @return True if the underlying datasource supports multiple files to treat as a single table, false otherwise
      */
     boolean supportsMultiPartFiles();
+
+    List<FilterExpression> getAllFilterExpressions(Constraints constraints, String bucketName, String objectName);
 }

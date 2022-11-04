@@ -19,15 +19,17 @@
  */
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public final class ParquetConstraintEvaluator implements ConstraintEvaluator
 {
     private final List<Integer> columnIndices = new ArrayList<>();
-    private final List<ParquetExpression> and = new ArrayList<>();
+    private final List<FilterExpression> and = new ArrayList<>();
 
-    public ParquetConstraintEvaluator(List<ParquetExpression> expressions)
+    public ParquetConstraintEvaluator(List<FilterExpression> expressions)
     {
         expressions.forEach(this::addToAnd);
     }
@@ -43,7 +45,7 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
         return doAnd(columnIndex, value);
     }
 
-    private void addToAnd(ParquetExpression expression)
+    private void addToAnd(FilterExpression expression)
     {
         if (!and.contains(expression)) {
             if (!columnIndices.contains(expression.columnIndex())) {
@@ -68,7 +70,7 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
         if (and.isEmpty()) {
             return true;
         }
-        for (ParquetExpression expression : and) {
+        for (FilterExpression expression : and) {
             if (expression.columnIndex().equals(columnIndex)) {
                 if (!expression.apply(value)) {
                     return false;

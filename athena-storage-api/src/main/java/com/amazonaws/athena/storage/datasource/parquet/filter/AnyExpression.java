@@ -31,7 +31,7 @@ public class AnyExpression extends AbstractParquetExpression<List<Object>>
      */
     public AnyExpression(Integer columnIndex, List<Object> expression)
     {
-        super(columnIndex, expression);
+        super(columnIndex, null, expression);
     }
 
     /**

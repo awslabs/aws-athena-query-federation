@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -66,9 +67,9 @@ public class ParquetFilter
      */
     private final Map<String, Integer> columnIndices = new HashMap<>();
 
-    private final List<ParquetExpression> and = new ArrayList<>();
+    private final List<FilterExpression> and = new ArrayList<>();
 
-    private final List<ParquetExpression> or = new ArrayList<>();
+    private final List<FilterExpression> or = new ArrayList<>();
 
     /**
      * Construct an instance of this type with schema fields, fields from the instance of {@link MessageType}, and a {@link Split}.
@@ -103,7 +104,7 @@ public class ParquetFilter
     public ConstraintEvaluator evaluator(TableName tableInfo, Split split, Constraints constraints)
     {
         LOGGER.info("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
-        List<ParquetExpression> expressions = toConjuncts(tableInfo,
+        List<FilterExpression> expressions = toConjuncts(tableInfo,
                 constraints, split.getProperties());
         LOGGER.info("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
         if (!expressions.isEmpty()) {
@@ -130,11 +131,11 @@ public class ParquetFilter
      * @param partitionSplit A key-value that holds partition column if any
      * @return A list of {@link ParquetExpression}
      */
-    private List<ParquetExpression> toConjuncts(TableName tableName,
+    private List<FilterExpression> toConjuncts(TableName tableName,
                                                 Constraints constraints,
                                                 Map<String, String> partitionSplit)
     {
-        List<ParquetExpression> conjuncts = new ArrayList<>();
+        List<FilterExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
             if (partitionSplit.containsKey(column.getName())) {
                 continue;
@@ -158,9 +159,9 @@ public class ParquetFilter
      * @param type       Type of the column
      * @return List of {@link ParquetExpression}
      */
-    private List<ParquetExpression> addParquetExpressions(String columnName, ValueSet valueSet, ArrowType type)
+    private List<FilterExpression> addParquetExpressions(String columnName, ValueSet valueSet, ArrowType type)
     {
-        List<ParquetExpression> disjuncts = new ArrayList<>();
+        List<FilterExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
 
         if (valueSet instanceof SortedRangeSet) {
@@ -243,14 +244,14 @@ public class ParquetFilter
         return (range.getLow() != null && range.getHigh() != null && range.getLow().equals(range.getHigh()));
     }
 
-    private void addToAnd(ParquetExpression expression)
+    private void addToAnd(FilterExpression expression)
     {
         if (!and.contains(expression)) {
             and.add(expression);
         }
     }
 
-    protected final void addToOr(ParquetExpression expression)
+    protected final void addToOr(FilterExpression expression)
     {
         or.add(expression);
     }

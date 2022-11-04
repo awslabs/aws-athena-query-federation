@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.storage.datasource.csv;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
 import org.junit.Test;
 
 import java.util.List;
@@ -26,27 +27,27 @@ import java.util.List;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 
-public class CsvExpressionTest
+public class FilterExpressionTest
 {
 
     @Test
     public void testAnd()
     {
-        CsvExpression expression = new And(List.of(new EqualsExpression("test", "test")));
+        FilterExpression expression = new And(List.of(new EqualsExpression("test", "test")));
         assertTrue("test should match with test", expression.apply("test"));
     }
 
     @Test
     public void testOr()
     {
-        CsvExpression expression = new Or(List.of(new EqualsExpression("test", "test")));
+        FilterExpression expression = new Or(List.of(new EqualsExpression("test", "test")));
         assertTrue("test should match with test", expression.apply("test"));
     }
 
     @Test
     public void testIsNull()
     {
-        CsvExpression expression = new IsNullExpression("test");
+        FilterExpression expression = new IsNullExpression("test");
         assertFalse("test column wasn't null", expression.apply("test"));
     }
 }

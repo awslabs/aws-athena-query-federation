@@ -26,6 +26,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.google.common.collect.Iterables;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -77,7 +78,7 @@ public class CsvFilter
                 .collect(Collectors.toList());
         LOGGER.debug("Util::evaluator|Selected fields are \n{}", fields);
 
-        List<CsvExpression> expressions = toConjuncts(recordsRequest.getTableName(), tableSchema.getFields(),
+        List<FilterExpression> expressions = toConjuncts(recordsRequest.getTableName(), tableSchema.getFields(),
                 constraints, split.getProperties());
         if (!expressions.isEmpty()) {
             LOGGER.debug("CsvFilter::evaluator|Adding all determined expressions to CsvConstraintEvaluator");
@@ -112,7 +113,7 @@ public class CsvFilter
                 .collect(Collectors.toList());
         LOGGER.debug("Util::evaluator|Selected fields are {}\n", fields);
 
-        List<CsvExpression> expressions = toConjuncts(tableName, tableSchema.getFields(),
+        List<FilterExpression> expressions = toConjuncts(tableName, tableSchema.getFields(),
                 constraints, split.getProperties());
         if (!expressions.isEmpty()) {
             LOGGER.debug("CsvFilter::evaluator|Adding all determined expressions to CsvConstraintEvaluator");
@@ -135,11 +136,11 @@ public class CsvFilter
     }
 
     // helpers
-    private List<CsvExpression> toConjuncts(TableName tableName,
-                                            List<Field> columns, Constraints constraints,
-                                            Map<String, String> partitionSplit)
+    private List<FilterExpression> toConjuncts(TableName tableName,
+                                               List<Field> columns, Constraints constraints,
+                                               Map<String, String> partitionSplit)
     {
-        List<CsvExpression> conjuncts = new ArrayList<>();
+        List<FilterExpression> conjuncts = new ArrayList<>();
         for (Field column : columns) {
             if (partitionSplit.containsKey(column.getName())) {
                 continue;
@@ -160,11 +161,11 @@ public class CsvFilter
      *
      * @param columnName Name of the column
      * @param valueSet   An instance of {@link ValueSet}
-     * @return A list of {@link CsvExpression} if any built, or an empty list
+     * @return A list of {@link FilterExpression} if any built, or an empty list
      */
-    private List<CsvExpression> addCsvExpressions(String columnName, ValueSet valueSet)
+    private List<FilterExpression> addCsvExpressions(String columnName, ValueSet valueSet)
     {
-        List<CsvExpression> disjuncts = new ArrayList<>();
+        List<FilterExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {

@@ -35,7 +35,7 @@ public class EqualsExpression extends AbstractParquetExpression<Object>
      */
     public EqualsExpression(Integer columnIndex, Object expression)
     {
-        super(columnIndex, expression);
+        super(columnIndex, null, expression);
     }
 
     /**

@@ -34,10 +34,10 @@ import static org.testng.Assert.assertNotNull;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
 @PrepareForTest({})
-public class AbstractCsvExpressionTest
+public class AbstractFilterExpressionTest
 {
 
-    static AbstractCsvExpression abstractCsvExpression;
+    static AbstractFilterExpression abstractCsvExpression;
     static TestExpression test;
 
     @BeforeClass
@@ -45,7 +45,7 @@ public class AbstractCsvExpressionTest
     {
         test = new TestExpression("test", List.of("test"));
         abstractCsvExpression = Mockito.mock(
-                AbstractCsvExpression.class,
+                AbstractFilterExpression.class,
                 Mockito.CALLS_REAL_METHODS);
         Whitebox.setInternalState(abstractCsvExpression, "column", "test");
         Whitebox.setInternalState(abstractCsvExpression, "expression", List.of("test"));
@@ -71,7 +71,7 @@ public class AbstractCsvExpressionTest
         assertNotEquals(test, abstractCsvExpression);
     }
 
-    static class TestExpression extends AbstractCsvExpression<List<String>>
+    static class TestExpression extends AbstractFilterExpression<List<String>>
     {
         public TestExpression(String columnName, List<String> expression)
         {

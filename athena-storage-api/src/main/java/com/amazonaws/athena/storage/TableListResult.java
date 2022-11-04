@@ -24,7 +24,7 @@ import java.util.List;
 
 public class TableListResult
 {
-    private List<String> tables = new ArrayList<>();
+    private final List<String> tables = new ArrayList<>();
     private String nextToken;
 
     private TableListResult()

@@ -39,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageUtil;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
@@ -115,6 +116,12 @@ public class CsvDatasource
     public boolean supportsMultiPartFiles()
     {
         return false;
+    }
+
+    @Override
+    public List<FilterExpression> getAllFilterExpressions(Constraints constraints, String bucketName, String objectName)
+    {
+        return List.of();
     }
 
     /**

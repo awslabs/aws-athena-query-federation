@@ -19,31 +19,51 @@
  */
 package com.amazonaws.athena.storage.datasource.csv;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class Or implements CsvExpression
+public class Or implements FilterExpression
 {
-    private List<CsvExpression> expressions = new ArrayList<>();
+    private final List<FilterExpression> expressions = new ArrayList<>();
 
     /**
      * Sets or expressions
      *
-     * @param expressions A list of {@link CsvExpression}
+     * @param expressions A list of {@link FilterExpression}
      */
-    public Or(List<CsvExpression> expressions)
+    public Or(List<FilterExpression> expressions)
     {
         this.expressions.addAll(expressions);
     }
 
     @Override
+    public Integer columnIndex()
+    {
+        throw new UnsupportedOperationException("Method column() columnIndex in Or expression");
+    }
+
+    @Override
+    public String columnName()
+    {
+        throw new UnsupportedOperationException("Method columnName() columnIndex in Or expression");
+    }
+
+    @Override
     public boolean apply(String value)
     {
-        for (CsvExpression expression : expressions) {
+        for (FilterExpression expression : expressions) {
             if (expression.apply(value)) {
                 return true;
             }
         }
         return false;
+    }
+
+    @Override
+    public boolean apply(Object value)
+    {
+        throw new UnsupportedOperationException("Method apply(Object) columnIndex in Or expression");
     }
 }

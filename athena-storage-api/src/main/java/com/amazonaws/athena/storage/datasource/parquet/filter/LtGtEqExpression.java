@@ -29,6 +29,6 @@ public abstract class LtGtEqExpression<T> extends AbstractParquetExpression<T>
      */
     public LtGtEqExpression(Integer columnIndex, T expression)
     {
-        super(columnIndex, expression);
+        super(columnIndex, null, expression);
     }
 }

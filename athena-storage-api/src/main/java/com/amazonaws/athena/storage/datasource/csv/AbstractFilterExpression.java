@@ -19,7 +19,9 @@
  */
 package com.amazonaws.athena.storage.datasource.csv;
 
-public abstract class AbstractCsvExpression<T> implements CsvExpression
+import com.amazonaws.athena.storage.common.FilterExpression;
+
+public abstract class AbstractFilterExpression<T> implements FilterExpression
 {
     /**
      * Column name to retrieve value to apply the expression
@@ -37,7 +39,7 @@ public abstract class AbstractCsvExpression<T> implements CsvExpression
      * @return Returns the column name against which the expression is being evalluated
      */
     @Override
-    public String column()
+    public String columnName()
     {
         return this.column;
     }
@@ -47,7 +49,7 @@ public abstract class AbstractCsvExpression<T> implements CsvExpression
      *
      * @param columnName Name of the column for the expression
      */
-    public AbstractCsvExpression(String columnName)
+    public AbstractFilterExpression(String columnName)
     {
         this.column = columnName;
     }
@@ -58,7 +60,7 @@ public abstract class AbstractCsvExpression<T> implements CsvExpression
      * @param columnName Name of the column for the expression
      * @param expression Expression to be evaluated
      */
-    public AbstractCsvExpression(String columnName, T expression)
+    public AbstractFilterExpression(String columnName, T expression)
     {
         this.column = columnName.toLowerCase();
         this.expression = expression;
@@ -69,6 +71,11 @@ public abstract class AbstractCsvExpression<T> implements CsvExpression
      */
     @Override
     public abstract boolean apply(String value);
+
+    public boolean apply(Object value)
+    {
+        throw new UnsupportedOperationException("Method apply(Object) is not implemented in class " + getClass().getSimpleName());
+    }
 
     /**
      * Constitutes a string representation of the expression with column name expression type, etc.

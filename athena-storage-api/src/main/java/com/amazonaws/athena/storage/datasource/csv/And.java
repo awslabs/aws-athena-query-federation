@@ -19,15 +19,17 @@
  */
 package com.amazonaws.athena.storage.datasource.csv;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class And implements CsvExpression
+public class And implements FilterExpression
 {
     /**
      * Multiple expressions within and to be evaluated
      */
-    private final List<CsvExpression> expressions = new ArrayList<>();
+    private final List<FilterExpression> expressions = new ArrayList<>();
 
     /**
      * Constructor to instantiate And expression with a collection of other expression. If all expressions are evaluated to true
@@ -35,9 +37,21 @@ public class And implements CsvExpression
      *
      * @param expressions A collection of other expression
      */
-    public And(List<CsvExpression> expressions)
+    public And(List<FilterExpression> expressions)
     {
         this.expressions.addAll(expressions);
+    }
+
+    @Override
+    public Integer columnIndex()
+    {
+        throw new UnsupportedOperationException("Method columnIndex() is not implemented in And expression");
+    }
+
+    @Override
+    public String columnName()
+    {
+        throw new UnsupportedOperationException("Method columnName() is not implemented in And expression");
     }
 
     /**
@@ -46,11 +60,17 @@ public class And implements CsvExpression
     @Override
     public boolean apply(String value)
     {
-        for (CsvExpression expression : expressions) {
+        for (FilterExpression expression : expressions) {
             if (!expression.apply(value)) {
                 return false;
             }
         }
         return true;
+    }
+
+    @Override
+    public boolean apply(Object value)
+    {
+        throw new UnsupportedOperationException("Method apply(Object) is not implemented in And expression");
     }
 }

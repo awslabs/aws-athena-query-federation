@@ -40,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageConstants;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.datasource.parquet.column.GcsGroupRecordConverter;
 import com.amazonaws.athena.storage.datasource.parquet.filter.ConstraintEvaluator;
@@ -129,6 +130,12 @@ public class ParquetDatasource
     public boolean supportsMultiPartFiles()
     {
         return true;
+    }
+
+    @Override
+    public List<FilterExpression> getAllFilterExpressions(Constraints constraints, String bucketName, String objectName)
+    {
+        return List.of();
     }
 
     /**

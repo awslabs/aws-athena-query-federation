@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,13 +17,15 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.storage;
+package com.amazonaws.athena.storage.common;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 public class StoragePartition
 {
-    private String objectName;
+    private List<String> objectName;
     private String location;
     private long recordCount;
 
@@ -33,19 +35,19 @@ public class StoragePartition
     {
     }
 
-    public StoragePartition(String objectName, String location, long recordCount)
+    public StoragePartition(List<String> objectName, String location, long recordCount)
     {
         this.objectName = objectName;
         this.location = location;
         this.recordCount = recordCount;
     }
 
-    public String getObjectName()
+    public List<String> getObjectName()
     {
         return objectName;
     }
 
-    public void setObjectName(String objectName)
+    public void setObjectName(List<String> objectName)
     {
         this.objectName = objectName;
     }
@@ -88,7 +90,7 @@ public class StoragePartition
     // Builder
     public static class Builder
     {
-        private String objectName;
+        private List<String> objectName;
         private String location;
         private long recordCount;
 
@@ -96,7 +98,7 @@ public class StoragePartition
         {
         }
 
-        public Builder objectName(String objectName)
+        public Builder objectName(List<String> objectName)
         {
             this.objectName = requireNonNull(objectName, "objectName can't be null");
             return this;

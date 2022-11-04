@@ -19,18 +19,27 @@
  */
 package com.amazonaws.athena.storage;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.storage.common.FieldValue;
+import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.PartitionUtil;
+import com.amazonaws.athena.storage.common.QueryPlanner;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.GcsDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,10 +146,9 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * the tables (files) in it based on extension specified in the environment variables. It loads tables from the underlying storage provider with a
      * token and page size (e.g., 10) until all tables (files) are loaded.
      *
-     *
-     * @param databaseName  For which datastore will be checked
-     * @param nextToken     Next token for retrieve next page of table list, may be null
-     * @param pageSize      Size of the page in each load with token
+     * @param databaseName For which datastore will be checked
+     * @param nextToken    Next token for retrieve next page of table list, may be null
+     * @param pageSize     Size of the page in each load with token
      */
     @Override
     public synchronized String loadTablesWithContinuationToken(String databaseName, String nextToken, int pageSize)
@@ -225,6 +233,46 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             }
         }
         return Optional.empty();
+    }
+
+    @Override
+    public List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
+                                                       String bucketName, String objectName)
+    {
+        requireNonNull(bucketName, "Bucket name was null");
+        requireNonNull(objectName, "objectName name was null");
+        BlobId blobId = BlobId.of(bucketName, objectName);
+        Blob storageObject = storage.get(blobId);
+        if (storageObject.isDirectory()) {
+            // TODO: need to implement correctly to list all the objects under a folder inside a bucket
+            Page<Blob> blobs = storage.list(bucketName + "/" + objectName);
+            QueryPlanner queryPlanner = new QueryPlanner();
+            for (Blob blob : blobs.iterateAll()) {
+                if (blob.isDirectory()) {
+                    if (PartitionUtil.isPartitionFolder(blob.getName())) {
+                        List<FilterExpression> expressions = getAllFilterExpressions(constraints, bucketName, objectName);
+                        if (expressions.isEmpty()) {
+                            // load all files form all nested sub-folders
+                        }
+                        else {
+                            Optional<FieldValue> optionalFieldValue = FieldValue.from(blob.getName());
+                            if (optionalFieldValue.isPresent()) {
+                                if (queryPlanner.accept(optionalFieldValue.get(), expressions)) {
+                                    // TODO: read nested folder content and partition accordingly
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        // TODO: read nested folder without partition logic. That is, single partition
+                    }
+                }
+            }
+        }
+        else {
+            // A file (aka Table) under a non-partitioned bucket/folder
+        }
+        return List.of();
     }
 
     /**

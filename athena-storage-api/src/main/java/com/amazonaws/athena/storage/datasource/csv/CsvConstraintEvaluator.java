@@ -22,6 +22,7 @@ package com.amazonaws.athena.storage.datasource.csv;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.univocity.parsers.common.ParsingContext;
 import com.univocity.parsers.common.processor.AbstractRowProcessor;
 import com.univocity.parsers.common.processor.RowProcessor;
@@ -73,10 +74,10 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
     /**
      * List of single clauses, usually examined with EQUAL expression
      */
-    private final List<CsvExpression> singleClauses = new ArrayList<>();
-    private final List<CsvExpression> in = new ArrayList<>();
-    private final List<CsvExpression> or = new ArrayList<>();
-    private final List<CsvExpression> and = new ArrayList<>();
+    private final List<FilterExpression> singleClauses = new ArrayList<>();
+    private final List<FilterExpression> in = new ArrayList<>();
+    private final List<FilterExpression> or = new ArrayList<>();
+    private final List<FilterExpression> and = new ArrayList<>();
 
     private final List<String> constraintFields = new ArrayList<>();
 
@@ -159,17 +160,17 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
     /**
      * Add an expression into the list of in list
      *
-     * @param expression An instance of {@link CsvExpression}
+     * @param expression An instance of {@link FilterExpression}
      */
-    protected void addToIn(CsvExpression expression)
+    protected void addToIn(FilterExpression expression)
     {
         in.add(expression);
     }
 
     /**
-     * @return List of {@link CsvExpression}
+     * @return List of {@link FilterExpression}
      */
-    protected List<CsvExpression> in()
+    protected List<FilterExpression> in()
     {
         return in;
     }
@@ -177,17 +178,17 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
     /**
      * Add an expression into the list of or list
      *
-     * @param expression An instance of {@link CsvExpression}
+     * @param expression An instance of {@link FilterExpression}
      */
-    protected void addToOr(CsvExpression expression)
+    protected void addToOr(FilterExpression expression)
     {
         or.add(expression);
     }
 
     /**
-     * @return List of {@link CsvExpression}
+     * @return List of {@link FilterExpression}
      */
-    protected List<CsvExpression> or()
+    protected List<FilterExpression> or()
     {
         return or;
     }
@@ -195,9 +196,9 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
     /**
      * Add an expression into the list of and list
      *
-     * @param expression An instance of {@link CsvExpression}
+     * @param expression An instance of {@link FilterExpression}
      */
-    protected void addToAnd(CsvExpression expression)
+    protected void addToAnd(FilterExpression expression)
     {
         if (!and.contains(expression)) {
             and.add(expression);
@@ -231,8 +232,8 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
         if (and.isEmpty()) {
             return true;
         }
-        for (CsvExpression expression : and) {
-            if (expression.column().equals(columnName)) {
+        for (FilterExpression expression : and) {
+            if (expression.columnName().equals(columnName)) {
                 if (!expression.apply(value)) {
                     return false;
                 }
@@ -253,8 +254,8 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
         if (or.isEmpty()) {
             return true;
         }
-        for (CsvExpression expression : or) {
-            if (expression.column().equals(columnName)) {
+        for (FilterExpression expression : or) {
+            if (expression.columnName().equals(columnName)) {
                 if (expression.apply(value)) {
                     return true;
                 }
@@ -276,8 +277,8 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
             return true;
         }
         boolean matched;
-        for (CsvExpression expression : singleClauses) {
-            if (expression.column().equals(columnName)) {
+        for (FilterExpression expression : singleClauses) {
+            if (expression.columnName().equals(columnName)) {
                 matched = expression.apply(value);
                 if (!matched) {
                     return false;
