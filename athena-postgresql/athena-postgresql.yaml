@@ -51,6 +51,7 @@ Parameters:
   CompositeHandler:
     Description: 'Use "PostGreSqlMuxCompositeHandler" to access multiple postgres instances and "PostGreSqlCompositeHandler" to access single instance using DefaultConnectionString'
     Type: String
+    Default: "PostGreSqlMuxCompositeHandler"
     AllowedValues : ["PostGreSqlMuxCompositeHandler", "PostGreSqlCompositeHandler"]
 Resources:
   JdbcConnectorConfig:
