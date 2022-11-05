@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -30,7 +31,7 @@ import static org.junit.Assert.assertTrue;
 
 public class ParquetConstraintEvaluatorTest
 {
-    private static final List<ParquetExpression> expressions = new ArrayList<>();
+    private static final List<FilterExpression> expressions = new ArrayList<>();
 
     @BeforeClass
     public static void setupExpressions()
