@@ -39,10 +39,10 @@ import java.util.regex.Pattern;
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static com.amazonaws.athena.storage.StorageConstants.FILE_NAME_PATTERN_ENV_VAR;
 
-public class GcsDatasourceConfig
+public class StorageDatasourceConfig
 {
-    private String gcsCredentialJson;
-    private Map<String, String> properties = new HashMap<>();
+    private String storageCredentialJson;
+    private final Map<String, String> properties = new HashMap<>();
 
     public Map<String, String> properties()
     {
@@ -51,7 +51,7 @@ public class GcsDatasourceConfig
 
     public String credentialsJson()
     {
-        return gcsCredentialJson;
+        return storageCredentialJson;
     }
 
     /**
@@ -60,9 +60,9 @@ public class GcsDatasourceConfig
      * @param json Google Cloud Storage auth JSON string
      * @return Return the instance of GcsDatasourceConfig upon which this setter is invoked
      */
-    public GcsDatasourceConfig credentialsJson(String json)
+    public StorageDatasourceConfig credentialsJson(String json)
     {
-        gcsCredentialJson = json;
+        storageCredentialJson = json;
         return this;
     }
 
@@ -72,7 +72,7 @@ public class GcsDatasourceConfig
      * @param properties Map of property/value paris from System.env (Usually from lambda environment variables)
      * @return Return the instance of GcsDatasourceConfig upon which this setter is invoked
      */
-    public GcsDatasourceConfig properties(Map<String, String> properties)
+    public StorageDatasourceConfig properties(Map<String, String> properties)
     {
         this.properties.putAll(properties);
         return this;
@@ -110,5 +110,13 @@ public class GcsDatasourceConfig
     public String extension()
     {
         return "." + properties.get(FILE_EXTENSION_ENV_VAR);
+    }
+
+    public String getPropertyElseDefault(String key, String defaultValue)
+    {
+        String val = properties.get(key);
+        return  (val == null || val.isBlank())
+                ? defaultValue
+                : val;
     }
 }

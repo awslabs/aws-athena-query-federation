@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.datasource.CsvDatasource;
+import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -133,7 +134,7 @@ public class GcsRecordHandlerTest
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         PowerMockito.mockStatic(GoogleCredentials.class);
         PowerMockito.when(GoogleCredentials.fromStream(Mockito.any())).thenReturn(credentials);
-        suppress(constructor(AbstractStorageDatasource.class, com.amazonaws.athena.storage.datasource.GcsDatasourceConfig.class));
+        suppress(constructor(AbstractStorageDatasource.class, StorageDatasourceConfig.class));
         PowerMockito.mockStatic(StorageDatasourceFactory.class);
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(csvDatasource);
         gcsRecordHandler = new GcsRecordHandler(amazonS3, secretsManager, athena);

@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.datasource.CsvDatasource;
+import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
@@ -94,7 +95,7 @@ public class GcsCompositeHandlerTest
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         PowerMockito.mockStatic(ServiceAccountCredentials.class);
         PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
-        suppress(constructor(AbstractStorageDatasource.class, com.amazonaws.athena.storage.datasource.GcsDatasourceConfig.class));
+        suppress(constructor(AbstractStorageDatasource.class, StorageDatasourceConfig.class));
         PowerMockito.mockStatic(StorageDatasourceFactory.class);
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(csvDatasource);
         PowerMockito.mockStatic(GoogleCredentials.class);

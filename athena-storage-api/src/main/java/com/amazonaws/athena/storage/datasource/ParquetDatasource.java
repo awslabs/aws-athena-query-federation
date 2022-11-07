@@ -41,6 +41,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageConstants;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageObjectField;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.datasource.parquet.column.GcsGroupRecordConverter;
 import com.amazonaws.athena.storage.datasource.parquet.filter.ConstraintEvaluator;
@@ -48,13 +50,12 @@ import com.amazonaws.athena.storage.datasource.parquet.filter.ParquetFilter;
 import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
-import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
-import com.amazonaws.athena.storage.gcs.io.GcsInputFile;
 import com.google.common.base.Stopwatch;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.ParquetReadOptions;
+import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.filter2.compat.FilterCompat;
@@ -73,6 +74,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -102,9 +104,9 @@ public class ParquetDatasource
      */
     @SuppressWarnings("unused")
     public ParquetDatasource(String gcsCredentialJsonString,
-                             Map<String, String> properties) throws IOException
+                             Map<String, String> properties) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
-        this(new GcsDatasourceConfig()
+        this(new StorageDatasourceConfig()
                 .credentialsJson(gcsCredentialJsonString)
                 .properties(properties));
     }
@@ -116,7 +118,7 @@ public class ParquetDatasource
      * @param config An instance of GcsDatasourceConfig
      * @throws IOException If any occurs
      */
-    public ParquetDatasource(GcsDatasourceConfig config) throws IOException
+    public ParquetDatasource(StorageDatasourceConfig config) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
         super(config);
     }
@@ -138,6 +140,35 @@ public class ParquetDatasource
         return List.of();
     }
 
+    @Override
+    public boolean isExtensionCheckMandatory()
+    {
+        return true;
+    }
+
+    @Override
+    public StorageObjectSchema getObjectSchema(String bucket, String objectName) throws IOException
+    {
+        requireNonNull(objectName, "Table " + objectName + " in bucket " + bucket + " was null");
+        InputFile inputFile = storageProvider.getInputFile(bucket, objectName);
+        try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
+            ParquetMetadata metadata = reader.getFooter();
+            List<ColumnDescriptor> columnDescriptors = metadata.getFileMetaData().getSchema().getColumns();
+                    List<StorageObjectField> fieldList = new ArrayList<>();
+            for (int i = 0; i < columnDescriptors.size(); i++) {
+                ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
+                fieldList.add(StorageObjectField.builder()
+                                .columnName(columnDescriptor.getPath()[0])
+                                .columnIndex(i)
+                        .build());
+            }
+            // TODO: set record count
+            return StorageObjectSchema.builder()
+                    .fields(fieldList)
+                    .build();
+        }
+    }
+
     /**
      * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement
      *
@@ -157,7 +188,7 @@ public class ParquetDatasource
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
             try {
-                GcsInputFile inputFile = FileCacheFactory.getEmptyGCSInputFile(storage, bucketName, fileName);
+                InputFile inputFile = storageProvider.getInputFile(bucketName, fileName);
                 try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
                     splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
                             reader, recordsPerSplit()));
@@ -220,7 +251,7 @@ public class ParquetDatasource
             if (objectNames.isEmpty()) {
                 throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
             }
-            InputFile inputFile = FileCacheFactory.getEmptyGCSInputFile(storage, bucketName, objectNames.get(0));
+            InputFile inputFile = storageProvider.getInputFile(bucketName, objectNames.get(0));
             try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
                 ParquetMetadata metadata = reader.getFooter();
                 TypeFactory.FieldResolver fieldResolver = TypeFactory.filedResolver(metadata);
@@ -263,7 +294,7 @@ public class ParquetDatasource
                     = new ObjectMapper()
                     .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                             StorageSplit.class);
-            GcsInputFile inputFile = FileCacheFactory.getEmptyGCSInputFile(storage, bucketName, storageSplit.getFileName());
+            InputFile inputFile = storageProvider.getInputFile(bucketName, storageSplit.getFileName());
             try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
                 MessageType messageType = reader.getFileMetaData().getSchema();
                 Configuration configuration = new Configuration();

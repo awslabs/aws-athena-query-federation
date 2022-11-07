@@ -40,6 +40,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageUtil;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageObjectField;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
@@ -48,15 +50,8 @@ import com.amazonaws.athena.storage.datasource.exception.ReadRecordsException;
 import com.amazonaws.athena.storage.datasource.exception.TableNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
-import com.amazonaws.athena.storage.gcs.GcsInputStream;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
-import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
-import com.amazonaws.athena.storage.gcs.io.GcsOfflineStream;
-import com.amazonaws.athena.storage.gcs.io.GcsOnlineStream;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableList;
 import com.univocity.parsers.common.record.RecordMetaData;
 import com.univocity.parsers.csv.CsvParser;
@@ -72,11 +67,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -94,15 +92,15 @@ public class CsvDatasource
 
     // Used by reflection
     @SuppressWarnings("unused")
-    public CsvDatasource(String gcsCredentialJsonString,
-                         Map<String, String> properties) throws IOException
+    public CsvDatasource(String storageCredentialJsonString,
+                         Map<String, String> properties) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
-        this(new GcsDatasourceConfig()
-                .credentialsJson(gcsCredentialJsonString)
+        this(new StorageDatasourceConfig()
+                .credentialsJson(storageCredentialJsonString)
                 .properties(properties));
     }
 
-    public CsvDatasource(GcsDatasourceConfig config) throws IOException
+    public CsvDatasource(StorageDatasourceConfig config) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
         super(config);
     }
@@ -124,6 +122,37 @@ public class CsvDatasource
         return List.of();
     }
 
+    @Override
+    public boolean isExtensionCheckMandatory()
+    {
+        return true;
+    }
+
+    @Override
+    public StorageObjectSchema getObjectSchema(String bucket, String objectName) throws IOException
+    {
+        try (InputStream inputStream = storageProvider.getOnlineInputStream(bucket, objectName)) {
+            Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+            CsvParserSettings settings = new CsvParserSettings();
+            settings.setHeaderExtractionEnabled(true); // grabs headers from input
+            settings.setMaxCharsPerColumn(10240);
+            CsvParser parser = new CsvParser(settings);
+            parser.beginParsing(reader);
+            String[] headers = parser.getRecordMetadata().headers();
+            List<StorageObjectField> fieldList = new ArrayList<>();
+            for (int i = 0; i < headers.length; i++) {
+                fieldList.add(StorageObjectField.builder()
+                        .columnName(headers[i])
+                        .columnIndex(i)
+                        .build());
+            }
+            // TODO: set record count
+            return StorageObjectSchema.builder()
+                    .fields(fieldList)
+                    .build();
+        }
+    }
+
     /**
      * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement
      *
@@ -136,7 +165,7 @@ public class CsvDatasource
      */
     @Override
     public List<StorageSplit> getStorageSplits(Schema schema, Constraints constraints, TableName tableInfo,
-                                               String bucketName, String objectNames)
+                                               String bucketName, String objectNames) throws IOException
     {
         checkFilesSize(bucketName, objectNames);
         return getStorageSplits(bucketName, objectNames);
@@ -151,11 +180,10 @@ public class CsvDatasource
      */
     @Override
     public List<StorageSplit> getStorageSplits(final String bucketName,
-                                               final String fileName)
+                                               final String fileName) throws IOException
     {
-        GcsOfflineStream offlineGcsStream = FileCacheFactory.createOfflineGcsStream(storage, bucketName, fileName);
-        requireNonNull(offlineGcsStream, "Stream cached was null for file " + fileName + " under bucket " + bucketName);
-        long totalRecords = StorageUtil.getCsvRecordCount(offlineGcsStream.file());
+        InputStream inputStream = storageProvider.getOfflineInputStream(bucketName, fileName);
+        long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
         return GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit());
     }
 
@@ -190,12 +218,12 @@ public class CsvDatasource
             throw new TableNotFoundException("No table '" + tableName + "' found under schema '" + databaseName + "'");
         }
         try {
-            readRecordsForRequest(schema, constraints, tableInfo, split, storage, bucketName, spiller, queryStatusChecker);
+            readRecordsForRequest(schema, constraints, tableInfo, split, bucketName, spiller, queryStatusChecker);
         }
         catch (Exception exception) {
             throw new UncheckedStorageDatasourceException("Error occurred during reading CSV records. Table name : " + tableName
                     + ", schema name: " + tableInfo.getSchemaName() + ", original file name(s): " + objectNames
-                    + ", bucket name: " +  bucketName + ". Error message: "
+                    + ", bucket name: " + bucketName + ". Error message: "
                     + exception.getMessage(), exception);
         }
     }
@@ -249,8 +277,7 @@ public class CsvDatasource
      */
     public List<String> inferSchemaFields(String bucketName, String fileName) throws IOException
     {
-        GcsOnlineStream gcsOnlineStream = FileCacheFactory.createOnlineGcsStream(storage, bucketName, fileName);
-        try (GcsInputStream inputStream = new GcsInputStream(gcsOnlineStream)) {
+        try (InputStream inputStream = storageProvider.getOnlineInputStream(bucketName, fileName)) {
             Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
             CsvParserSettings settings = new CsvParserSettings();
             settings.setHeaderExtractionEnabled(true); // grabs headers from input
@@ -266,7 +293,7 @@ public class CsvDatasource
     }
 
     private void readRecordsForRequest(Schema schema, Constraints constraints, TableName tableInfo,
-                                       Split split, Storage storage, String bucketName,
+                                       Split split, String bucketName,
                                        BlockSpiller spiller, QueryStatusChecker queryStatusChecker) throws IOException
     {
         CsvFilter csvFilter = new CsvFilter();
@@ -277,8 +304,7 @@ public class CsvDatasource
                 = new ObjectMapper()
                 .readValue(split.getProperty(STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         StorageSplit.class);
-        GcsOfflineStream offlineGcsStream = FileCacheFactory.createOfflineGcsStream(storage, bucketName, storageSplit.getFileName());
-        try (GcsInputStream inputStream = new GcsInputStream(offlineGcsStream)) {
+        try (InputStream inputStream = storageProvider.getOfflineInputStream(bucketName, storageSplit.getFileName())) {
             Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
             String storageSplitJson = split.getProperty(STORAGE_SPLIT_JSON);
             requireNonNull(storageSplitJson, "Storage split JSON is required to to define the split");
@@ -326,9 +352,7 @@ public class CsvDatasource
 
     private void checkFilesSize(String bucket, String objectName)
     {
-        BlobId blobId = BlobId.of(bucket, objectName);
-        Blob blob = storage.get(blobId);
-        if (blob.getSize() > MAX_CSV_FILES_SIZE) {
+        if (storageProvider.getFileSize(bucket, objectName) > MAX_CSV_FILES_SIZE) {
             throw new UncheckedStorageDatasourceException("Length of the CSV file '" + objectName + "' exceeds the maximum allowed size "
                     + humanReadableByteCountBin());
         }

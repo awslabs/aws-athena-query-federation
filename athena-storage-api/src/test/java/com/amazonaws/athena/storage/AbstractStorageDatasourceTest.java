@@ -20,7 +20,7 @@
 package com.amazonaws.athena.storage;
 
 
-import com.amazonaws.athena.storage.datasource.GcsDatasourceConfig;
+import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;
@@ -134,7 +134,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
                 .when(abstractStorageDatasource)
                 .loadTablesWithContinuationToken("test", null, 2);
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
-        Whitebox.setInternalState(abstractStorageDatasource, "metastoreConfig", new GcsDatasourceConfig().credentialsJson(gcsCredentialsJson).properties(properties));
+        Whitebox.setInternalState(abstractStorageDatasource, "metastoreConfig", new StorageDatasourceConfig().credentialsJson(gcsCredentialsJson).properties(properties));
         String token = abstractStorageDatasource.loadTablesWithContinuationToken("test", null, 2);
         assertNull(token);
 
@@ -291,7 +291,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
                 .when(abstractStorageDatasource)
                 .addTable("test.csv", map);
 
-        Whitebox.setInternalState(abstractStorageDatasource, "metastoreConfig", new GcsDatasourceConfig()
+        Whitebox.setInternalState(abstractStorageDatasource, "metastoreConfig", new StorageDatasourceConfig()
                 .credentialsJson(gcsCredentialsJson)
                 .properties(csvProps));
         Whitebox.setInternalState(abstractStorageDatasource, EXTENSION, "csv");

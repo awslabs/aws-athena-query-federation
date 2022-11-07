@@ -24,6 +24,7 @@ import com.univocity.parsers.common.routine.InputDimension;
 import com.univocity.parsers.csv.CsvRoutines;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.Locale;
 
 public class StorageUtil
@@ -59,9 +60,17 @@ public class StorageUtil
      *
      * @return Record count in the CSV file
      */
+    @Deprecated
     public static synchronized long getCsvRecordCount(File cachedFile)
     {
         InputDimension dimension = new CsvRoutines().getInputDimension(cachedFile);
+        // excluding the header row
+        return dimension.rowCount() - 1;
+    }
+
+    public static synchronized long getCsvRecordCount(InputStream inputStream)
+    {
+        InputDimension dimension = new CsvRoutines().getInputDimension(inputStream);
         // excluding the header row
         return dimension.rowCount() - 1;
     }

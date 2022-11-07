@@ -25,7 +25,9 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
+import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import org.apache.arrow.vector.types.pojo.Schema;
 
@@ -70,7 +72,7 @@ public interface StorageDatasource
     Optional<StorageTable> getStorageTable(String databaseName, String tableName);
 
     default List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
-                                                        String bucketName, String objectName) throws IOException
+                                                        String bucketName, String objectName)
     {
         throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> getStoragePartitions(Schema," +
                 " Constraints, TableName, Split, String," + " String) not implemented in class "
@@ -149,4 +151,29 @@ public interface StorageDatasource
     boolean supportsMultiPartFiles();
 
     List<FilterExpression> getAllFilterExpressions(Constraints constraints, String bucketName, String objectName);
+
+    /**
+     * Provides storage provider that helps accessing the storage bucket, folder and files inside
+     *
+     * @return A storage specific instance
+     */
+    StorageProvider getStorageProvider();
+
+    /**
+     * Indicates whether a file's extension check is mandatory.
+     * For example, for CSV, this check maybe mandatory to check file extension
+     * On the other hand, parquet file may not mandate to check its extension. Because, in some cases, when the file is generated
+     * from some other system (e.g, Database), the parquet file may or may not hae the .parquet extension
+     * @return true if file's extension check is mandatory, false otherwise
+     */
+    boolean isExtensionCheckMandatory();
+
+    /**
+     * Determines the schema information. It only discovers the field name and its index.
+     * Along with the record count
+     * @param bucket The name of the bucket
+     * @param objectName Name of the object (file)
+     * @returnt A type specific instance of {@link StorageObjectSchema}
+     */
+    StorageObjectSchema getObjectSchema(String bucket, String objectName) throws IOException;
 }

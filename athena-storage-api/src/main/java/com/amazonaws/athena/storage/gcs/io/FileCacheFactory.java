@@ -98,6 +98,7 @@ public class FileCacheFactory
      * @param fileName   Name of the file under the bucket
      * @return Am instance of {@link GcsOnlineStream}
      */
+    @Deprecated
     public static synchronized GcsOnlineStream createOnlineGcsStream(Storage storage,
                                                                      String bucketName,
                                                                      String fileName)
@@ -116,11 +117,11 @@ public class FileCacheFactory
      * @param fileName   Name of the file under the bucket
      * @return Am instance of {@link GcsOfflineStream}
      */
+    @Deprecated
     public static synchronized GcsOfflineStream createOfflineGcsStream(final Storage storage,
                                                                        String bucketName,
-                                                                       String fileName)
+                                                                       String fileName) throws IOException
     {
-        try {
             requireNonNull(storage, "Storage was null");
             File tempFile = fromExistingCache(bucketName, fileName);
             if (tempFile == null) {
@@ -136,11 +137,6 @@ public class FileCacheFactory
                     .fileName(fileName)
                     .file(tempFile)
                     .storage(storage);
-        }
-        catch (Exception exception) {
-            throw new UncheckedStorageDatasourceException("Unable to initialize RandomAccessFile for file " + fileName
-                    + " from bucket " + bucketName, exception);
-        }
     }
 
     /**
@@ -151,6 +147,7 @@ public class FileCacheFactory
      * @param fileName   Name of the file under the bucket
      * @return An instance of {@link GcsInputFile}, a subclass of {@link org.apache.parquet.io.InputFile}
      */
+    @Deprecated
     public static GcsInputFile getGCSInputFile(Storage storage, String bucketName, String fileName) throws IOException
     {
         StorageFile storageFile = createRandomFile(storage, bucketName, fileName);
@@ -182,7 +179,7 @@ public class FileCacheFactory
      * @return An instance of {@link File} if found, null otherwise
      * @throws IOException If occurs any
      */
-    protected static File fromExistingCache(String bucketName, String fileName) throws IOException
+    public static File fromExistingCache(String bucketName, String fileName) throws IOException
     {
         File tempFile = getTempFile(bucketName, fileName);
         if (tempFile != null && tempFile.exists()) {
@@ -217,7 +214,7 @@ public class FileCacheFactory
         return new File(tempFilePath);
     }
 
-    private static File cacheBytesInTempFile(String bucketName, String fileName, byte[] bytes)
+    public static File cacheBytesInTempFile(String bucketName, String fileName, byte[] bytes)
     {
         LOGGER.debug("Factory=FileCacheFactory|Message=caching file {}, length {}", fileName, bytes != null ? bytes.length : 0);
         try {

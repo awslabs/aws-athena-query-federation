@@ -21,40 +21,33 @@ package com.amazonaws.athena.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.storage.common.FieldValue;
-import com.amazonaws.athena.storage.common.FilterExpression;
-import com.amazonaws.athena.storage.common.PartitionUtil;
-import com.amazonaws.athena.storage.common.QueryPlanner;
+import com.amazonaws.athena.storage.common.PagedObject;
 import com.amazonaws.athena.storage.common.StoragePartition;
-import com.amazonaws.athena.storage.datasource.GcsDatasourceConfig;
+import com.amazonaws.athena.storage.common.StorageProvider;
+import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
-import com.google.api.gax.paging.Page;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.storage.StorageConstants.STORAGE_PROVIDER_ENV_VAR;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
@@ -65,13 +58,13 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStorageDatasource.class);
 
-    protected final Storage storage;
     protected final String extension;
-    protected final GcsDatasourceConfig datasourceConfig;
+    protected final StorageDatasourceConfig datasourceConfig;
     protected final Map<String, String> databaseBuckets = new HashMap<>();
     protected final Map<String, Map<String, List<String>>> tableObjects = new HashMap<>();
     protected boolean storeCheckingComplete = false;
     protected List<LoadedEntities> loadedEntitiesList = new ArrayList<>();
+    protected StorageProvider storageProvider;
 
     /**
      * Instantiate a storage data source object with provided config
@@ -79,16 +72,13 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param config An instance of GcsDatasourceConfig that contains necessary properties for instantiating an appropriate data source
      * @throws IOException If occurs during initializing input stream with GCS credential JSON
      */
-    protected AbstractStorageDatasource(GcsDatasourceConfig config) throws IOException
+    protected AbstractStorageDatasource(StorageDatasourceConfig config) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
         this.datasourceConfig = requireNonNull(config, "ObjectStorageMetastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");
         requireNonNull(config.properties(), "Environment variables were null");
         this.extension = requireNonNull(config.extension(), "File extension is null");
-        GoogleCredentials credentials
-                = GoogleCredentials.fromStream(new ByteArrayInputStream(config.credentialsJson().getBytes(StandardCharsets.UTF_8)))
-                .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
-        storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+        loadStorageProvider();
     }
 
     /**
@@ -109,9 +99,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     @Override
     public List<String> getAllDatabases()
     {
-        Page<Bucket> buckets = storage.list();
-        for (Bucket bucket : buckets.iterateAll()) {
-            String bucketName = bucket.getName();
+        List<String> buckets = storageProvider.getAllBuckets();
+        for (String bucketName : buckets) {
             String validName = getValidEntityName(bucketName);
             if (!databaseBuckets.containsKey(validName)) {
                 loadedEntitiesList.add(new LoadedEntities(validName));
@@ -239,41 +228,51 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
                                                        String bucketName, String objectName)
     {
-        requireNonNull(bucketName, "Bucket name was null");
-        requireNonNull(objectName, "objectName name was null");
-        BlobId blobId = BlobId.of(bucketName, objectName);
-        Blob storageObject = storage.get(blobId);
-        if (storageObject.isDirectory()) {
-            // TODO: need to implement correctly to list all the objects under a folder inside a bucket
-            Page<Blob> blobs = storage.list(bucketName + "/" + objectName);
-            QueryPlanner queryPlanner = new QueryPlanner();
-            for (Blob blob : blobs.iterateAll()) {
-                if (blob.isDirectory()) {
-                    if (PartitionUtil.isPartitionFolder(blob.getName())) {
-                        List<FilterExpression> expressions = getAllFilterExpressions(constraints, bucketName, objectName);
-                        if (expressions.isEmpty()) {
-                            // load all files form all nested sub-folders
-                        }
-                        else {
-                            Optional<FieldValue> optionalFieldValue = FieldValue.from(blob.getName());
-                            if (optionalFieldValue.isPresent()) {
-                                if (queryPlanner.accept(optionalFieldValue.get(), expressions)) {
-                                    // TODO: read nested folder content and partition accordingly
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        // TODO: read nested folder without partition logic. That is, single partition
-                    }
-                }
-            }
-        }
-        else {
-            // A file (aka Table) under a non-partitioned bucket/folder
-        }
+//        requireNonNull(bucketName, "Bucket name was null");
+//        requireNonNull(objectName, "objectName name was null");
+//        BlobId blobId = BlobId.of(bucketName, objectName);
+//        Blob storageObject = storage.get(blobId);
+//        if (storageObject.isDirectory()) {
+//            // TODO: need to implement correctly to list all the objects under a folder inside a bucket
+//            Page<Blob> blobs = storage.list(bucketName + "/" + objectName);
+//            QueryPlanner queryPlanner = new QueryPlanner();
+//            for (Blob blob : blobs.iterateAll()) {
+//                if (blob.isDirectory()) {
+//                    if (PartitionUtil.isPartitionFolder(blob.getName())) {
+//                        List<FilterExpression> expressions = getAllFilterExpressions(constraints, bucketName, objectName);
+//                        if (expressions.isEmpty()) {
+//                            // load all files form all nested sub-folders
+//                        } else {
+//                            Optional<FieldValue> optionalFieldValue = FieldValue.from(blob.getName());
+//                            if (optionalFieldValue.isPresent()) {
+//                                if (queryPlanner.accept(optionalFieldValue.get(), expressions)) {
+//                                    // TODO: read nested folder content and partition accordingly
+//                                }
+//                            }
+//                        }
+//                    } else {
+//                        // TODO: read nested folder without partition logic. That is, single partition
+//                    }
+//                }
+//            }
+//        } else {
+//            // A file (aka Table) under a non-partitioned bucket/folder
+//        }
         return List.of();
     }
+
+    @Override
+    public StorageProvider getStorageProvider()
+    {
+        return this.storageProvider;
+    }
+
+    /**
+     * Returns the size of records per split
+     *
+     * @return Size of records per split
+     */
+    public abstract int recordsPerSplit();
 
     /**
      * Loads all tables for the given database ana maintain a references of actual bucket and file names
@@ -290,20 +289,13 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (bucketName == null) {
             throw new DatabaseNotFoundException("Bucket null does not exist for Database " + databaseName);
         }
-        Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
-        Page<Blob> blobs;
-        if (nextToken != null) {
-            blobs = storage.list(bucketName, Storage.BlobListOption.pageToken(nextToken), maxTableCountOption);
-        }
-        else {
-            blobs = storage.list(bucketName, maxTableCountOption);
-        }
+        PagedObject pagedObject = storageProvider.getFileNames(bucketName, nextToken, pageSize);
         // in the following Map, the key is the Table name, and the value is a list of String contains one or more objects (file)
         // when the file_pattern environment variable is set, usually list String may contain more than one object
         // And in case a table consists of multiple objects, during read it read data from all the objects
-        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(blobs);
+        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(pagedObject.getFileNames());
         tableObjects.put(databaseName, objectNameMap);
-        String currentNextToken = blobs.getNextPageToken();
+        String currentNextToken = pagedObject.getNextToken();
         if (currentNextToken == null) {
             markEntitiesLoaded(databaseName);
         }
@@ -322,18 +314,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (bucketName == null) {
             throw new DatabaseNotFoundException("Bucket null does not exist for Database " + databaseName);
         }
-        Page<Blob> blobs = storage.list(bucketName);
-        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(blobs);
+        List<String> fileNames = storageProvider.getFileNames(bucketName);
+        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(fileNames);
         tableObjects.put(databaseName, objectNameMap);
         markEntitiesLoaded(databaseName);
     }
 
-    protected Map<String, List<String>> convertBlobsToTableObjectsMap(Page<Blob> blobs)
+    protected Map<String, List<String>> convertBlobsToTableObjectsMap(List<String> fileNames)
     {
         Map<String, List<String>> objectNameMap = new HashMap<>();
-        for (Blob blob : blobs.getValues()) {
-            if (blob.getName().toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
-                addTable(blob.getName(), objectNameMap);
+        for (String fileName : fileNames) {
+            if (!isExtensionCheckMandatory()) {
+                addTable(fileName, objectNameMap);
+            }
+            else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
+                addTable(fileName, objectNameMap);
             }
         }
         return objectNameMap;
@@ -422,6 +417,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return true;
     }
 
+    // helpers
+
     /**
      * Mark whether all tables (entities) are loaded maintained in a LoadedEntities object
      *
@@ -439,10 +436,19 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         entities.tablesLoaded = true;
     }
 
-    /**
-     * Returns the size of records per split
-     *
-     * @return Size of records per split
-     */
-    public abstract int recordsPerSplit();
+    private void loadStorageProvider() throws InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
+    {
+        String providerCodeName = datasourceConfig.getPropertyElseDefault(STORAGE_PROVIDER_ENV_VAR, "gcs");
+        ServiceLoader<StorageProvider> loader = ServiceLoader.load(StorageProvider.class);
+        for (StorageProvider storageProviderImpl : loader) {
+            Class<?> clazz = storageProviderImpl.getClass();
+            Method acceptMethod = clazz.getMethod("accept", String.class);
+            Object trueOfFalse = acceptMethod.invoke(null, providerCodeName);
+            if (((Boolean) trueOfFalse) == true) {
+                Constructor<?> constructor = clazz.getConstructor(String.class);
+                storageProvider = (StorageProvider) constructor.newInstance(datasourceConfig.credentialsJson());
+            }
+        }
+        throw new UncheckedStorageDatasourceException("Storage provider for code name '" + providerCodeName + "' was not found");
+    }
 }
