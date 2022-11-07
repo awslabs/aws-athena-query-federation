@@ -102,7 +102,6 @@ public class BlockAllocatorImpl
         List<FieldVector> vectors = new ArrayList();
         try {
             for (Field next : schema.getFields()) {
-                logger.warn("Field to be vectorized " + next.toString());
                 vectors.add(next.createVector(rootAllocator));
             }
             vectorSchemaRoot = new VectorSchemaRoot(schema, vectors, 0);

@@ -115,7 +115,7 @@ EOM
 fi
 
 set -e
-mvn clean install -DskipTests -Dpublishing=true
+mvn clean install -Dpublishing=true
 
 sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1 --region $REGION
 sam publish --template packaged.yaml --region $REGION
