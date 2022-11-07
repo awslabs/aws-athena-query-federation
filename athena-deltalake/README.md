@@ -34,6 +34,9 @@ This connector handles these [Delta primitive types](https://github.com/delta-io
 |date|DATEDAY|	
 |timestamp|DATEMILLI|
 
+And also complex types: Struct, Array, Map and complex types of complex types, like Array of Structs etc. For now only.
+The only unsupported complexity is complex type of Map(it will not break, but will return nulls)
+
 ### Required Permissions
 
 Review the "Policies" section of the athena-deltalake.yaml file for full details on the IAM Policies required by this connector. A brief summary is below.
@@ -69,6 +72,7 @@ To use the Amazon Athena Deltalake Connector in your queries, navigate to AWS Se
 - This implementation does not handle corrupted delta log multi part checkpoints (see [multi-part checkpoints](https://github.com/delta-io/delta/blob/master/PROTOCOL.md#checkpoints))
 - This implementation does not handle partitions of Binary type (as stated in the [protocol](https://github.com/delta-io/delta/blob/master/PROTOCOL.md#partition-value-serialization))
 - Database and table name folders in S3 MUST be in lower case
+- Complex type of Map, e.g. Array of Maps is unsupported(it will not break, but will return nulls)
 
 ## License
 
