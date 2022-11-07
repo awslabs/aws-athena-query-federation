@@ -135,6 +135,7 @@ public abstract class RecordHandler
                 if (!(rawReq instanceof RecordRequest)) {
                     throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
                 }
+
                 doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
             }
             catch (Exception ex) {
