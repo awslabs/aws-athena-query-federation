@@ -136,22 +136,16 @@ public class GcsStorageProvider implements StorageProvider
     @Override
     public boolean isDirectory(String bucket, String prefix)
     {
-        String maybeSubFolder = prefix;
-        if (!prefix.endsWith("/")) {
-            maybeSubFolder = prefix + "/";
-        }
-        Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.prefix(maybeSubFolder));
-        for (Blob blob : blobs.iterateAll()) {
-            return true;
-        }
-        return false;
+        BlobId blobId = BlobId.of(bucket, prefix);
+        Blob blob = storage.get(blobId);
+        return  (blob != null && blob.getSize() == 0);
     }
 
     @Override
     public List<String> getFileNames(String bucket)
     {
         List<String> fileNameList = new ArrayList<>();
-        return toImmutableStringList(storage.list(bucket));
+        return toImmutableFileNameList(storage.list(bucket));
     }
 
     @Override
@@ -161,13 +155,13 @@ public class GcsStorageProvider implements StorageProvider
         if (continuationToken != null) {
             Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
             return PagedObject.builder()
-                    .fileNames(toImmutableStringList(blobs))
+                    .fileNames(toImmutableFileNameList(blobs))
                     .nextToken(blobs.getNextPageToken())
                     .build();
         }
         else {
             return PagedObject.builder()
-                    .fileNames(toImmutableStringList(storage.list(bucket, maxTableCountOption)))
+                    .fileNames(toImmutableFileNameList(storage.list(bucket, maxTableCountOption)))
                     .build();
         }
     }
@@ -190,11 +184,13 @@ public class GcsStorageProvider implements StorageProvider
                 .fileName(fileName);
     }
 
-    private List<String> toImmutableStringList(Page<Blob> blobs)
+    private List<String> toImmutableFileNameList(Page<Blob> blobs)
     {
         List<String> blobNameList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
-            blobNameList.add(blob.getName());
+            if (!isDirectory(blob.getBucket(), blob.getName())) {
+                blobNameList.add(blob.getName());
+            }
         }
         return ImmutableList.copyOf(blobNameList);
     }

@@ -289,7 +289,12 @@
             <artifactId>hadoop-auth</artifactId>
             <version>2.10.1</version>
         </dependency>
-
+        <!-- https://mvnrepository.com/artifact/org.reflections/reflections -->
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.10.2</version>
+        </dependency>
     </dependencies>
 
     <build>

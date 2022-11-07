@@ -266,16 +266,16 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         storage.create(BucketInfo.of(bucketName));
         storage.createFrom(blobInfo, new ByteArrayInputStream(content));
 
-        Page<Blob> buck = storage.list(bucketName);
+        Page<Blob> blobPage = storage.list(bucketName);
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
-                .convertBlobsToTableObjectsMap(buck);
+                .convertBlobsToTableObjectsMap(blobToObjectList(blobPage));
 
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, new HashMap<>());
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
         Whitebox.setInternalState(abstractStorageDatasource, EXTENSION, "csv");
         Whitebox.setInternalState(abstractStorageDatasource, LOADED_ENTITIES_LIST, List.of(new AbstractStorageDatasource.LoadedEntities("test")));
-        Map<String, List<String>> obj = abstractStorageDatasource.convertBlobsToTableObjectsMap(buck);
+        Map<String, List<String>> obj = abstractStorageDatasource.convertBlobsToTableObjectsMap(blobToObjectList(blobPage));
         assertNotNull(obj);
     }
 

@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -115,7 +116,7 @@ public class GcsRecordHandlerTest
 
     @SuppressWarnings("unchecked")
     @Before
-    public void init() throws IOException
+    public void init() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
         environmentVariables.set("gcs_credential_key", "gcs_credential_keys");

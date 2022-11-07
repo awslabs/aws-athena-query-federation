@@ -36,9 +36,7 @@ import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
-import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -178,7 +176,5 @@ public class CsvDatasourceTest extends GcsTestBase
                 spiller, mockedQueryStatusChecker);
         assertNotNull(spiller, "No records returned");
         assertTrue(spiller.spilled(), "No records found");
-
     }
-
 }

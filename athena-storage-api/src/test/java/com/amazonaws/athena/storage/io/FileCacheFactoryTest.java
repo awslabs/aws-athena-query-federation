@@ -38,6 +38,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 
@@ -79,14 +80,14 @@ public class FileCacheFactoryTest extends GcsTestBase
     }
 
     @Test
-    public void testCreateOfflineGcsStream()
+    public void testCreateOfflineGcsStream() throws IOException
     {
         GcsOfflineStream gcsOfflineStream = FileCacheFactory.createOfflineGcsStream(storage, BUCKET, CSV_FILE);
         assertNotNull(gcsOfflineStream);
     }
 
     @Test
-    public void testCreateOfflineGcsStreamFromCache()
+    public void testCreateOfflineGcsStreamFromCache() throws IOException
     {
 
         GcsOfflineStream gcsOfflineStream = FileCacheFactory.createOfflineGcsStream(storage, BUCKET, CSV_FILE);

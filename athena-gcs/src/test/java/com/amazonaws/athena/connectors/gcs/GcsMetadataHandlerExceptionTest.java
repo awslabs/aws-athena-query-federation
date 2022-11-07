@@ -59,6 +59,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -67,7 +68,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.anyInt;
@@ -124,7 +124,7 @@ public class GcsMetadataHandlerExceptionTest
 
     @SuppressWarnings("unchecked")
     @Before
-    public void setUp() throws IOException
+    public void setUp() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.mockStatic(ServiceAccountCredentials.class);
         suppress(constructor(AbstractStorageDatasource.class, StorageDatasourceConfig.class));
@@ -155,7 +155,7 @@ public class GcsMetadataHandlerExceptionTest
 
 
     @Test(expected = RuntimeException.class)
-    public void testDoListTablesException()
+    public void testDoListTablesException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         //Get the first dataset name.
         when(csvDatasource.getAllTables(anyString(), anyString(), anyInt())).thenCallRealMethod();
@@ -168,7 +168,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test
-    public void testDoListSchemaNames()
+    public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, amazonAthena, "test", "test", gcsSchemaUtils, amazonS3);
@@ -179,7 +179,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void testDoGetTableException()
+    public void testDoGetTableException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         when(gcsSchemaUtils.buildTableSchema(Mockito.any(), Mockito.any(), Mockito.anyString())).thenReturn(GcsTestUtils.getTestSchema());
@@ -193,7 +193,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test
-    public void testDoListTables()
+    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         int UNLIMITED_PAGE_SIZE_VALUE = 50;
@@ -207,7 +207,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test(expected = Exception.class)
-    public void testGetPartitionsException()
+    public void testGetPartitionsException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         BlockWriter blockWriter = mock(BlockWriter.class);

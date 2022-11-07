@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,7 +88,7 @@ public class GcsMetadataHandler
     private final GcsSchemaUtils gcsSchemaUtils;
     private final StorageDatasource datasource;
 
-    public GcsMetadataHandler()
+    public GcsMetadataHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         super(SOURCE_TYPE);
         gcsSchemaUtils = new GcsSchemaUtils();
@@ -102,7 +103,7 @@ public class GcsMetadataHandler
                                  String spillBucket,
                                  String spillPrefix,
                                  GcsSchemaUtils gcsSchemaUtils,
-                                 AmazonS3 amazonS3)
+                                 AmazonS3 amazonS3) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.gcsSchemaUtils = gcsSchemaUtils;

@@ -70,6 +70,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -141,7 +142,7 @@ public class GcsMetadataHandlerTest
 
     @SuppressWarnings("unchecked")
     @Before
-    public void setUp() throws IOException
+    public void setUp() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.mockStatic(ServiceAccountCredentials.class);
         PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
@@ -174,7 +175,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames()
+    public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         final int numDatasets = 5;
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, amazonAthena, "test", "test", gcsSchemaUtils, amazonS3);
@@ -186,7 +187,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoListTables()
+    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         //Get the first dataset name.
         final int numTables = 5;
@@ -201,7 +202,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetTable()
+    public void testDoGetTable() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         when(gcsSchemaUtils.buildTableSchema(Mockito.any(), Mockito.any(), Mockito.anyString())).thenReturn(GcsTestUtils.getTestSchema());
         List<Field> tableSchema = GcsTestUtils.getFields();
@@ -217,7 +218,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplits()
+    public void testDoGetSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
@@ -231,7 +232,7 @@ public class GcsMetadataHandlerTest
 
     @Test
     @Ignore
-    public void testDoGetSplitsMultiSplits()
+    public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         String yearCol = "PART_ID";
         //This is the schema that ExampleMetadataHandler has laid out for a 'Partition' so we need to populate this
@@ -263,7 +264,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testGetPartitions()
+    public void testGetPartitions() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         when(csvDatasource.getStorageSplits(Mockito.any(), anyString())).thenReturn(GcsTestUtils.getSplits());
         BlockWriter blockWriter = mock(BlockWriter.class);

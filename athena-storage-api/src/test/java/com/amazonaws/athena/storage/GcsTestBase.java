@@ -42,6 +42,7 @@ import com.amazonaws.athena.storage.gcs.io.StorageFile;
 import com.amazonaws.athena.storage.mock.GcsMarker;
 import com.amazonaws.athena.storage.mock.StorageMock;
 import com.amazonaws.services.s3.AmazonS3;
+import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.PageImpl;
 import com.google.cloud.ReadChannel;
@@ -50,6 +51,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -397,6 +399,15 @@ public class GcsTestBase extends StorageMock
         doReturn(channel.read(byteBuffer)).when(readChannel).read(ArgumentMatchers.any(ByteBuffer.class));
         doReturn(blobObject).when(storage).get(any(BlobId.class));
         return new FileCacheFactoryInfoTest(storage, tmpFile);
+    }
+
+    protected List<String> blobToObjectList(Page<Blob> blobPage)
+    {
+        List<String> objectNameList = new ArrayList<>();
+        for (Blob blob : blobPage.iterateAll()) {
+            objectNameList.add(blob.getName());
+        }
+        return ImmutableList.copyOf(objectNameList);
     }
 
     public S3BlockSpiller getS3SpillerObject(Schema schemaForRead)

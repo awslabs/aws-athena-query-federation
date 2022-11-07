@@ -21,6 +21,8 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
+import java.lang.reflect.InvocationTargetException;
+
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data.
@@ -31,7 +33,7 @@ public class GcsCompositeHandler
     /**
      * The default constructor that initializes metadata and record handlers for GCS
      */
-    public GcsCompositeHandler()
+    public GcsCompositeHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         super(new GcsMetadataHandler(), new GcsRecordHandler());
     }

@@ -30,6 +30,7 @@ import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasou
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -213,8 +214,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                             .setFieldList(getTableFields(bucketName, objectNames))
                             .build();
                     return Optional.of(table);
-                }
-                catch (Exception exception) {
+                } catch (Exception exception) {
                     // We ignore this exception. Because if this Exception is propagated, other necessary Table(s) will not be
                     // listed in the Tables list in the Athena Console (or when calling programmatically)
                     LOGGER.error("Error occurred during resolving Table {} under the schema {}", tableObjects, databaseName, exception);
@@ -326,8 +326,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         for (String fileName : fileNames) {
             if (!isExtensionCheckMandatory()) {
                 addTable(fileName, objectNameMap);
-            }
-            else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
+            } else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
                 addTable(fileName, objectNameMap);
             }
         }
@@ -353,8 +352,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                     String strTableName = getValidEntityNameFromFile(matcher.group(1), this.extension);
                     tableMap.computeIfAbsent(strTableName, files -> new ArrayList<>()).add(objectName);
                 }
-            }
-            else {
+            } else {
                 tableMap.computeIfAbsent(getValidEntityNameFromFile(objectName, this.extension), files -> new ArrayList<>()).add(objectName);
             }
         }
@@ -439,16 +437,20 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     private void loadStorageProvider() throws InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
         String providerCodeName = datasourceConfig.getPropertyElseDefault(STORAGE_PROVIDER_ENV_VAR, "gcs");
-        ServiceLoader<StorageProvider> loader = ServiceLoader.load(StorageProvider.class);
-        for (StorageProvider storageProviderImpl : loader) {
-            Class<?> clazz = storageProviderImpl.getClass();
-            Method acceptMethod = clazz.getMethod("accept", String.class);
+        Reflections reflections = new Reflections("com.amazonaws.athena.storage");
+        Set<Class<? extends StorageProvider>> classes = reflections.getSubTypesOf(StorageProvider.class);
+        for (Class<?> storageProviderImpl : classes) {
+            Method acceptMethod = storageProviderImpl.getMethod("accept", String.class);
             Object trueOfFalse = acceptMethod.invoke(null, providerCodeName);
-            if (((Boolean) trueOfFalse) == true) {
-                Constructor<?> constructor = clazz.getConstructor(String.class);
+            if (((Boolean) trueOfFalse)) {
+                Constructor<?> constructor = storageProviderImpl.getConstructor(String.class);
                 storageProvider = (StorageProvider) constructor.newInstance(datasourceConfig.credentialsJson());
+                break;
             }
         }
-        throw new UncheckedStorageDatasourceException("Storage provider for code name '" + providerCodeName + "' was not found");
+        // Still no storage providers found? Then throw run-time exception
+        if (storageProvider == null) {
+            throw new UncheckedStorageDatasourceException("Storage provider for code name '" + providerCodeName + "' was not found");
+        }
     }
 }

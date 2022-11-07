@@ -41,6 +41,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -80,7 +81,7 @@ public class GcsCompositeHandlerTest
 
     @SuppressWarnings("unchecked")
     @Test
-    public void gcsCompositeHandlerTest() throws IOException
+    public void gcsCompositeHandlerTest() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         PowerMockito.mockStatic(System.class);
         HashMap<String, String> map = new HashMap<>();
