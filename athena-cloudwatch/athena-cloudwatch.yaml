@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.39.1
+    SemanticVersion: 2022.42.2
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AthenaCatalogName:
@@ -46,8 +46,8 @@ Parameters:
     Default: ""
 
 Conditions:
- HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
- HasLambdaRole: !Not [!Equals [!Ref LambdaRole, ""]]
+  HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
+  NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
 
 Resources:
   ConnectorConfig:
@@ -61,15 +61,15 @@ Resources:
           kms_key_id: !If [HasKMSKeyId, !Ref KMSKeyId, !Ref "AWS::NoValue"]
       FunctionName: !Ref AthenaCatalogName
       Handler: "com.amazonaws.athena.connectors.cloudwatch.CloudwatchCompositeHandler"
-      CodeUri: "./target/athena-cloudwatch-2022.39.1.jar"
+      CodeUri: "./target/athena-cloudwatch-2022.42.2.jar"
       Description: "Enables Amazon Athena to communicate with Cloudwatch, making your log accessible via SQL"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Role: !If [HasLambdaRole, !Ref LambdaRole, !GetAtt FunctionRole.Arn]
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRole]
 
   FunctionRole:
-    Condition: !Not HasLambdaRole
+    Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:

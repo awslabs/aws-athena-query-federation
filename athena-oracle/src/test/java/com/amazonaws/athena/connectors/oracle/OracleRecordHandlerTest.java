@@ -64,6 +64,7 @@ public class OracleRecordHandlerTest
     private static final String ORACLE_QUOTE_CHARACTER = "\"";
     @Before
     public void setup()
+            throws Exception
     {
         this.amazonS3 = Mockito.mock(AmazonS3.class);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);

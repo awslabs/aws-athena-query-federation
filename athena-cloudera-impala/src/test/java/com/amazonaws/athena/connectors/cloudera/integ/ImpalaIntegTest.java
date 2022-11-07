@@ -99,13 +99,10 @@ public class ImpalaIntegTest extends IntegrationTestBase {
 
     @BeforeClass
     @Override
-    protected void setUp() {
-        try {
-            super.setUp();
-        } catch (Exception e) {
-
-            throw e;
-        }
+    protected void setUp()
+            throws Exception
+    {
+        super.setUp();
     }
 
 

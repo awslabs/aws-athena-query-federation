@@ -72,6 +72,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
+import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_RECORD_COUNT;
 import static java.util.Map.entry;
 
 /**
@@ -91,6 +93,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     static final String COUNT_RECORDS_QUERY = "SELECT row_count\n" +
             "FROM   information_schema.tables\n" +
             "WHERE  table_type = 'BASE TABLE'\n" +
+            "AND table_schema= ?\n" +
             "AND TABLE_NAME = ? ";
     private static final String CASE_UPPER = "upper";
     private static final String CASE_LOWER = "lower";
@@ -151,27 +154,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
-        Map<String, String> properties = System.getenv();
         /**
-         * Customized environment variable "pagecount" for pagination based partition. It is currently set to 500000.
+         * "PARTITION_RECORD_COUNT" is currently set to 500000.
          * It means there will be 500000 rows per partition. The number of partition will be total number of rows divided by
-         * pagecount variable value.
-         */
-        String pagecount = properties.get("pagecount");
-        Long totalpagecount = Long.valueOf(pagecount);
-
-        /**
-         * Customized environment variable "partitionlimit" to limit the number of partitions.
+         * PARTITION_RECORD_COUNT variable value.
+         * "MAX_PARTITION_COUNT" is currently set to 50 to limit the number of partitions.
          * this is to handle timeout issues because of huge partitions
          */
-        String partitionlimit = properties.get("partitionlimit");
-        Long totalPartitionlimit = Long.valueOf(partitionlimit);
-
-        LOGGER.info(" Total Partition Limit" + totalPartitionlimit);
-        LOGGER.info(" Total Page  Count" +  totalpagecount);
-        long offset = 0;
-        double limit = 0;
-        double totalRecordCount = 0;
+        LOGGER.info(" Total Partition Limit" + MAX_PARTITION_COUNT);
+        LOGGER.info(" Total Page  Count" +  PARTITION_RECORD_COUNT);
         boolean viewFlag = checkForView(getTableLayoutRequest);
         //if the input table is a view , there will be single split
         if (viewFlag) {
@@ -181,8 +172,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             });
         }
         else {
+            double totalRecordCount = 0;
             LOGGER.info(COUNT_RECORDS_QUERY);
-            List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getTableName());
+            List<String> parameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
 
             try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
                  PreparedStatement preparedStatement = new PreparedStatementBuilder().withConnection(connection)
@@ -191,48 +183,50 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 while (rs.next()) {
                     totalRecordCount = rs.getInt(1);
                 }
-                double limitValue = totalRecordCount / totalpagecount;
-                limit = (int) Math.ceil(limitValue);
                 if (totalRecordCount > 0) {
-                    // if number of partitions are more than defined limit as in environment variable "partitionlimit"
-                    // it will be treated as a single partition.
-                    if (limit > totalPartitionlimit) {
-                        final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + totalRecordCount + "-offset-" + offset;
-                        LOGGER.info("partitionVal {} ", partitionVal);
-                        blockWriter.writeRows((Block block, int rowNum) ->
-                        {
-                            block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
-                            return 1;
-                        });
-                    }
-                    else {
-                        /**
-                         * Custom pagination based partition logic will be applied with limit and offset clauses.
-                         * the partition values we are setting the limit and offste values like p-limit-3000-offset-0
-                         */
-                        for (int i = 1; i <= limit; i++) {
-                            if (i > 1) {
-                                offset = offset + totalpagecount;
+                    // if number of partitions are more than defined limit "MAX_PARTITION_COUNT"
+                    // it will do maximum 50 partitions,49 partitions will have 500000 records each and last partition will have the remaining number of records.
+                    double limitValue = totalRecordCount / PARTITION_RECORD_COUNT;
+                    double limit = (int) Math.ceil(limitValue);
+                    long offset = 0;
+                    if (limit > MAX_PARTITION_COUNT) {
+                        for (int i = 1; i <= MAX_PARTITION_COUNT; i++) {
+                            int partitionRecord = PARTITION_RECORD_COUNT;
+                            if (i == MAX_PARTITION_COUNT) {
+                                //Updating partitionRecord variable to display the remaining records in the last partition.
+                                //we get the value by subtracting the records displayed till 49th partition from the total number of records.
+                                partitionRecord = (int) totalRecordCount - (PARTITION_RECORD_COUNT * (MAX_PARTITION_COUNT - 1));
                             }
-                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + pagecount + "-offset-" + offset;
+                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + partitionRecord + "-offset-" + offset;
                             LOGGER.info("partitionVal {} ", partitionVal);
                             blockWriter.writeRows((Block block, int rowNum) ->
                             {
                                 block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
                                 return 1;
                             });
+                            offset = offset + PARTITION_RECORD_COUNT;
+                        }
+                    }
+                    else {
+                        /**
+                         * Custom pagination based partition logic will be applied with limit and offset clauses.
+                         * the partition values we are setting the limit and offset values like p-limit-3000-offset-0
+                         */
+                        for (int i = 1; i <= limit; i++) {
+                            final String partitionVal = BLOCK_PARTITION_COLUMN_NAME + "-limit-" + PARTITION_RECORD_COUNT + "-offset-" + offset;
+                            LOGGER.info("partitionVal {} ", partitionVal);
+                            blockWriter.writeRows((Block block, int rowNum) ->
+                            {
+                                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, partitionVal);
+                                return 1;
+                            });
+                            offset = offset + PARTITION_RECORD_COUNT;
                         }
                     }
                 }
                 else {
                     LOGGER.info("No Records Found for table {}", getTableLayoutRequest.getTableName().getTableName());
                 }
-            }
-            catch (SQLException sqlException) {
-                throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-            }
-            catch (Exception exception) {
-                LOGGER.error("Error occurred while getting the results", exception);
             }
         }
     }
@@ -241,9 +235,9 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * Check if the input table is a view and returns viewflag accordingly
      * @param getTableLayoutRequest
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
-    private boolean checkForView(GetTableLayoutRequest getTableLayoutRequest) throws SQLException
+    private boolean checkForView(GetTableLayoutRequest getTableLayoutRequest) throws Exception
     {
         boolean viewFlag = false;
         List<String> viewparameters = Arrays.asList(getTableLayoutRequest.getTableName().getSchemaName(), getTableLayoutRequest.getTableName().getTableName());
@@ -254,10 +248,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                     viewFlag = true;
                 }
                 LOGGER.info("viewFlag: {}", viewFlag);
-            }
-            catch (SQLException sqlException) {
-                LOGGER.info("Exception while querying view details for view {}", getTableLayoutRequest.getTableName().getTableName());
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         return viewFlag;
@@ -303,6 +293,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
@@ -310,9 +301,6 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             GetTableResponse getTableResponse = new GetTableResponse(getTableRequest.getCatalogName(), tableName, getSchema(connection, tableName, partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
             return getTableResponse;
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -322,10 +310,10 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
      * @param tableName
      * @param partitionSchema
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
     public Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
-            throws SQLException
+            throws Exception
     {
         /**
          * query to fetch column data type to handle appropriate datatype to arrowtype conversions.
@@ -339,71 +327,67 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
             stmt.setString(1, tableName.getSchemaName().toUpperCase());
             stmt.setString(2, tableName.getTableName().toUpperCase());
 
-            boolean found = false;
             HashMap<String, String> hashMap = new HashMap<String, String>();
-            try {
-                ResultSet dataTypeResultSet = stmt.executeQuery();
-                String type = "";
-                String name = "";
+            ResultSet dataTypeResultSet = stmt.executeQuery();
 
-                while (dataTypeResultSet.next()) {
-                    type = dataTypeResultSet.getString("DATA_TYPE");
-                    name = dataTypeResultSet.getString(COLUMN_NAME);
-                    hashMap.put(name.trim(), type.trim());
-                }
-                if (hashMap.isEmpty() == true) {
-                    LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
-                }
-                while (resultSet.next()) {
-                    ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
-                    String columnName = resultSet.getString(COLUMN_NAME);
-                    String dataType = hashMap.get(columnName);
-                    LOGGER.debug("columnName: " + columnName);
-                    LOGGER.debug("dataType: " + dataType);
-                    final Map<String, ArrowType> stringArrowTypeMap = Map.ofEntries(
-                            entry("INTEGER", Types.MinorType.INT.getType()),
-                            entry("DATE", Types.MinorType.DATEDAY.getType()),
-                            entry("TIMESTAMP", Types.MinorType.DATEMILLI.getType()),
-                            entry("TIMESTAMP_LTZ", Types.MinorType.DATEMILLI.getType()),
-                            entry("TIMESTAMP_NTZ", Types.MinorType.DATEMILLI.getType()),
-                            entry("TIMESTAMP_TZ", Types.MinorType.DATEMILLI.getType())
-                    );
-                    if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
-                        columnType = stringArrowTypeMap.get(dataType.toUpperCase());
-                    }
-                    /**
-                     * converting into VARCHAR for not supported data types.
-                     */
-                    if (columnType == null) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
-                    if (columnType != null && !SupportedTypes.isSupported(columnType)) {
-                        columnType = Types.MinorType.VARCHAR.getType();
-                    }
+            String type = "";
+            String name = "";
 
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        LOGGER.debug(" AddField Schema Building...()  ");
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        found = true;
-                    }
-                    else {
-                        LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
-                    }
-                }
+            while (dataTypeResultSet.next()) {
+                type = dataTypeResultSet.getString("DATA_TYPE");
+                name = dataTypeResultSet.getString(COLUMN_NAME);
+                hashMap.put(name.trim(), type.trim());
             }
-            catch (SQLException e) {
-                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+            if (hashMap.isEmpty() == true) {
+                LOGGER.debug("No data type  available for TABLE in hashmap : " + tableName.getTableName());
+            }
+            boolean found = false;
+            while (resultSet.next()) {
+                ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"));
+                String columnName = resultSet.getString(COLUMN_NAME);
+                String dataType = hashMap.get(columnName);
+                LOGGER.debug("columnName: " + columnName);
+                LOGGER.debug("dataType: " + dataType);
+                final Map<String, ArrowType> stringArrowTypeMap = Map.ofEntries(
+                        entry("INTEGER", Types.MinorType.INT.getType()),
+                        entry("DATE", Types.MinorType.DATEDAY.getType()),
+                        entry("TIMESTAMP", Types.MinorType.DATEMILLI.getType()),
+                        entry("TIMESTAMP_LTZ", Types.MinorType.DATEMILLI.getType()),
+                        entry("TIMESTAMP_NTZ", Types.MinorType.DATEMILLI.getType()),
+                        entry("TIMESTAMP_TZ", Types.MinorType.DATEMILLI.getType())
+                );
+                if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
+                    columnType = stringArrowTypeMap.get(dataType.toUpperCase());
+                }
+                /**
+                 * converting into VARCHAR for not supported data types.
+                 */
+                if (columnType == null) {
+                    columnType = Types.MinorType.VARCHAR.getType();
+                }
+                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                    columnType = Types.MinorType.VARCHAR.getType();
+                }
+
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    LOGGER.debug(" AddField Schema Building...()  ");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
+                    found = true;
+                }
+                else {
+                    LOGGER.error("getSchema: Unable to map type for column[" + columnName + "] to a supported type, attempted " + columnType);
+                }
             }
             if (!found) {
                 throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
             }
             partitionSchema.getFields().forEach(schemaBuilder::addField);
-            LOGGER.debug(schemaBuilder.toString());
-            return schemaBuilder.build();
         }
+        LOGGER.debug(schemaBuilder.toString());
+        return schemaBuilder.build();
     }
 
     /**
@@ -503,17 +487,15 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
     }
     @Override
     public ListSchemasResponse doListSchemaNames(final BlockAllocator blockAllocator, final ListSchemasRequest listSchemasRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             LOGGER.info("{}: List schema names for Catalog {}", listSchemasRequest.getQueryId(), listSchemasRequest.getCatalogName());
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
-        }
     }
-    protected static Set<String>  listDatabaseNames(final Connection jdbcConnection)
-            throws SQLException
+    protected static Set<String> listDatabaseNames(final Connection jdbcConnection)
+            throws Exception
     {
         try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();

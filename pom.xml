@@ -4,7 +4,7 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>2022.39.1</version>
+    <version>2022.42.2</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
@@ -99,6 +99,8 @@
         <module>athena-cloudera-hive</module>
         <module>athena-cloudera-impala</module>
         <module>athena-hortonworks-hive</module>
+        <module>athena-db2</module>
+        <module>athena-deltalake</module>
     </modules>
     <dependencies>
         <dependency>

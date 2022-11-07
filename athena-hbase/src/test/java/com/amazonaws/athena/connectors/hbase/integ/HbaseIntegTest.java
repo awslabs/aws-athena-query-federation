@@ -99,6 +99,7 @@ public class HbaseIntegTest extends IntegrationTestBase
     @BeforeClass
     @Override
     protected void setUp()
+            throws Exception
     {
         cloudFormationClient = new CloudFormationClient(getHbaseStack());
         try {

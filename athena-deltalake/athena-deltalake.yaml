@@ -1,0 +1,65 @@
+Transform: 'AWS::Serverless-2016-10-31'
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: DeltalakeAthenaConnector
+    Description: DeltalakeAthenaConnector Description
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ['athena-federation']
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2022.42.2
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+
+Parameters:
+  AthenaCatalogName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  DataBucket:
+      Description: "The bucket where the Delta tables live."
+      Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: "Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)"
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: "Lambda memory in MB (min 128 - 3008 max)."
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
+    Default: "false"
+    Type: String
+  LambdaRole:
+    Description: "A custom role for reading from DataBucket and writing to SpillBucket"
+    Type: String
+
+Resources:
+  ConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          data_bucket: !Ref DataBucket
+      FunctionName: !Sub "${AthenaCatalogName}"
+      Handler: "com.amazonaws.connectors.athena.deltalake.DeltalakeCompositeHandler"
+      CodeUri: "./target/athena-deltalake-2022.42.2.jar"
+      Description: "Enables Amazon Athena to query Delta Lake tables stored in S3."
+      Runtime: java11
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Role: !Ref LambdaRole

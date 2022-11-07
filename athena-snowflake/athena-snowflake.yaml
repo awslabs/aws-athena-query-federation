@@ -10,7 +10,7 @@ Metadata:
     Labels:
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.39.1
+    SemanticVersion: 2022.42.2
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -48,14 +48,6 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
-  PageCount:
-    Description: 'Limits the number of records per partition'
-    Type: Number
-    Default: 500000
-  PartitionLimit:
-    Description: 'Limits the number of partitions. A large number may cause a time-out issue. Please reset to a lower value if you encounter a time-out error'
-    Type: Number
-    Default: 10
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -66,11 +58,9 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
-          pagecount: !Ref PageCount
-          partitionlimit: !Ref PartitionLimit
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.snowflake.SnowflakeMuxCompositeHandler"
-      CodeUri: "./target/athena-snowflake-2022.39.1.jar"
+      CodeUri: "./target/athena-snowflake-2022.42.2.jar"
       Description: "Enables Amazon Athena to communicate with Snowflake using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

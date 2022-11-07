@@ -45,8 +45,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connectors.docdb.DocDBFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.docdb.DocDBMetadataHandler.DOCDB_CONN_STR;
 
@@ -67,6 +69,9 @@ public class DocDBRecordHandler
     private static final String SOURCE_TYPE = "documentdb";
     //Controls the page size for fetching batches of documents from the MongoDB client.
     private static final int MONGO_QUERY_BATCH_SIZE = 100;
+
+    // This needs to be turned on if the user is using a Glue table and their docdb tables contain cased column names
+    private static final String DISABLE_PROJECTION_AND_CASING_ENV = "disable_projection_and_casing";
 
     private final DocDBConnectionFactory connectionFactory;
 
@@ -104,6 +109,19 @@ public class DocDBRecordHandler
         return connectionFactory.getOrCreateConn(endpoint);
     }
 
+    private static Map<String, Object> documentAsMap(Document document, boolean caseInsensitive)
+    {
+        logger.info("documentAsMap: caseInsensitive: {}", caseInsensitive);
+        Map<String, Object> documentAsMap = (Map<String, Object>) document;
+        if (!caseInsensitive) {
+            return documentAsMap;
+        }
+
+        TreeMap<String, Object> caseInsensitiveMap = new TreeMap<String, Object>(String.CASE_INSENSITIVE_ORDER);
+        caseInsensitiveMap.putAll(documentAsMap);
+        return caseInsensitiveMap;
+    }
+
     /**
      * Scans DocumentDB using the scan settings set on the requested Split by DocDBeMetadataHandler.
      *
@@ -112,21 +130,37 @@ public class DocDBRecordHandler
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        TableName tableName = recordsRequest.getTableName();
+        TableName tableNameObj = recordsRequest.getTableName();
+        String schemaName = tableNameObj.getSchemaName();
+        String tableName = recordsRequest.getSchema().getCustomMetadata().getOrDefault(
+            SOURCE_TABLE_PROPERTY, tableNameObj.getTableName());
+
+        logger.info("Resolved tableName to: {}", tableName);
+
         Map<String, ValueSet> constraintSummary = recordsRequest.getConstraints().getSummary();
 
         MongoClient client = getOrCreateConn(recordsRequest.getSplit());
-        MongoDatabase db = client.getDatabase(tableName.getSchemaName());
-        MongoCollection<Document> table = db.getCollection(tableName.getTableName());
+        MongoDatabase db = client.getDatabase(schemaName);
+        MongoCollection<Document> table = db.getCollection(tableName);
 
         Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
-        Document output = QueryUtils.makeProjection(recordsRequest.getSchema());
 
-        logger.info("readWithConstraint: query[{}] projection[{}]", query, output);
+        String disableProjectionAndCasingEnvValue = System.getenv().getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
+        boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
+        logger.info("{} environment variable set to: {}. Resolved to: {}",
+            DISABLE_PROJECTION_AND_CASING_ENV, disableProjectionAndCasingEnvValue, disableProjectionAndCasing);
+
+        // TODO: Currently AWS DocumentDB does not support collation, which is required for case insensitive indexes:
+        // https://www.mongodb.com/docs/manual/core/index-case-insensitive/
+        // Once AWS DocumentDB supports collation, then projections do not have to be disabled anymore because case
+        // insensitive indexes allows for case insensitive projections.
+        Document projection = disableProjectionAndCasing ? null : QueryUtils.makeProjection(recordsRequest.getSchema());
+
+        logger.info("readWithConstraint: query[{}] projection[{}]", query, projection);
 
         final MongoCursor<Document> iterable = table
                 .find(query)
-                .projection(output)
+                .projection(projection)
                 .batchSize(MONGO_QUERY_BATCH_SIZE).iterator();
 
         long numRows = 0;
@@ -134,8 +168,7 @@ public class DocDBRecordHandler
         while (iterable.hasNext() && queryStatusChecker.isQueryRunning()) {
             numRows++;
             spiller.writeRows((Block block, int rowNum) -> {
-                Document doc = iterable.next();
-
+                Map<String, Object> doc = documentAsMap(iterable.next(), disableProjectionAndCasing);
                 boolean matched = true;
                 for (Field nextField : recordsRequest.getSchema().getFields()) {
                     Object value = TypeUtils.coerce(nextField, doc.get(nextField.getName()));

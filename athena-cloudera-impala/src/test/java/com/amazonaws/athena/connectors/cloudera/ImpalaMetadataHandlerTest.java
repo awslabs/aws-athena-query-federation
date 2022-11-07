@@ -63,7 +63,9 @@ public class ImpalaMetadataHandlerTest
         System.setProperty("aws.region", "us-west-2");
     }
     @Before
-    public void setup() {
+    public void setup()
+            throws Exception
+    {
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);

@@ -1,0 +1,230 @@
+{
+  "type": "struct",
+  "fields": [
+    {
+      "name": "tenant",
+      "type": "string",
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "testArrayString",
+      "type": {
+        "type": "array",
+        "elementType": "string",
+        "containsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "testArrayInt",
+      "type": {
+        "type": "array",
+        "elementType": "integer",
+        "containsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "testMapString",
+      "type": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": "string",
+        "valueContainsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "testStruct",
+      "type": {
+        "type": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": true,
+            "metadata": {}
+          }
+        ]
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "complexStruct",
+      "type": {
+        "type": "struct",
+        "fields": [
+          {
+            "name": "testStruct",
+            "type": {
+              "type": "struct",
+              "fields": [
+                {
+                  "name": "name",
+                  "type": "string",
+                  "nullable": true,
+                  "metadata": {}
+                },
+                {
+                  "name": "id",
+                  "type": "integer",
+                  "nullable": true,
+                  "metadata": {}
+                }
+              ]
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "testArray",
+            "type": {
+              "type": "array",
+              "elementType": "string",
+              "containsNull": true
+            },
+            "nullable": true,
+            "metadata": {}
+          },
+          {
+            "name": "testMap",
+            "type": {
+              "type": "map",
+              "keyType": "string",
+              "valueType": "string",
+              "valueContainsNull": true
+            },
+            "nullable": true,
+            "metadata": {}
+          }
+        ]
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "arrayOfIntArrays",
+      "type": {
+        "type": "array",
+        "elementType": {
+          "type": "array",
+          "elementType": "integer",
+          "containsNull": true
+        },
+        "containsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "arrayOfStructs",
+      "type": {
+        "type": "array",
+        "elementType": {
+          "type": "struct",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string",
+              "nullable": true,
+              "metadata": {}
+            },
+            {
+              "name": "id",
+              "type": "integer",
+              "nullable": true,
+              "metadata": {}
+            }
+          ]
+        },
+        "containsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "arrayOfMaps",
+      "type": {
+        "type": "array",
+        "elementType": {
+          "type": "map",
+          "keyType": "string",
+          "valueType": "string",
+          "valueContainsNull": true
+        },
+        "containsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "mapWithMaps",
+      "type": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": {
+          "type": "map",
+          "keyType": "string",
+          "valueType": "string",
+          "valueContainsNull": true
+        },
+        "valueContainsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "mapWithStructs",
+      "type": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": {
+          "type": "struct",
+          "fields": [
+            {
+              "name": "name",
+              "type": "string",
+              "nullable": true,
+              "metadata": {}
+            },
+            {
+              "name": "id",
+              "type": "integer",
+              "nullable": true,
+              "metadata": {}
+            }
+          ]
+        },
+        "valueContainsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    },
+    {
+      "name": "mapWithArrays",
+      "type": {
+        "type": "map",
+        "keyType": "string",
+        "valueType": {
+          "type": "array",
+          "elementType": "string",
+          "containsNull": true
+        },
+        "valueContainsNull": true
+      },
+      "nullable": true,
+      "metadata": {}
+    }
+  ]
+}

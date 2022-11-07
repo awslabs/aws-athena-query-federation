@@ -80,7 +80,7 @@ public class JdbcRecordHandlerTest
 
     @Before
     public void setup()
-            throws SQLException
+            throws Exception
     {
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
@@ -108,7 +108,7 @@ public class JdbcRecordHandlerTest
 
     @Test
     public void readWithConstraint()
-            throws SQLException
+            throws Exception
     {
         ConstraintEvaluator constraintEvaluator = Mockito.mock(ConstraintEvaluator.class);
         Mockito.when(constraintEvaluator.apply(Mockito.anyString(), Mockito.any())).thenReturn(true);

@@ -131,7 +131,8 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      */
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest getTableLayoutRequest,
-                              QueryStatusChecker queryStatusChecker) throws Exception
+                              QueryStatusChecker queryStatusChecker)
+            throws Exception
     {
         LOGGER.info("{}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
                 getTableLayoutRequest.getTableName().getTableName());
@@ -147,9 +148,6 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                     viewFlag = true;
                 }
                 LOGGER.debug("viewFlag: {}", viewFlag);
-            }
-            catch (SQLException sqlException) {
-                throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         //if the input table is a view , there will be single split
@@ -179,9 +177,6 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                 try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
                     getPartitionDetails(blockWriter, getPartitionsQuery, parameters, connection);
                 }
-                catch (SQLException sqlException) {
-                    throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
-                }
             }
         }
     }
@@ -192,9 +187,9 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      * partitions, if it exceeds the value, then there will be only single split.
      * @param getTableLayoutRequest
      * @return
-     * @throws SQLException
+     * @throws Exception
      */
-    private boolean useNonPartitionApproach(GetTableLayoutRequest getTableLayoutRequest) throws SQLException
+    private boolean useNonPartitionApproach(GetTableLayoutRequest getTableLayoutRequest) throws Exception
     {
         final String getPartitionsCountQuery = "Select  count(distinct partition ) as partition_count FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
                 getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
@@ -213,9 +208,6 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                     nonPartitionApproach = true;
                 }
                 LOGGER.info("nonPartitionApproach: {}", nonPartitionApproach);
-            }
-            catch (SQLException sqlException) {
-                throw new SQLException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
             }
         }
         return nonPartitionApproach;
@@ -313,14 +305,12 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
 
     @Override
     public GetTableResponse doGetTable(final BlockAllocator blockAllocator, final GetTableRequest getTableRequest)
+            throws Exception
     {
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
             Schema partitionSchema = getPartitionSchema(getTableRequest.getCatalogName());
             return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), getSchema(connection, getTableRequest.getTableName(), partitionSchema),
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
-        }
-        catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
         }
     }
 
@@ -336,62 +326,62 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
             throws SQLException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-            try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
-                boolean found = false;
-                while (resultSet.next()) {
-                    ArrowType columnType = toArrowType(
-                            resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
-                    String columnName = resultSet.getString("COLUMN_NAME");
+        try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData())) {
+            boolean found = false;
+            while (resultSet.next()) {
+                ArrowType columnType = toArrowType(
+                        resultSet.getInt("DATA_TYPE"),
+                        resultSet.getInt("COLUMN_SIZE"),
+                        resultSet.getInt("DECIMAL_DIGITS"));
+                String columnName = resultSet.getString("COLUMN_NAME");
 
-                    LOGGER.info("Column Name: " + columnName);
-                    if (columnType != null) {
-                        LOGGER.info("Column Type: " + columnType.getTypeID());
+                LOGGER.info("Column Name: " + columnName);
+                if (columnType != null) {
+                    LOGGER.info("Column Type: " + columnType.getTypeID());
+                }
+                else {
+                    LOGGER.warn("Column Type is null for Column Name" + columnName);
+                }
+
+                /**
+                 * Convert decimal into BigInt
+                 */
+                if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
+                    String[] data = columnType.toString().split(",");
+                    if (data[0].contains("0") || data[1].contains("0")) {
+                        columnType = org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType();
+                    }
+                }
+                if (columnType != null && SupportedTypes.isSupported(columnType)) {
+                    if (columnType instanceof ArrowType.List) {
+                        schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
+                                resultSet.getString("TYPE_NAME"),
+                                resultSet.getInt("COLUMN_SIZE"),
+                                resultSet.getInt("DECIMAL_DIGITS")));
                     }
                     else {
-                        LOGGER.warn("Column Type is null for Column Name" + columnName);
-                    }
-
-                    /**
-                     * Convert decimal into BigInt
-                     */
-                    if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {
-                        String[] data = columnType.toString().split(",");
-                        if (data[0].contains("0") || data[1].contains("0")) {
-                            columnType = org.apache.arrow.vector.types.Types.MinorType.BIGINT.getType();
-                        }
-                    }
-                    if (columnType != null && SupportedTypes.isSupported(columnType)) {
-                        if (columnType instanceof ArrowType.List) {
-                            schemaBuilder.addListField(columnName, getArrayArrowTypeFromTypeName(
-                                    resultSet.getString("TYPE_NAME"),
-                                    resultSet.getInt("COLUMN_SIZE"),
-                                    resultSet.getInt("DECIMAL_DIGITS")));
-                        }
-                        else {
-                            LOGGER.info("getSchema:columnType is not instance of ArrowType column[" + columnName +
-                                    "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
-                            schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
-                        }
-                    }
-                    else {
-                        // Default to VARCHAR ArrowType
-                        LOGGER.info("getSchema: Unable to map type for column[" + columnName +
+                        LOGGER.info("getSchema:columnType is not instance of ArrowType column[" + columnName +
                                 "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
-                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
+                        schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
                     }
-                    found = true;
                 }
-
-                if (!found) {
-                    throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+                else {
+                    // Default to VARCHAR ArrowType
+                    LOGGER.info("getSchema: Unable to map type for column[" + columnName +
+                            "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                    schemaBuilder.addField(FieldBuilder.newBuilder(columnName, new ArrowType.Utf8()).build());
                 }
-                // add partition columns
-                partitionSchema.getFields().forEach(schemaBuilder::addField);
-
-                return schemaBuilder.build();
+                found = true;
             }
+
+            if (!found) {
+                throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
+            }
+            // add partition columns
+            partitionSchema.getFields().forEach(schemaBuilder::addField);
+
+            return schemaBuilder.build();
+        }
     }
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {

@@ -37,14 +37,16 @@ while true; do
     esac
 done
 
+VERSION=2022.42.2
+
 dir=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 
 cd "$dir/../athena-federation-sdk-tools"
 
-if test -f "target/athena-federation-sdk-tools-2022.39.1.jar"; then
+if test -f "target/athena-federation-sdk-tools-${VERSION}.jar"; then
     echo "athena-federation-sdk-tools is already built, skipping compilation."
 else
     mvn clean install
 fi
 
-java -cp target/athena-federation-sdk-tools-1.0-withdep.jar com.amazonaws.athena.connector.validation.ConnectorValidator $@
+java -cp target/athena-federation-sdk-tools-${VERSION}-withdep.jar com.amazonaws.athena.connector.validation.ConnectorValidator $@
