@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 public final class JdbcArrowTypeConverter
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
+    private static final int PRECISION_MAX = 38;
+    private static final int PRECISION_MIN = 1;
 
     private JdbcArrowTypeConverter() {}
 
@@ -45,8 +47,12 @@ public final class JdbcArrowTypeConverter
      */
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
+        // Check that Precision and Scale are within bounds
+        int defaultPrecision = ((precision > PRECISION_MAX) || (precision < PRECISION_MIN)) ? PRECISION_MAX : precision;
+        int defaultScale = (scale > defaultPrecision) ? defaultPrecision : scale;
+
         ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
-                new JdbcFieldInfo(jdbcType, precision, scale),
+                new JdbcFieldInfo(jdbcType, defaultPrecision, defaultScale),
                 null);
 
         if (arrowType instanceof ArrowType.Date) {
