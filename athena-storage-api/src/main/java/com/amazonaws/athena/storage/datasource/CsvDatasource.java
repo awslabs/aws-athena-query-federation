@@ -113,9 +113,9 @@ public class CsvDatasource
      * @return This datasource doesn't support reading multiple file to form a single table. So it always returns false
      */
     @Override
-    public boolean supportsMultiPartFiles()
+    public boolean supportsPartitioning()
     {
-        return false;
+        return true;
     }
 
     @Override
@@ -148,9 +148,9 @@ public class CsvDatasource
                         .columnIndex(i)
                         .build());
             }
-            // TODO: set record count
             return StorageObjectSchema.builder()
                     .fields(fieldList)
+                    .baseSchema(headers)
                     .build();
         }
     }
@@ -236,7 +236,7 @@ public class CsvDatasource
      */
     @Override
     public void readRecords(Schema schema, Constraints constraints, TableName tableInfo,
-                            Split split, BlockSpiller spiller, QueryStatusChecker queryStatusChecker)
+                            Split split, BlockSpiller spiller, QueryStatusChecker queryStatusChecker) throws IOException
     {
         String databaseName = tableInfo.getSchemaName();
         String tableName = tableInfo.getTableName();

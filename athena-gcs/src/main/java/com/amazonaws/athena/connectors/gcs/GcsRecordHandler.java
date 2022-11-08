@@ -36,6 +36,7 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
@@ -87,7 +88,7 @@ public class GcsRecordHandler
      */
     @Override
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
-                                      QueryStatusChecker queryStatusChecker)
+                                      QueryStatusChecker queryStatusChecker) throws IOException
     {
         Split split = recordsRequest.getSplit();
         TableName tableName = recordsRequest.getTableName();

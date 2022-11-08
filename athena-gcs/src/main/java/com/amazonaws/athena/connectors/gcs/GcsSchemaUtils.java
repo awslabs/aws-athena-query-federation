@@ -27,6 +27,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Optional;
 
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
@@ -43,7 +44,7 @@ public class GcsSchemaUtils
      * @param tableName    Name of the storage object (file) from GCS
      * @return An instance of {@link Schema}
      */
-    protected Schema buildTableSchema(StorageDatasource datasource, String databaseName, String tableName)
+    protected Schema buildTableSchema(StorageDatasource datasource, String databaseName, String tableName) throws IOException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(databaseName, tableName);

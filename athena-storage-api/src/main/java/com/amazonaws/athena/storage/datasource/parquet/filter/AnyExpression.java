@@ -29,9 +29,9 @@ public class AnyExpression extends AbstractParquetExpression<List<Object>>
      * @param columnIndex
      * @param expression
      */
-    public AnyExpression(Integer columnIndex, List<Object> expression)
+    public AnyExpression(Integer columnIndex, String columnName, List<Object> expression)
     {
-        super(columnIndex, null, expression);
+        super(columnIndex, columnName, expression);
     }
 
     /**

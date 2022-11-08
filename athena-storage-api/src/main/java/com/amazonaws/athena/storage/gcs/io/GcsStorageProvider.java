@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static com.amazonaws.athena.storage.common.PartitionUtil.isPartitionFolder;
 import static com.amazonaws.athena.storage.gcs.io.FileCacheFactory.cacheBytesInTempFile;
 import static com.amazonaws.athena.storage.gcs.io.FileCacheFactory.fromExistingCache;
 import static java.util.Objects.requireNonNull;
@@ -143,26 +144,53 @@ public class GcsStorageProvider implements StorageProvider
     }
 
     @Override
-    public List<String> getFileNames(String bucket)
+    public boolean isPartitionedDirectory(String bucket, String location)
     {
-        List<String> fileNameList = new ArrayList<>();
-        return toImmutableFileNameList(storage.list(bucket));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(location));
+        for (Blob blob : blobPage.iterateAll()) {
+            if (isPartitionFolder(blob.getName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
-    public PagedObject getFileNames(String bucket, String continuationToken, int pageSize)
+    public List<String> getObjectNames(String bucket)
+    {
+        return toImmutableObjectNameList(storage.list(bucket));
+    }
+
+    @Override
+    public List<String> getNestedFolders(String bucket, String prefix)
+    {
+        if (!prefix.endsWith("/")) {
+            prefix += '/';
+        }
+        List<String> folderNames = new ArrayList<>();
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        for (Blob blob : blobPage.iterateAll()) {
+            if (blob.getSize() == 0) { // it's a folder
+                folderNames.add(blob.getName());
+            }
+        }
+        return ImmutableList.copyOf(folderNames);
+    }
+
+    @Override
+    public PagedObject getObjectNames(String bucket, String continuationToken, int pageSize)
     {
         Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
         if (continuationToken != null) {
             Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
             return PagedObject.builder()
-                    .fileNames(toImmutableFileNameList(blobs))
+                    .fileNames(toImmutableObjectNameList(blobs))
                     .nextToken(blobs.getNextPageToken())
                     .build();
         }
         else {
             return PagedObject.builder()
-                    .fileNames(toImmutableFileNameList(storage.list(bucket, maxTableCountOption)))
+                    .fileNames(toImmutableObjectNameList(storage.list(bucket, maxTableCountOption)))
                     .build();
         }
     }
@@ -203,7 +231,7 @@ public class GcsStorageProvider implements StorageProvider
                 .fileName(fileName);
     }
 
-    private List<String> toImmutableFileNameList(Page<Blob> blobs)
+    private List<String> toImmutableObjectNameList(Page<Blob> blobs)
     {
         List<String> blobNameList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {

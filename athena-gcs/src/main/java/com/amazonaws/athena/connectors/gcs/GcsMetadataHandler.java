@@ -186,7 +186,7 @@ public class GcsMetadataHandler
      * 4. A catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws IOException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetTable|Message=queryId {}",
@@ -199,9 +199,9 @@ public class GcsMetadataHandler
         Schema schema = gcsSchemaUtils.buildTableSchema(this.datasource,
                 tableInfo.getSchemaName(),
                 tableInfo.getTableName());
-        Schema partitionSchema = getPartitionSchema();
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema,
-                partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            Schema partitionSchema = getPartitionSchema();
+            return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema,
+                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
     }
 
     /**
@@ -212,7 +212,7 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws IOException
     {
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
@@ -267,7 +267,7 @@ public class GcsMetadataHandler
      * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";

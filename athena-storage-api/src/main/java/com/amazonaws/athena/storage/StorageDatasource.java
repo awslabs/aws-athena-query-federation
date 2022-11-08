@@ -53,7 +53,7 @@ public interface StorageDatasource
      * @param pageSie      Size of the page (number of tables per table)
      * @return List of all tables under the database
      */
-    TableListResult getAllTables(String databaseName, String nextToken, int pageSie);
+    TableListResult getAllTables(String databaseName, String nextToken, int pageSie) throws IOException;
 
     /**
      * List all tables in a database
@@ -61,7 +61,7 @@ public interface StorageDatasource
      * @param databaseName Name of the database
      * @return List of all tables under the database
      */
-    List<String> loadAllTables(String databaseName);
+    List<String> loadAllTables(String databaseName) throws IOException;
 
     /**
      * Returns a storage object (file) as a DB table with field names and associated file type
@@ -70,7 +70,7 @@ public interface StorageDatasource
      * @param tableName    Name of the table
      * @return An instance of {@link StorageTable} with column metadata
      */
-    Optional<StorageTable> getStorageTable(String databaseName, String tableName);
+    Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws IOException;
 
     default List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
                                                         String bucketName, String objectName) throws IOException
@@ -125,7 +125,7 @@ public interface StorageDatasource
      * @apiNote spiller   An instance of {@link BlockSpiller} to spill records being fetched
      */
     void readRecords(Schema schema, Constraints constraints, TableName tableInfo, Split split, BlockSpiller spiller,
-                     QueryStatusChecker queryStatusChecker);
+                     QueryStatusChecker queryStatusChecker) throws IOException;
 
     /**
      * Checks datastore for a specific database (bucket). It looks whether the database exists, if it does, it loads all
@@ -134,7 +134,7 @@ public interface StorageDatasource
      * @param database  For which datastore will be checked
      * @param nextToken Next token for retrieve next page of table list, may be null
      */
-    String loadTablesWithContinuationToken(String database, String nextToken, int pageSize);
+    String loadTablesWithContinuationToken(String database, String nextToken, int pageSize) throws IOException;
 
     /**
      * Checks datastore for a specific database (bucket). It looks whether the database exists, if it does, it loads all
@@ -142,14 +142,15 @@ public interface StorageDatasource
      *
      * @param database For which datastore will be checked
      */
-    void checkMetastoreForAll(String database);
+    void checkMetastoreForAll(String database) throws IOException;
 
     /**
      * Indicates whether a datasource supports grouping of multiple files to form a single table
      *
-     * @return True if the underlying datasource supports multiple files to treat as a single table, false otherwise
+     * @return True if the underlying datasou
+     * supports multiple files to treat as a single table, false otherwise
      */
-    boolean supportsMultiPartFiles();
+    boolean supportsPartitioning();
 
     List<FilterExpression> getAllFilterExpressions(Constraints constraints, String bucketName, String objectName);
 

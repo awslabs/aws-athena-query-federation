@@ -155,7 +155,7 @@ public class GcsMetadataHandlerExceptionTest
 
 
     @Test(expected = RuntimeException.class)
-    public void testDoListTablesException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoListTablesException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         //Get the first dataset name.
         when(csvDatasource.getAllTables(anyString(), anyString(), anyInt())).thenCallRealMethod();
@@ -179,7 +179,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test(expected = RuntimeException.class)
-    public void testDoGetTableException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoGetTableException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         when(gcsSchemaUtils.buildTableSchema(Mockito.any(), Mockito.any(), Mockito.anyString())).thenReturn(GcsTestUtils.getTestSchema());
@@ -207,7 +207,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test(expected = Exception.class)
-    public void testGetPartitionsException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testGetPartitionsException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         BlockWriter blockWriter = mock(BlockWriter.class);

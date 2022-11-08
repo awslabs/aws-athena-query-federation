@@ -42,7 +42,7 @@ public class StorageConstants
 
     // Environment variables passed as properties in ObjectStorageMetadataConfig
     public static final String FILE_EXTENSION_ENV_VAR = "file_extension";
-    public static final String FILE_NAME_PATTERN_ENV_VAR = "file_name_pattern";
+
     /**
      * This is to specify what is the storage provider, foe example 'gcs'
      */

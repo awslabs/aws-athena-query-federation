@@ -151,7 +151,7 @@ public class ParquetFilter
     // helpers
 
     /**
-     * Prepars the expressions based on the provided arguments.
+     * Prepares the expressions based on the provided arguments.
      *
      * @param tableName      An instance of {@link TableName}
      * @param constraints    An instance of {@link Constraints} that is a summary of where clauses (if any)
@@ -193,21 +193,21 @@ public class ParquetFilter
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
-                return List.of(new IsNullExpression(columnIndices.get(columnName)));
+                return List.of(new IsNullExpression(columnIndices.get(columnName), columnName));
             }
 
             if (!valueSet.isNullAllowed() && isHighLowEquals(valueSet)
                     && valueSet.getRanges().getSpan().getLow().getBound().equals(EXACTLY)) {
-                return List.of(new EqualsExpression(columnIndices.get(columnName), valueSet.getRanges().getSpan().getLow().getValue()));
+                return List.of(new EqualsExpression(columnIndices.get(columnName), columnName, valueSet.getRanges().getSpan().getLow().getValue()));
             }
 
             if (!valueSet.isNullAllowed()) {
-                disjuncts.add(new IsNotNullExpression(columnIndices.get(columnName)));
+                disjuncts.add(new IsNotNullExpression(columnIndices.get(columnName), columnName));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                return List.of(new IsNotNullExpression(columnIndices.get(columnName)));
+                return List.of(new IsNotNullExpression(columnIndices.get(columnName), columnName));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -218,10 +218,10 @@ public class ParquetFilter
                     if (!range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
-                                disjuncts.add(new GreaterThanExpression(columnIndices.get(columnName), (Comparable<?>) range.getLow().getValue()));
+                                disjuncts.add(new GreaterThanExpression(columnIndices.get(columnName), columnName, (Comparable<?>) range.getLow().getValue()));
                                 break;
                             case EXACTLY:
-                                disjuncts.add(new GreaterThanOrEqualExpression(columnIndices.get(columnName), (Comparable<?>) range.getLow().getValue()));
+                                disjuncts.add(new GreaterThanOrEqualExpression(columnIndices.get(columnName), columnName, (Comparable<?>) range.getLow().getValue()));
                                 break;
                             case BELOW:
                                 throw new IllegalArgumentException("Low marker should never use BELOW bound");
@@ -235,11 +235,11 @@ public class ParquetFilter
                                 throw new IllegalArgumentException("High marker should never use ABOVE bound");
                             case EXACTLY:
                                 LOGGER.debug("Util=ParquetFilterUtil|Method=toPredicate|Message=Returning ltEq FilterPredicate");
-                                disjuncts.add(new LessThanOrEqualExpression(columnIndices.get(columnName), (Comparable<?>) range.getHigh().getValue()));
+                                disjuncts.add(new LessThanOrEqualExpression(columnIndices.get(columnName), columnName, (Comparable<?>) range.getHigh().getValue()));
                                 break;
                             case BELOW:
                                 LOGGER.debug("Util=ParquetFilterUtil|Method=toPredicate|Message=Returning lt FilterPredicate");
-                                disjuncts.add(new LessThanExpression(columnIndices.get(columnName), (Comparable<?>) range.getHigh().getValue()));
+                                disjuncts.add(new LessThanExpression(columnIndices.get(columnName), columnName, (Comparable<?>) range.getHigh().getValue()));
                                 break;
                             default:
                                 throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
@@ -248,11 +248,11 @@ public class ParquetFilter
                 }
             }
             if (singleValues.size() == 1) {
-                disjuncts.add(new EqualsExpression(columnIndices.get(columnName), singleValues.get(0)));
+                disjuncts.add(new EqualsExpression(columnIndices.get(columnName), columnName, singleValues.get(0)));
             }
             else if (singleValues.size() > 1) {
                 List<Object> values = new ArrayList<>(singleValues);
-                disjuncts.add(new AnyExpression(columnIndices.get(columnName), values));
+                disjuncts.add(new AnyExpression(columnIndices.get(columnName), columnName, values));
             }
         }
         disjuncts.forEach(this::addToOr);

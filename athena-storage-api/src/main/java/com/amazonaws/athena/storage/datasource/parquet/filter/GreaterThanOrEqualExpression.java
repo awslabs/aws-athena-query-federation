@@ -27,9 +27,9 @@ public class GreaterThanOrEqualExpression extends LtGtEqExpression<Comparable<?>
      * @param columnIndex
      * @param expression
      */
-    public GreaterThanOrEqualExpression(Integer columnIndex, Comparable<?> expression)
+    public GreaterThanOrEqualExpression(Integer columnIndex, String columnName, Comparable<?> expression)
     {
-        super(columnIndex, expression);
+        super(columnIndex, columnName, expression);
     }
 
     /**

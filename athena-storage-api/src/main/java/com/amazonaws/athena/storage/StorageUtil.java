@@ -84,7 +84,7 @@ public class StorageUtil
      * @param extension Extension of the file to ignore from the SQL entity name
      * @return New nae as a Table name without file extension and after escaping ANSI SQL compliant reserved characters
      */
-    public static synchronized String getValidEntityNameFromFile(String name, String extension)
+    public static String getValidEntityNameFromFile(String name, String extension)
     {
         name = name.toLowerCase(Locale.ROOT);
         int extensionIndex = name.indexOf(extension.toLowerCase(Locale.ROOT));
@@ -106,5 +106,12 @@ public class StorageUtil
     {
         return ALPHA_NUM_MATCHER.retainFrom(entityName.replaceAll(INVALID_CHARS_REPLACE_REGEX, "_").toLowerCase(Locale.ROOT))
                 .replaceAll(STARTS_DIGIT_REGEX, "");
+    }
+
+    public static String tableNameFromFile(String objectName, String extension)
+    {
+        String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
+        int toIndex = strLowerObjectName.lastIndexOf(extension.toLowerCase(Locale.ROOT));
+        return strLowerObjectName.substring(0, toIndex);
     }
 }

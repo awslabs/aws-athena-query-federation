@@ -27,8 +27,8 @@ public abstract class LtGtEqExpression<T> extends AbstractParquetExpression<T>
      * @param columnIndex
      * @param expression
      */
-    public LtGtEqExpression(Integer columnIndex, T expression)
+    public LtGtEqExpression(Integer columnIndex, String columnName, T expression)
     {
-        super(columnIndex, null, expression);
+        super(columnIndex, columnName, expression);
     }
 }

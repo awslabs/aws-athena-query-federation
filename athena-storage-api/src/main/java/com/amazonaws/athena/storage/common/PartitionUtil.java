@@ -22,6 +22,8 @@ package com.amazonaws.athena.storage.common;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.storage.io.GcsIOUtil.getFileName;
+
 public class PartitionUtil
 {
     private PartitionUtil()
@@ -30,12 +32,14 @@ public class PartitionUtil
 
     public static boolean isPartitionFolder(String folderName)
     {
-        return FieldValuePatternMatcher.matches(folderName);
+        String simpleName = getFileName(folderName);
+        return FieldValuePatternMatcher.matches(simpleName);
     }
 
     public static Optional<FieldValue> getPartitionFieldValue(String folderName)
     {
-        return FieldValue.from(folderName);
+        String simpleName = getFileName(folderName);
+        return FieldValue.from(simpleName);
     }
 
     private static class FieldValuePatternMatcher
