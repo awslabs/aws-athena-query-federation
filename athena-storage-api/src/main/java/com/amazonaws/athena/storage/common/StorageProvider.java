@@ -25,6 +25,7 @@ import org.apache.parquet.io.SeekableInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 
 public interface StorageProvider
 {
@@ -98,4 +99,6 @@ public interface StorageProvider
      * @return Size of the file under the specified bucket
      */
     long getFileSize(String bucket, String file);
+
+    Optional<String> getFirstObjectNameRecurse(String bucket, String prefix);
 }

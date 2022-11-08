@@ -19,9 +19,13 @@
  */
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
+
+import java.util.List;
+
 public final class ParquetConstraintEvaluatorWrapper implements ConstraintEvaluator
 {
-    private ConstraintEvaluator evaluator;
+    private final ConstraintEvaluator evaluator;
 
     public ParquetConstraintEvaluatorWrapper(ConstraintEvaluator evaluator)
     {
@@ -35,5 +39,11 @@ public final class ParquetConstraintEvaluatorWrapper implements ConstraintEvalua
     public boolean evaluate(Integer columnIndex, Object value)
     {
         return evaluator.evaluate(columnIndex, value);
+    }
+
+    @Override
+    public List<FilterExpression> getExpressions()
+    {
+        return evaluator.getExpressions();
     }
 }

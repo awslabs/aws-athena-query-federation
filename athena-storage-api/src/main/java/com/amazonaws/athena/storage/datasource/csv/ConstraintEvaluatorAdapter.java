@@ -21,11 +21,13 @@ package com.amazonaws.athena.storage.datasource.csv;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.univocity.parsers.common.processor.RowProcessor;
 import com.univocity.parsers.common.record.RecordMetaData;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -75,5 +77,11 @@ class ConstraintEvaluatorAdapter implements ConstraintEvaluator
     public void resume()
     {
         this.stopEvaluation = false;
+    }
+
+    @Override
+    public List<FilterExpression> getExpressions()
+    {
+        return List.of();
     }
 }

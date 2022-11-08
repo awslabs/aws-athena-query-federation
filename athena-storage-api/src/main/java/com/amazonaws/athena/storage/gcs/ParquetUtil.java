@@ -35,6 +35,7 @@ import java.io.IOException;
 
 public class ParquetUtil
 {
+    public static final String PARQUET_MAGIC_BYTES_STRING = "PAR1";
     private ParquetUtil()
     {
     }

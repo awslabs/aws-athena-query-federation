@@ -43,6 +43,7 @@ import com.amazonaws.athena.storage.StorageConstants;
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.datasource.parquet.column.GcsGroupRecordConverter;
 import com.amazonaws.athena.storage.datasource.parquet.filter.ConstraintEvaluator;
@@ -66,6 +67,7 @@ import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.InputFile;
 import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.RecordReader;
+import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.schema.MessageType;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
@@ -79,11 +81,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.gcs.ParquetUtil.PARQUET_MAGIC_BYTES_STRING;
 import static java.util.Objects.requireNonNull;
 import static org.apache.parquet.filter.PagedRecordFilter.page;
 
@@ -180,6 +184,39 @@ public class ParquetDatasource
         return new ParquetFilter(schema, objectSchema, partitionFieldValueMap)
                 .evaluator(tableName, partitionFieldValueMap, constraints)
                 .getExpressions();
+    }
+
+    @Override
+    public boolean isSupported(String bucket, String objectName) throws IOException
+    {
+        boolean isWithValidExtension = objectName.toLowerCase().endsWith(datasourceConfig.extension());
+        if (!isWithValidExtension) {
+            InputFile inputFile = storageProvider.getInputFile(bucket, objectName);
+            try (SeekableInputStream inputStream = inputFile.newStream()) {
+                inputStream.seek(0L);
+                byte[] initBytes = new byte[4];
+                int readSize = inputStream.read(initBytes);
+                if (readSize == 4) {
+                    return PARQUET_MAGIC_BYTES_STRING.equals(new String(initBytes));
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Optional<String> getBaseName(String bucket, String objectName)
+    {
+        return storageProvider.getFirstObjectNameRecurse(bucket, objectName);
+    }
+
+    @Override
+    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition)
+    {
+        return List.of();
     }
 
     /**

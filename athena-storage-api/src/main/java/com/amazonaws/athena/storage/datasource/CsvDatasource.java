@@ -42,6 +42,7 @@ import com.amazonaws.athena.storage.StorageUtil;
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
@@ -78,6 +79,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.amazonaws.athena.storage.StorageConstants.MAX_CSV_FILES_SIZE;
 import static com.amazonaws.athena.storage.StorageConstants.STORAGE_SPLIT_JSON;
@@ -163,6 +165,31 @@ public class CsvDatasource
         return new CsvFilter()
                 .evaluator(schema, constraints, tableName, partitionFieldValueMap)
                 .getExpressions();
+    }
+
+    @Override
+    public boolean isSupported(String bucket, String objectName)
+    {
+        return objectName.toLowerCase().endsWith(datasourceConfig.extension());
+    }
+
+    @Override
+    public Optional<String> getBaseName(String bucket, String objectName) throws IOException
+    {
+        if (storageProvider.isDirectory(bucket, objectName)) {
+            // TODO: recurse to find base file
+            System.out.println(objectName + " is a directory");
+        }
+        else if (isSupported(bucket, objectName)) {
+            return Optional.of(objectName);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition)
+    {
+        return List.of();
     }
 
     /**

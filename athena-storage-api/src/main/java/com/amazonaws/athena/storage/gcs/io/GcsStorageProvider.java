@@ -43,6 +43,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.amazonaws.athena.storage.gcs.io.FileCacheFactory.cacheBytesInTempFile;
 import static com.amazonaws.athena.storage.gcs.io.FileCacheFactory.fromExistingCache;
@@ -171,6 +172,24 @@ public class GcsStorageProvider implements StorageProvider
     {
         BlobId blobId = BlobId.of(bucket, file);
         return storage.get(blobId).getSize();
+    }
+
+    @Override
+    public Optional<String> getFirstObjectNameRecurse(String bucket, String prefix)
+    {
+        if (!prefix.endsWith("/")) {
+            prefix += '/';
+        }
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        for (Blob blob : blobPage.iterateAll()) {
+            if (blob.getSize() > 0) { // it's a file
+                return Optional.of(blob.getName());
+            }
+            else {
+                return getFirstObjectNameRecurse(bucket, blob.getName());
+            }
+        }
+        return Optional.empty();
     }
 
     // helpers

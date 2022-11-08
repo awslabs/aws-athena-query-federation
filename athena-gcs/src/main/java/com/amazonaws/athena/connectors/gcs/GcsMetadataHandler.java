@@ -216,7 +216,6 @@ public class GcsMetadataHandler
     {
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
-
         TableName tableName = request.getTableName();
         String bucketName = null;
         String objectName = null;

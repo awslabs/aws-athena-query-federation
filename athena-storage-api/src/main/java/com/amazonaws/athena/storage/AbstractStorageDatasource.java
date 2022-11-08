@@ -21,6 +21,7 @@ package com.amazonaws.athena.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.PagedObject;
 import com.amazonaws.athena.storage.common.PartitionUtil;
 import com.amazonaws.athena.storage.common.StoragePartition;
@@ -30,11 +31,13 @@ import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundExcepti
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -48,6 +51,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.STORAGE_PROVIDER_ENV_VAR;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
@@ -215,7 +219,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                             .setFieldList(getTableFields(bucketName, objectNames))
                             .build();
                     return Optional.of(table);
-                } catch (Exception exception) {
+                }
+                catch (Exception exception) {
                     // We ignore this exception. Because if this Exception is propagated, other necessary Table(s) will not be
                     // listed in the Tables list in the Athena Console (or when calling programmatically)
                     LOGGER.error("Error occurred during resolving Table {} under the schema {}", tableObjects, databaseName, exception);
@@ -226,20 +231,23 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     @Override
-    public List<StoragePartition> getStoragePartitions(Constraints constraints, TableName tableInfo,
-                                                       String bucketName, String objectName)
+    public List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
+                                                       String bucketName, String objectName) throws IOException
     {
         requireNonNull(bucketName, "Bucket name was null");
         requireNonNull(objectName, "objectName name was null");
         List<StoragePartition> storagePartitions = new ArrayList<>();
         if (storageProvider.isDirectory(bucketName, objectName)) {
             if (PartitionUtil.isPartitionFolder(objectName)) {
-                addPartitionsRecurse(bucketName, objectName, storagePartitions);
+                addPartitionsRecurse(bucketName, objectName, schema, tableInfo, constraints,
+                        Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME),
+                        storagePartitions);
             }
             else {
                 listObjectsForSinglePartitionRecurse(bucketName, objectName, storagePartitions);
             }
-        } else {
+        }
+        else {
             // A file (aka Table) under a non-partitioned bucket/folder
             // TODO: set record count;
             return List.of(
@@ -256,6 +264,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public StorageProvider getStorageProvider()
     {
         return this.storageProvider;
+    }
+
+    @Override
+    public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName)
+    {
+        return List.of();
     }
 
     /**
@@ -317,7 +331,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         for (String fileName : fileNames) {
             if (!isExtensionCheckMandatory()) {
                 addTable(fileName, objectNameMap);
-            } else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
+            }
+            else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
                 addTable(fileName, objectNameMap);
             }
         }
@@ -343,7 +358,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                     String strTableName = getValidEntityNameFromFile(matcher.group(1), this.extension);
                     tableMap.computeIfAbsent(strTableName, files -> new ArrayList<>()).add(objectName);
                 }
-            } else {
+            }
+            else {
                 tableMap.computeIfAbsent(getValidEntityNameFromFile(objectName, this.extension), files -> new ArrayList<>()).add(objectName);
             }
         }
@@ -444,15 +460,38 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
     }
 
-    private void addPartitionsRecurse(String bucket, String baseObjectName, List<StoragePartition> partitions)
+    private void addPartitionsRecurse(String bucket, String prefix, Schema schema, TableName tableName,
+                                      Constraints constraints, Map<String, String> partitionFieldValueMap,
+                                      List<StoragePartition> partitions) throws IOException
     {
-
+        if (baseObjectName == null) {
+            Optional<String> optionalBaseObjectName = getBaseName(bucket, prefix);
+            if (optionalBaseObjectName.isEmpty()) {
+                throw new UnsupportedEncodingException("No file(s) found under bucket '" + bucket + "'"
+                        + " inside the folder " + prefix);
+            }
+            baseObjectName = optionalBaseObjectName.get();
+        }
+        List<FilterExpression> expressions = getExpressions(bucket, baseObjectName, schema, tableName, constraints,
+                Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
+        if (!prefix.endsWith("/")) {
+            prefix += '/';
+        }
+//        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+//        for (Blob blob : blobPage.iterateAll()) {
+//            if (blob.getSize() == 0 && PartitionUtil.isPartitionFolder(blob.getName())) {
+//                return Optional.of(blob.getName());
+//            }
+//            else {
+//                partitions.add(StoragePartition.builder()
+//                                .objectName()
+//                        .build())
+//            }
+//        }
     }
 
     private void listObjectsForSinglePartitionRecurse(String bucket, String baseObjectName,
                                                       List<StoragePartition> partitions)
     {
-
     }
-
 }

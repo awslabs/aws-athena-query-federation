@@ -29,10 +29,7 @@ import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
-import com.sun.istack.NotNull;
 import org.apache.arrow.vector.types.pojo.Schema;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
@@ -75,8 +72,8 @@ public interface StorageDatasource
      */
     Optional<StorageTable> getStorageTable(String databaseName, String tableName);
 
-    default List<StoragePartition> getStoragePartitions(Constraints constraints, TableName tableInfo,
-                                                        String bucketName, String objectName)
+    default List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
+                                                        String bucketName, String objectName) throws IOException
     {
         throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> " +
                 "getStoragePartitions(Constraints, TableName, Split, String, String) not implemented in class "
@@ -191,4 +188,38 @@ public interface StorageDatasource
      */
     List<FilterExpression> getExpressions(String bucket, String objectName, Schema schema, TableName tableName,
                                           Constraints constraints, Map<String, String> partitionFieldValueMap) throws IOException;
+
+    /**
+     * Check to see if the storage object is supported format by the underlying data source. This is required when the file does not
+     * have extension
+     * @param bucket bucket The name of the bucket
+     * @param objectName objectName Name of the object (file)
+     * @return true if supported, false otherwise
+     */
+    boolean isSupported(String bucket, String objectName) throws IOException;
+
+    /**
+     * If the objectName parameter is itself a file, this is the base name. Base name helps us to retrieve metadata information.
+     * However, if the objectName is a folder and contains nested folder(s), then we need to traverse the folder inside to pick one file as a base.
+     * Usually nested folder is used to partition a table when exported as files from another datasource. And these file SHOULD follow the same schema
+     * @param bucket bucket The name of the bucket
+     * @param objectName objectName Name of the object (file)
+     * @return base file name for metadata extraction
+     */
+    Optional<String> getBaseName(String bucket, String objectName) throws IOException;
+
+    /**
+     *
+     * @param objectName
+     * @param bucketName
+     * @return
+     */
+    List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName);
+
+    /**
+     *
+     * @param partition
+     * @return
+     */
+    List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition);
 }
