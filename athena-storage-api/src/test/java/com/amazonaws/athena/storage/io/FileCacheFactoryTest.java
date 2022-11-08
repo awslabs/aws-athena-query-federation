@@ -80,15 +80,13 @@ public class FileCacheFactoryTest extends GcsTestBase
     }
 
     @Test
-    public void testCreateOfflineGcsStream() throws IOException
-    {
+    public void testCreateOfflineGcsStream() throws IOException {
         GcsOfflineStream gcsOfflineStream = FileCacheFactory.createOfflineGcsStream(storage, BUCKET, CSV_FILE);
         assertNotNull(gcsOfflineStream);
     }
 
     @Test
-    public void testCreateOfflineGcsStreamFromCache() throws IOException
-    {
+    public void testCreateOfflineGcsStreamFromCache() throws IOException {
 
         GcsOfflineStream gcsOfflineStream = FileCacheFactory.createOfflineGcsStream(storage, BUCKET, CSV_FILE);
         assertNotNull(gcsOfflineStream);

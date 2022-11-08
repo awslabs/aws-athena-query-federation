@@ -72,13 +72,13 @@ public class ParquetDatasourceTest extends GcsTestBase
     public void setUp() throws Exception
     {
         setUpBeforeClass();
-        suppress(constructor(AbstractStorageDatasource.class, StorageDatasourceConfig.class));
+        suppress(constructor(AbstractStorageDatasource.class));
         suppress(constructor(ParquetFileReader.class, InputFile.class, ParquetReadOptions.class));
         ObjectMapper objectMapper = PowerMockito.mock(ObjectMapper.class);
         PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
         PowerMockito.when(objectMapper.readValue(anyString(), eq(StorageSplit.class))).thenReturn(mock(StorageSplit.class));
 
-        suppress(constructor(AbstractStorageDatasource.class, StorageDatasourceConfig.class));
+        suppress(constructor(AbstractStorageDatasource.class));
         parquetDatasource = mockParquetDatasource();
     }
 

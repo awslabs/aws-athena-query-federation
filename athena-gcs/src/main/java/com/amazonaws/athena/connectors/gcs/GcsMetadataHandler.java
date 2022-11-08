@@ -41,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.TableListResult;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
@@ -230,18 +231,11 @@ public class GcsMetadataHandler
         requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
                 + tableName.getSchemaName() + "'");
 
-        List<StorageSplit> storageSplits;
-        try {
-            storageSplits = datasource.getStorageSplits(request.getSchema(), request.getConstraints(),
-                    request.getTableName(), bucketName, objectName);
-        }
-        catch (IOException exception) {
-            throw new RuntimeException("Exception occurred: " + exception.getMessage(), exception);
-        }
-        requireNonNull(storageSplits, "List of splits can't be retrieve from metadata");
-        this.datasource.loadAllTables(tableName.getSchemaName());
+        List<StoragePartition> storagePartition = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
+        requireNonNull(storagePartition, "List of partition can't be retrieve from metadata");
+        //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
-        for (int i = 0; i < storageSplits.size(); i++) {
+        for (int i = 0; i < storagePartition.size(); i++) {
             final String splitIndex = Integer.toString(i);
             blockWriter.writeRows((Block block, int rowNum) ->
             {
@@ -283,17 +277,9 @@ public class GcsMetadataHandler
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
             objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
         }
+        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName);
 
-        List<StorageSplit> storageSplits;
-        try {
-            storageSplits = datasource.getStorageSplits(request.getSchema(), request.getConstraints(),
-                    request.getTableName(), bucketName, objectName);
-            requireNonNull(storageSplits, "Storage split is null in GcsMetadataHandler:doGetSplits");
-        }
-        catch (IOException exception) {
-            throw new RuntimeException("Exception occurred: " + exception.getMessage(), exception);
-        }
-        requireNonNull(storageSplits, "List of splits can't be retrieve from metadata");
+        requireNonNull(storagePartitions, "List of partitions can't be retrieve from metadata");
 
         Block partitions = request.getPartitions();
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Partition block {}", partitions);
@@ -301,9 +287,6 @@ public class GcsMetadataHandler
                 partitions.getRowCount());
         Set<Split> splits = new HashSet<>();
         final ObjectMapper objectMapper = new ObjectMapper();
-        if (partitions.getRowCount() == 0) {
-            return getSingleSplit(request, bucketName, objectName, storageSplits, splits, objectMapper);
-        }
 
         int partitionContd = decodeContinuationToken(request);
         List<Integer> storageSplitListIndices = getSplitIndices(partitions);
@@ -318,26 +301,23 @@ public class GcsMetadataHandler
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
             int currentSplitIndex = startSplitIndex + curPartition;
             SpillLocation spillLocation = makeSpillLocation(request);
-            StorageSplit storageSplit = storageSplits.get(currentSplitIndex);
-            String storageSplitJson;
-            try {
-                storageSplitJson = splitAsJson(storageSplit);
+            StoragePartition storagePartition = storagePartitions.get(currentSplitIndex);
+            List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition);
+            for (StorageSplit split : storageSplits) {
+                String storageSplitJson = splitAsJson(split);
                 LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
                         storageSplitJson);
-            }
-            catch (JsonProcessingException exception) {
-                throw new RuntimeException("Error occurred during converting StorageSplit to JSON: " + exception.getMessage(),
-                        exception);
-            }
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(currentSplitIndex))
-                    .add(TABLE_PARAM_BUCKET_NAME, bucketName)
-                    .add(TABLE_PARAM_OBJECT_NAME, objectName)
-                    .add(STORAGE_SPLIT_JSON, storageSplitJson);
-            splits.add(splitBuilder.build());
-            if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
-                //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
-                return new GetSplitsResponse(request.getCatalogName(), splits, String.valueOf(curPartition + 1));
+
+                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(currentSplitIndex))
+                        .add(TABLE_PARAM_BUCKET_NAME, bucketName)
+                        .add(TABLE_PARAM_OBJECT_NAME, objectName)
+                        .add(STORAGE_SPLIT_JSON, storageSplitJson);
+                splits.add(splitBuilder.build());
+                if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
+                    //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
+                    return new GetSplitsResponse(request.getCatalogName(), splits, String.valueOf(curPartition + 1));
+                }
             }
         }
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
