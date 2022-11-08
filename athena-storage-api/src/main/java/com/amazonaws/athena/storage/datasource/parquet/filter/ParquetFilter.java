@@ -26,6 +26,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageObjectField;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -93,6 +95,25 @@ public class ParquetFilter
     }
 
     /**
+     * Construct an instance of this type with schema fields, fields from the instance of {@link MessageType}, and a {@link Split}.
+     *
+     * @param schema      An instance of {@link Schema} to retrieve list of Fields
+     * @param objectSchema The shorter version of real schema of the underlying PARQUET file (to be used to retrieve column information)
+     * @param partitionFieldValueMap A map of partition field(s) and value(s)
+     */
+    public ParquetFilter(Schema schema, StorageObjectSchema objectSchema, Map<String, String> partitionFieldValueMap)
+    {
+        this.fields = schema.getFields().stream()
+                .filter(c -> !partitionFieldValueMap.containsKey(c.getName()))
+                .collect(Collectors.toList());
+        List<StorageObjectField> schemaFields = objectSchema.getFields();
+        for (StorageObjectField field : schemaFields) {
+            columnIndices.put(field.getColumnName(), field.getColumnIndex());
+        }
+        this.evaluator = new ParquetConstraintEvaluator(and);
+    }
+
+    /**
      * Creates the required expressions based on provided {@link Constraints}, which is basically the part of SQL query running
      * within Athena (where clauses)
      *
@@ -103,9 +124,15 @@ public class ParquetFilter
      */
     public ConstraintEvaluator evaluator(TableName tableInfo, Split split, Constraints constraints)
     {
+        return evaluator(tableInfo, split.getProperties(), constraints);
+    }
+
+    public ConstraintEvaluator evaluator(TableName tableInfo, Map<String, String> partitionFieldValueMap,
+                                         Constraints constraints)
+    {
         LOGGER.info("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
         List<FilterExpression> expressions = toConjuncts(tableInfo,
-                constraints, split.getProperties());
+                constraints, partitionFieldValueMap);
         LOGGER.info("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
         if (!expressions.isEmpty()) {
             expressions.forEach(this::addToAnd);
@@ -128,16 +155,16 @@ public class ParquetFilter
      *
      * @param tableName      An instance of {@link TableName}
      * @param constraints    An instance of {@link Constraints} that is a summary of where clauses (if any)
-     * @param partitionSplit A key-value that holds partition column if any
+     * @param partitionFieldValueMap A key-value that holds partition column if any
      * @return A list of {@link ParquetExpression}
      */
     private List<FilterExpression> toConjuncts(TableName tableName,
                                                 Constraints constraints,
-                                                Map<String, String> partitionSplit)
+                                                Map<String, String> partitionFieldValueMap)
     {
         List<FilterExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
-            if (partitionSplit.containsKey(column.getName())) {
+            if (partitionFieldValueMap.containsKey(column.getName())) {
                 continue;
             }
             ArrowType type = column.getType();

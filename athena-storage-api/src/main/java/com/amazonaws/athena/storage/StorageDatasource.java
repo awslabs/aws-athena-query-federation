@@ -29,10 +29,14 @@ import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
+import com.sun.istack.NotNull;
 import org.apache.arrow.vector.types.pojo.Schema;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface StorageDatasource
@@ -71,11 +75,11 @@ public interface StorageDatasource
      */
     Optional<StorageTable> getStorageTable(String databaseName, String tableName);
 
-    default List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
+    default List<StoragePartition> getStoragePartitions(Constraints constraints, TableName tableInfo,
                                                         String bucketName, String objectName)
     {
-        throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> getStoragePartitions(Schema," +
-                " Constraints, TableName, Split, String," + " String) not implemented in class "
+        throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> " +
+                "getStoragePartitions(Constraints, TableName, Split, String, String) not implemented in class "
                 + getClass().getSimpleName()));
     }
 
@@ -176,4 +180,15 @@ public interface StorageDatasource
      * @returnt A type specific instance of {@link StorageObjectSchema}
      */
     StorageObjectSchema getObjectSchema(String bucket, String objectName) throws IOException;
+
+    /**
+     * Constitute a list of filter expression based on provided {@link Constraints} instance
+     * @param schema An instance of {@link Schema}
+     * @param tableName An instance of {@link TableName} that contains schema and table name
+     * @param constraints An instance of {@link Constraints}
+     * @param partitionFieldValueMap A map that contains partition column name(s) and value(s). Value maybe unreal
+     * @return List of {@link FilterExpression} if any found
+     */
+    List<FilterExpression> getExpressions(String bucket, String objectName, Schema schema, TableName tableName,
+                                          Constraints constraints, Map<String, String> partitionFieldValueMap) throws IOException;
 }

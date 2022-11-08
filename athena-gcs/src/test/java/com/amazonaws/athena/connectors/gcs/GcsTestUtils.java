@@ -89,7 +89,6 @@ public class GcsTestUtils
         return new StorageTable("test", "test", map, fields);
     }
 
-    @NotNull
     static List<Field> getFields()
     {
         List<Field> fields = new ArrayList<>();

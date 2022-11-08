@@ -22,6 +22,7 @@ package com.amazonaws.athena.storage;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.common.PagedObject;
+import com.amazonaws.athena.storage.common.PartitionUtil;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
@@ -29,7 +30,6 @@ import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundExcepti
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.reflections.Reflections;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +66,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     protected boolean storeCheckingComplete = false;
     protected List<LoadedEntities> loadedEntitiesList = new ArrayList<>();
     protected StorageProvider storageProvider;
+    protected String baseObjectName;
 
     /**
      * Instantiate a storage data source object with provided config
@@ -225,40 +226,30 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     @Override
-    public List<StoragePartition> getStoragePartitions(Schema schema, Constraints constraints, TableName tableInfo,
+    public List<StoragePartition> getStoragePartitions(Constraints constraints, TableName tableInfo,
                                                        String bucketName, String objectName)
     {
-//        requireNonNull(bucketName, "Bucket name was null");
-//        requireNonNull(objectName, "objectName name was null");
-//        BlobId blobId = BlobId.of(bucketName, objectName);
-//        Blob storageObject = storage.get(blobId);
-//        if (storageObject.isDirectory()) {
-//            // TODO: need to implement correctly to list all the objects under a folder inside a bucket
-//            Page<Blob> blobs = storage.list(bucketName + "/" + objectName);
-//            QueryPlanner queryPlanner = new QueryPlanner();
-//            for (Blob blob : blobs.iterateAll()) {
-//                if (blob.isDirectory()) {
-//                    if (PartitionUtil.isPartitionFolder(blob.getName())) {
-//                        List<FilterExpression> expressions = getAllFilterExpressions(constraints, bucketName, objectName);
-//                        if (expressions.isEmpty()) {
-//                            // load all files form all nested sub-folders
-//                        } else {
-//                            Optional<FieldValue> optionalFieldValue = FieldValue.from(blob.getName());
-//                            if (optionalFieldValue.isPresent()) {
-//                                if (queryPlanner.accept(optionalFieldValue.get(), expressions)) {
-//                                    // TODO: read nested folder content and partition accordingly
-//                                }
-//                            }
-//                        }
-//                    } else {
-//                        // TODO: read nested folder without partition logic. That is, single partition
-//                    }
-//                }
-//            }
-//        } else {
-//            // A file (aka Table) under a non-partitioned bucket/folder
-//        }
-        return List.of();
+        requireNonNull(bucketName, "Bucket name was null");
+        requireNonNull(objectName, "objectName name was null");
+        List<StoragePartition> storagePartitions = new ArrayList<>();
+        if (storageProvider.isDirectory(bucketName, objectName)) {
+            if (PartitionUtil.isPartitionFolder(objectName)) {
+                addPartitionsRecurse(bucketName, objectName, storagePartitions);
+            }
+            else {
+                listObjectsForSinglePartitionRecurse(bucketName, objectName, storagePartitions);
+            }
+        } else {
+            // A file (aka Table) under a non-partitioned bucket/folder
+            // TODO: set record count;
+            return List.of(
+                    StoragePartition.builder()
+                            .objectName(List.of(objectName))
+                            .location(objectName)
+                            .build()
+            );
+        }
+        return storagePartitions;
     }
 
     @Override
@@ -416,7 +407,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     // helpers
-
     /**
      * Mark whether all tables (entities) are loaded maintained in a LoadedEntities object
      *
@@ -453,4 +443,16 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             throw new UncheckedStorageDatasourceException("Storage provider for code name '" + providerCodeName + "' was not found");
         }
     }
+
+    private void addPartitionsRecurse(String bucket, String baseObjectName, List<StoragePartition> partitions)
+    {
+
+    }
+
+    private void listObjectsForSinglePartitionRecurse(String bucket, String baseObjectName,
+                                                      List<StoragePartition> partitions)
+    {
+
+    }
+
 }

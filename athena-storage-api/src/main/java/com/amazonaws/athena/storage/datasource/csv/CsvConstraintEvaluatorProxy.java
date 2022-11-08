@@ -21,9 +21,12 @@ package com.amazonaws.athena.storage.datasource.csv;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.univocity.parsers.common.processor.RowProcessor;
 import com.univocity.parsers.common.record.RecordMetaData;
 import org.apache.arrow.vector.types.pojo.Schema;
+
+import java.util.List;
 
 public class CsvConstraintEvaluatorProxy implements ConstraintEvaluator
 {
@@ -83,5 +86,11 @@ public class CsvConstraintEvaluatorProxy implements ConstraintEvaluator
     public void resume()
     {
         proxy.resume();
+    }
+
+    @Override
+    public List<FilterExpression> getExpressions()
+    {
+        return proxy.getExpressions();
     }
 }

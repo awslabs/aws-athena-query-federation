@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.google.common.collect.ImmutableList;
 import com.univocity.parsers.common.ParsingContext;
 import com.univocity.parsers.common.processor.AbstractRowProcessor;
 import com.univocity.parsers.common.processor.RowProcessor;
@@ -113,6 +114,20 @@ class CsvConstraintEvaluator implements ConstraintEvaluator
     {
         LOGGER.debug("Resuming expression evaluation. Current value is {}", this.stopEvaluation);
         this.stopEvaluation = false;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<FilterExpression> getExpressions()
+    {
+        List<FilterExpression> expressions = new ArrayList<>();
+        expressions.addAll(singleClauses);
+        expressions.addAll(and);
+        expressions.addAll(or);
+        expressions.addAll(in);
+        return ImmutableList.copyOf(expressions);
     }
 
     /**

@@ -19,6 +19,10 @@
  */
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
+import com.amazonaws.athena.storage.common.FilterExpression;
+
+import java.util.List;
+
 public interface ConstraintEvaluator
 {
     /**
@@ -29,4 +33,10 @@ public interface ConstraintEvaluator
      * @return true if evaluated to positive, false otherwise
      */
     boolean evaluate(Integer columnIndex, Object value);
+
+    /**
+     * Provides list of all expressions the underlying evaluator has already built from constraint(s_
+     * @return A list of {@link FilterExpression} instances
+     */
+    List<FilterExpression> getExpressions();
 }

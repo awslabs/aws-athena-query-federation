@@ -28,6 +28,7 @@ public class StoragePartition
     private List<String> objectName;
     private String location;
     private long recordCount;
+    private List<StoragePartition> children;
 
     // Jackson uses this constructor
     @SuppressWarnings("unused")
@@ -35,11 +36,12 @@ public class StoragePartition
     {
     }
 
-    public StoragePartition(List<String> objectName, String location, long recordCount)
+    public StoragePartition(List<String> objectName, String location, Long recordCount, List<StoragePartition> children)
     {
-        this.objectName = objectName;
-        this.location = location;
-        this.recordCount = recordCount;
+        this.objectName = requireNonNull(objectName, "objectName was null");
+        this.location = requireNonNull(location, "location was null");
+        this.recordCount = requireNonNull(recordCount, "recordCount was null");
+        this.children = requireNonNull(children, "children was null. However, could be empty list");
     }
 
     public List<String> getObjectName()
@@ -72,19 +74,30 @@ public class StoragePartition
         this.recordCount = recordCount;
     }
 
-    public static Builder builder()
+    public List<StoragePartition> getChildren()
     {
-        return new Builder();
+        return children;
+    }
+
+    public void setChildren(List<StoragePartition> children)
+    {
+        this.children = children;
     }
 
     @Override
     public String toString()
     {
         return "StoragePartition{" +
-                "objectName='" + objectName + '\'' +
+                "objectName=" + objectName +
                 ", location='" + location + '\'' +
                 ", recordCount=" + recordCount +
+                ", children=" + children +
                 '}';
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
     }
 
     // Builder
@@ -93,6 +106,7 @@ public class StoragePartition
         private List<String> objectName;
         private String location;
         private long recordCount;
+        private List<StoragePartition> children = List.of();
 
         private Builder()
         {
@@ -116,9 +130,15 @@ public class StoragePartition
             return this;
         }
 
+        public Builder children(List<StoragePartition> children)
+        {
+            this.children = children;
+            return this;
+        }
+
         public StoragePartition build()
         {
-            return new StoragePartition(this.objectName, this.location, this.recordCount);
+            return new StoragePartition(this.objectName, this.location, this.recordCount, this.children);
         }
     }
 }

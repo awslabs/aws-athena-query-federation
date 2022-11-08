@@ -188,7 +188,7 @@ public class GcsStorageProvider implements StorageProvider
     {
         List<String> blobNameList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
-            if (!isDirectory(blob.getBucket(), blob.getName())) {
+            if (blob != null && blob.getSize() != 0) {
                 blobNameList.add(blob.getName());
             }
         }

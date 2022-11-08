@@ -59,7 +59,7 @@ public class CsvFilter
 
     /**
      * Builds the constraint evaluator for the query made against a CSV file (as a table in Athena). It builds the
-     * evaluator based on the constraint build from the where clauses by the Athena echo sysstem.
+     * evaluator based on the constraint build from the where clauses by the Athena echo system.
      *
      * @param recordsRequest An instance of {@link ReadRecordsRequest}
      * @return An instance of {@link CsvConstraintEvaluator}. If the built evaluator is empty it returns an instance of {@link NoopCsvEvaluator}
@@ -106,15 +106,32 @@ public class CsvFilter
     public ConstraintEvaluator evaluator(Schema tableSchema, Constraints constraints, TableName tableName,
                                             Split split)
     {
+        return evaluator(tableSchema, constraints, tableName, split.getProperties());
+    }
+
+    /**
+     * Builds the constraint evaluator for the query made against a CSV file (as a table in Athena). It builds the
+     * evaluator based on the provided arguments
+     *
+     * @param tableSchema An instance of {@link Schema}
+     * @param constraints An instance of {@link Constraints}
+     * @param tableName   An instance of {@link TableName} that contains both schema and table names
+     * @param partitionFieldValueMap A map of partition field name(s) and value(s) if any.
+     * @return An instance of {@link CsvConstraintEvaluator}. If the built evaluator is empty it returns an instance of {@link NoopCsvEvaluator}
+     * that does nothing but spills directory
+     */
+    public ConstraintEvaluator evaluator(Schema tableSchema, Constraints constraints, TableName tableName,
+                                         Map<String, String> partitionFieldValueMap)
+    {
         LOGGER.info("Util::evaluator|Constraint summary:{}\n", constraints.getSummary());
         this.fields = tableSchema.getFields().stream()
                 .map(Field::getName)
-                .filter(c -> !split.getProperties().containsKey(c))
+                .filter(c -> !partitionFieldValueMap.containsKey(c))
                 .collect(Collectors.toList());
         LOGGER.debug("Util::evaluator|Selected fields are {}\n", fields);
 
         List<FilterExpression> expressions = toConjuncts(tableName, tableSchema.getFields(),
-                constraints, split.getProperties());
+                constraints, partitionFieldValueMap);
         if (!expressions.isEmpty()) {
             LOGGER.debug("CsvFilter::evaluator|Adding all determined expressions to CsvConstraintEvaluator");
             expressions.forEach(evaluator::addToAnd);

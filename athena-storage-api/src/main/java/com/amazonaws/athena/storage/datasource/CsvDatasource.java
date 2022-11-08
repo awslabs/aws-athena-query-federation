@@ -154,6 +154,18 @@ public class CsvDatasource
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<FilterExpression> getExpressions(String bucket, String objectName, Schema schema, TableName tableName, Constraints constraints,
+                                                 Map<String, String> partitionFieldValueMap)
+    {
+        return new CsvFilter()
+                .evaluator(schema, constraints, tableName, partitionFieldValueMap)
+                .getExpressions();
+    }
+
+    /**
      * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement
      *
      * @param schema      Schema of the table

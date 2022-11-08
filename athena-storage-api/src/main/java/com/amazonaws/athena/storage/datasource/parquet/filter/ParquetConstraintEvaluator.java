@@ -20,6 +20,7 @@
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +44,12 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
             return true;
         }
         return doAnd(columnIndex, value);
+    }
+
+    @Override
+    public List<FilterExpression> getExpressions()
+    {
+        return ImmutableList.copyOf(and);
     }
 
     private void addToAnd(FilterExpression expression)

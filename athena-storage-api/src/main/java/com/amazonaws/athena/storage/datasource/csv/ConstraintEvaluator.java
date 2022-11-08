@@ -21,9 +21,12 @@ package com.amazonaws.athena.storage.datasource.csv;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.storage.common.FilterExpression;
 import com.univocity.parsers.common.processor.RowProcessor;
 import com.univocity.parsers.common.record.RecordMetaData;
 import org.apache.arrow.vector.types.pojo.Schema;
+
+import java.util.List;
 
 public interface ConstraintEvaluator
 {
@@ -38,4 +41,10 @@ public interface ConstraintEvaluator
     void stop();
 
     void resume();
+
+    /**
+     * Provides list of all expressions the underlying evaluator has already built from constraint(s_
+     * @return A list of {@link FilterExpression} instances
+     */
+    List<FilterExpression> getExpressions();
 }
