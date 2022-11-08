@@ -12,9 +12,12 @@
     <artifactId>athena-deltalake</artifactId>
 
     <properties>
-        <slf4jVersion>1.7.30</slf4jVersion>
-        <log4j2Version>2.13.3</log4j2Version>
         <hadoop.version>2.9.2</hadoop.version>
+        <parquet.version>1.12.0</parquet.version>
+
+        <s3mock.version>0.2.6</s3mock.version>
+        <commons-codec.version>1.15</commons-codec.version>
+        <mockito-inline.version>3.8.0</mockito-inline.version>
     </properties>
 
     <dependencies>
@@ -33,12 +36,12 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4jVersion}</version>
+            <version>${slf4j-log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
-            <version>${slf4jVersion}</version>
+            <version>${slf4j-log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -49,7 +52,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-log4j2</artifactId>
-            <version>1.1.0</version>
+            <version>${aws.lambda-java-log4j2.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -67,12 +70,12 @@
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-hadoop-bundle</artifactId>
-            <version>1.12.0</version>
+            <version>${parquet.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-arrow</artifactId>
-            <version>1.12.0</version>
+            <version>${parquet.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.arrow</groupId>
@@ -83,7 +86,7 @@
         <dependency>
             <groupId>org.apache.parquet</groupId>
             <artifactId>parquet-avro</artifactId>
-            <version>1.12.0</version>
+            <version>${parquet.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -112,25 +115,21 @@
             <version>${hadoop.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-dynamodb</artifactId>
-            <version>1.12.26</version>
-        </dependency>
-        <dependency>
             <groupId>io.findify</groupId>
             <artifactId>s3mock_2.13</artifactId>
-            <version>0.2.6</version>
+            <version>${s3mock.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
-            <version>1.15</version>
+            <version>${commons-codec.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-inline</artifactId>
-            <version>3.8.0</version>
+            <version>${mockito-inline.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
