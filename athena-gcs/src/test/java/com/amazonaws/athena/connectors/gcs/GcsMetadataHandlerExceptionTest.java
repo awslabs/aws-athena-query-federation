@@ -207,8 +207,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test(expected = Exception.class)
-    public void testGetPartitionsException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
-    {
+    public void testGetPartitionsException() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         BlockWriter blockWriter = mock(BlockWriter.class);
         final List<String> writtenList = new ArrayList<>();

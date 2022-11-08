@@ -25,6 +25,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
+import java.lang.reflect.InvocationTargetException;
+
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -52,7 +54,7 @@ public class StorageDatasourceFactoryTest extends GcsTestBase
         catch (Exception exception) {
             throwable = exception;
         }
-        assertTrue(throwable instanceof UncheckedStorageDatasourceException);
+        assertTrue(throwable instanceof InvocationTargetException);
     }
 
     @Test
@@ -67,6 +69,6 @@ public class StorageDatasourceFactoryTest extends GcsTestBase
         catch (Exception exception) {
             throwable = exception;
         }
-        assertTrue(throwable instanceof UncheckedStorageDatasourceException);
+        assertTrue(throwable instanceof InvocationTargetException);
     }
 }

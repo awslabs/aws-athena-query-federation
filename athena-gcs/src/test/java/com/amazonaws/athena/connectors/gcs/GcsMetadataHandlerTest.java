@@ -50,6 +50,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -218,8 +219,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
-    {
+    public void testDoGetSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException {
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
                 mock(Block.class), Collections.emptyList(), new Constraints(new HashMap<>()), null);
@@ -232,8 +232,7 @@ public class GcsMetadataHandlerTest
 
     @Test
     @Ignore
-    public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
-    {
+    public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException {
         String yearCol = "PART_ID";
         //This is the schema that ExampleMetadataHandler has laid out for a 'Partition' so we need to populate this
         //minimal set of info here.

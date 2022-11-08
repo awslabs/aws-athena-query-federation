@@ -32,17 +32,13 @@ import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.cache.CustomGcsReadChannel;
-import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
-import com.amazonaws.athena.storage.gcs.io.GcsInputFile;
-import com.amazonaws.athena.storage.gcs.io.GcsOfflineStream;
-import com.amazonaws.athena.storage.gcs.io.GcsOnlineStream;
-import com.amazonaws.athena.storage.gcs.io.StorageFile;
+import com.amazonaws.athena.storage.gcs.io.*;
 import com.amazonaws.athena.storage.mock.GcsMarker;
 import com.amazonaws.athena.storage.mock.StorageMock;
 import com.amazonaws.services.s3.AmazonS3;
-import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.PageImpl;
 import com.google.cloud.ReadChannel;
@@ -51,7 +47,6 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -95,7 +90,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
-@PrepareForTest({FileCacheFactory.class, StorageFile.class, StorageDatasourceFactory.class, Job.class, ByteBuffer.class})
+@PrepareForTest({AbstractStorageDatasource.class, FileCacheFactory.class, StorageFile.class, StorageDatasourceFactory.class, Job.class, ByteBuffer.class})
 public class GcsTestBase extends StorageMock
 {
     // bucket and file names
@@ -138,9 +133,11 @@ public class GcsTestBase extends StorageMock
         when(Job.getInstance()).thenReturn(readJob);
         Blob table = mock(Blob.class);
         when(table.getName()).thenReturn(fileName);
+        when(table.getSize()).thenReturn(11L);
         when(tables.getValues()).thenReturn(List.of(table));
         doReturn(tables).when(storage).list(anyString());
-        doReturn(tables).when(storage).list(anyString());
+        //doReturn(tables).when(storage).list(anyString());
+        doReturn(List.of(table)).when(tables).iterateAll();
         return storage;
     }
 
@@ -188,6 +185,7 @@ public class GcsTestBase extends StorageMock
         URL fileResourceUri = ClassLoader.getSystemResource(fileName);
         File csvFile = new File(fileResourceUri.toURI());
         Storage storage = mockStorageWithBlobIterator(bucketName, csvFile.length(), fileName);
+
         GcsOnlineStream gcsOnlineStream = new GcsOnlineStream()
                 .storage(storage)
                 .bucketName(bucketName)
@@ -212,7 +210,8 @@ public class GcsTestBase extends StorageMock
         PowerMockito.when(optionBuilder.setCredentials(ArgumentMatchers.any())).thenReturn(optionBuilder);
         PowerMockito.when(optionBuilder.build()).thenReturn(mockedOptions);
         PowerMockito.when(mockedOptions.getService()).thenReturn(storage);
-
+        GcsStorageProvider storageProvider = mock(GcsStorageProvider.class);
+        PowerMockito.whenNew(GcsStorageProvider.class).withAnyArguments().thenReturn(storageProvider);
         return new StorageWithStreamTest(storage, gcsOnlineStream);
     }
 
@@ -245,7 +244,8 @@ public class GcsTestBase extends StorageMock
         PowerMockito.when(optionBuilder.setCredentials(ArgumentMatchers.any())).thenReturn(optionBuilder);
         PowerMockito.when(optionBuilder.build()).thenReturn(mockedOptions);
         PowerMockito.when(mockedOptions.getService()).thenReturn(storage);
-
+        GcsStorageProvider storageProvider = mock(GcsStorageProvider.class);
+        PowerMockito.whenNew(GcsStorageProvider.class).withAnyArguments().thenReturn(storageProvider);
         return new StorageWithStreamTest(storage, gcsOnlineStream);
     }
 
@@ -399,15 +399,6 @@ public class GcsTestBase extends StorageMock
         doReturn(channel.read(byteBuffer)).when(readChannel).read(ArgumentMatchers.any(ByteBuffer.class));
         doReturn(blobObject).when(storage).get(any(BlobId.class));
         return new FileCacheFactoryInfoTest(storage, tmpFile);
-    }
-
-    protected List<String> blobToObjectList(Page<Blob> blobPage)
-    {
-        List<String> objectNameList = new ArrayList<>();
-        for (Blob blob : blobPage.iterateAll()) {
-            objectNameList.add(blob.getName());
-        }
-        return ImmutableList.copyOf(objectNameList);
     }
 
     public S3BlockSpiller getS3SpillerObject(Schema schemaForRead)
