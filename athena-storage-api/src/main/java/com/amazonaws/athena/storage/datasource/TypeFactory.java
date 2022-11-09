@@ -32,7 +32,6 @@ import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.pig.convert.DecimalUtils;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 import org.slf4j.Logger;
@@ -561,6 +560,32 @@ public class TypeFactory
                 return null;
             }
 
+            try {
+                switch (type.asPrimitiveType().getPrimitiveTypeName()) {
+                    case INT32:
+                    case INT64:
+                    case INT96:
+                    case FLOAT:
+                    case DOUBLE:
+                    case BOOLEAN:
+                        return value;
+                    case FIXED_LEN_BYTE_ARRAY:
+                        // precision and scale should be retrieved from source metadata
+                        return BigDecimal.valueOf(Double.parseDouble(DecimalUtils
+                                .binaryToDecimal((Binary) value, 7, 2).toString()));
+                    default:
+                        if (value instanceof Binary) {
+                            return ((Binary) value).toStringUsingUTF8();
+                        }
+                        return value;
+                }
+            }
+            catch (Exception exception) {
+                LOGGER.error("Unable to convert value {} for type {}", value, type, exception);
+            }
+            return value;
+
+            /**
             OriginalType originalType = type.getOriginalType();
             try {
                 switch (originalType) {
@@ -602,7 +627,8 @@ public class TypeFactory
             catch (Exception exception) {
                 LOGGER.error("Unable to convert value {} for type {}", value, type, exception);
             }
-            return value;
+             */
+//            return value;
         }
     }
 }
