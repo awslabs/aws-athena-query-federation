@@ -218,7 +218,13 @@ public class ParquetDatasource
     public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException
     {
         LOGGER.info("StoragePartition:\n{}", partition);
-        List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        List<String> fileNames;
+        if (storageProvider.isDirectory(partition.getBucketName(), partition.getLocation())) {
+            LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
+            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        } else {
+            fileNames = List.of(partition.getLocation());
+        }
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
             InputFile inputFile = storageProvider.getInputFile(partition.getBucketName(), fileName);

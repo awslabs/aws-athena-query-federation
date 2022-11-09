@@ -261,7 +261,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
                                                           TableName tableInfo, Constraints constraints) throws IOException
     {
-        return this.getStoragePartitions(schema, tableInfo, constraints, objectName, bucketName);
+        return this.getStoragePartitions(schema, tableInfo, constraints, bucketName, objectName);
     }
 
     /**
