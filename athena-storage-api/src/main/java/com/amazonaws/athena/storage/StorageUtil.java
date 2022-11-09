@@ -19,9 +19,13 @@
  */
 package com.amazonaws.athena.storage;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.base.CharMatcher;
 import com.univocity.parsers.common.routine.InputDimension;
 import com.univocity.parsers.csv.CsvRoutines;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
@@ -29,6 +33,8 @@ import java.util.Locale;
 
 public class StorageUtil
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StorageUtil.class);
+
     /**
      * Regular expression to remove invalid characters from entity name as per ANSI/ISO Entry SQL-92 standard, except
      * entity names in GCS connector are all lower case
@@ -113,5 +119,18 @@ public class StorageUtil
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         int toIndex = strLowerObjectName.lastIndexOf(extension.toLowerCase(Locale.ROOT));
         return strLowerObjectName.substring(0, toIndex);
+    }
+
+    public static void printJson(Object object, String prefix)
+    {
+        LOGGER.info("Printing json for {}", prefix);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+            LOGGER.info(prefix + ":%n{}", object);
+        }
+        catch (Exception exception) {
+            // ignored
+        }
     }
 }

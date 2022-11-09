@@ -283,6 +283,7 @@ public class GcsMetadataHandler
         }
         List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName,
                 request.getSchema(), request.getTableName(), request.getConstraints());
+        LOGGER.info("Storage partitions (doGetSplits): \n{}", storagePartitions);
         requireNonNull(storagePartitions, "List of partitions can't be retrieve from metadata");
 
         Block partitions = request.getPartitions();
@@ -300,11 +301,12 @@ public class GcsMetadataHandler
         }
         int startSplitIndex = storageSplitListIndices.get(0);
         LOGGER.info("Current split start index {}", startSplitIndex);
-        for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+        for (int curPartition = startSplitIndex; curPartition < partitions.getRowCount(); curPartition++) {
             int currentSplitIndex = startSplitIndex + curPartition;
             SpillLocation spillLocation = makeSpillLocation(request);
             StoragePartition storagePartition = storagePartitions.get(currentSplitIndex);
             List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition);
+            LOGGER.info("Splitting based on partition at position {}", currentSplitIndex);
             for (StorageSplit split : storageSplits) {
                 LOGGER.info("Splits \n{} found under the partition\n{}", split, storagePartition);
                 String storageSplitJson = splitAsJson(split);
