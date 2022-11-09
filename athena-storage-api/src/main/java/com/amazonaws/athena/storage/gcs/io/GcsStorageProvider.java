@@ -52,7 +52,7 @@ import static java.util.Objects.requireNonNull;
 
 public class GcsStorageProvider implements StorageProvider
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FileCacheFactory.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsStorageProvider.class);
 
     private static final String MY_COE_NAME = "gcs";
     private final Storage storage;
@@ -146,7 +146,7 @@ public class GcsStorageProvider implements StorageProvider
     @Override
     public boolean isPartitionedDirectory(String bucket, String location)
     {
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(location));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(location));
         for (Blob blob : blobPage.iterateAll()) {
             if (isPartitionFolder(blob.getName())) {
                 return true;
@@ -158,7 +158,7 @@ public class GcsStorageProvider implements StorageProvider
     @Override
     public List<String> getObjectNames(String bucket)
     {
-        return toImmutableObjectNameList(storage.list(bucket));
+        return toImmutableObjectNameList(storage.list(bucket, Storage.BlobListOption.currentDirectory()));
     }
 
     @Override
@@ -168,7 +168,8 @@ public class GcsStorageProvider implements StorageProvider
             prefix += '/';
         }
         List<String> folderNames = new ArrayList<>();
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
             if (blob.getSize() == 0) { // it's a folder
                 folderNames.add(blob.getName());
@@ -181,18 +182,18 @@ public class GcsStorageProvider implements StorageProvider
     public PagedObject getObjectNames(String bucket, String continuationToken, int pageSize)
     {
         Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
+        Page<Blob> blobs;
         if (continuationToken != null) {
-            Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
-            return PagedObject.builder()
-                    .fileNames(toImmutableObjectNameList(blobs))
-                    .nextToken(blobs.getNextPageToken())
-                    .build();
+            blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                    Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
         }
         else {
-            return PagedObject.builder()
-                    .fileNames(toImmutableObjectNameList(storage.list(bucket, maxTableCountOption)))
-                    .build();
+            blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(), maxTableCountOption);
         }
+        return PagedObject.builder()
+                .fileNames(toImmutableObjectNameList(blobs))
+                .nextToken(blobs.getNextPageToken())
+                .build();
     }
 
     @Override
@@ -208,7 +209,8 @@ public class GcsStorageProvider implements StorageProvider
         if (!prefix.endsWith("/")) {
             prefix += '/';
         }
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
             if (blob.getSize() > 0) { // it's a file
                 return Optional.of(blob.getName());
@@ -220,7 +222,34 @@ public class GcsStorageProvider implements StorageProvider
         return Optional.empty();
     }
 
+    @Override
+    public List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix)
+    {
+        LOGGER.info("Iterating recursively through a folder under the bucket to list all file object");
+        List<String> leaves = new ArrayList<>();
+        getLeafObjectsRecurse(bucket, partitionPrefix, leaves);
+        return leaves;
+    }
+
     // helpers
+    private void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects)
+    {
+        LOGGER.info("Walking through {} under bucket '{}'", prefix, bucket);
+        if (!prefix.endsWith("/")) {
+            prefix += '/';
+        }
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                Storage.BlobListOption.prefix(prefix));
+        for (Blob blob : blobPage.iterateAll()) {
+            if (blob.getSize() > 0) { // it's a file
+                leafObjects.add(blob.getName());
+            }
+            else {
+                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects);
+            }
+        }
+    }
+
     private StorageFile createRandomFile(Storage storage,
                                          String bucketName,
                                          String fileName)
@@ -235,10 +264,24 @@ public class GcsStorageProvider implements StorageProvider
     {
         List<String> blobNameList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
-            if (blob != null && blob.getSize() != 0) {
+            if (blob != null) {
                 blobNameList.add(blob.getName());
             }
         }
+        LOGGER.info("blobNameList\n{}", blobNameList);
+        return ImmutableList.copyOf(blobNameList);
+    }
+
+    private List<String> toImmutableFolderNameList(Page<Blob> blobs)
+    {
+        List<String> blobNameList = new ArrayList<>();
+        for (Blob blob : blobs.iterateAll()) {
+            if (blob != null
+                    && blob.getSize() == 0) {
+                blobNameList.add(blob.getName());
+            }
+        }
+        LOGGER.info("blobNameList\n{}", blobNameList);
         return ImmutableList.copyOf(blobNameList);
     }
 }

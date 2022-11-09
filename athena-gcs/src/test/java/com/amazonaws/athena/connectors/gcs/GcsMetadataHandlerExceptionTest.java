@@ -42,6 +42,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.junit.After;
@@ -193,7 +194,7 @@ public class GcsMetadataHandlerExceptionTest
     }
 
     @Test
-    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         int UNLIMITED_PAGE_SIZE_VALUE = 50;

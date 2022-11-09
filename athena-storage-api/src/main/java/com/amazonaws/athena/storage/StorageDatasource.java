@@ -91,6 +91,7 @@ public interface StorageDatasource
      * @return An instance of {@link StorageSplit}
      * @throws IOException Raised if any raised during connecting to the cloud storage
      */
+    @Deprecated
     default List<StorageSplit> getStorageSplits(Schema schema, Constraints constraints, TableName tableInfo,
                                                 String bucketName, String objectName) throws IOException
     {
@@ -107,6 +108,7 @@ public interface StorageDatasource
      * @return An instance of {@link StorageSplit}
      * @throws IOException Raised if any raised during connecting to the cloud storage
      */
+    @Deprecated
     default List<StorageSplit> getStorageSplits(String bucketName,
                                                 String objectName) throws IOException
     {
@@ -210,17 +212,19 @@ public interface StorageDatasource
     Optional<String> getBaseName(String bucket, String objectName) throws IOException;
 
     /**
+     * Provides a cached partition list for  given a table as per objectName provided uunder the specified ubcket
      *
-     * @param objectName
-     * @param bucketName
-     * @return
+     * @param objectName Name of the object
+     * @param bucketName Name of the bucket
+     * @return A list of in-memory cached (in an instance member) StoragePartition, if any
      */
-    List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName);
+    List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
+                                                   TableName tableInfo, Constraints constraints) throws IOException;
 
     /**
-     *
-     * @param partition
-     * @return
+     * Creates a list of splits for the given {@link StoragePartition}
+     * @param partition An instance of {@link StoragePartition}
+     * @return List of {@link StorageSplit} found in the specified partition
      */
-    List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition);
+    List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException;
 }

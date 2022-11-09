@@ -69,6 +69,7 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.printJson;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
@@ -136,11 +137,11 @@ public class GcsMetadataHandler
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws JsonProcessingException
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=queryId {}",
                 request.getQueryId());
-        LOGGER.debug("doListTables: {}", request);
+        printJson(request, "doListTables");
         List<TableName> tables = new ArrayList<>();
         String nextToken;
         try {
@@ -215,6 +216,7 @@ public class GcsMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws IOException
     {
+        printJson(request, "GetTableLayoutRequest");
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
         TableName tableName = request.getTableName();
@@ -231,11 +233,12 @@ public class GcsMetadataHandler
         requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
                 + tableName.getSchemaName() + "'");
 
-        List<StoragePartition> storagePartition = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
-        requireNonNull(storagePartition, "List of partition can't be retrieve from metadata");
+        List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
+        LOGGER.info("Storage partitions: \n{}", partitions);
+        requireNonNull(partitions, "List of partition can't be retrieve from metadata");
         //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
-        for (int i = 0; i < storagePartition.size(); i++) {
+        for (int i = 0; i < partitions.size(); i++) {
             final String splitIndex = Integer.toString(i);
             blockWriter.writeRows((Block block, int rowNum) ->
             {
@@ -263,6 +266,7 @@ public class GcsMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException
     {
+        printJson(request, "GetSplitsRequest");
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";
         String objectName = "";
@@ -277,8 +281,8 @@ public class GcsMetadataHandler
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
             objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
         }
-        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName);
-
+        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName,
+                request.getSchema(), request.getTableName(), request.getConstraints());
         requireNonNull(storagePartitions, "List of partitions can't be retrieve from metadata");
 
         Block partitions = request.getPartitions();
@@ -286,8 +290,6 @@ public class GcsMetadataHandler
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Block partition row count {}",
                 partitions.getRowCount());
         Set<Split> splits = new HashSet<>();
-        final ObjectMapper objectMapper = new ObjectMapper();
-
         int partitionContd = decodeContinuationToken(request);
         List<Integer> storageSplitListIndices = getSplitIndices(partitions);
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
@@ -304,6 +306,7 @@ public class GcsMetadataHandler
             StoragePartition storagePartition = storagePartitions.get(currentSplitIndex);
             List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition);
             for (StorageSplit split : storageSplits) {
+                LOGGER.info("Splits \n{} found under the partition\n{}", split, storagePartition);
                 String storageSplitJson = splitAsJson(split);
                 LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
                         storageSplitJson);

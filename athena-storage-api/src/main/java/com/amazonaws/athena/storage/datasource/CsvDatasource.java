@@ -189,7 +189,24 @@ public class CsvDatasource
     @Override
     public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition)
     {
-        return List.of();
+        List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        List<StorageSplit> splits = new ArrayList<>();
+        for (String fileName : fileNames) {
+            checkFilesSize(partition.getBucketName(), fileName);
+            InputStream inputStream = null;
+            try {
+                inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName);
+                long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
+                splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
+            }
+            catch (IOException exception) {
+                // the file might not be supported or corrupted
+                // ignored, but logged
+                LOGGER.error("Unable to read Splits from the file {}, under the bucket {} due to error: {}", fileName,
+                        partition.getBucketName(), exception.getMessage(), exception);
+            }
+        }
+        return splits;
     }
 
     /**

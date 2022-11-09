@@ -134,6 +134,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 || !tablesLoadedForDatabase(databaseName)) {
             currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
         }
+        LOGGER.info("tableObjects:\n{}", tableObjects);
         List<String> tables = List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
         return new TableListResult(tables, currentNextToken);
     }
@@ -153,7 +154,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (!checkBucketExists(databaseName)) {
             return null;
         }
-
         String currentNextToken = loadTablesInternal(databaseName, nextToken, pageSize);
         storeCheckingComplete = currentNextToken == null;
         return currentNextToken;
@@ -226,6 +226,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
                                                        String bucketName, String objectName) throws IOException
     {
+        LOGGER.info("Retrieving partitions for object {}, under bucket {}", objectName, bucketName);
         requireNonNull(bucketName, "Bucket name was null");
         requireNonNull(objectName, "objectName name was null");
         List<StoragePartition> storagePartitions = new ArrayList<>();
@@ -235,16 +236,16 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                         Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME),
                         storagePartitions);
             }
+            // TODO: Load all file(s) under the directory as Table(s) with name folder1_subfolder1_table
         }
         else {
             // A file (aka Table) under a non-partitioned bucket/folder
-            // TODO: set record count;
-            return List.of(
-                    StoragePartition.builder()
-                            .objectName(List.of(objectName))
-                            .location(objectName)
-                            .build()
-            );
+            StoragePartition partition = StoragePartition.builder()
+                    .objectNames(List.of(objectName))
+                    .location(objectName)
+                    .bucketName(bucketName)
+                    .build();
+            return List.of(partition);
         }
         return storagePartitions;
     }
@@ -255,10 +256,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return this.storageProvider;
     }
 
+    // TODO: it should be from the cached
     @Override
-    public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName)
+    public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
+                                                          TableName tableInfo, Constraints constraints) throws IOException
     {
-        return List.of();
+        return this.getStoragePartitions(schema, tableInfo, constraints, bucketName, objectName);
     }
 
     /**
@@ -337,8 +340,10 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     protected void addTable(String bucketName, String objectName,
                             Map<String, List<String>> tableMap) throws IOException
     {
+        LOGGER.info("Adding table for object {}, under bucket {}", objectName, supportsPartitioning());
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         if (isExtensionCheckMandatory() && !strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))) {
+            LOGGER.info("Extension was mandatory and the object {} didn't match with extension {}", objectName, extension);
             return;
         }
         if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))
@@ -348,6 +353,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
                     files -> new ArrayList<>()).add(objectName);
         }
+        LOGGER.info("After adding table tableMap\n{}", tableMap);
     }
 
     /**
@@ -382,8 +388,47 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
     }
 
-    // helpers
+    // inner class
+    private static class ObjectStoragePartition
+    {
+        private String baseObject;
+        private boolean directory;
+        private List<StoragePartition> partitions;
 
+        public ObjectStoragePartition(String baseObject, boolean directory, List<StoragePartition> partitions)
+        {
+            this.baseObject = baseObject;
+            this.directory = directory;
+            this.partitions = partitions;
+        }
+
+        public String getBaseObject()
+        {
+            return baseObject;
+        }
+
+        public boolean isDirectory()
+        {
+            return directory;
+        }
+
+        public List<StoragePartition> getPartitions()
+        {
+            return partitions;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ObjectStoragePartition{" +
+                    "baseObject='" + baseObject + '\'' +
+                    ", directory=" + directory +
+                    ", partitions=" + partitions +
+                    '}';
+        }
+    }
+
+    // helpers
     /**
      * Determines whether a bucket exists for the given database name
      *
@@ -468,18 +513,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                     if (matchWithExpression(objectSchema, expressions, optionalFieldValue.get())) {
                         partitions.add(StoragePartition.builder()
                                 .location(folder)
+                                .bucketName(bucket)
                                 .build());
                     }
                 }
                 else {
                     partitions.add(StoragePartition.builder()
                             .location(folder)
+                            .bucketName(bucket)
                             .build());
                 }
             }
             else {
                 partitions.add(StoragePartition.builder()
                         .location(folder)
+                        .bucketName(bucket)
                         .build());
             }
         }
