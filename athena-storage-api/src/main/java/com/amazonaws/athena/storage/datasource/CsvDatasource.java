@@ -189,7 +189,14 @@ public class CsvDatasource
     @Override
     public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition)
     {
-        List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        List<String> fileNames;
+        if (storageProvider.isDirectory(partition.getBucketName(), partition.getLocation())) {
+            LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
+            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        }
+        else {
+            fileNames = List.of(partition.getLocation());
+        }
         LOGGER.info("Splitting based on file list: {}", fileNames);
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
