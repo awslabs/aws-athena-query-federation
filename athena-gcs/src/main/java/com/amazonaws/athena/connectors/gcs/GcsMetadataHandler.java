@@ -232,12 +232,12 @@ public class GcsMetadataHandler
         requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
                 + tableName.getSchemaName() + "'");
 
-        List<StoragePartition> storagePartition = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
-        LOGGER.info("Storage partitions: \n{}", storagePartition);
-        requireNonNull(storagePartition, "List of partition can't be retrieve from metadata");
+        List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
+        LOGGER.info("Storage partitions: \n{}", partitions);
+        requireNonNull(partitions, "List of partition can't be retrieve from metadata");
         //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
-        for (int i = 0; i < storagePartition.size(); i++) {
+        for (int i = 0; i < partitions.size(); i++) {
             final String splitIndex = Integer.toString(i);
             blockWriter.writeRows((Block block, int rowNum) ->
             {

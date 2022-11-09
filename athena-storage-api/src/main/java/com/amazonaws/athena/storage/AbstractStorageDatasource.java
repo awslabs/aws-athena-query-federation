@@ -226,6 +226,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
                                                        String bucketName, String objectName) throws IOException
     {
+        LOGGER.info("Retrieving partitions for object {}, under bucket {}", objectName, bucketName);
         requireNonNull(bucketName, "Bucket name was null");
         requireNonNull(objectName, "objectName name was null");
         List<StoragePartition> storagePartitions = new ArrayList<>();
@@ -235,6 +236,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                         Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME),
                         storagePartitions);
             }
+            // TODO: Load all file(s) under the directory as Table(s) with name folder1_subfolder1_table
         }
         else {
             // A file (aka Table) under a non-partitioned bucket/folder

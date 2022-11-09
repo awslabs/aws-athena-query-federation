@@ -225,13 +225,14 @@ public class GcsStorageProvider implements StorageProvider
     {
         LOGGER.info("Iterating recursively through a folder under the bucket to list all file object");
         List<String> leaves = new ArrayList<>();
-        getLefObjectsRecurse(bucket, partitionPrefix, leaves);
+        getLeafObjectsRecurse(bucket, partitionPrefix, leaves);
         return leaves;
     }
 
     // helpers
-    private void getLefObjectsRecurse(String bucket, String prefix, List<String> leafObjects)
+    private void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects)
     {
+        LOGGER.info("Walking through {} under bucket '{}'", prefix, bucket);
         if (!prefix.endsWith("/")) {
             prefix += '/';
         }
@@ -241,7 +242,7 @@ public class GcsStorageProvider implements StorageProvider
                 leafObjects.add(blob.getName());
             }
             else {
-                getLefObjectsRecurse(bucket, blob.getName(), leafObjects);
+                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects);
             }
         }
     }

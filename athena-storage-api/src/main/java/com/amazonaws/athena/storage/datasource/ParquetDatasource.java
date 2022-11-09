@@ -217,6 +217,7 @@ public class ParquetDatasource
     @Override
     public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException
     {
+        LOGGER.info("StoragePartition:\n{}", partition);
         List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {

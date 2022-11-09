@@ -30,7 +30,7 @@
     <Loggers>
         <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-info}"/>
         <Logger name="com.amazonaws.athena.connectors.gcs" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-info}"/>
-        <Logger name="com.amazonaws.athena.storage"/>
+        <Logger name="com.amazonaws.athena.storage"  level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-info}"/>
         <Root level="info">
             <AppenderRef ref="Lambda"/>
         </Root>
