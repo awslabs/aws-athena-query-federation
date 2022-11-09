@@ -52,7 +52,7 @@ import static java.util.Objects.requireNonNull;
 
 public class GcsStorageProvider implements StorageProvider
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FileCacheFactory.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsStorageProvider.class);
 
     private static final String MY_COE_NAME = "gcs";
     private final Storage storage;
@@ -270,6 +270,7 @@ public class GcsStorageProvider implements StorageProvider
                 blobNameList.add(blob.getName());
             }
         }
+        LOGGER.info("blobNameList\n{}", blobNameList);
         return ImmutableList.copyOf(blobNameList);
     }
 }

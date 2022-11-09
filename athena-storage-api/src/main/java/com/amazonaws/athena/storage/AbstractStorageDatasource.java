@@ -134,6 +134,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 || !tablesLoadedForDatabase(databaseName)) {
             currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
         }
+        LOGGER.info("tableObjects:\n{}", tableObjects);
         List<String> tables = List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
         return new TableListResult(tables, currentNextToken);
     }
@@ -153,7 +154,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (!checkBucketExists(databaseName)) {
             return null;
         }
-
         String currentNextToken = loadTablesInternal(databaseName, nextToken, pageSize);
         storeCheckingComplete = currentNextToken == null;
         return currentNextToken;
@@ -340,8 +340,10 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     protected void addTable(String bucketName, String objectName,
                             Map<String, List<String>> tableMap) throws IOException
     {
+        LOGGER.info("Adding table for object {}, under bucket {}", objectName, supportsPartitioning());
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         if (isExtensionCheckMandatory() && !strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))) {
+            LOGGER.info("Extension was mandatory and the object {} didn't match with extension {}", objectName, extension);
             return;
         }
         if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))
@@ -351,6 +353,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
                     files -> new ArrayList<>()).add(objectName);
         }
+        LOGGER.info("After adding table tableMap\n{}", tableMap);
     }
 
     /**

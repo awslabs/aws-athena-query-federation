@@ -412,10 +412,10 @@ public class TypeFactory
                                 FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null));
                         break;
                     case INT32:
-                        addIntField(primitiveType, fieldName, 32, true);
+                        addIntField(primitiveType, fieldName, 32);
                         break;
                     case INT64:
-                        addIntField(primitiveType, fieldName, 64, true);
+                        addIntField(primitiveType, fieldName, 64);
                         break;
                     case INT96:
                         addTimeStampField(fieldName);
@@ -442,12 +442,11 @@ public class TypeFactory
          * @param primitiveType An instance of Primitive type from the Parquet column
          * @param fieldName     Name of the field
          * @param bitWidth      A bit width of the integer. 32 bit indicates an Integer, 64 bit to Long
-         * @param singed        Whether the integer is signed or not (Int of UInt in some math jargon)
          */
         private void addIntField(PrimitiveType primitiveType, String fieldName,
-                                 int bitWidth, boolean singed)
+                                 int bitWidth)
         {
-            if (addIntFieldIfLogicalTypeIsNull(primitiveType, fieldName, bitWidth, singed)) {
+            if (addIntFieldIfLogicalTypeIsNull(primitiveType, fieldName, bitWidth)) {
                 return;
             }
 
@@ -466,7 +465,7 @@ public class TypeFactory
             }
             else {
                 fieldListBuilder.add(new Field(fieldName,
-                        FieldType.nullable(new ArrowType.Int(bitWidth, singed)), null));
+                        FieldType.nullable(new ArrowType.Int(bitWidth, true)), null));
             }
         }
 
@@ -524,15 +523,14 @@ public class TypeFactory
          * @param primitiveType An instance of Primitive type from the Parquet column
          * @param fieldName     Name of the field
          * @param bitWidth      A bit width of the integer. 32 bit indicates an Integer, 64 bit to Long
-         * @param singed        Whether the integer is signed or not (Int of UInt in some math jargon)
          * @return True if it adds an integer in case the logical type annotation is null, false otherwise
          */
         private boolean addIntFieldIfLogicalTypeIsNull(PrimitiveType primitiveType, String fieldName,
-                                                       int bitWidth, boolean singed)
+                                                       int bitWidth)
         {
             if (primitiveType.getLogicalTypeAnnotation() == null) {
                 fieldListBuilder.add(new Field(fieldName,
-                        FieldType.nullable(new ArrowType.Int(bitWidth, singed)), null));
+                        FieldType.nullable(new ArrowType.Int(bitWidth, true)), null));
                 return true;
             }
             return false;
@@ -584,51 +582,6 @@ public class TypeFactory
                 LOGGER.error("Unable to convert value {} for type {}", value, type, exception);
             }
             return value;
-
-            /**
-            OriginalType originalType = type.getOriginalType();
-            try {
-                switch (originalType) {
-                    case UTF8:
-                        return ((Binary) value).toStringUsingUTF8();
-                    case DECIMAL:
-                        LogicalTypeAnnotation.DecimalLogicalTypeAnnotation logicalType
-                                = (LogicalTypeAnnotation.DecimalLogicalTypeAnnotation) type.getLogicalTypeAnnotation();
-                        return Double.parseDouble(DecimalUtils.binaryToDecimal((Binary) value,
-                                logicalType.getPrecision(), logicalType.getScale()).toString());
-                    case DATE:
-                    case TIME_MILLIS:
-                    case TIMESTAMP_MILLIS:
-                    case UINT_8:
-                    case UINT_16:
-                    case UINT_32:
-                    case INT_8:
-                    case INT_16:
-                    case INT_32:
-                    case UINT_64:
-                    case INT_64:
-                    case TIME_MICROS:
-                    case TIMESTAMP_MICROS:
-                    case INTERVAL:
-                        return value;
-                    case MAP_KEY_VALUE:
-                    case ENUM:
-                    case MAP:
-                    case LIST:
-                    case JSON:
-                    case BSON:
-                    default:
-                        if (value instanceof Binary) {
-                            return ((Binary) value).toStringUsingUTF8();
-                        }
-                        return value;
-                }
-            }
-            catch (Exception exception) {
-                LOGGER.error("Unable to convert value {} for type {}", value, type, exception);
-            }
-             */
-//            return value;
         }
     }
 }

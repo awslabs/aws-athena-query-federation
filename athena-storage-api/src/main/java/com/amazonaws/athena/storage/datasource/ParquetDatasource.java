@@ -147,7 +147,7 @@ public class ParquetDatasource
     @Override
     public boolean isExtensionCheckMandatory()
     {
-        return true;
+        return false;
     }
 
     @Override
