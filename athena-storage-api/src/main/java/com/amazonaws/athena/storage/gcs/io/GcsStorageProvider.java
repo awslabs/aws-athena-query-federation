@@ -146,7 +146,7 @@ public class GcsStorageProvider implements StorageProvider
     @Override
     public boolean isPartitionedDirectory(String bucket, String location)
     {
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(location));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(location));
         for (Blob blob : blobPage.iterateAll()) {
             if (isPartitionFolder(blob.getName())) {
                 return true;
@@ -158,7 +158,7 @@ public class GcsStorageProvider implements StorageProvider
     @Override
     public List<String> getObjectNames(String bucket)
     {
-        return toImmutableObjectNameList(storage.list(bucket));
+        return toImmutableObjectNameList(storage.list(bucket, Storage.BlobListOption.currentDirectory()));
     }
 
     @Override
@@ -168,7 +168,8 @@ public class GcsStorageProvider implements StorageProvider
             prefix += '/';
         }
         List<String> folderNames = new ArrayList<>();
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
             if (blob.getSize() == 0) { // it's a folder
                 folderNames.add(blob.getName());
@@ -182,7 +183,8 @@ public class GcsStorageProvider implements StorageProvider
     {
         Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
         if (continuationToken != null) {
-            Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
+            Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                    Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
             return PagedObject.builder()
                     .fileNames(toImmutableObjectNameList(blobs))
                     .nextToken(blobs.getNextPageToken())
@@ -190,7 +192,8 @@ public class GcsStorageProvider implements StorageProvider
         }
         else {
             return PagedObject.builder()
-                    .fileNames(toImmutableObjectNameList(storage.list(bucket, maxTableCountOption)))
+                    .fileNames(toImmutableObjectNameList(storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                            maxTableCountOption)))
                     .build();
         }
     }
@@ -208,7 +211,8 @@ public class GcsStorageProvider implements StorageProvider
         if (!prefix.endsWith("/")) {
             prefix += '/';
         }
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
             if (blob.getSize() > 0) { // it's a file
                 return Optional.of(blob.getName());
@@ -236,7 +240,8 @@ public class GcsStorageProvider implements StorageProvider
         if (!prefix.endsWith("/")) {
             prefix += '/';
         }
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
             if (blob.getSize() > 0) { // it's a file
                 leafObjects.add(blob.getName());
