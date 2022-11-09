@@ -32,6 +32,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,7 +91,7 @@ public class GcsRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker) throws IOException
     {
-        LOGGER.info("ReadRecordsRequest: \n{}", recordsRequest);
+        LOGGER.info("ReadRecordsRequest: \n{}", new ObjectMapper().writeValueAsString(recordsRequest));
         Split split = recordsRequest.getSplit();
         TableName tableName = recordsRequest.getTableName();
         if (this.datasource == null) {

@@ -182,20 +182,18 @@ public class GcsStorageProvider implements StorageProvider
     public PagedObject getObjectNames(String bucket, String continuationToken, int pageSize)
     {
         Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
+        Page<Blob> blobs;
         if (continuationToken != null) {
-            Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+            blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                     Storage.BlobListOption.pageToken(continuationToken), maxTableCountOption);
-            return PagedObject.builder()
-                    .fileNames(toImmutableObjectNameList(blobs))
-                    .nextToken(blobs.getNextPageToken())
-                    .build();
         }
         else {
-            return PagedObject.builder()
-                    .fileNames(toImmutableObjectNameList(storage.list(bucket, Storage.BlobListOption.currentDirectory(),
-                            maxTableCountOption)))
-                    .build();
+            blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(), maxTableCountOption);
         }
+        return PagedObject.builder()
+                .fileNames(toImmutableObjectNameList(blobs))
+                .nextToken(blobs.getNextPageToken())
+                .build();
     }
 
     @Override
@@ -266,7 +264,20 @@ public class GcsStorageProvider implements StorageProvider
     {
         List<String> blobNameList = new ArrayList<>();
         for (Blob blob : blobs.iterateAll()) {
-            if (blob != null && blob.getSize() != 0) {
+            if (blob != null) {
+                blobNameList.add(blob.getName());
+            }
+        }
+        LOGGER.info("blobNameList\n{}", blobNameList);
+        return ImmutableList.copyOf(blobNameList);
+    }
+
+    private List<String> toImmutableFolderNameList(Page<Blob> blobs)
+    {
+        List<String> blobNameList = new ArrayList<>();
+        for (Blob blob : blobs.iterateAll()) {
+            if (blob != null
+                    && blob.getSize() == 0) {
                 blobNameList.add(blob.getName());
             }
         }

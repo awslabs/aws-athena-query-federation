@@ -136,11 +136,11 @@ public class GcsMetadataHandler
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws JsonProcessingException
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=queryId {}",
                 request.getQueryId());
-        LOGGER.debug("doListTables: {}", request);
+        LOGGER.debug("doListTables: {}", new ObjectMapper().writeValueAsString(request));
         List<TableName> tables = new ArrayList<>();
         String nextToken;
         try {
@@ -215,7 +215,7 @@ public class GcsMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws IOException
     {
-        LOGGER.info("GetTableLayoutRequest: \n{}", request);
+        LOGGER.info("GetTableLayoutRequest: \n{}", new ObjectMapper().writeValueAsString(request));
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
         TableName tableName = request.getTableName();
@@ -265,7 +265,7 @@ public class GcsMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException
     {
-        LOGGER.info("GetSplitsRequest: \n{}", request);
+        LOGGER.info("GetSplitsRequest: \n{}", new ObjectMapper().writeValueAsString(request));
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";
         String objectName = "";
