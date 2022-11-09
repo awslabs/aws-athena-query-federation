@@ -24,12 +24,12 @@ import java.util.List;
 public class StorageObjectSchema
 {
     private List<StorageObjectField> fields;
-    private Long totalRecords;
+    private Object baseSchema;
 
-    public StorageObjectSchema(List<StorageObjectField> fields, Long totalRecords)
+    public StorageObjectSchema(List<StorageObjectField> fields, Object baseSchema)
     {
         this.fields = fields;
-        this.totalRecords = totalRecords;
+        this.baseSchema = baseSchema;
     }
 
     public List<StorageObjectField> getFields()
@@ -42,14 +42,14 @@ public class StorageObjectSchema
         this.fields = fields;
     }
 
-    public Long getTotalRecords()
+    public Object getBaseSchema()
     {
-        return totalRecords;
+        return baseSchema;
     }
 
-    public void setTotalRecords(Long totalRecords)
+    public void setBaseSchema(Object baseSchema)
     {
-        this.totalRecords = totalRecords;
+        this.baseSchema = baseSchema;
     }
 
     @Override
@@ -57,7 +57,7 @@ public class StorageObjectSchema
     {
         return "StorageObjectSchema{" +
                 "fields=" + fields +
-                ", totalRecords=" + totalRecords +
+                ", baseSchema=" + baseSchema +
                 '}';
     }
 
@@ -69,7 +69,7 @@ public class StorageObjectSchema
     public static class Builder
     {
         private List<StorageObjectField> fields;
-        private Long totalRecords;
+        private Object baseSchema;
 
         public Builder fields(final List<StorageObjectField> fields)
         {
@@ -77,15 +77,15 @@ public class StorageObjectSchema
             return this;
         }
 
-        public Builder totalRecords(final Long totalRecords)
+        public Builder baseSchema(Object baseSchema)
         {
-            this.totalRecords = totalRecords;
+            this.baseSchema = baseSchema;
             return this;
         }
 
         public StorageObjectSchema build()
         {
-            return new StorageObjectSchema(this.fields, this.totalRecords);
+            return new StorageObjectSchema(this.fields, this.baseSchema);
         }
     }
 }

@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -187,7 +187,7 @@ public class GcsMetadataHandler
      * 4. A catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request)
+    public GetTableResponse doGetTable(BlockAllocator allocator, GetTableRequest request) throws IOException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetTable|Message=queryId {}",
@@ -200,9 +200,9 @@ public class GcsMetadataHandler
         Schema schema = gcsSchemaUtils.buildTableSchema(this.datasource,
                 tableInfo.getSchemaName(),
                 tableInfo.getTableName());
-        Schema partitionSchema = getPartitionSchema();
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema,
-                partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+            Schema partitionSchema = getPartitionSchema();
+            return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema,
+                    partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
     }
 
     /**
@@ -217,7 +217,6 @@ public class GcsMetadataHandler
     {
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
-
         TableName tableName = request.getTableName();
         String bucketName = null;
         String objectName = null;
@@ -262,7 +261,7 @@ public class GcsMetadataHandler
      * 2. (Optional) A continuation token which allows you to paginate the generation of splits for large queries.
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws JsonProcessingException
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";

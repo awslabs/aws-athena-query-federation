@@ -54,6 +54,12 @@ public class And implements FilterExpression
         throw new UnsupportedOperationException("Method columnName() is not implemented in And expression");
     }
 
+    @Override
+    public Object filterValue()
+    {
+        return this.expressions;
+    }
+
     /**
      * {@inheritDoc}
      */

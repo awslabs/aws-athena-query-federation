@@ -25,9 +25,9 @@ public class LessThanExpression extends LtGtEqExpression<Comparable<?>>
      * @param columnIndex
      * @param expression
      */
-    public LessThanExpression(Integer columnIndex, Comparable<?> expression)
+    public LessThanExpression(Integer columnIndex, String columnName, Comparable<?> expression)
     {
-        super(columnIndex, expression);
+        super(columnIndex, columnName, expression);
     }
 
     /**

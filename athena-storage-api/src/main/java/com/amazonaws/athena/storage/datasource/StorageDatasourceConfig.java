@@ -34,10 +34,8 @@ package com.amazonaws.athena.storage.datasource;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
-import static com.amazonaws.athena.storage.StorageConstants.FILE_NAME_PATTERN_ENV_VAR;
 
 public class StorageDatasourceConfig
 {
@@ -76,30 +74,6 @@ public class StorageDatasourceConfig
     {
         this.properties.putAll(properties);
         return this;
-    }
-
-    /**
-     * Determines whether this file format based data-source is for multipart file collection
-     *
-     * @return Returns true if the file_name_pattern environment variable is set
-     */
-    public boolean isFilePatterned()
-    {
-        return null != properties.get(FILE_NAME_PATTERN_ENV_VAR)
-                && !properties.get(FILE_NAME_PATTERN_ENV_VAR).isBlank();
-    }
-
-    /**
-     * Constitutes an instance of Pattern compile from regex
-     *
-     * @return An instance of Pattern if the file_name_pattern environment variable is set, null otherwise
-     */
-    public Pattern filePattern()
-    {
-        if (isFilePatterned()) {
-            return Pattern.compile(properties.get(FILE_NAME_PATTERN_ENV_VAR));
-        }
-        return null;
     }
 
     /**

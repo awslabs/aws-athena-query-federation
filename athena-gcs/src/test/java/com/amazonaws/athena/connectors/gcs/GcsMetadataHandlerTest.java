@@ -203,7 +203,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetTable() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoGetTable() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         when(gcsSchemaUtils.buildTableSchema(Mockito.any(), Mockito.any(), Mockito.anyString())).thenReturn(GcsTestUtils.getTestSchema());
         List<Field> tableSchema = GcsTestUtils.getFields();
@@ -219,7 +219,8 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException {
+    public void testDoGetSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
+    {
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
                 mock(Block.class), Collections.emptyList(), new Constraints(new HashMap<>()), null);
@@ -232,7 +233,8 @@ public class GcsMetadataHandlerTest
 
     @Test
     @Ignore
-    public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException {
+    public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
+    {
         String yearCol = "PART_ID";
         //This is the schema that ExampleMetadataHandler has laid out for a 'Partition' so we need to populate this
         //minimal set of info here.

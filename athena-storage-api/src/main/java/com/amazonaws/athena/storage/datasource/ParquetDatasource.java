@@ -133,7 +133,7 @@ public class ParquetDatasource
      * @return This datasource supports reading multiple file to form a single table. So it always returns true
      */
     @Override
-    public boolean supportsMultiPartFiles()
+    public boolean supportsPartitioning()
     {
         return true;
     }
@@ -157,7 +157,8 @@ public class ParquetDatasource
         InputFile inputFile = storageProvider.getInputFile(bucket, objectName);
         try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
             ParquetMetadata metadata = reader.getFooter();
-            List<ColumnDescriptor> columnDescriptors = metadata.getFileMetaData().getSchema().getColumns();
+            MessageType messageType = metadata.getFileMetaData().getSchema();
+            List<ColumnDescriptor> columnDescriptors = messageType.getColumns();
                     List<StorageObjectField> fieldList = new ArrayList<>();
             for (int i = 0; i < columnDescriptors.size(); i++) {
                 ColumnDescriptor columnDescriptor = columnDescriptors.get(i);
@@ -166,9 +167,9 @@ public class ParquetDatasource
                                 .columnIndex(i)
                         .build());
             }
-            // TODO: set record count
             return StorageObjectSchema.builder()
                     .fields(fieldList)
+                    .baseSchema(messageType)
                     .build();
         }
     }
@@ -256,7 +257,7 @@ public class ParquetDatasource
      */
     @Override
     public void readRecords(Schema schema, Constraints constraints, TableName tableInfo,
-                            Split split, BlockSpiller spiller, QueryStatusChecker queryStatusChecker)
+                            Split split, BlockSpiller spiller, QueryStatusChecker queryStatusChecker) throws IOException
     {
         String databaseName = tableInfo.getSchemaName();
         if (!storeCheckingComplete) {

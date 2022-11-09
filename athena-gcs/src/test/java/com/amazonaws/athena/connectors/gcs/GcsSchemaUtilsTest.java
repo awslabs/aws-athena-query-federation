@@ -30,6 +30,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.Optional;
 
 import static org.junit.Assert.assertNotNull;
@@ -49,14 +50,14 @@ public class GcsSchemaUtilsTest
     CsvDatasource csvDatasource;
 
     @Before
-    public void init()
+    public void init() throws IOException
     {
         gcsSchemaUtils = new GcsSchemaUtils();
         when(csvDatasource.getStorageTable(Mockito.any(), Mockito.any())).thenReturn(Optional.of(GcsTestUtils.getTestSchemaFields()));
     }
 
     @Test
-    public void testBuildTableSchema()
+    public void testBuildTableSchema() throws IOException
     {
         Schema schema = gcsSchemaUtils.buildTableSchema(csvDatasource, "test", "test");
         assertNotNull(schema);

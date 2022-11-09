@@ -21,9 +21,11 @@ package com.amazonaws.athena.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.storage.common.FieldValue;
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.PagedObject;
 import com.amazonaws.athena.storage.common.PartitionUtil;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
@@ -48,8 +50,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.STORAGE_PROVIDER_ENV_VAR;
@@ -57,6 +58,7 @@ import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_N
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityNameFromFile;
+import static com.amazonaws.athena.storage.StorageUtil.tableNameFromFile;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractStorageDatasource implements StorageDatasource
@@ -125,7 +127,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @return List of all tables under the database
      */
     @Override
-    public synchronized TableListResult getAllTables(String databaseName, String nextToken, int pageSize)
+    public synchronized TableListResult getAllTables(String databaseName, String nextToken, int pageSize) throws IOException
     {
         String currentNextToken = null;
         if (!storeCheckingComplete
@@ -146,14 +148,10 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param pageSize     Size of the page in each load with token
      */
     @Override
-    public synchronized String loadTablesWithContinuationToken(String databaseName, String nextToken, int pageSize)
+    public synchronized String loadTablesWithContinuationToken(String databaseName, String nextToken, int pageSize) throws IOException
     {
         if (!checkBucketExists(databaseName)) {
             return null;
-        }
-
-        if (datasourceConfig.isFilePatterned() && !supportsMultiPartFiles()) {
-            throw new UncheckedStorageDatasourceException("Datasource that reads file with " + extension + " extension does not support reading multiple files");
         }
 
         String currentNextToken = loadTablesInternal(databaseName, nextToken, pageSize);
@@ -168,7 +166,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @return List of all tables under the database
      */
     @Override
-    public List<String> loadAllTables(String databaseName)
+    public List<String> loadAllTables(String databaseName) throws IOException
     {
         checkMetastoreForAll(databaseName);
         return List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
@@ -181,7 +179,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param database For which datastore will be checked
      */
     @Override
-    public void checkMetastoreForAll(String database)
+    public void checkMetastoreForAll(String database) throws IOException
     {
         if (checkBucketExists(database)) {
             loadTablesInternal(database);
@@ -197,7 +195,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @return An instance of {@link StorageTable} with column metadata
      */
     @Override
-    public synchronized Optional<StorageTable> getStorageTable(String databaseName, String tableName)
+    public synchronized Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws IOException
     {
         if (!storeCheckingComplete) {
             this.checkMetastoreForAll(databaseName);
@@ -210,21 +208,15 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (objectNameMap != null && !objectNameMap.isEmpty()) {
             List<String> objectNames = objectNameMap.get(tableName);
             if (objectNames != null) {
-                try {
-                    StorageTable table = StorageTable.builder()
-                            .setDatabaseName(databaseName)
-                            .setTableName(tableName)
-                            .setParameter(TABLE_PARAM_BUCKET_NAME, bucketName)
-                            .setParameter(TABLE_PARAM_OBJECT_NAME, String.join(",", objectNames))
-                            .setFieldList(getTableFields(bucketName, objectNames))
-                            .build();
-                    return Optional.of(table);
-                }
-                catch (Exception exception) {
-                    // We ignore this exception. Because if this Exception is propagated, other necessary Table(s) will not be
-                    // listed in the Tables list in the Athena Console (or when calling programmatically)
-                    LOGGER.error("Error occurred during resolving Table {} under the schema {}", tableObjects, databaseName, exception);
-                }
+                LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
+                StorageTable table = StorageTable.builder()
+                        .setDatabaseName(databaseName)
+                        .setTableName(tableName)
+                        .setParameter(TABLE_PARAM_BUCKET_NAME, bucketName)
+                        .setParameter(TABLE_PARAM_OBJECT_NAME, String.join(",", objectNames))
+                        .setFieldList(getTableFields(bucketName, objectNames))
+                        .build();
+                return Optional.of(table);
             }
         }
         return Optional.empty();
@@ -242,9 +234,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 addPartitionsRecurse(bucketName, objectName, schema, tableInfo, constraints,
                         Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME),
                         storagePartitions);
-            }
-            else {
-                listObjectsForSinglePartitionRecurse(bucketName, objectName, storagePartitions);
             }
         }
         else {
@@ -287,18 +276,18 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param pageSize     Number of table per page when tokenized for pagination
      * @return Next token to retrieve next page
      */
-    protected String loadTablesInternal(String databaseName, String nextToken, int pageSize)
+    protected String loadTablesInternal(String databaseName, String nextToken, int pageSize) throws IOException
     {
         requireNonNull(databaseName, "Database name was null");
         String bucketName = databaseBuckets.get(databaseName);
         if (bucketName == null) {
             throw new DatabaseNotFoundException("Bucket null does not exist for Database " + databaseName);
         }
-        PagedObject pagedObject = storageProvider.getFileNames(bucketName, nextToken, pageSize);
+        PagedObject pagedObject = storageProvider.getObjectNames(bucketName, nextToken, pageSize);
         // in the following Map, the key is the Table name, and the value is a list of String contains one or more objects (file)
         // when the file_pattern environment variable is set, usually list String may contain more than one object
         // And in case a table consists of multiple objects, during read it read data from all the objects
-        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(pagedObject.getFileNames());
+        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(bucketName, pagedObject.getFileNames());
         tableObjects.put(databaseName, objectNameMap);
         String currentNextToken = pagedObject.getNextToken();
         if (currentNextToken == null) {
@@ -312,28 +301,28 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      *
      * @param databaseName Name of the database
      */
-    protected void loadTablesInternal(String databaseName)
+    protected void loadTablesInternal(String databaseName) throws IOException
     {
         requireNonNull(databaseName, "Database name was null");
         String bucketName = databaseBuckets.get(databaseName);
         if (bucketName == null) {
             throw new DatabaseNotFoundException("Bucket null does not exist for Database " + databaseName);
         }
-        List<String> fileNames = storageProvider.getFileNames(bucketName);
-        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(fileNames);
+        List<String> fileNames = storageProvider.getObjectNames(bucketName);
+        Map<String, List<String>> objectNameMap = convertBlobsToTableObjectsMap(bucketName, fileNames);
         tableObjects.put(databaseName, objectNameMap);
         markEntitiesLoaded(databaseName);
     }
 
-    protected Map<String, List<String>> convertBlobsToTableObjectsMap(List<String> fileNames)
+    protected Map<String, List<String>> convertBlobsToTableObjectsMap(String bucketName, List<String> fileNames) throws IOException
     {
         Map<String, List<String>> objectNameMap = new HashMap<>();
         for (String fileName : fileNames) {
             if (!isExtensionCheckMandatory()) {
-                addTable(fileName, objectNameMap);
+                addTable(bucketName, fileName, objectNameMap);
             }
             else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
-                addTable(fileName, objectNameMap);
+                addTable(bucketName, fileName, objectNameMap);
             }
         }
         return objectNameMap;
@@ -345,23 +334,19 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param objectName Name of the object in storage (file)
      * @param tableMap   Name of the table under which we'll maintain a list of files fall under the pattern
      */
-    protected void addTable(String objectName,
-                            Map<String, List<String>> tableMap)
+    protected void addTable(String bucketName, String objectName,
+                            Map<String, List<String>> tableMap) throws IOException
     {
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
-        if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))) {
-            if (datasourceConfig.isFilePatterned()) {
-                Pattern pattern = datasourceConfig.filePattern();
-                String tableName = strLowerObjectName.substring(0, strLowerObjectName.lastIndexOf(extension.toLowerCase(Locale.ROOT)));
-                Matcher matcher = pattern.matcher(tableName);
-                while (matcher.find()) {
-                    String strTableName = getValidEntityNameFromFile(matcher.group(1), this.extension);
-                    tableMap.computeIfAbsent(strTableName, files -> new ArrayList<>()).add(objectName);
-                }
-            }
-            else {
-                tableMap.computeIfAbsent(getValidEntityNameFromFile(objectName, this.extension), files -> new ArrayList<>()).add(objectName);
-            }
+        if (isExtensionCheckMandatory() && !strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))
+                || storageProvider.isPartitionedDirectory(bucketName, objectName)
+                || isSupported(bucketName, objectName)) {
+            String tableName = tableNameFromFile(objectName, extension);
+            tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
+                    files -> new ArrayList<>()).add(objectName);
         }
     }
 
@@ -474,24 +459,57 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
         List<FilterExpression> expressions = getExpressions(bucket, baseObjectName, schema, tableName, constraints,
                 Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
-        if (!prefix.endsWith("/")) {
-            prefix += '/';
+        StorageObjectSchema objectSchema = getObjectSchema(bucket, baseObjectName);
+        List<String> folders = storageProvider.getNestedFolders(bucket, prefix);
+        for (String folder : folders) {
+            if (PartitionUtil.isPartitionFolder(folder)) {
+                Optional<FieldValue> optionalFieldValue = PartitionUtil.getPartitionFieldValue(folder);
+                if (optionalFieldValue.isPresent()) {
+                    if (matchWithExpression(objectSchema, expressions, optionalFieldValue.get())) {
+                        partitions.add(StoragePartition.builder()
+                                .location(folder)
+                                .build());
+                    }
+                }
+                else {
+                    partitions.add(StoragePartition.builder()
+                            .location(folder)
+                            .build());
+                }
+            }
+            else {
+                partitions.add(StoragePartition.builder()
+                        .location(folder)
+                        .build());
+            }
         }
-//        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
-//        for (Blob blob : blobPage.iterateAll()) {
-//            if (blob.getSize() == 0 && PartitionUtil.isPartitionFolder(blob.getName())) {
-//                return Optional.of(blob.getName());
-//            }
-//            else {
-//                partitions.add(StoragePartition.builder()
-//                                .objectName()
-//                        .build())
-//            }
-//        }
     }
 
-    private void listObjectsForSinglePartitionRecurse(String bucket, String baseObjectName,
-                                                      List<StoragePartition> partitions)
+    private boolean matchWithExpression(StorageObjectSchema objectSchema, List<FilterExpression> expressions,
+                                        FieldValue fieldValue)
     {
+        List<FilterExpression> matchedExpression = expressions.stream()
+                .filter(expression -> fieldValue.getField().endsWith(expression.columnName()))
+                .collect(Collectors.toList());
+        boolean matchFound = false;
+        if (!matchedExpression.isEmpty()) {
+            for (FilterExpression expression : matchedExpression) {
+                Object filterValue = expression.filterValue() == null
+                        ? "null"
+                        : expression.filterValue();
+                if (fieldValue.getValue().toString().endsWith(filterValue.toString())) {
+                    matchFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!matchFound) {
+            long matchCount = objectSchema.getFields().stream()
+                    .filter(field -> fieldValue.getField().endsWith(field.getColumnName()))
+                    .count();
+            matchFound = (matchCount == 0L);
+        }
+        return matchFound;
     }
 }

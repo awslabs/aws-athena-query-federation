@@ -26,9 +26,9 @@ public class IsNullExpression extends AbstractParquetExpression<Void>
      *
      * @param columnIndex
      */
-    public IsNullExpression(Integer columnIndex)
+    public IsNullExpression(Integer columnIndex, String columnName)
     {
-        super(columnIndex, null);
+        super(columnIndex, columnName, null);
     }
 
     /**

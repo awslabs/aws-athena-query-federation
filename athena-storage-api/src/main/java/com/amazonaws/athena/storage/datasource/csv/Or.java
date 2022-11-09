@@ -51,6 +51,12 @@ public class Or implements FilterExpression
     }
 
     @Override
+    public Object filterValue()
+    {
+        return this.expressions;
+    }
+
+    @Override
     public boolean apply(String value)
     {
         for (FilterExpression expression : expressions) {

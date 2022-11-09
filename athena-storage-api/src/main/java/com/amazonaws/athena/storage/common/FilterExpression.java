@@ -42,6 +42,12 @@ public interface FilterExpression
     }
 
     /**
+     * Filter value that is set as expression
+     * @return Constraint value that this expression will apply to evaluate
+     */
+    Object filterValue();
+
+    /**
      * Applies the value to evaluate the expression
      *
      * @param value Value being examined

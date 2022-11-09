@@ -76,7 +76,7 @@ public interface StorageProvider
     List<String> getAllBuckets();
 
     /**
-     * Inicates whether a location (aka, prefix) under a bucket is a directory
+     * Indicates whether a location (aka, prefix) under a bucket is a directory
      * @param bucket Name of the bucket
      * @param location The path of the object, sometimes called prefix in some popular storage provider
      * @return true if the path is a directory (folder), false otherwise
@@ -84,13 +84,36 @@ public interface StorageProvider
     boolean isDirectory(String bucket, String location);
 
     /**
-     * Retrieves a list of file names
+     * Indicates whether a location (aka, prefix) under a bucket is a directory that contains other partition folder(s)
+     * @param bucket Name of the bucket
+     * @param location The path of the object, sometimes called prefix in some popular storage provider
+     * @return true if the path is a directory (folder), false otherwise
+     */
+    boolean isPartitionedDirectory(String bucket, String location);
+
+    /**
+     * Retrieves a list of object names
      * @param bucket Name of the bucket from where the underlying provider retrieves the files
      * @return List of all file names
      */
-    List<String> getFileNames(String bucket);
+    List<String> getObjectNames(String bucket);
 
-    PagedObject getFileNames(String bucket, String continuationToken, int pageSize);
+    /**
+     * Retrieves a list of nested folder inside the provided prefix
+     * @param bucket Name of the bucket from where the underlying provider retrieves the files
+     * @param prefix Usually another folder inside the bucket
+     * @return List of all folder names
+     */
+    List<String> getNestedFolders(String bucket, String prefix);
+
+    /**
+     * Retrieves a list of paginated object names. For pagination, a continuation token is used to retrieve next list.
+     * @param bucket Name of the bucket
+     * @param continuationToken Continuation token to read from the next chunk of list, maybe null
+     * @param pageSize Maximum size of objects to return in a trip
+     * @return An instance of {@link PagedObject}
+     */
+    PagedObject getObjectNames(String bucket, String continuationToken, int pageSize);
 
     /**
      * Determine the file size

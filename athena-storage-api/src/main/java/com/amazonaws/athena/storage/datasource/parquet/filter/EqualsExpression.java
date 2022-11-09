@@ -33,9 +33,9 @@ public class EqualsExpression extends AbstractParquetExpression<Object>
      * @param columnIndex
      * @param expression
      */
-    public EqualsExpression(Integer columnIndex, Object expression)
+    public EqualsExpression(Integer columnIndex, String columnName, Object expression)
     {
-        super(columnIndex, null, expression);
+        super(columnIndex, columnName, expression);
     }
 
     /**

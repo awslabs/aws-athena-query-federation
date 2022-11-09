@@ -44,6 +44,12 @@ public abstract class AbstractFilterExpression<T> implements FilterExpression
         return this.column;
     }
 
+    @Override
+    public Object filterValue()
+    {
+        return this.expression;
+    }
+
     /**
      * Constructor to instantiate the expression with the column name
      *

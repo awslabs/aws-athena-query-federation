@@ -60,6 +60,7 @@ public abstract class AbstractParquetExpression<T> implements FilterExpression /
      *
      * @param columnIndex Index of the column
      */
+    @Deprecated
     public AbstractParquetExpression(Integer columnIndex, String columnName)
     {
         this.columnIndex = columnIndex;
@@ -77,6 +78,15 @@ public abstract class AbstractParquetExpression<T> implements FilterExpression /
         this.columnIndex = index;
         this.columnName = columnName;
         this.expression = expression;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Object filterValue()
+    {
+        return this.expression;
     }
 
     /**

@@ -36,13 +36,13 @@ public class ParquetConstraintEvaluatorTest
     @BeforeClass
     public static void setupExpressions()
     {
-        expressions.add(new EqualsExpression(0, 1L));
-        expressions.add(new GreaterThanExpression(1, 10));
-        expressions.add(new GreaterThanOrEqualExpression(2, 10));
-        expressions.add(new IsNotNullExpression(3));
-        expressions.add(new IsNullExpression(4));
-        expressions.add(new LessThanExpression(5, 10));
-        expressions.add(new LessThanOrEqualExpression(6, 10));
+        expressions.add(new EqualsExpression(0, null, 1L));
+        expressions.add(new GreaterThanExpression(1, null, 10));
+        expressions.add(new GreaterThanOrEqualExpression(2, null, 10));
+        expressions.add(new IsNotNullExpression(3, null));
+        expressions.add(new IsNullExpression(4, null));
+        expressions.add(new LessThanExpression(5, null, 10));
+        expressions.add(new LessThanOrEqualExpression(6, null, 10));
 
     }
 
