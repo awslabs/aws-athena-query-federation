@@ -115,15 +115,14 @@
             <version>${hadoop.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.findify</groupId>
-            <artifactId>s3mock_2.13</artifactId>
-            <version>${s3mock.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>commons-codec</groupId>
             <artifactId>commons-codec</artifactId>
             <version>${commons-codec.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.findify</groupId>
+            <artifactId>s3mock_2.13</artifactId>
+            <version>${s3mock.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
