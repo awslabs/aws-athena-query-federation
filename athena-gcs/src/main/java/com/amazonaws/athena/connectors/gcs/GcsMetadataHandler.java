@@ -69,6 +69,7 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.printJson;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
@@ -140,7 +141,7 @@ public class GcsMetadataHandler
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=queryId {}",
                 request.getQueryId());
-        LOGGER.debug("doListTables: {}", new ObjectMapper().writeValueAsString(request));
+        printJson(request, "doListTables");
         List<TableName> tables = new ArrayList<>();
         String nextToken;
         try {
@@ -215,7 +216,7 @@ public class GcsMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws IOException
     {
-        LOGGER.info("GetTableLayoutRequest: \n{}", new ObjectMapper().writeValueAsString(request));
+        printJson(request, "GetTableLayoutRequest");
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
         TableName tableName = request.getTableName();
@@ -265,7 +266,7 @@ public class GcsMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException
     {
-        LOGGER.info("GetSplitsRequest: \n{}", new ObjectMapper().writeValueAsString(request));
+        printJson(request, "GetSplitsRequest");
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";
         String objectName = "";
@@ -289,8 +290,6 @@ public class GcsMetadataHandler
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Block partition row count {}",
                 partitions.getRowCount());
         Set<Split> splits = new HashSet<>();
-        final ObjectMapper objectMapper = new ObjectMapper();
-
         int partitionContd = decodeContinuationToken(request);
         List<Integer> storageSplitListIndices = getSplitIndices(partitions);
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",

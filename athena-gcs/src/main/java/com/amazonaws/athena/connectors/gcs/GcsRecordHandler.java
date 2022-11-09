@@ -32,7 +32,6 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +41,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.printJson;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
 import static com.amazonaws.athena.storage.datasource.StorageDatasourceFactory.createDatasource;
@@ -91,7 +91,7 @@ public class GcsRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker) throws IOException
     {
-        LOGGER.info("ReadRecordsRequest: \n{}", new ObjectMapper().writeValueAsString(recordsRequest));
+        printJson(recordsRequest, "ReadRecordsRequest");
         Split split = recordsRequest.getSplit();
         TableName tableName = recordsRequest.getTableName();
         if (this.datasource == null) {

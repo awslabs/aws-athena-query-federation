@@ -23,6 +23,9 @@ import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -33,6 +36,7 @@ import static java.util.Objects.requireNonNull;
 
 public class GcsUtil
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsUtil.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private GcsUtil()
@@ -77,5 +81,18 @@ public class GcsUtil
     public static synchronized String splitAsJson(StorageSplit split) throws JsonProcessingException
     {
         return objectMapper.writeValueAsString(split);
+    }
+
+    public static void printJson(Object object, String prefix)
+    {
+        LOGGER.info("Printing json for {}", prefix);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+            LOGGER.info(prefix + ":%n{}", object);
+        }
+        catch (Exception exception) {
+            // ignored
+        }
     }
 }
