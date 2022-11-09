@@ -61,9 +61,6 @@ Parameters:
   FileExtension:
     Description: File extension to filter file names in a specific storage bucket. It can be any of PARQUET, and CSV.
     Type: String
-  FileNamePattern:
-    Description: File name pattern when records are splitted over multiple part file. For exampel file1, file2 and so on. It does tell the appliction to collect all split recoreds into one single Table named 'file'. In this case the file pattern would be like ([a-zA-Z]+)(\d+)
-    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -76,7 +73,6 @@ Resources:
           gcs_secret_name: !Ref GcsSecretName
           gcs_credential_key: !Ref GcsCredentialKey
           file_extension: !Ref FileExtension
-          file_name_pattern: !Ref FileNamePattern
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
