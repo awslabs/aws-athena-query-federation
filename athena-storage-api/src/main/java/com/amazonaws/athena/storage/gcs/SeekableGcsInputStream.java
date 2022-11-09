@@ -76,7 +76,7 @@ public class SeekableGcsInputStream extends SeekableInputStream
     public SeekableGcsInputStream(StorageFile storageFile)
     {
         this.storage = storageFile.storage();
-        LOGGER.info("Creating blob id for file {} under teh bucket {}", storageFile.bucketName(), storageFile.bucketName());
+        LOGGER.info("Creating blob id for file {} under teh bucket {}", storageFile.fileName(), storageFile.bucketName());
         this.blobId = BlobId.of(storageFile.bucketName(), storageFile.fileName());
         Blob blob = storage.get(blobId);
         this.fileSize = blob.getSize();

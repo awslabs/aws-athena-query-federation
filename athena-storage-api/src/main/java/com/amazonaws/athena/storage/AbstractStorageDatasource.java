@@ -350,11 +350,16 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             return;
         }
         if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))
-                || storageProvider.isPartitionedDirectory(bucketName, objectName)
+                || !storageProvider.isPartitionedDirectory(bucketName, objectName)
                 || isSupported(bucketName, objectName)) {
             String tableName = tableNameFromFile(objectName, extension);
             tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
                     files -> new ArrayList<>()).add(objectName);
+        }
+        else if (storageProvider.isPartitionedDirectory(bucketName, objectName)) {
+            List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(bucketName, objectName);
+            tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
+                    files -> new ArrayList<>()).addAll(fileNames);
         }
         LOGGER.info("After adding table tableMap\n{}", tableMap);
     }
