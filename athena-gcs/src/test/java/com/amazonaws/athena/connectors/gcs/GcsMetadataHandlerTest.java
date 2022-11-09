@@ -188,7 +188,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException
     {
         //Get the first dataset name.
         final int numTables = 5;
