@@ -90,6 +90,15 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean containsInvalidExtension(String objectName)
+    {
+        return !objectName.endsWith(datasourceConfig.extension());
+    }
+
+    /**
      * Return a list of Field instances with field name and field type (Arrow type)
      *
      * @param bucketName  Name of the bucket
