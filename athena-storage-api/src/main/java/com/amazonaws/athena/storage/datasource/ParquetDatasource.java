@@ -222,7 +222,8 @@ public class ParquetDatasource
         if (storageProvider.isDirectory(partition.getBucketName(), partition.getLocation())) {
             LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
             fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
-        } else {
+        }
+        else {
             fileNames = List.of(partition.getLocation());
         }
         List<StorageSplit> splits = new ArrayList<>();
