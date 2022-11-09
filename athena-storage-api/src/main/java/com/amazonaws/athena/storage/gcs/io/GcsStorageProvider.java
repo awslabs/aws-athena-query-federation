@@ -92,12 +92,12 @@ public class GcsStorageProvider implements StorageProvider
         requireNonNull(storage, "Storage was null");
         File tempFile = fromExistingCache(bucket, objectName);
         if (tempFile == null) {
-            LOGGER.debug("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=File {} under the bucket {} not cached. Caching...%n",
+            LOGGER.info("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=File {} under the bucket {} not cached. Caching...%n",
                     objectName, bucket);
             GcsFileByteLoader byteLoader = new GcsFileByteLoader(storage, bucket, objectName);
             tempFile = cacheBytesInTempFile(bucket, objectName, byteLoader.getData());
         }
-        LOGGER.debug("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=Returning cached file {} under the bucket {}",
+        LOGGER.info("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=Returning cached file {} under the bucket {}",
                 objectName, bucket);
         GcsOfflineStream offlineStream = new GcsOfflineStream()
                 .bucketName(bucket)
