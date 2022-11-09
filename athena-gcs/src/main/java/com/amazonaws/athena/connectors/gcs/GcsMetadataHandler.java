@@ -215,6 +215,7 @@ public class GcsMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws IOException
     {
+        LOGGER.info("GetTableLayoutRequest: \n{}", request);
         LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
         LOGGER.debug("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
         TableName tableName = request.getTableName();
@@ -232,6 +233,7 @@ public class GcsMetadataHandler
                 + tableName.getSchemaName() + "'");
 
         List<StoragePartition> storagePartition = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
+        LOGGER.info("Storage partitions: \n{}", storagePartition);
         requireNonNull(storagePartition, "List of partition can't be retrieve from metadata");
         //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
@@ -263,6 +265,7 @@ public class GcsMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws IOException
     {
+        LOGGER.info("GetSplitsRequest: \n{}", request);
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";
         String objectName = "";
@@ -277,8 +280,8 @@ public class GcsMetadataHandler
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
             objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
         }
-        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName);
-
+        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName,
+                request.getSchema(), request.getTableName(), request.getConstraints());
         requireNonNull(storagePartitions, "List of partitions can't be retrieve from metadata");
 
         Block partitions = request.getPartitions();
@@ -304,6 +307,7 @@ public class GcsMetadataHandler
             StoragePartition storagePartition = storagePartitions.get(currentSplitIndex);
             List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition);
             for (StorageSplit split : storageSplits) {
+                LOGGER.info("Splits \n{} found under the partition\n{}", split, storagePartition);
                 String storageSplitJson = splitAsJson(split);
                 LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
                         storageSplitJson);

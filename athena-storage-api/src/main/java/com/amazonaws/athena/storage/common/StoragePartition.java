@@ -26,6 +26,7 @@ import static java.util.Objects.requireNonNull;
 public class StoragePartition
 {
     private List<String> objectName;
+    private String bucketName;
     private String location;
     private long recordCount;
     private List<StoragePartition> children;
@@ -36,10 +37,11 @@ public class StoragePartition
     {
     }
 
-    public StoragePartition(List<String> objectName, String location, Long recordCount, List<StoragePartition> children)
+    public StoragePartition(List<String> objectName, String location, String bucketName, Long recordCount, List<StoragePartition> children)
     {
         this.objectName = requireNonNull(objectName, "objectName was null");
         this.location = requireNonNull(location, "location was null");
+        this.bucketName = requireNonNull(bucketName, "bucketName was null");
         this.recordCount = requireNonNull(recordCount, "recordCount was null");
         this.children = requireNonNull(children, "children was null. However, could be empty list");
     }
@@ -84,11 +86,22 @@ public class StoragePartition
         this.children = children;
     }
 
+    public String getBucketName()
+    {
+        return bucketName;
+    }
+
+    public void setBucketName(String bucketName)
+    {
+        this.bucketName = bucketName;
+    }
+
     @Override
     public String toString()
     {
         return "StoragePartition{" +
                 "objectName=" + objectName +
+                ", bucketName='" + bucketName + '\'' +
                 ", location='" + location + '\'' +
                 ", recordCount=" + recordCount +
                 ", children=" + children +
@@ -105,6 +118,7 @@ public class StoragePartition
     {
         private List<String> objectName;
         private String location;
+        private String bucketName;
         private long recordCount;
         private List<StoragePartition> children = List.of();
 
@@ -112,7 +126,7 @@ public class StoragePartition
         {
         }
 
-        public Builder objectName(List<String> objectName)
+        public Builder objectNames(List<String> objectName)
         {
             this.objectName = requireNonNull(objectName, "objectName can't be null");
             return this;
@@ -121,6 +135,12 @@ public class StoragePartition
         public Builder location(String location)
         {
             this.location = requireNonNull(location, "location can't be null");
+            return this;
+        }
+
+        public Builder bucketName(String bucketName)
+        {
+            this.bucketName = bucketName;
             return this;
         }
 
@@ -138,7 +158,7 @@ public class StoragePartition
 
         public StoragePartition build()
         {
-            return new StoragePartition(this.objectName, this.location, this.recordCount, this.children);
+            return new StoragePartition(this.objectName, this.location, this.bucketName, this.recordCount, this.children);
         }
     }
 }

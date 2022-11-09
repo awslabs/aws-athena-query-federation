@@ -48,7 +48,7 @@ import static com.amazonaws.athena.storage.datasource.StorageDatasourceFactory.c
 public class GcsRecordHandler
         extends RecordHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger(GcsRecordHandler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandler.class);
     private static final String SOURCE_TYPE = "gcs";
 
     private final StorageDatasource datasource;
@@ -90,13 +90,14 @@ public class GcsRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker) throws IOException
     {
+        LOGGER.info("ReadRecordsRequest: \n{}", recordsRequest);
         Split split = recordsRequest.getSplit();
         TableName tableName = recordsRequest.getTableName();
         if (this.datasource == null) {
             throw new RuntimeException("Table " + tableName.getTableName() + " not found in schema "
                     + tableName.getSchemaName());
         }
-        logger.debug("RecordHandler=GcsRecordHandler|Method=readWithConstraint|Message=bucketName "
+        LOGGER.debug("RecordHandler=GcsRecordHandler|Method=readWithConstraint|Message=bucketName "
                 + split.getProperty(TABLE_PARAM_BUCKET_NAME) + ", file name "
                 + split.getProperty(TABLE_PARAM_OBJECT_NAME));
 

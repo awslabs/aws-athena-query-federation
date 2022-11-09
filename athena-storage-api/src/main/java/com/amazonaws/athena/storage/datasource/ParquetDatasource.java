@@ -215,9 +215,24 @@ public class ParquetDatasource
     }
 
     @Override
-    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition)
+    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException
     {
-        return List.of();
+        List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        List<StorageSplit> splits = new ArrayList<>();
+        for (String fileName : fileNames) {
+            InputFile inputFile = storageProvider.getInputFile(partition.getBucketName(), fileName);
+            try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
+                splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
+                        reader, recordsPerSplit()));
+            }
+            catch (IOException exception) {
+                // the file might not be supported or corrupted
+                // ignored, but logged
+                LOGGER.error("Unable to read Splits from the file {}, under the bucket {} due to error: {}", fileName,
+                        partition.getBucketName(), exception.getMessage(), exception);
+            }
+        }
+        return splits;
     }
 
     /**
@@ -238,15 +253,10 @@ public class ParquetDatasource
         String[] fileNames = objectNames.split(",");
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
-            try {
-                InputFile inputFile = storageProvider.getInputFile(bucketName, fileName);
-                try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
-                    splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
-                            reader, recordsPerSplit()));
-                }
-            }
-            catch (Exception exception) {
-                throw new UncheckedStorageDatasourceException(exception.getMessage(), exception);
+            InputFile inputFile = storageProvider.getInputFile(bucketName, fileName);
+            try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
+                splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
+                        reader, recordsPerSplit()));
             }
         }
         return splits;

@@ -220,7 +220,32 @@ public class GcsStorageProvider implements StorageProvider
         return Optional.empty();
     }
 
+    @Override
+    public List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix)
+    {
+        LOGGER.info("Iterating recursively through a folder under the bucket to list all file object");
+        List<String> leaves = new ArrayList<>();
+        getLefObjectsRecurse(bucket, partitionPrefix, leaves);
+        return leaves;
+    }
+
     // helpers
+    private void getLefObjectsRecurse(String bucket, String prefix, List<String> leafObjects)
+    {
+        if (!prefix.endsWith("/")) {
+            prefix += '/';
+        }
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        for (Blob blob : blobPage.iterateAll()) {
+            if (blob.getSize() > 0) { // it's a file
+                leafObjects.add(blob.getName());
+            }
+            else {
+                getLefObjectsRecurse(bucket, blob.getName(), leafObjects);
+            }
+        }
+    }
+
     private StorageFile createRandomFile(Storage storage,
                                          String bucketName,
                                          String fileName)

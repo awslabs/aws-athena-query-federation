@@ -238,13 +238,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
         else {
             // A file (aka Table) under a non-partitioned bucket/folder
-            // TODO: set record count;
-            return List.of(
-                    StoragePartition.builder()
-                            .objectName(List.of(objectName))
-                            .location(objectName)
-                            .build()
-            );
+            StoragePartition partition = StoragePartition.builder()
+                    .objectNames(List.of(objectName))
+                    .location(objectName)
+                    .bucketName(bucketName)
+                    .build();
+            return List.of(partition);
         }
         return storagePartitions;
     }
@@ -255,10 +254,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return this.storageProvider;
     }
 
+    // TODO: it should be from the cached
     @Override
-    public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName)
+    public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
+                                                          TableName tableInfo, Constraints constraints) throws IOException
     {
-        return List.of();
+        return this.getStoragePartitions(schema, tableInfo, constraints, objectName, bucketName);
     }
 
     /**
@@ -382,8 +383,47 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
     }
 
-    // helpers
+    // inner class
+    private static class ObjectStoragePartition
+    {
+        private String baseObject;
+        private boolean directory;
+        private List<StoragePartition> partitions;
 
+        public ObjectStoragePartition(String baseObject, boolean directory, List<StoragePartition> partitions)
+        {
+            this.baseObject = baseObject;
+            this.directory = directory;
+            this.partitions = partitions;
+        }
+
+        public String getBaseObject()
+        {
+            return baseObject;
+        }
+
+        public boolean isDirectory()
+        {
+            return directory;
+        }
+
+        public List<StoragePartition> getPartitions()
+        {
+            return partitions;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ObjectStoragePartition{" +
+                    "baseObject='" + baseObject + '\'' +
+                    ", directory=" + directory +
+                    ", partitions=" + partitions +
+                    '}';
+        }
+    }
+
+    // helpers
     /**
      * Determines whether a bucket exists for the given database name
      *
@@ -468,18 +508,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                     if (matchWithExpression(objectSchema, expressions, optionalFieldValue.get())) {
                         partitions.add(StoragePartition.builder()
                                 .location(folder)
+                                .bucketName(bucket)
                                 .build());
                     }
                 }
                 else {
                     partitions.add(StoragePartition.builder()
                             .location(folder)
+                            .bucketName(bucket)
                             .build());
                 }
             }
             else {
                 partitions.add(StoragePartition.builder()
                         .location(folder)
+                        .bucketName(bucket)
                         .build());
             }
         }

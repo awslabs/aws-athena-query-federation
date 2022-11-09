@@ -124,4 +124,6 @@ public interface StorageProvider
     long getFileSize(String bucket, String file);
 
     Optional<String> getFirstObjectNameRecurse(String bucket, String prefix);
+
+    List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix);
 }
