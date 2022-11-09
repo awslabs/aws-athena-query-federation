@@ -345,14 +345,27 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     {
         LOGGER.info("Adding table for object {}, under bucket {}", objectName, supportsPartitioning());
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
-        if (isExtensionCheckMandatory() && !strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))) {
+        if (containsInvalidExtension(objectName)
+                || (isExtensionCheckMandatory() && !strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT)))) {
             LOGGER.info("Extension was mandatory and the object {} didn't match with extension {}", objectName, extension);
             return;
         }
+        boolean isPartitionedTable = storageProvider.isPartitionedDirectory(bucketName, objectName);
+        String tableName = objectName;
+        if (!isPartitionedTable) {
+            tableName = tableNameFromFile(tableName, extension);
+        }
+
+        if (!isPartitionedTable
+                // is a directory
+                && (objectName.endsWith("/") || storageProvider.isDirectory(bucketName, objectName))) {
+            // we're currently not supporting un-partitioned folder to traverse for tables
+            return;
+        }
+
         if (strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT))
-                || !storageProvider.isPartitionedDirectory(bucketName, objectName)
+                || !isPartitionedTable
                 || isSupported(bucketName, objectName)) {
-            String tableName = tableNameFromFile(objectName, extension);
             tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
                     files -> new ArrayList<>()).add(objectName);
         }

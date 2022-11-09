@@ -227,4 +227,11 @@ public interface StorageDatasource
      * @return List of {@link StorageSplit} found in the specified partition
      */
     List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException;
+
+    /**
+     * Checks to see if the extension of the object is invalid for the underlying datasource. For example
+     * @param objectName Name of the object
+     * @return true if the object name contains a valid extension, false otherwise
+     */
+    boolean containsInvalidExtension(String objectName);
 }

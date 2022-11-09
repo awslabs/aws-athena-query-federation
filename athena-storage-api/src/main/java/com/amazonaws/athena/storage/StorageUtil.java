@@ -116,9 +116,13 @@ public class StorageUtil
 
     public static String tableNameFromFile(String objectName, String extension)
     {
+        LOGGER.info("Create table name from a file {} with extension {}", objectName, extension);
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         int toIndex = strLowerObjectName.lastIndexOf(extension.toLowerCase(Locale.ROOT));
-        return strLowerObjectName.substring(0, toIndex);
+        if (toIndex > 2) {
+            return strLowerObjectName.substring(0, toIndex);
+        }
+        return objectName;
     }
 
     public static void printJson(Object object, String prefix)
