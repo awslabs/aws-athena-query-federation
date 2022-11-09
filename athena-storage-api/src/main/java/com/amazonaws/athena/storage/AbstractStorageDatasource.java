@@ -204,11 +204,11 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (bucketName == null) {
             throw new RuntimeException("ObjectStorageHiveMetastore.getTable: bucket null does not exist");
         }
+        LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
         Map<String, List<String>> objectNameMap = tableObjects.get(databaseName);
         if (objectNameMap != null && !objectNameMap.isEmpty()) {
             List<String> objectNames = objectNameMap.get(tableName);
             if (objectNames != null) {
-                LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
                 StorageTable table = StorageTable.builder()
                         .setDatabaseName(databaseName)
                         .setTableName(tableName)
@@ -217,6 +217,9 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                         .setFieldList(getTableFields(bucketName, objectNames))
                         .build();
                 return Optional.of(table);
+            }
+            else {
+                LOGGER.info("No file(s) found for table {} in the schema {}", tableName, databaseName);
             }
         }
         return Optional.empty();

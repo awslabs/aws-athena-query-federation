@@ -306,13 +306,13 @@ public class GcsMetadataHandler
             SpillLocation spillLocation = makeSpillLocation(request);
             StoragePartition storagePartition = storagePartitions.get(currentSplitIndex);
             List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition);
+            printJson(storageSplits, "storageSplits");
             LOGGER.info("Splitting based on partition at position {}", currentSplitIndex);
             for (StorageSplit split : storageSplits) {
                 LOGGER.info("Splits \n{} found under the partition\n{}", split, storagePartition);
                 String storageSplitJson = splitAsJson(split);
-                LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
+                LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
                         storageSplitJson);
-
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                         .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(currentSplitIndex))
                         .add(TABLE_PARAM_BUCKET_NAME, bucketName)

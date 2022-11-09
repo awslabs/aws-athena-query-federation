@@ -317,6 +317,7 @@ public class ParquetDatasource
     {
         try {
             requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
+            LOGGER.info("Inferring field schema for file(s) {}", objectNames);
             if (objectNames.isEmpty()) {
                 throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
             }

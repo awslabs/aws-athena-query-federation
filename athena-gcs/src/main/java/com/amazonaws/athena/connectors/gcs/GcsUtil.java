@@ -92,6 +92,7 @@ public class GcsUtil
             LOGGER.info(prefix + ":%n{}", object);
         }
         catch (Exception exception) {
+            LOGGER.error("Unable to print JSON for {}. Error: {}", prefix, exception.getMessage());
             // ignored
         }
     }
