@@ -40,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageUtil;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
@@ -174,7 +175,7 @@ public class CsvDatasource
     }
 
     @Override
-    public Optional<String> getBaseName(String bucket, String objectName) throws IOException
+    public Optional<String> getBaseName(String bucket, String objectName)
     {
         if (storageProvider.isDirectory(bucket, objectName)) {
             // TODO: recurse to find base file
@@ -187,16 +188,25 @@ public class CsvDatasource
     }
 
     @Override
-    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition)
+    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase)
     {
-        List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+        List<String> fileNames;
+        if (partitioned) {
+            LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
+            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
+        }
+        else {
+            fileNames = List.of(partition.getLocation());
+        }
+        LOGGER.info("Splitting based on file list: {}", fileNames);
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
             checkFilesSize(partition.getBucketName(), fileName);
-            InputStream inputStream = null;
+            InputStream inputStream;
             try {
                 inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName);
                 long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
+                LOGGER.info("Total record found in file {} was {}", fileName, totalRecords);
                 splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
             }
             catch (IOException exception) {
@@ -206,6 +216,7 @@ public class CsvDatasource
                         partition.getBucketName(), exception.getMessage(), exception);
             }
         }
+        StorageUtil.printJson(splits, "Csv Splits");
         return splits;
     }
 
@@ -266,7 +277,7 @@ public class CsvDatasource
         if (bucketName == null) {
             throw new DatabaseNotFoundException("No schema '" + databaseName + "' found");
         }
-        Map<String, List<String>> tableObjectMap = tableObjects.get(databaseName);
+        Map<StorageObject, List<String>> tableObjectMap = tableObjects.get(databaseName);
         if (tableObjectMap != null) {
             objectNames = tableObjectMap.get(tableName);
         }

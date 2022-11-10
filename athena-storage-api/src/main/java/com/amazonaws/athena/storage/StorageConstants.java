@@ -50,5 +50,7 @@ public class StorageConstants
 
     // split constants
     public static final String TABLE_PARAM_BUCKET_NAME = "bucketName";
-    public static final String TABLE_PARAM_OBJECT_NAME = "objectName";
+    public static final String TABLE_PARAM_OBJECT_NAME_LIST = "objectName";
+    public static final String IS_TABLE_PARTITIONED = "table_partitioned";
+    public static final String TABLE_PARAM_OBJECT_NAME = "partitioned_table_base";
 }

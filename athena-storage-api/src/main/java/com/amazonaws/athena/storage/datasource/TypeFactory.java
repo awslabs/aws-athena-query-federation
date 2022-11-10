@@ -150,11 +150,11 @@ public class TypeFactory
                 }
                 catch (Exception exception) {
                     fieldValueMap.put(fieldName, null);
-                    if (exception.getClass().equals(RuntimeException.class)
-                            || exception.getClass().equals(NullPointerException.class)) {
-                        continue;
-                    }
-                    LOGGER.error("Error resolving value for field {}, Primitive type {}, Logical type {}, Message {}", fieldName,
+//                    if (exception.getClass().equals(RuntimeException.class)
+//                            || exception.getClass().equals(NullPointerException.class)) {
+//                        continue;
+//                    }
+                    LOGGER.debug("Error resolving value for field {}, Primitive type {}, Logical type {}, Message {}", fieldName,
                             primitiveType, primitiveType != null
                                     ? primitiveType.getLogicalTypeAnnotation() != null
                                     ? primitiveType.getLogicalTypeAnnotation().toString()

@@ -1,0 +1,12 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "gcs-connector-stack-v15"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-f0b7okmyy4lz"
+s3_prefix = "gcs-connector-stack-v15"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "AthenaCatalogName=\"gcs-lambda-v15\" SpillBucket=\"vertica-spill-bucket\" SpillPrefix=\"athena-spill\" LambdaTimeout=\"900\" LambdaMemory=\"3008\" DisableSpillEncryption=\"false\" VpcId=\"vpc-06f76e1c48ba80f38\" SubnetIds=\"subnet-01743fd8cca039a9e\" SecurityGroupIds=\"sg-0398b41444bcbb0ee\" SecretNameOrPrefix=\"gcs-*\" GcsSecretName=\"gcs-athena\" GcsCredentialKey=\"gcs_credential_keys\" FileExtension=\"parquet\""
+image_repositories = []
+confirm_changeset = false

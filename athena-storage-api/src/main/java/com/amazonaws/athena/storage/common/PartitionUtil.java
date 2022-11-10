@@ -19,26 +19,34 @@
  */
 package com.amazonaws.athena.storage.common;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static com.amazonaws.athena.storage.io.GcsIOUtil.getFileName;
+import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
 
 public class PartitionUtil
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PartitionUtil.class);
+
     private PartitionUtil()
     {
     }
 
     public static boolean isPartitionFolder(String folderName)
     {
-        String simpleName = getFileName(folderName);
-        return FieldValuePatternMatcher.matches(simpleName);
+        String simpleName = getFolderName(folderName);
+        boolean matched = FieldValuePatternMatcher.matches(simpleName);
+        LOGGER.info("Folder {} matches with the pattern of a partition table {}", folderName, matched);
+        return matched;
     }
 
     public static Optional<FieldValue> getPartitionFieldValue(String folderName)
     {
-        String simpleName = getFileName(folderName);
+        String simpleName = getFolderName(folderName);
+        LOGGER.info("Creating FieldValue from partition folder {}" + simpleName);
         return FieldValue.from(simpleName);
     }
 

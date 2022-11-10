@@ -19,12 +19,14 @@
  */
 package com.amazonaws.athena.storage;
 
+import com.amazonaws.athena.storage.common.StorageObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class TableListResult
 {
-    private final List<String> tables = new ArrayList<>();
+    private final List<StorageObject> tables = new ArrayList<>();
     private String nextToken;
 
     private TableListResult()
@@ -37,19 +39,19 @@ public class TableListResult
      * @param tables    List of tables found in current page from Google Cloud Storage
      * @param nextToken Next token to list tables from the next page
      */
-    public TableListResult(List<String> tables, String nextToken)
+    public TableListResult(List<StorageObject> tables, String nextToken)
     {
         this.tables.addAll(tables);
         this.nextToken = nextToken;
     }
 
     // Getters/Setters
-    public List<String> getTables()
+    public List<StorageObject> getTables()
     {
         return new ArrayList<>(tables);
     }
 
-    public void setTables(List<String> tables)
+    public void setTables(List<StorageObject> tables)
     {
         this.tables.addAll(tables);
     }

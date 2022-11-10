@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.storage;
 
+import com.amazonaws.athena.storage.common.StorageObject;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -26,6 +27,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -45,7 +47,10 @@ public class TableListResultTest
     @BeforeClass
     public static void setUp()
     {
-        tableListResult = new TableListResult(tableList, nextToken);
+        List<StorageObject> storageObjects = tableList.stream()
+                .map(tableName -> StorageObject.builder().setTabletName(tableName).build())
+                .collect(Collectors.toList());
+        tableListResult = new TableListResult(storageObjects, nextToken);
     }
 
     @Test
@@ -72,7 +77,10 @@ public class TableListResultTest
     public void testSetTables()
     {
         TableListResult tableListResult1 = Mockito.spy(tableListResult);
-        tableListResult1.setTables(tableList);
-        verify(tableListResult1, times(1)).setTables(tableList);
+        List<StorageObject> storageObjects = tableList.stream()
+                .map(tableName -> StorageObject.builder().setTabletName(tableName).build())
+                .collect(Collectors.toList());
+        tableListResult1.setTables(storageObjects);
+        verify(tableListResult1, times(1)).setTables(storageObjects);
     }
 }

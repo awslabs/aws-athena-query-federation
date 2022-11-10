@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
@@ -61,7 +62,7 @@ public interface StorageDatasource
      * @param databaseName Name of the database
      * @return List of all tables under the database
      */
-    List<String> loadAllTables(String databaseName) throws IOException;
+    List<StorageObject> loadAllTables(String databaseName) throws IOException;
 
     /**
      * Returns a storage object (file) as a DB table with field names and associated file type
@@ -224,7 +225,15 @@ public interface StorageDatasource
     /**
      * Creates a list of splits for the given {@link StoragePartition}
      * @param partition An instance of {@link StoragePartition}
+     * @param partitioned Indicates whether this the spit will be base on a partitioned table
      * @return List of {@link StorageSplit} found in the specified partition
      */
-    List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException;
+    List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException;
+
+    /**
+     * Checks to see if the extension of the object is invalid for the underlying datasource. For example
+     * @param objectName Name of the object
+     * @return true if the object name contains a valid extension, false otherwise
+     */
+    boolean containsInvalidExtension(String objectName);
 }

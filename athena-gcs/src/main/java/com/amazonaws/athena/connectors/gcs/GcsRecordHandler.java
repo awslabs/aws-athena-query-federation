@@ -43,7 +43,7 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_EN
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.printJson;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
-import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
 import static com.amazonaws.athena.storage.datasource.StorageDatasourceFactory.createDatasource;
 
 public class GcsRecordHandler
@@ -100,7 +100,7 @@ public class GcsRecordHandler
         }
         LOGGER.debug("RecordHandler=GcsRecordHandler|Method=readWithConstraint|Message=bucketName "
                 + split.getProperty(TABLE_PARAM_BUCKET_NAME) + ", file name "
-                + split.getProperty(TABLE_PARAM_OBJECT_NAME));
+                + split.getProperty(TABLE_PARAM_OBJECT_NAME_LIST));
 
         this.datasource.loadAllTables(tableName.getSchemaName());
         datasource.readRecords(recordsRequest.getSchema(), recordsRequest.getConstraints(),

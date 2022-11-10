@@ -34,8 +34,9 @@ public class StorageTable
 {
     private final String databaseName;
     private final String tableName;
-    private Map<String, String> parameters = new HashMap<>();
-    private List<Field> fields = new ArrayList<>();
+    private final Map<String, String> parameters = new HashMap<>();
+    private final List<Field> fields = new ArrayList<>();
+    private final boolean partitioned;
 
     /**
      * Constructor to instantiate this instance with given parameters along with fields (with types) in the table
@@ -44,14 +45,16 @@ public class StorageTable
      * @param tableName    Name of the table
      * @param parameters   Additional properties (if any)
      * @param fields       List fields
+     * @param partitioned  Indicates whether the table is partitioned
      */
     public StorageTable(String databaseName, String tableName, Map<String, String> parameters,
-                        List<Field> fields)
+                        List<Field> fields, boolean partitioned)
     {
         this.databaseName = databaseName;
         this.tableName = tableName;
         this.parameters.putAll(parameters);
         this.fields.addAll(fields);
+        this.partitioned = partitioned;
     }
 
     public String getDatabaseName()
@@ -74,6 +77,11 @@ public class StorageTable
         return tableName;
     }
 
+    public boolean isPartitioned()
+    {
+        return partitioned;
+    }
+
     public static Builder builder()
     {
         return new Builder();
@@ -87,7 +95,8 @@ public class StorageTable
     {
         private String databaseName;
         private String tableName;
-        private List<Field> fieldList = new ArrayList<>();
+        private final List<Field> fieldList = new ArrayList<>();
+        private boolean partitioned;
 
         private final Map<String, String> parameters;
 
@@ -120,6 +129,12 @@ public class StorageTable
             return this;
         }
 
+        public Builder partitioned(boolean partitioned)
+        {
+            this.partitioned = partitioned;
+            return this;
+        }
+
         /**
          * Instantiates an instance of StorageTable
          *
@@ -130,7 +145,7 @@ public class StorageTable
             String databaseName = requireNonNull(this.databaseName, "Database name was not set");
             String tableName = requireNonNull(this.tableName, "Table name was not set");
             List<Field> fields = requireNonNull(this.fieldList, "Data column(s) was not set");
-            return new StorageTable(databaseName, tableName, this.parameters, fields);
+            return new StorageTable(databaseName, tableName, this.parameters, fields, this.partitioned);
         }
     }
 }

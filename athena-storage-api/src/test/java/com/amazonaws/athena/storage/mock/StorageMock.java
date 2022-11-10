@@ -59,7 +59,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
-import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.apache.arrow.vector.types.Types.MinorType.BIT;
 import static org.apache.arrow.vector.types.Types.MinorType.DATEDAY;
@@ -174,7 +174,7 @@ public class StorageMock
         S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
                 .add(StorageConstants.STORAGE_SPLIT_JSON, new ObjectMapper().writeValueAsString(split))
-                .add(TABLE_PARAM_OBJECT_NAME, split.getFileName())
+                .add(TABLE_PARAM_OBJECT_NAME_LIST, split.getFileName())
                 .add(TABLE_PARAM_BUCKET_NAME, table);
         return new GcsReadRecordsRequest(this.federatedIdentity,
                 "default", "testQueryId", inputTableName,

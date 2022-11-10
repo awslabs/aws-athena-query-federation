@@ -23,14 +23,17 @@ import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 
 public class GcsFileByteLoader
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsFileByteLoader.class);
+
     protected final Storage storage;
     protected final String bucket;
     protected final String filename;
@@ -55,19 +58,13 @@ public class GcsFileByteLoader
         this.storage = storage;
         this.bucket = bucketName;
         this.filename = fileName;
-
         this.startOffset = 0;
         this.blobId = BlobId.of(bucketName, fileName);
         Blob blob = storage.get(blobId);
         this.length = blob.getSize();
+        LOGGER.info("File size to download in cache is {} from file {} under the bucket {}", this.length, fileName, bucketName);
         this.endOffset = this.length - 1;
-        try {
-            loadInternalData();
-        }
-        catch (Exception exception) {
-            throw new UnsupportedEncodingException("Error initializing GcsFileByteLoader for file " +
-                    fileName + ", under the bucket "  + bucketName);
-        }
+        loadInternalData();
     }
 
     /**

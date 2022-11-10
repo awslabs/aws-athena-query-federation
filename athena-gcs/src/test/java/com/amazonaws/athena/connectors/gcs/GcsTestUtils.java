@@ -22,29 +22,20 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.TableListResult;
+import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
-import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class GcsTestUtils
 {
@@ -76,7 +67,10 @@ public class GcsTestUtils
         for (int i = 0; i < 5; i++) {
             tableList.add("table" + i);
         }
-        return new TableListResult(tableList, "testToken");
+        List<StorageObject> storageObjects = tableList.stream()
+                .map(table -> StorageObject.builder().setTabletName(table).build())
+                .collect(Collectors.toList());
+        return new TableListResult(storageObjects, "testToken");
     }
 
     //Returns the schema by returning a list of fields in Google BigQuery Format.
@@ -86,7 +80,7 @@ public class GcsTestUtils
         Map<String, String> map = new HashMap<>();
         map.put("bucketName", "test");
         map.put("objectName", "test");
-        return new StorageTable("test", "test", map, fields);
+        return new StorageTable("test", "test", map, fields, false);
     }
 
     static List<Field> getFields()
@@ -127,38 +121,5 @@ public class GcsTestUtils
                 .addStringField(STRING_FIELD_NAME_1)
                 .addFloat8Field(FLOAT_FIELD_NAME_1)
                 .build();
-    }
-
-    static Collection<org.apache.arrow.vector.types.pojo.Field> getTestSchemaFieldsArrow()
-    {
-        return Arrays.asList(
-                new org.apache.arrow.vector.types.pojo.Field(BOOL_FIELD_NAME_1,
-                        FieldType.nullable(ArrowType.Bool.INSTANCE), null),
-                new org.apache.arrow.vector.types.pojo.Field(INTEGER_FIELD_NAME_1,
-                        FieldType.nullable(new ArrowType.Int(32, true)), null),
-                new org.apache.arrow.vector.types.pojo.Field(STRING_FIELD_NAME_1,
-                        FieldType.nullable(new ArrowType.Utf8()), null),
-                new org.apache.arrow.vector.types.pojo.Field(FLOAT_FIELD_NAME_1,
-                        FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null)
-        );
-    }
-
-    static Collection<FieldVector> getTestFieldVector()
-    {
-        return Arrays.asList(
-                new BitVector(BOOL_FIELD_NAME_1,
-                        new RootAllocator()),
-                new IntVector(INTEGER_FIELD_NAME_1,
-                        new RootAllocator()),
-                new VarCharVector(STRING_FIELD_NAME_1,
-                        new RootAllocator()),
-                new Float8Vector(FLOAT_FIELD_NAME_1,
-                        new RootAllocator())
-        );
-    }
-
-    public static VectorSchemaRoot getVectorSchemaRoot()
-    {
-        return new VectorSchemaRoot((List<Field>) getTestSchemaFieldsArrow(), (List<FieldVector>) getTestFieldVector(), 4);
     }
 }

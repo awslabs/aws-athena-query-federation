@@ -43,6 +43,8 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
 import org.apache.parquet.io.SeekableInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -57,6 +59,8 @@ import static java.lang.Math.toIntExact;
 
 public class SeekableGcsInputStream extends SeekableInputStream
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SeekableGcsInputStream.class);
+
     private final byte[] temp = new byte[8192];
     private long currentPosition = 0;
     private final Storage storage;
@@ -71,6 +75,7 @@ public class SeekableGcsInputStream extends SeekableInputStream
     public SeekableGcsInputStream(StorageFile storageFile)
     {
         this.storage = storageFile.storage();
+        LOGGER.info("Creating blob id for file {} under teh bucket {}", storageFile.fileName(), storageFile.bucketName());
         this.blobId = BlobId.of(storageFile.bucketName(), storageFile.fileName());
         Blob blob = storage.get(blobId);
         this.fileSize = blob.getSize();

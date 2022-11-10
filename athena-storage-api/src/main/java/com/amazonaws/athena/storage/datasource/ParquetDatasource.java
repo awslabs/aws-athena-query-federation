@@ -86,7 +86,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
-import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
 import static com.amazonaws.athena.storage.gcs.ParquetUtil.PARQUET_MAGIC_BYTES_STRING;
 import static java.util.Objects.requireNonNull;
 import static org.apache.parquet.filter.PagedRecordFilter.page;
@@ -215,13 +215,14 @@ public class ParquetDatasource
     }
 
     @Override
-    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition) throws IOException
+    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
     {
         LOGGER.info("StoragePartition:\n{}", partition);
         List<String> fileNames;
-        if (storageProvider.isDirectory(partition.getBucketName(), partition.getLocation())) {
+        LOGGER.info("Checking whether the location {} under the bucket {} is a directory", partition.getBucketName(), partition.getLocation());
+        if (partitioned) {
             LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
-            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
+            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
         }
         else {
             fileNames = List.of(partition.getLocation());
@@ -282,7 +283,7 @@ public class ParquetDatasource
             this.checkMetastoreForAll(databaseName);
         }
         String bucketName;
-        String fileNames = split.getProperty(TABLE_PARAM_OBJECT_NAME);
+        String fileNames = split.getProperty(TABLE_PARAM_OBJECT_NAME_LIST);
         requireNonNull(fileNames, "No tables found under schema '" + databaseName + "'");
         String[] fileNameArray = fileNames.split(",");
         if (fileNameArray.length == 0) {
@@ -317,6 +318,7 @@ public class ParquetDatasource
     {
         try {
             requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
+            LOGGER.info("Inferring field schema for file(s) {}", objectNames);
             if (objectNames.isEmpty()) {
                 throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
             }

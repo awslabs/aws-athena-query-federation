@@ -92,12 +92,12 @@ public class GcsStorageProvider implements StorageProvider
         requireNonNull(storage, "Storage was null");
         File tempFile = fromExistingCache(bucket, objectName);
         if (tempFile == null) {
-            LOGGER.debug("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=File {} under the bucket {} not cached. Caching...%n",
+            LOGGER.info("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=File {} under the bucket {} not cached. Caching...%n",
                     objectName, bucket);
             GcsFileByteLoader byteLoader = new GcsFileByteLoader(storage, bucket, objectName);
             tempFile = cacheBytesInTempFile(bucket, objectName, byteLoader.getData());
         }
-        LOGGER.debug("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=Returning cached file {} under the bucket {}",
+        LOGGER.info("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=Returning cached file {} under the bucket {}",
                 objectName, bucket);
         GcsOfflineStream offlineStream = new GcsOfflineStream()
                 .bucketName(bucket)
@@ -140,6 +140,7 @@ public class GcsStorageProvider implements StorageProvider
     {
         BlobId blobId = BlobId.of(bucket, prefix);
         Blob blob = storage.get(blobId);
+        LOGGER.info("Blob for prefix {} under the bucket {} is: {} with size: {}", prefix, bucket, blob, blob == null ? -1 : blob.getSize());
         return  (blob != null && blob.getSize() == 0);
     }
 
@@ -149,9 +150,11 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(location));
         for (Blob blob : blobPage.iterateAll()) {
             if (isPartitionFolder(blob.getName())) {
+                LOGGER.info("Path {} is a partitioned directory", location);
                 return true;
             }
         }
+        LOGGER.info("Path {} is NOT a partitioned directory", location);
         return false;
     }
 
@@ -212,6 +215,10 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                 Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
+            LOGGER.info("GcsStorageProvider.getFirstObjectNameRecurse(): checking if {} is a folder under prefix {}", blob.getName(), prefix);
+            if (prefix.equals(blob.getName())) {
+                continue;
+            }
             if (blob.getSize() > 0) { // it's a file
                 return Optional.of(blob.getName());
             }
@@ -223,17 +230,20 @@ public class GcsStorageProvider implements StorageProvider
     }
 
     @Override
-    public List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix)
+    public List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix, int maxCount)
     {
         LOGGER.info("Iterating recursively through a folder under the bucket to list all file object");
         List<String> leaves = new ArrayList<>();
-        getLeafObjectsRecurse(bucket, partitionPrefix, leaves);
+        getLeafObjectsRecurse(bucket, partitionPrefix, leaves, maxCount);
         return leaves;
     }
 
     // helpers
-    private void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects)
+    private void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects, int maxCount)
     {
+        if (maxCount > 0 && leafObjects.size() >= maxCount) {
+            return;
+        }
         LOGGER.info("Walking through {} under bucket '{}'", prefix, bucket);
         if (!prefix.endsWith("/")) {
             prefix += '/';
@@ -241,11 +251,14 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                 Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
+            if (blob.getName().equals(prefix)) {
+                continue;
+            }
             if (blob.getSize() > 0) { // it's a file
                 leafObjects.add(blob.getName());
             }
             else {
-                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects);
+                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects, maxCount);
             }
         }
     }
@@ -283,5 +296,10 @@ public class GcsStorageProvider implements StorageProvider
         }
         LOGGER.info("blobNameList\n{}", blobNameList);
         return ImmutableList.copyOf(blobNameList);
+    }
+
+    private boolean isRootFolder(String location)
+    {
+        return (location != null && !location.isBlank() && location.split("/").length == 1);
     }
 }
