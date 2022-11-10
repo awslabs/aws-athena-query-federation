@@ -237,7 +237,6 @@ public class GcsMetadataHandler
         List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
         LOGGER.info("Storage partitions:\n{}", partitions);
         requireNonNull(partitions, "List of partition can't be retrieve from metadata");
-        //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
         for (int i = 0; i < partitions.size(); i++) {
             final String splitIndex = Integer.toString(i);
@@ -308,11 +307,6 @@ public class GcsMetadataHandler
             LOGGER.debug("No more storage split indices, returning empty split with null continuation token");
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
         }
-//        String objectToExtractFullMetadata = partitioned
-//                ? null
-//                : objectNames.split(",")[0];
-//        List<FilterExpression> expressions = datasource.getExpressions(bucketName, partitioned ? partitionBaseObject : objectToExtractFullMetadata,
-//                request.getSchema(), tableInfo, request.getConstraints(), Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
         int startSplitIndex = storageSplitListIndices.get(0);
         LOGGER.info("Current split start index {}", startSplitIndex);
         for (int curPartition = startSplitIndex; curPartition < partitions.getRowCount(); curPartition++) {

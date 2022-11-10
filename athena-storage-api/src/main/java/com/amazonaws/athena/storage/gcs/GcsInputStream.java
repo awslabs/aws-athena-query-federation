@@ -256,7 +256,6 @@ public class GcsInputStream extends InputStream
     }
 
     // helpers
-
     /**
      * Reads bytes from the cached file
      *

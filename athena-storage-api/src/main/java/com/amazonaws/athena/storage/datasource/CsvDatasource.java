@@ -40,7 +40,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageUtil;
 import com.amazonaws.athena.storage.common.FilterExpression;
-import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
@@ -49,7 +48,6 @@ import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.LoadSchemaFailedException;
 import com.amazonaws.athena.storage.datasource.exception.ReadRecordsException;
-import com.amazonaws.athena.storage.datasource.exception.TableNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
@@ -85,6 +83,7 @@ import java.util.Optional;
 import static com.amazonaws.athena.storage.StorageConstants.MAX_CSV_FILES_SIZE;
 import static com.amazonaws.athena.storage.StorageConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
+import static com.amazonaws.athena.storage.StorageUtil.printJson;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -266,6 +265,7 @@ public class CsvDatasource
     public void readRecords(Schema schema, Constraints constraints, TableName tableInfo,
                             Split split, BlockSpiller spiller, QueryStatusChecker queryStatusChecker) throws IOException
     {
+        printJson(split, "split in CsvDatasource.readRecords");
         String databaseName = tableInfo.getSchemaName();
         String tableName = tableInfo.getTableName();
         if (!storeCheckingComplete) {
@@ -277,22 +277,7 @@ public class CsvDatasource
         if (bucketName == null) {
             throw new DatabaseNotFoundException("No schema '" + databaseName + "' found");
         }
-        Map<StorageObject, List<String>> tableObjectMap = tableObjects.get(databaseName);
-        if (tableObjectMap != null) {
-            objectNames = tableObjectMap.get(tableName);
-        }
-        if (objectNames == null) {
-            throw new TableNotFoundException("No table '" + tableName + "' found under schema '" + databaseName + "'");
-        }
-        try {
-            readRecordsForRequest(schema, constraints, tableInfo, split, bucketName, spiller, queryStatusChecker);
-        }
-        catch (Exception exception) {
-            throw new UncheckedStorageDatasourceException("Error occurred during reading CSV records. Table name : " + tableName
-                    + ", schema name: " + tableInfo.getSchemaName() + ", original file name(s): " + objectNames
-                    + ", bucket name: " + bucketName + ". Error message: "
-                    + exception.getMessage(), exception);
-        }
+        readRecordsForRequest(schema, constraints, tableInfo, split, bucketName, spiller, queryStatusChecker);
     }
 
     /**

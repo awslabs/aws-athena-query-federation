@@ -127,14 +127,14 @@ public class StorageUtil
 
     public static void printJson(Object object, String prefix)
     {
-        LOGGER.info("Printing json for {}", prefix);
+        LOGGER.info("Printing json for {}:", prefix);
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-            LOGGER.info(prefix + ":%n{}", object);
+            LOGGER.info("{}", object);
         }
         catch (Exception exception) {
-            // ignored
+            LOGGER.info("Printing object for {}:\n{}", prefix, object);
         }
     }
 }

@@ -255,7 +255,6 @@ public class SeekableGcsInputStream extends SeekableInputStream
     }
 
     // static helper
-
     /**
      * Mimics reading bytes from heap buffer. Basically it accesses the bytes directly from GCS storage object
      *

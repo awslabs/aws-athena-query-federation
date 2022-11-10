@@ -241,31 +241,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             }
             LOGGER.info("No file(s) found for table {} in the schema {}", tableName, databaseName);
         }
-//        LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
-//        Optional<StorageObject> optionalStorageObjectKey = findStorageObjectKey(tableName, databaseName);
-//        if (optionalStorageObjectKey.isPresent()) {
-//
-//        }
-//        else {
-//            LOGGER.info("No file(s) found for table {} in the schema {}", tableName, databaseName);
-//        }
-//        Optional<List<String>> optionalObjectNames = findStorageObjectKey(tableName, databaseName);
-//        if (optionalObjectNames.isPresent()) {
-//            List<String> objectNames = optionalObjectNames.get();
-//            if (!objectNames.isEmpty()) {
-//                StorageTable table = StorageTable.builder()
-//                        .setDatabaseName(databaseName)
-//                        .setTableName(tableName)
-//                        .setParameter(TABLE_PARAM_BUCKET_NAME, bucketName)
-//                        .setParameter(TABLE_PARAM_OBJECT_NAME, String.join(",", objectNames))
-//                        .setFieldList(getTableFields(bucketName, objectNames))
-//                        .build();
-//                return Optional.of(table);
-//            }
-//        }
-//        else {
-//
-//        }
         return Optional.empty();
     }
 
@@ -304,7 +279,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return this.storageProvider;
     }
 
-    // TODO: it should be from the cached
     @Override
     public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
                                                           TableName tableInfo, Constraints constraints) throws IOException
