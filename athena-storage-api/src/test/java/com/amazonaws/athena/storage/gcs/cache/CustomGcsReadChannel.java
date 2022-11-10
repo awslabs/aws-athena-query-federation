@@ -51,6 +51,7 @@ public class CustomGcsReadChannel implements ReadChannel
             closed = true;
         }
         catch (IOException e) {
+            // Ignored.
             e.printStackTrace();
         }
     }

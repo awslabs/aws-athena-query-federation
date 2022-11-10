@@ -46,7 +46,6 @@ import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
-import com.amazonaws.athena.storage.datasource.exception.LoadSchemaFailedException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
@@ -186,7 +185,7 @@ public class CsvDatasource
     }
 
     @Override
-    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase)
+    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
     {
         List<String> fileNames;
         if (partitioned) {
@@ -200,18 +199,11 @@ public class CsvDatasource
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
             checkFilesSize(partition.getBucketName(), fileName);
-            InputStream inputStream;
-            try {
-                inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName);
+            LOGGER.info("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
+            try (InputStream inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName)) {
                 long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
                 LOGGER.info("Total record found in file {} was {}", fileName, totalRecords);
                 splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
-            }
-            catch (IOException exception) {
-                // the file might not be supported or corrupted
-                // ignored, but logged
-                LOGGER.error("Unable to read Splits from the file {}, under the bucket {} due to error: {}", fileName,
-                        partition.getBucketName(), exception.getMessage(), exception);
             }
         }
         StorageUtil.printJson(splits, "Csv Splits");
@@ -290,24 +282,18 @@ public class CsvDatasource
     @Override
     protected List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException
     {
-        try {
-            requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
-            if (objectNames.isEmpty()) {
-                throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
-            }
-            ImmutableList.Builder<Field> fieldListBuilder = ImmutableList.builder();
-            List<String> fieldNames = inferSchemaFields(bucketName, objectNames.get(0));
-            for (String field : fieldNames) {
-                fieldListBuilder.add(new Field(field.toLowerCase(),
-                        FieldType.nullable(new ArrowType.Utf8()), null));
-            }
-            return fieldListBuilder.build();
+        LOGGER.info("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
+        requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
+        if (objectNames.isEmpty()) {
+            throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
         }
-        catch (Exception exception) {
-            LOGGER.error("Unable to retrieve field schema for file(s) {}, under the bucket {}", objectNames,
-                    bucketName);
-            throw new UncheckedStorageDatasourceException(exception.getMessage(), exception);
+        ImmutableList.Builder<Field> fieldListBuilder = ImmutableList.builder();
+        List<String> fieldNames = inferSchemaFields(bucketName, objectNames.get(0));
+        for (String field : fieldNames) {
+            fieldListBuilder.add(new Field(field.toLowerCase(),
+                    FieldType.nullable(new ArrowType.Utf8()), null));
         }
+        return fieldListBuilder.build();
     }
 
     @Override
@@ -328,6 +314,7 @@ public class CsvDatasource
      */
     public List<String> inferSchemaFields(String bucketName, String fileName) throws IOException
     {
+        LOGGER.info("Retrieving schema of database({}}/{}}) {}", bucketName, fileName, getValidEntityName(bucketName));
         try (InputStream inputStream = storageProvider.getOnlineInputStream(bucketName, fileName)) {
             Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
             CsvParserSettings settings = new CsvParserSettings();
@@ -336,10 +323,6 @@ public class CsvDatasource
             CsvParser parser = new CsvParser(settings);
             parser.beginParsing(reader);
             return Arrays.asList(parser.getRecordMetadata().headers());
-        }
-        catch (Exception exception) {
-            throw new LoadSchemaFailedException("Schema of database(" + bucketName + "/" + fileName + ") "
-                    + getValidEntityName(bucketName) + " failed", exception);
         }
     }
 

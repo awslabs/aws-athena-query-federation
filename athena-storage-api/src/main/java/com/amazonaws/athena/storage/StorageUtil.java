@@ -134,6 +134,7 @@ public class StorageUtil
             LOGGER.info("{}", object);
         }
         catch (Exception exception) {
+            // Ignored. Printing object instead as a fall-back
             LOGGER.info("Printing object for {}:\n{}", prefix, object);
         }
     }

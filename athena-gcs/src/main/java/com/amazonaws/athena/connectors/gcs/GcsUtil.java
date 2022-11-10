@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,22 +50,17 @@ public class GcsUtil
      * @param secretString String from the Secrets Manager
      * @return GCS credentials JSON
      */
-    public static String getGcsCredentialJsonString(final String secretString)
+    public static String getGcsCredentialJsonString(final String secretString) throws IOException
     {
         String appCredentialsJsonString = null;
-        try {
-            if (secretString != null) {
-                TypeReference<HashMap<String, String>> typeRef
-                        = new TypeReference<>()
-                {
-                };
-                ObjectMapper mapper = new ObjectMapper();
-                Map<String, String> secretKeys = mapper.readValue(secretString.getBytes(StandardCharsets.UTF_8), typeRef);
-                appCredentialsJsonString = secretKeys.get(System.getenv(GCS_CREDENTIAL_KEYS_ENV_VAR));
-            }
-        }
-        catch (Throwable throwable) {
-            throw new GcsConnectorException("Unable to retrieve JSON string for GCS credential", throwable);
+        if (secretString != null) {
+            TypeReference<HashMap<String, String>> typeRef
+                    = new TypeReference<>()
+            {
+            };
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, String> secretKeys = mapper.readValue(secretString.getBytes(StandardCharsets.UTF_8), typeRef);
+            appCredentialsJsonString = secretKeys.get(System.getenv(GCS_CREDENTIAL_KEYS_ENV_VAR));
         }
         return requireNonNull(appCredentialsJsonString, "GCS credential was null using key "
                 + GCS_CREDENTIAL_KEYS_ENV_VAR
@@ -92,8 +88,8 @@ public class GcsUtil
             LOGGER.info(prefix + ":%n{}", object);
         }
         catch (Exception exception) {
-            LOGGER.error("Unable to print JSON for {}. Error: {}", prefix, exception.getMessage());
             // ignored
+            LOGGER.error("Unable to print JSON for {}. Error: {}", prefix, exception.getMessage());
         }
     }
 }
