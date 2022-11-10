@@ -22,10 +22,10 @@ package com.amazonaws.athena.storage.io;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class GcsIOUtilTest
 {
-
     @Test
     public void testCheckPartitionLocationIsSuccessful()
     {
@@ -33,5 +33,19 @@ public class GcsIOUtilTest
         String actualPartitionedFolder = "state='UP'";
         String expectedPartitionedFolder = GcsIOUtil.getFolderName(baseLocation);
         assertEquals("Folders didn't match with expected", expectedPartitionedFolder, actualPartitionedFolder);
+    }
+
+    @Test
+    public void testCheckFileHasExtension()
+    {
+        String filePath = "/abc/state='UP'/datafile.parquet";
+        assertTrue("File didn't have an extension", GcsIOUtil.containsExtension(filePath));
+    }
+
+    @Test
+    public void testCheckFileHasNotExtension()
+    {
+        String filePath = "/abc/state='UP'/datafile.parquet";
+        assertTrue("File did have an extension", GcsIOUtil.containsExtension(filePath));
     }
 }

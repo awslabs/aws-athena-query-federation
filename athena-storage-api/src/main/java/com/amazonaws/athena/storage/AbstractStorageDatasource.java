@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -59,6 +58,7 @@ import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_N
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityNameFromFile;
 import static com.amazonaws.athena.storage.StorageUtil.tableNameFromFile;
+import static com.amazonaws.athena.storage.io.GcsIOUtil.containsExtension;
 import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
 import static java.util.Objects.requireNonNull;
 
@@ -96,7 +96,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     @Override
     public boolean containsInvalidExtension(String objectName)
     {
-        return !objectName.endsWith(datasourceConfig.extension());
+        return containsExtension(objectName)
+                && !objectName.endsWith(datasourceConfig.extension());
     }
 
     /**
@@ -274,6 +275,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
                                                           TableName tableInfo, Constraints constraints) throws IOException
     {
+        LOGGER.info("Retrieving nested object in partition for object {} under the bucket {}", objectName, bucketName);
         return this.getStoragePartitions(schema, tableInfo, constraints, bucketName, objectName);
     }
 
@@ -537,7 +539,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (baseObjectName == null) {
             Optional<String> optionalBaseObjectName = getBaseName(bucket, prefix);
             if (optionalBaseObjectName.isEmpty()) {
-                throw new UnsupportedEncodingException("No file(s) found under bucket '" + bucket + "'"
+                throw new UncheckedStorageDatasourceException("No file(s) found under bucket '" + bucket + "'"
                         + " inside the folder " + prefix);
             }
             baseObjectName = optionalBaseObjectName.get();
@@ -576,6 +578,9 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     private boolean matchWithExpression(StorageObjectSchema objectSchema, List<FilterExpression> expressions,
                                         FieldValue fieldValue)
     {
+        if (expressions == null ||  expressions.isEmpty()) {
+            return true;
+        }
         List<FilterExpression> matchedExpression = expressions.stream()
                 .filter(expression -> fieldValue.getField().endsWith(expression.columnName()))
                 .collect(Collectors.toList());

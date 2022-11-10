@@ -25,6 +25,17 @@ public class GcsIOUtil
     {
     }
 
+    public static boolean containsExtension(String file)
+    {
+        int dotIndex = file.lastIndexOf(".");
+        if (!file.startsWith(".") // not a hidden file
+                && dotIndex > -1) { // dot found
+            String extension = file.substring(dotIndex);
+            return !extension.isBlank();
+        }
+        return false;
+    }
+
     public static String getFileName(String path)
     {
         int lastPathSeparatorIndex = path.lastIndexOf('/');

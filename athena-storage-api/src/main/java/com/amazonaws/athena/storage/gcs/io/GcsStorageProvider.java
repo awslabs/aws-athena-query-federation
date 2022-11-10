@@ -140,6 +140,7 @@ public class GcsStorageProvider implements StorageProvider
     {
         BlobId blobId = BlobId.of(bucket, prefix);
         Blob blob = storage.get(blobId);
+        LOGGER.info("Blob for prefix {} under the bucket {} is: {} with size: {}", prefix, bucket, blob, blob == null ? -1 : blob.getSize());
         return  (blob != null && blob.getSize() == 0);
     }
 
@@ -243,6 +244,9 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                 Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
+            if (blob.getName().equals(prefix)) {
+                continue;
+            }
             if (blob.getSize() > 0) { // it's a file
                 leafObjects.add(blob.getName());
             }

@@ -37,7 +37,6 @@
  */
 package com.amazonaws.athena.storage.gcs;
 
-import com.amazonaws.athena.storage.datasource.CsvDatasource;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Blob;
@@ -60,7 +59,7 @@ import static java.lang.Math.toIntExact;
 
 public class SeekableGcsInputStream extends SeekableInputStream
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CsvDatasource.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SeekableGcsInputStream.class);
 
     private final byte[] temp = new byte[8192];
     private long currentPosition = 0;

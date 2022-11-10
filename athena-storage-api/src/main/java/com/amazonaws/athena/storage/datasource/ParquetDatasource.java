@@ -219,6 +219,7 @@ public class ParquetDatasource
     {
         LOGGER.info("StoragePartition:\n{}", partition);
         List<String> fileNames;
+        LOGGER.info("Checking whether the location {} under the bucket {} is a directory", partition.getBucketName(), partition.getLocation());
         if (storageProvider.isDirectory(partition.getBucketName(), partition.getLocation())) {
             LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
             fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partition.getLocation());
