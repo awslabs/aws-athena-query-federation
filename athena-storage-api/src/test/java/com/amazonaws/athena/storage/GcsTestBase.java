@@ -103,7 +103,6 @@ public class GcsTestBase extends StorageMock
     public static final String CSV_FILE = "dimeemployee.csv";
     public static final String CSV_TABLE = "dimeemployee";
     protected static final Map<String, String> properties = Map.of(
-            "file_extension", "parquet",
             "max_partitions_size", "100"
             , "records_per_split", "1000"
             , "storage_split_json", "{ \"uid\": \"eeac1870-327f-4985-96fb-b5f3bcb75545\", \"fileName\": \"customer-info-4-stream-test.parquet\", \"groupSplits\": [ { \"groupIndex\": 0, \"rowOffset\": 500001, \"rowCount\": 500000, \"startRowIndex\": 500001, \"endRowIndex\": 1000000, \"hasNext\": false } ] }"
