@@ -42,7 +42,9 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
 
 /**
- * Currently it only supports returning only a single predicate
+ * Usually a non-JDBC connector we use MetadataHandler and RecordHandler, which are not specific to
+ * JDBC. Thus, we have to handle constraint within the connector. When we fetch constraint summery,
+ * we only have constraints with an AND operator. Other operators are handled by Athena itself
  * <p>
  * This is because AND, and OR operators are not still working with parquet
  */

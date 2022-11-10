@@ -275,7 +275,7 @@ public class ParquetDatasource
     {
         String databaseName = tableInfo.getSchemaName();
         if (!storeCheckingComplete) {
-            this.checkMetastoreForAll(databaseName);
+            this.checkDatastoreForDatabase(databaseName);
         }
         String bucketName;
         String fileNames = split.getProperty(TABLE_PARAM_OBJECT_NAME_LIST);

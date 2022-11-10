@@ -86,7 +86,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      */
     protected AbstractStorageDatasource(StorageDatasourceConfig config) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
-        this.datasourceConfig = requireNonNull(config, "ObjectStorageMetastoreConfig is null");
+        this.datasourceConfig = requireNonNull(config, "StorageDatastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");
         requireNonNull(config.properties(), "Environment variables were null");
         this.extension = requireNonNull(config.extension(), "File extension is null");
@@ -182,7 +182,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     @Override
     public List<StorageObject> loadAllTables(String databaseName) throws IOException
     {
-        checkMetastoreForAll(databaseName);
+        checkDatastoreForDatabase(databaseName);
         return List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
     }
 
@@ -193,7 +193,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param database For which datastore will be checked
      */
     @Override
-    public void checkMetastoreForAll(String database) throws IOException
+    public void checkDatastoreForDatabase(String database) throws IOException
     {
         if (checkBucketExists(database)) {
             loadTablesInternal(database);
@@ -212,11 +212,11 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public synchronized Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws IOException
     {
         if (!storeCheckingComplete) {
-            this.checkMetastoreForAll(databaseName);
+            this.checkDatastoreForDatabase(databaseName);
         }
         String bucketName = databaseBuckets.get(databaseName);
         if (bucketName == null) {
-            throw new RuntimeException("ObjectStorageHiveMetastore.getTable: bucket null does not exist");
+            throw new RuntimeException("StorageHiveDatastore.getTable: bucket null does not exist");
         }
         LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
         Map<StorageObject, List<String>> objectNameMap = tableObjects.get(databaseName);

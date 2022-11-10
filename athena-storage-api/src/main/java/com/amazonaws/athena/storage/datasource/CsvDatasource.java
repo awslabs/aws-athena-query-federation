@@ -260,7 +260,7 @@ public class CsvDatasource
         String databaseName = tableInfo.getSchemaName();
         String tableName = tableInfo.getTableName();
         if (!storeCheckingComplete) {
-            this.checkMetastoreForAll(databaseName);
+            this.checkDatastoreForDatabase(databaseName);
         }
         String bucketName;
         List<String> objectNames = null;

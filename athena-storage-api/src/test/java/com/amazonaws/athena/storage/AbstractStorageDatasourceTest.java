@@ -114,7 +114,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
     }
 
     @Test
-    public void testCheckMetastoreForPagination() throws IOException
+    public void testCheckDatastoreForPagination() throws IOException
     {
         PowerMockito.when(abstractStorageDatasource.loadTablesInternal(anyString(), anyString(), anyInt())).thenReturn("token");
         PowerMockito.doCallRealMethod()
@@ -140,16 +140,16 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
     }
 
     @Test
-    public void testCheckMetastoreForAll() throws IOException
+    public void testCheckDatastoreForAll() throws IOException
     {
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
-                .checkMetastoreForAll("test");
+                .checkDatastoreForDatabase("test");
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, Map.of("test", Map.of("test", List.of("test"))));
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
 
-        abstractStorageDatasource.checkMetastoreForAll("test");
-        verify(abstractStorageDatasource, times(3)).checkMetastoreForAll("test");
+        abstractStorageDatasource.checkDatastoreForDatabase("test");
+        verify(abstractStorageDatasource, times(3)).checkDatastoreForDatabase("test");
     }
 
     @Test
