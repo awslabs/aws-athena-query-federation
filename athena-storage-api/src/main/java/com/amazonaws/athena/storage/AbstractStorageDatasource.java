@@ -59,6 +59,7 @@ import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_N
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityNameFromFile;
 import static com.amazonaws.athena.storage.StorageUtil.tableNameFromFile;
+import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractStorageDatasource implements StorageDatasource
@@ -352,18 +353,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     protected void addTable(String bucketName, String objectName,
                             Map<String, List<String>> tableMap) throws IOException
     {
-        LOGGER.info("Adding table for object {}, under bucket {}", objectName, supportsPartitioning());
-        String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
-        if (containsInvalidExtension(objectName)
-                || (isExtensionCheckMandatory() && !strLowerObjectName.endsWith(extension.toLowerCase(Locale.ROOT)))) {
-            LOGGER.info("Extension was mandatory and the object {} didn't match with extension {}", objectName, extension);
+        if (containsInvalidExtension(objectName)) {
+            LOGGER.info("The object {} contains invalid extension. Expected extension {}", objectName, extension);
             return;
         }
         boolean isPartitionedTable = storageProvider.isPartitionedDirectory(bucketName, objectName);
+        LOGGER.info("Adding table for object {}, under bucket {}, and is partitioned? {}", objectName, bucketName, isPartitionedTable);
+        String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         String tableName = objectName;
-        if (!isPartitionedTable) {
+        if (isPartitionedTable) {
+            tableName = getFolderName(tableName);
+        }
+        else {
             tableName = tableNameFromFile(tableName, extension);
         }
+        LOGGER.info("Table for the object {} under the bucket {} is {}", objectName, bucketName, tableName);
 
         if (!isPartitionedTable
                 // is a directory
@@ -380,6 +384,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
         else if (storageProvider.isPartitionedDirectory(bucketName, objectName)) {
             List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(bucketName, objectName);
+            if (fileNames.isEmpty()) {
+                LOGGER.info("No files found under partitioned table {}", tableName);
+            }
+            else {
+                LOGGER.info("Following files are found found under partitioned table {}\n{}", tableName, fileNames);
+            }
             tableMap.computeIfAbsent(getValidEntityNameFromFile(tableName, this.extension),
                     files -> new ArrayList<>()).addAll(fileNames);
         }

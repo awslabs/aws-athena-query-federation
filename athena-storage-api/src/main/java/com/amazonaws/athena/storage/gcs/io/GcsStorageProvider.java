@@ -149,9 +149,11 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(location));
         for (Blob blob : blobPage.iterateAll()) {
             if (isPartitionFolder(blob.getName())) {
+                LOGGER.info("Path {} is a partitioned directory", location);
                 return true;
             }
         }
+        LOGGER.info("Path {} is NOT a partitioned directory", location);
         return false;
     }
 

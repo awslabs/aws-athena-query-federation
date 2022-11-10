@@ -34,6 +34,18 @@ public class GcsIOUtil
         return path;
     }
 
+    public static String getFolderName(String path)
+    {
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.lastIndexOf("/"));
+        }
+        int lastPathSeparatorIndex = path.lastIndexOf('/');
+        if (lastPathSeparatorIndex > -1) {
+            return path.substring(lastPathSeparatorIndex + 1);
+        }
+        return path;
+    }
+
     public static String getParentPath(String path)
     {
         int lastPathSeparatorIndex = path.lastIndexOf('/');

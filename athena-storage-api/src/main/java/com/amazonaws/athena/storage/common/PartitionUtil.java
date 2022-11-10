@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.storage.io.GcsIOUtil.getFileName;
+import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
 
 public class PartitionUtil
 {
@@ -32,7 +33,7 @@ public class PartitionUtil
 
     public static boolean isPartitionFolder(String folderName)
     {
-        String simpleName = getFileName(folderName);
+        String simpleName = getFolderName(folderName);
         return FieldValuePatternMatcher.matches(simpleName);
     }
 
