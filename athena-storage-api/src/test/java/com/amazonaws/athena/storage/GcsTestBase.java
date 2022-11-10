@@ -32,7 +32,6 @@ import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.cache.CustomGcsReadChannel;
 import com.amazonaws.athena.storage.gcs.io.*;
@@ -146,9 +145,11 @@ public class GcsTestBase extends StorageMock
         Storage storage = mock(Storage.class);
         Bucket bucket = mock(Bucket.class);
         PowerMockito.when(storage.list()).thenReturn(blob);
+        PowerMockito.when(storage.list(anyString(), Mockito.any())).thenReturn(tables);
         doReturn(blob).when(storage).list(anyString());
         PowerMockito.when(blob.iterateAll()).thenReturn(List.of(bucket));
         PowerMockito.when(bucket.getName()).thenReturn(bucketName);
+
         return storage;
     }
 

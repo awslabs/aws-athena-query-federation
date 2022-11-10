@@ -47,7 +47,6 @@ import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.LoadSchemaFailedException;
-import com.amazonaws.athena.storage.datasource.exception.ReadRecordsException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
@@ -356,6 +355,7 @@ public class CsvDatasource
                 = new ObjectMapper()
                 .readValue(split.getProperty(STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         StorageSplit.class);
+        LOGGER.info("Reading records from file {} from bucket {}", storageSplit.getFileName(), bucketName);
         try (InputStream inputStream = storageProvider.getOfflineInputStream(bucketName, storageSplit.getFileName())) {
             Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
             String storageSplitJson = split.getProperty(STORAGE_SPLIT_JSON);
@@ -383,10 +383,6 @@ public class CsvDatasource
                     break;
                 }
             }
-        }
-        catch (Exception exception) {
-            throw new ReadRecordsException("Unable to read records from file " + storageSplit.getFileName()
-                    + " from bucket " + bucketName + ". Error message=" + exception.getMessage(), exception);
         }
     }
 

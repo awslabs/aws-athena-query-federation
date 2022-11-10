@@ -87,6 +87,7 @@ public class GcsIntegTest extends IntegrationTestBase
     @Override
     protected void setConnectorEnvironmentVars(final Map environmentVars)
     {
+        // environmentVars.putAll(this.environmentVars);
     }
 
     @Override

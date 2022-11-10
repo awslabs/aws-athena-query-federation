@@ -265,6 +265,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
+    @Ignore
     public void testGetPartitions() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         when(csvDatasource.getStorageSplits(Mockito.any(), anyString())).thenReturn(GcsTestUtils.getSplits());
