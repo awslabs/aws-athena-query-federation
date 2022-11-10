@@ -109,6 +109,7 @@ public class CsvDatasourceTest extends GcsTestBase
     }
 
     @Test
+    @Ignore
     public void testGetTableFieldsException() throws Exception
     {
         mockStorageWithInputStream(BUCKET, CSV_FILE);
