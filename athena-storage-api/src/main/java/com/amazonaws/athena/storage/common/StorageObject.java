@@ -21,13 +21,30 @@ package com.amazonaws.athena.storage.common;
 
 public class StorageObject
 {
+    private String tableName;
     private String objectName;
     private boolean partitioned;
 
-    public StorageObject(String objectName, boolean partitioned)
+    public StorageObject(String tableName, String objectName, boolean partitioned)
     {
+        this.tableName = tableName;
         this.objectName = objectName;
         this.partitioned = partitioned;
+    }
+
+    public String getTableName()
+    {
+        return tableName;
+    }
+
+    public void setTableName(String tableName)
+    {
+        this.tableName = tableName;
+    }
+
+    public boolean isPartitioned()
+    {
+        return partitioned;
     }
 
     public String getObjectName()
@@ -40,11 +57,6 @@ public class StorageObject
         this.objectName = objectName;
     }
 
-    public boolean isPartitioned()
-    {
-        return partitioned;
-    }
-
     public void setPartitioned(boolean partitioned)
     {
         this.partitioned = partitioned;
@@ -54,7 +66,7 @@ public class StorageObject
     public String toString()
     {
         return "StorageObject{" +
-                "objectName='" + objectName + '\'' +
+                "objectName='" + tableName + '\'' +
                 ", partitioned=" + partitioned +
                 '}';
     }
@@ -66,10 +78,17 @@ public class StorageObject
 
     public static class Builder
     {
+        private String tabletName;
         private String objectName;
         private boolean partitioned;
 
-        public Builder setObjectName(final String objectName)
+        public Builder setTabletName(final String tabletName)
+        {
+            this.tabletName = tabletName;
+            return this;
+        }
+
+        public Builder setObjectName(String objectName)
         {
             this.objectName = objectName;
             return this;
@@ -83,7 +102,7 @@ public class StorageObject
 
         public StorageObject build()
         {
-            return new StorageObject(this.objectName, this.partitioned);
+            return new StorageObject(this.tabletName, this.objectName,  this.partitioned);
         }
     }
 }

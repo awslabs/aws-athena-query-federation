@@ -41,13 +41,12 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.TableListResult;
+import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -72,8 +71,10 @@ import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonSt
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.printJson;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
 import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
+import static com.amazonaws.athena.storage.StorageConstants.IS_TABLE_PARTITIONED;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
+import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
 import static com.amazonaws.athena.storage.datasource.StorageDatasourceFactory.createDatasource;
 import static java.util.Objects.requireNonNull;
 
@@ -137,7 +138,7 @@ public class GcsMetadataHandler
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws JsonProcessingException
+    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request)
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=queryId {}",
                 request.getQueryId());
@@ -150,10 +151,10 @@ public class GcsMetadataHandler
             TableListResult result = datasource.getAllTables(request.getSchemaName(), request.getNextToken(),
                     request.getPageSize());
             nextToken = result.getNextToken();
-            List<String> tableNames = result.getTables();
+            List<StorageObject> tableNames = result.getTables();
             LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=tables under schema {} are: {}",
                     request.getSchemaName(), tableNames);
-            tableNames.forEach(name -> tables.add(new TableName(request.getSchemaName(), name)));
+            tableNames.forEach(storageObject -> tables.add(new TableName(request.getSchemaName(), storageObject.getTableName())));
         }
         catch (Exception exception) {
             LOGGER.error("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Exception occurred in GcsMetadataHandler.doListTables {}",
@@ -227,14 +228,14 @@ public class GcsMetadataHandler
         if (optionalTable.isPresent()) {
             StorageTable table = optionalTable.get();
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
-            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
+            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME_LIST);
         }
         requireNonNull(bucketName, "Schema + '" + tableName.getSchemaName() + "' not found");
         requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
                 + tableName.getSchemaName() + "'");
 
         List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
-        LOGGER.info("Storage partitions: \n{}", partitions);
+        LOGGER.info("Storage partitions:\n{}", partitions);
         requireNonNull(partitions, "List of partition can't be retrieve from metadata");
         //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
@@ -252,7 +253,7 @@ public class GcsMetadataHandler
     }
 
     /**
-     * Used to split-up the reads required to scan the requested batch of partition(s).
+     * Used to split up the reads required to scan the requested batch of partition(s).
      * <p>
      * Here we execute the read operations based on row offset and limit form particular bucket and file on GCS
      *
@@ -269,7 +270,9 @@ public class GcsMetadataHandler
         printJson(request, "GetSplitsRequest");
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";
-        String objectName = "";
+        String objectNames = "";
+        boolean partitioned = false;
+        String partitionBaseObject = null;
         TableName tableInfo = request.getTableName();
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Schema name{}, table name {}",
                 tableInfo.getSchemaName(), tableInfo.getTableName());
@@ -279,9 +282,15 @@ public class GcsMetadataHandler
         if (optionalTable.isPresent()) {
             StorageTable table = optionalTable.get();
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
-            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
+            objectNames = table.getParameters().get(TABLE_PARAM_OBJECT_NAME_LIST);
+            partitioned = Boolean.parseBoolean(table.getParameters().get(IS_TABLE_PARTITIONED));
+            partitionBaseObject = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
         }
-        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(objectName, bucketName,
+        LOGGER.info("Bucket: {}, object name list:\n{}\nPartitioned: {}, base object name: {}", bucketName, objectNames,
+                partitioned, partitionBaseObject);
+        List<StoragePartition> storagePartitions = datasource.getByObjectNameInBucket(partitioned
+                        ? partitionBaseObject
+                        : objectNames.split(",")[0], bucketName,
                 request.getSchema(), request.getTableName(), request.getConstraints());
         LOGGER.info("Storage partitions (doGetSplits): \n{}", storagePartitions);
         requireNonNull(storagePartitions, "List of partitions can't be retrieve from metadata");
@@ -299,13 +308,18 @@ public class GcsMetadataHandler
             LOGGER.debug("No more storage split indices, returning empty split with null continuation token");
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
         }
+//        String objectToExtractFullMetadata = partitioned
+//                ? null
+//                : objectNames.split(",")[0];
+//        List<FilterExpression> expressions = datasource.getExpressions(bucketName, partitioned ? partitionBaseObject : objectToExtractFullMetadata,
+//                request.getSchema(), tableInfo, request.getConstraints(), Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
         int startSplitIndex = storageSplitListIndices.get(0);
         LOGGER.info("Current split start index {}", startSplitIndex);
         for (int curPartition = startSplitIndex; curPartition < partitions.getRowCount(); curPartition++) {
             int currentSplitIndex = startSplitIndex + curPartition;
             SpillLocation spillLocation = makeSpillLocation(request);
             StoragePartition storagePartition = storagePartitions.get(currentSplitIndex);
-            List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition);
+            List<StorageSplit> storageSplits = datasource.getSplitsByStoragePartition(storagePartition, partitioned, partitionBaseObject);
             printJson(storageSplits, "storageSplits");
             LOGGER.info("Splitting based on partition at position {}", currentSplitIndex);
             for (StorageSplit split : storageSplits) {
@@ -316,7 +330,7 @@ public class GcsMetadataHandler
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                         .add(BLOCK_PARTITION_COLUMN_NAME, String.valueOf(currentSplitIndex))
                         .add(TABLE_PARAM_BUCKET_NAME, bucketName)
-                        .add(TABLE_PARAM_OBJECT_NAME, objectName)
+                        .add(TABLE_PARAM_OBJECT_NAME_LIST, objectNames)
                         .add(STORAGE_SPLIT_JSON, storageSplitJson);
                 splits.add(splitBuilder.build());
                 if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
@@ -371,40 +385,5 @@ public class GcsMetadataHandler
             }
         }
         return List.of();
-    }
-
-    /**
-     * @param request       An instance of {@link GetSplitsRequest}
-     * @param bucketName    Name of the bucket
-     * @param objectName    Name of the storage object (file)
-     * @param storageSplits A list of {@link StorageSplit}
-     * @param splits        A set of {@link Split}
-     * @param objectMapper  An instance of {@link ObjectMapper}
-     * @return An instance of {@link GetSplitsResponse}
-     */
-    private GetSplitsResponse getSingleSplit(GetSplitsRequest request, String bucketName, String objectName, List<StorageSplit> storageSplits,
-                                             Set<Split> splits, ObjectMapper objectMapper)
-    {
-        LOGGER.debug("RecordHandler=GcsMetadataHandler|Method=doGetSplits|Message=No partitions, returning single Split");
-        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Block partition row count is 0, returning default partition");
-        StorageSplit storageSplit = storageSplits.get(0);
-        Split split;
-        try {
-            String storageSplitJson = Arrays.toString(objectMapper.writeValueAsBytes(storageSplit));
-            LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}", storageSplitJson);
-            split = Split.newBuilder(makeSpillLocation(request), makeEncryptionKey())
-                    .add(BLOCK_PARTITION_COLUMN_NAME, GcsConstants.ALL_PARTITIONS)
-                    .add(TABLE_PARAM_BUCKET_NAME, bucketName)
-                    .add(TABLE_PARAM_OBJECT_NAME, objectName)
-                    .add(STORAGE_SPLIT_JSON, storageSplitJson)
-                    .build();
-        }
-        catch (JsonProcessingException exception) {
-            throw new RuntimeException("Error: " + exception.getMessage()
-                    + "Storage split couldn't be deserialize as JSOon. StorageSplit is "
-                    + storageSplit);
-        }
-        splits.add(split);
-        return new GetSplitsResponse(request.getCatalogName(), split);
     }
 }

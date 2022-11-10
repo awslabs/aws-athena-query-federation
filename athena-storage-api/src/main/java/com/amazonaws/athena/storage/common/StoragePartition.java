@@ -116,7 +116,7 @@ public class StoragePartition
     // Builder
     public static class Builder
     {
-        private List<String> objectName;
+        private List<String> objectNames;
         private String location;
         private String bucketName;
         private long recordCount;
@@ -128,7 +128,7 @@ public class StoragePartition
 
         public Builder objectNames(List<String> objectName)
         {
-            this.objectName = requireNonNull(objectName, "objectName can't be null");
+            this.objectNames = requireNonNull(objectName, "objectName can't be null");
             return this;
         }
 
@@ -158,7 +158,7 @@ public class StoragePartition
 
         public StoragePartition build()
         {
-            return new StoragePartition(this.objectName, this.location, this.bucketName, this.recordCount, this.children);
+            return new StoragePartition(this.objectNames, this.location, this.bucketName, this.recordCount, this.children);
         }
     }
 }

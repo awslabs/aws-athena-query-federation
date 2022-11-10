@@ -215,6 +215,10 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                 Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
+            LOGGER.info("GcsStorageProvider.getFirstObjectNameRecurse(): checking if {} is a folder under prefix {}", blob.getName(), prefix);
+            if (prefix.equals(blob.getName())) {
+                continue;
+            }
             if (blob.getSize() > 0) { // it's a file
                 return Optional.of(blob.getName());
             }
@@ -226,17 +230,20 @@ public class GcsStorageProvider implements StorageProvider
     }
 
     @Override
-    public List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix)
+    public List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix, int maxCount)
     {
         LOGGER.info("Iterating recursively through a folder under the bucket to list all file object");
         List<String> leaves = new ArrayList<>();
-        getLeafObjectsRecurse(bucket, partitionPrefix, leaves);
+        getLeafObjectsRecurse(bucket, partitionPrefix, leaves, maxCount);
         return leaves;
     }
 
     // helpers
-    private void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects)
+    private void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects, int maxCount)
     {
+        if (maxCount > 0 && leafObjects.size() >= maxCount) {
+            return;
+        }
         LOGGER.info("Walking through {} under bucket '{}'", prefix, bucket);
         if (!prefix.endsWith("/")) {
             prefix += '/';
@@ -251,7 +258,7 @@ public class GcsStorageProvider implements StorageProvider
                 leafObjects.add(blob.getName());
             }
             else {
-                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects);
+                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects, maxCount);
             }
         }
     }
@@ -289,5 +296,10 @@ public class GcsStorageProvider implements StorageProvider
         }
         LOGGER.info("blobNameList\n{}", blobNameList);
         return ImmutableList.copyOf(blobNameList);
+    }
+
+    private boolean isRootFolder(String location)
+    {
+        return (location != null && !location.isBlank() && location.split("/").length == 1);
     }
 }

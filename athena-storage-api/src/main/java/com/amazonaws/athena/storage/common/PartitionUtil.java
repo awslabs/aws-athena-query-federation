@@ -38,7 +38,9 @@ public class PartitionUtil
     public static boolean isPartitionFolder(String folderName)
     {
         String simpleName = getFolderName(folderName);
-        return FieldValuePatternMatcher.matches(simpleName);
+        boolean matched = FieldValuePatternMatcher.matches(simpleName);
+        LOGGER.info("Folder {} matches with the pattern of a partition table {}", folderName, matched);
+        return matched;
     }
 
     public static Optional<FieldValue> getPartitionFieldValue(String folderName)
