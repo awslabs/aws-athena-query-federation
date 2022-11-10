@@ -39,14 +39,14 @@ public class PartitionUtil
     {
         String simpleName = getFolderName(folderName);
         boolean matched = FieldValuePatternMatcher.matches(simpleName);
-        LOGGER.info("Folder {} matches with the pattern of a partition table {}", folderName, matched);
+        LOGGER.debug("Folder {} matches with the pattern of a partition table {}", folderName, matched);
         return matched;
     }
 
     public static Optional<FieldValue> getPartitionFieldValue(String folderName)
     {
         String simpleName = getFolderName(folderName);
-        LOGGER.info("Creating FieldValue from partition folder {}" + simpleName);
+        LOGGER.debug("Creating FieldValue from partition folder {}" + simpleName);
         return FieldValue.from(simpleName);
     }
 

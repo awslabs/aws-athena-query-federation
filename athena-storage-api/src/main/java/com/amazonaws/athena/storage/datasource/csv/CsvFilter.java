@@ -70,7 +70,7 @@ public class CsvFilter
     public ConstraintEvaluator evaluator(ReadRecordsRequest recordsRequest)
     {
         final Constraints constraints = recordsRequest.getConstraints();
-        LOGGER.info("Util::evaluator|Constraint summary:\n{}", constraints.getSummary());
+        LOGGER.debug("Util::evaluator|Constraint summary:\n{}", constraints.getSummary());
         final Schema tableSchema = recordsRequest.getSchema();
         final Split split = recordsRequest.getSplit();
 
@@ -125,7 +125,7 @@ public class CsvFilter
     public ConstraintEvaluator evaluator(Schema tableSchema, Constraints constraints, TableName tableName,
                                          Map<String, String> partitionFieldValueMap)
     {
-        LOGGER.info("Util::evaluator|Constraint summary:{}\n", constraints.getSummary());
+        LOGGER.debug("Util::evaluator|Constraint summary:{}\n", constraints.getSummary());
         this.fields = tableSchema.getFields().stream()
                 .map(Field::getName)
                 .filter(c -> !partitionFieldValueMap.containsKey(c))

@@ -62,7 +62,7 @@ public class GcsFileByteLoader
         this.blobId = BlobId.of(bucketName, fileName);
         Blob blob = storage.get(blobId);
         this.length = blob.getSize();
-        LOGGER.info("File size to download in cache is {} from file {} under the bucket {}", this.length, fileName, bucketName);
+        LOGGER.debug("File size to download in cache is {} from file {} under the bucket {}", this.length, fileName, bucketName);
         this.endOffset = this.length - 1;
         loadInternalData();
     }

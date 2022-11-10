@@ -217,11 +217,11 @@ public class ParquetDatasource
     @Override
     public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
     {
-        LOGGER.info("StoragePartition:\n{}", partition);
+        LOGGER.debug("StoragePartition:\n{}", partition);
         List<String> fileNames;
-        LOGGER.info("Checking whether the location {} under the bucket {} is a directory", partition.getBucketName(), partition.getLocation());
+        LOGGER.debug("Checking whether the location {} under the bucket {} is a directory", partition.getBucketName(), partition.getLocation());
         if (partitioned) {
-            LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
+            LOGGER.debug("Location {} is a directory, walking through", partition.getLocation());
             fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
         }
         else {
@@ -308,10 +308,10 @@ public class ParquetDatasource
     {
         LOGGER.debug("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
         requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
-        LOGGER.info("Inferring field schema for file(s) {}", objectNames);
         if (objectNames.isEmpty()) {
             throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
         }
+        LOGGER.info("Inferring field schema based on file {}", objectNames.get(0));
         InputFile inputFile = storageProvider.getInputFile(bucketName, objectNames.get(0));
         try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
             ParquetMetadata metadata = reader.getFooter();

@@ -216,7 +216,7 @@ public class FileCacheFactory
     public static File cacheBytesInTempFile(String bucketName, String fileName, byte[] bytes) throws IOException
     {
         LOGGER.debug("Factory=FileCacheFactory|Message=caching file {}, length {}", fileName, bytes != null ? bytes.length : 0);
-        LOGGER.info("Caching file {} under the bucket {}", fileName, bucketName);
+        LOGGER.debug("Caching file {} under the bucket {}", fileName, bucketName);
         File tempFile = getTempFile(bucketName, fileName);
         String path = tempFile != null ? tempFile.getPath() : "";
         deleteExpiredCachedFile(path);

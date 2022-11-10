@@ -132,10 +132,10 @@ public class ParquetFilter
     public ConstraintEvaluator evaluator(TableName tableInfo, Map<String, String> partitionFieldValueMap,
                                          Constraints constraints)
     {
-        LOGGER.info("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
+        LOGGER.debug("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
         List<FilterExpression> expressions = toConjuncts(tableInfo,
                 constraints, partitionFieldValueMap);
-        LOGGER.info("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
+        LOGGER.debug("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
         if (!expressions.isEmpty()) {
             expressions.forEach(this::addToAnd);
         }

@@ -148,7 +148,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 || !tablesLoadedForDatabase(databaseName)) {
             currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
         }
-        LOGGER.info("tableObjects:\n{}", tableObjects);
+        LOGGER.debug("tableObjects:\n{}", tableObjects);
         List<StorageObject> tables = List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
         return new TableListResult(tables, currentNextToken);
     }
@@ -253,15 +253,15 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         requireNonNull(objectName, "objectName name was null");
         List<StoragePartition> storagePartitions = new ArrayList<>();
         if (storageProvider.isDirectory(bucketName, objectName)) {
-            LOGGER.info("Object {} under buket {} is a directory", objectName, bucketName);
+            LOGGER.debug("Object {} under buket {} is a directory", objectName, bucketName);
             if (storageProvider.isPartitionedDirectory(bucketName, objectName)) {
-                LOGGER.info("Folder {} under buket {} is  partitioned", objectName, bucketName);
+                LOGGER.debug("Folder {} under buket {} is  partitioned", objectName, bucketName);
                 addPartitionsRecurse(bucketName, objectName, true, schema, tableInfo, constraints,
                         storagePartitions);
             }
         }
         else {
-            LOGGER.info("Folder {} under buket {} is NOT partitioned", objectName, bucketName);
+            LOGGER.debug("Folder {} under buket {} is NOT partitioned", objectName, bucketName);
             // A file (aka Table) under a non-partitioned bucket/folder
             StoragePartition partition = StoragePartition.builder()
                     .objectNames(List.of(objectName))
@@ -283,7 +283,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
                                                           TableName tableInfo, Constraints constraints) throws IOException
     {
-        LOGGER.info("Retrieving nested object in partition for object {} under the bucket {}", objectName, bucketName);
+        LOGGER.debug("Retrieving nested object in partition for object {} under the bucket {}", objectName, bucketName);
         return this.getStoragePartitions(schema, tableInfo, constraints, bucketName, objectName);
     }
 
@@ -364,11 +364,11 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                             Map<StorageObject, List<String>> tableMap) throws IOException
     {
         if (containsInvalidExtension(objectName)) {
-            LOGGER.info("The object {} contains invalid extension. Expected extension {}", objectName, extension);
+            LOGGER.debug("The object {} contains invalid extension. Expected extension {}", objectName, extension);
             return;
         }
         boolean isPartitionedTable = storageProvider.isPartitionedDirectory(bucketName, objectName);
-        LOGGER.info("Adding table for object {}, under bucket {}, and is partitioned? {}", objectName, bucketName, isPartitionedTable);
+        LOGGER.debug("Adding table for object {}, under bucket {}, and is partitioned? {}", objectName, bucketName, isPartitionedTable);
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         String tableName = objectName;
         if (isPartitionedTable) {
@@ -377,8 +377,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         else {
             tableName = tableNameFromFile(tableName, extension);
         }
-        LOGGER.info("Table for the object {} under the bucket {} is {}", objectName, bucketName, tableName);
-
+        LOGGER.debug("Table for the object {} under the bucket {} is {}", objectName, bucketName, tableName);
         if (!isPartitionedTable
                 // is a directory
                 && (objectName.endsWith("/") || storageProvider.isDirectory(bucketName, objectName))) {
@@ -400,10 +399,10 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         else if (storageProvider.isPartitionedDirectory(bucketName, objectName)) {
             List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(bucketName, objectName, 1);
             if (fileNames.isEmpty()) {
-                LOGGER.info("No files found under partitioned table {}", tableName);
+                LOGGER.debug("No files found under partitioned table {}", tableName);
             }
             else {
-                LOGGER.info("Following files are found found under partitioned table {}\n{}", tableName, fileNames);
+                LOGGER.debug("Following files are found found under partitioned table {}\n{}", tableName, fileNames);
             }
             StorageObject storageObject = StorageObject.builder()
                     .setTabletName(getValidEntityNameFromFile(tableName, this.extension))
@@ -413,7 +412,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             tableMap.computeIfAbsent(storageObject,
                     files -> new ArrayList<>()).addAll(fileNames);
         }
-        LOGGER.info("After adding table tableMap\n{}", tableMap);
+        LOGGER.debug("After adding table tableMap\n{}", tableMap);
     }
 
     /**
@@ -563,20 +562,20 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
         List<FilterExpression> expressions = getExpressions(bucket, baseObjectName, schema, tableName, constraints,
                 Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
-        LOGGER.info("List of expressions for table {} under bucket {} \n{}", tableName, bucket, expressions);
+        LOGGER.debug("List of expressions for table {} under bucket {} \n{}", tableName, bucket, expressions);
         StorageObjectSchema objectSchema = getObjectSchema(bucket, baseObjectName);
         List<String> folders = storageProvider.getNestedFolders(bucket, prefix);
         if (folders.isEmpty()) {
-            LOGGER.info("Bucket {}, with prefix {} does not contain any nested folders", bucket, partitions);
+            LOGGER.debug("Bucket {}, with prefix {} does not contain any nested folders", bucket, partitions);
             return;
         }
         for (String folder : folders) {
             if (PartitionUtil.isPartitionFolder(folder)) {
                 Optional<FieldValue> optionalFieldValue = PartitionUtil.getPartitionFieldValue(folder);
                 if (optionalFieldValue.isPresent()) {
-                    LOGGER.info("Field value {} found for folder {} under bucket {}", optionalFieldValue.get(), folder, bucket);
+                    LOGGER.debug("Field value {} found for folder {} under bucket {}", optionalFieldValue.get(), folder, bucket);
                     if (matchWithExpression(objectSchema, expressions, optionalFieldValue.get())) {
-                        LOGGER.info("Partitioned folder {} is being added under bucket {}", folder, bucket);
+                        LOGGER.debug("Partitioned folder {} is being added under bucket {}", folder, bucket);
                         partitions.add(StoragePartition.builder()
                                 .objectNames(List.of(folder))
                                 .location(folder)
@@ -585,7 +584,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                     }
                 }
                 else {
-                    LOGGER.info("NO field values found for folder {} under bucket {}", folder, bucket);
+                    LOGGER.debug("NO field values found for folder {} under bucket {}", folder, bucket);
                     partitions.add(StoragePartition.builder()
                             .objectNames(List.of(folder))
                             .location(folder)
@@ -594,7 +593,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 }
             }
             else {
-                LOGGER.info("Folder {} in bucket {} didn't match with pattern", folder, bucket);
+                LOGGER.debug("Folder {} in bucket {} didn't match with pattern", folder, bucket);
                 partitions.add(StoragePartition.builder()
                         .objectNames(List.of(folder))
                         .location(folder)
@@ -608,11 +607,11 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                                         FieldValue fieldValue)
     {
         if (expressions == null ||  expressions.isEmpty()) {
-            LOGGER.info("No expression found to match against field value {}. Returning...", fieldValue);
+            LOGGER.debug("No expression found to match against field value {}. Returning...", fieldValue);
             return true;
         }
-        LOGGER.info("Matching partition folder for field with value {}", fieldValue);
-        LOGGER.info("Filter expression field {}", expressions.stream().map(e -> e.columnName()).collect(Collectors.toList()));
+        LOGGER.debug("Matching partition folder for field with value {}", fieldValue);
+        LOGGER.debug("Filter expression field {}", expressions.stream().map(e -> e.columnName()).collect(Collectors.toList()));
         List<FilterExpression> matchedExpression = expressions.stream()
                 .filter(expression -> fieldValue.getField().equalsIgnoreCase(expression.columnName()))
                 .collect(Collectors.toList());
@@ -640,7 +639,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
 
     private Optional<StorageObject> findStorageObjectKey(String tableName, String databaseName)
     {
-        LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
+        LOGGER.debug("Resolving Table {} under the schema {}", tableObjects, databaseName);
         Map<StorageObject, List<String>> objectNameMap = tableObjects.get(databaseName);
         if (objectNameMap != null && !objectNameMap.isEmpty()) {
             Set<StorageObject> keys = objectNameMap.keySet();

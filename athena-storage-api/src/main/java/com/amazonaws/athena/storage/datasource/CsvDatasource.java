@@ -189,20 +189,20 @@ public class CsvDatasource
     {
         List<String> fileNames;
         if (partitioned) {
-            LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
+            LOGGER.debug("Location {} is a directory, walking through", partition.getLocation());
             fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
         }
         else {
             fileNames = List.of(partition.getLocation());
         }
-        LOGGER.info("Splitting based on file list: {}", fileNames);
+        LOGGER.debug("Splitting based on file list: {}", fileNames);
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
             checkFilesSize(partition.getBucketName(), fileName);
-            LOGGER.info("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
+            LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
             try (InputStream inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName)) {
                 long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
-                LOGGER.info("Total record found in file {} was {}", fileName, totalRecords);
+                LOGGER.debug("Total record found in file {} was {}", fileName, totalRecords);
                 splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
             }
         }
