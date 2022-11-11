@@ -68,7 +68,6 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({AWSSecretsManagerClientBuilder.class, AWSGlueClientBuilder.class})
 public class AmazonMskMetadataHandlerTest {
     private static final String QUERY_ID = "queryId";
-    private static final String CATALOG = "catalog";
     private AmazonMskMetadataHandler amazonMskMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
@@ -78,8 +77,7 @@ public class AmazonMskMetadataHandlerTest {
 
     @Rule
     public EnvironmentVariablesRule environmentVariables = new EnvironmentVariablesRule();
-    @Mock
-    KafkaConsumer<String, String> kafkaConsumer;
+
     @Mock
     AWSGlue awsGlue;
 
@@ -122,7 +120,7 @@ public class AmazonMskMetadataHandlerTest {
     }
 
     @Test
-    public void testdoListSchemaNames() {
+    public void testDoListSchemaNames() {
         List<String> schemaNames = new ArrayList<>();
         schemaNames.add("default");
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, "default");
@@ -131,7 +129,7 @@ public class AmazonMskMetadataHandlerTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void testdoListSchemaNamesThrowsException() {
+    public void testDoListSchemaNamesThrowsException() {
         ListSchemasRequest listSchemasRequest = mock(ListSchemasRequest.class);
         when(listSchemasRequest.getCatalogName()).thenThrow(new RuntimeException("RuntimeException() "));
         ListSchemasResponse listSchemasResponse = amazonMskMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
@@ -140,16 +138,16 @@ public class AmazonMskMetadataHandlerTest {
 
 
     @Test
-    public void testdoGetTable() throws Exception {
-        String arn = "defaultarn", schemaname = "defaultschemaname", schemaversionid = "defaultversionid";
-        Long latestschemaversion = 123L;
+    public void testDoGetTable() throws Exception {
+        String arn = "defaultarn", schemaName = "defaultschemaname", schemaVersionId = "defaultversionid";
+        Long latestSchemaVersion = 123L;
         GetSchemaResult getSchemaResult = new GetSchemaResult();
         GetSchemaVersionResult getSchemaVersionResult = new GetSchemaVersionResult();
         getSchemaResult.setSchemaArn(arn);
-        getSchemaResult.setSchemaName(schemaname);
-        getSchemaResult.setLatestSchemaVersion(latestschemaversion);
+        getSchemaResult.setSchemaName(schemaName);
+        getSchemaResult.setLatestSchemaVersion(latestSchemaVersion);
         getSchemaVersionResult.setSchemaArn(arn);
-        getSchemaVersionResult.setSchemaVersionId(schemaversionid);
+        getSchemaVersionResult.setSchemaVersionId(schemaVersionId);
         getSchemaVersionResult.setSchemaDefinition("{\n" +
                 "\t\"tableName\": \"testtable\",\n" +
                 "\t\"schemaName\": \"default\",\n" +

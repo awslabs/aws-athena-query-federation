@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.msk.dto.SplitParam;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -66,7 +65,6 @@ import java.util.*;
 
 import static com.amazonaws.athena.connectors.msk.AmazonMskUtils.*;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
 import static java.util.Arrays.asList;
 
 @RunWith(PowerMockRunner.class)
@@ -76,7 +74,6 @@ import static java.util.Arrays.asList;
         AWSStaticCredentialsProvider.class, DefaultAWSCredentialsProviderChain.class, AmazonS3ClientBuilder.class,
         ListObjectsRequest.class, FileOutputStream.class, Properties.class})
 public class AmazonMskUtilsTest {
-    private FederatedIdentity federatedIdentity;
     @Mock
     FileWriter fileWriter;
 
@@ -164,7 +161,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testgetScramAuthKafkaProperties() throws Exception {
+    public void testGetScramAuthKafkaProperties() throws Exception {
         environmentVariables.set("auth_type", "SCRAM");
         String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"admin\" password=\"test\";";
         Properties properties = getKafkaProperties();
@@ -174,7 +171,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testgetIAMAuthKafkaProperties() throws Exception {
+    public void testGetIAMAuthKafkaProperties() throws Exception {
         environmentVariables.set("auth_type", "IAM");
         Properties properties = getKafkaProperties();
         assertEquals("SASL_SSL", properties.get("security.protocol"));
@@ -184,7 +181,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testgetTLSAuthKafkaProperties() throws Exception {
+    public void testGetTLSAuthKafkaProperties() throws Exception {
         environmentVariables.set("auth_type", "TLS");
         Properties properties = getKafkaProperties();
         assertEquals("SSL", properties.get("security.protocol"));
@@ -194,7 +191,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testgetTopicListFromGlueRegistry() throws Exception {
+    public void testGetTopicListFromGlueRegistry() throws Exception {
         List<SchemaListItem> schemaListItems = new ArrayList<>();
         ListSchemasResult listSchemasResult = new ListSchemasResult();
         SchemaListItem schemaListItem = new SchemaListItem();
@@ -209,7 +206,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testtoArrowType(){
+    public void testToArrowType(){
         assertEquals(new ArrowType.Bool(), toArrowType("BOOLEAN"));
         assertEquals(Types.MinorType.TINYINT.getType(), toArrowType("TINYINT"));
         assertEquals(Types.MinorType.SMALLINT.getType(), toArrowType("SMALLINT"));
@@ -225,7 +222,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testgetKafkaConsumer() throws Exception {
+    public void testGetKafkaConsumerWithSchema() throws Exception {
         environmentVariables.set("auth_type", "NOAUTH");
         Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
@@ -236,7 +233,15 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void tesCreateSplitParam() {
+    public void testGetKafkaConsumer()
+    {
+        environmentVariables.set("auth_type", "NOAUTH");
+        Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer();
+        assertNotNull(consumer);
+    }
+
+    @Test
+    public void testCreateSplitParam() {
         Map<String, String> params = Map.of(
                 SplitParam.TOPIC, "testTopic",
                 SplitParam.PARTITION, "0",

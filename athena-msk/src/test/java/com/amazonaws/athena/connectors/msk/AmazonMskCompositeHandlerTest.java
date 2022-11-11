@@ -45,7 +45,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 public class AmazonMskCompositeHandlerTest {
 
     static {
-        System.setProperty("aws.region", "us-east-1");
+        System.setProperty("aws.region", "us-west-2");
     }
 
     @Rule
