@@ -159,32 +159,4 @@ public class CsvDatasourceTest extends GcsTestBase
         assertTrue(spiller.spilled(), "No records found");
     }
 
-    @Test(expected = TableNotFoundException.class)
-    public void testCsvGetRecords() throws Exception
-    {
-        mockStorageWithInputStream(BUCKET, CSV_FILE);
-        String[] fileNames = {CSV_FILE};
-        List<StorageSplit> splits = new ArrayList<>();
-        for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
-        }
-        assertNotNull(splits, "Spits were null");
-        assertFalse(splits.isEmpty(), "Split was empty");
-        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
-        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
-                BUCKET, "CSV_TABLE", splits.get(0), false);
-        csvDatasource.loadAllTables(BUCKET);
-        S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());
-        assertFalse(spiller.spilled(), "No records found");
-        QueryStatusChecker mockedQueryStatusChecker = mock(QueryStatusChecker.class);
-        when(mockedQueryStatusChecker.isQueryRunning()).thenReturn(true);
-        csvDatasource.readRecords(recordsRequest.getSchema(),
-                recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
-                spiller, mockedQueryStatusChecker);
-        assertNotNull(spiller, "No records returned");
-        assertTrue(spiller.spilled(), "No records found");
-
-    }
-
 }
