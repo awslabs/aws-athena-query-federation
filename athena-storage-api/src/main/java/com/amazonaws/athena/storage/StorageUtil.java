@@ -116,7 +116,7 @@ public class StorageUtil
 
     public static String tableNameFromFile(String objectName, String extension)
     {
-        LOGGER.info("Create table name from a file {} with extension {}", objectName, extension);
+        LOGGER.debug("Create table name from a file {} with extension {}", objectName, extension);
         String strLowerObjectName = objectName.toLowerCase(Locale.ROOT);
         int toIndex = strLowerObjectName.lastIndexOf(extension.toLowerCase(Locale.ROOT));
         if (toIndex > 2) {
@@ -127,14 +127,15 @@ public class StorageUtil
 
     public static void printJson(Object object, String prefix)
     {
-        LOGGER.info("Printing json for {}", prefix);
+        LOGGER.debug("Printing json for {}:", prefix);
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-            LOGGER.info(prefix + ":%n{}", object);
+            LOGGER.debug("{}", object);
         }
         catch (Exception exception) {
-            // ignored
+            // Ignored. Printing object instead as a fall-back
+            LOGGER.debug("Printing object for {}:\n{}", prefix, object);
         }
     }
 }

@@ -145,7 +145,7 @@ public interface StorageDatasource
      *
      * @param database For which datastore will be checked
      */
-    void checkMetastoreForAll(String database) throws IOException;
+    void checkDatastoreForDatabase(String database) throws IOException;
 
     /**
      * Indicates whether a datasource supports grouping of multiple files to form a single table

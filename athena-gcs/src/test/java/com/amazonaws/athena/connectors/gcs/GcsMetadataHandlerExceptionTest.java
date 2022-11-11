@@ -167,7 +167,7 @@ public class GcsMetadataHandlerExceptionTest
 
     @Test
     @Ignore
-    public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, amazonAthena, "test", "test", gcsSchemaUtils, amazonS3);
@@ -193,7 +193,7 @@ public class GcsMetadataHandlerExceptionTest
 
     @Test
     @Ignore
-    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException
+    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
         int UNLIMITED_PAGE_SIZE_VALUE = 50;

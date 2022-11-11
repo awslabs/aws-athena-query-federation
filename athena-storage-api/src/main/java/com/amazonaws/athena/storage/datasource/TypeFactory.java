@@ -149,11 +149,8 @@ public class TypeFactory
                     }
                 }
                 catch (Exception exception) {
+                    // Ignored. Sets null as default
                     fieldValueMap.put(fieldName, null);
-//                    if (exception.getClass().equals(RuntimeException.class)
-//                            || exception.getClass().equals(NullPointerException.class)) {
-//                        continue;
-//                    }
                     LOGGER.debug("Error resolving value for field {}, Primitive type {}, Logical type {}, Message {}", fieldName,
                             primitiveType, primitiveType != null
                                     ? primitiveType.getLogicalTypeAnnotation() != null
@@ -579,7 +576,8 @@ public class TypeFactory
                 }
             }
             catch (Exception exception) {
-                LOGGER.error("Unable to convert value {} for type {}", value, type, exception);
+                // Ignored
+                LOGGER.debug("Unable to convert value {} for type {}", value, type, exception);
             }
             return value;
         }

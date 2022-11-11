@@ -143,9 +143,7 @@ public class CsvDatasourceTest extends GcsTestBase
     @Test(expected = Exception.class)
     public void testCsvGetRecordsException() throws Exception
     {
-
         mockStorageWithInputStream(BUCKET, CSV_FILE);
-
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
         GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
@@ -159,7 +157,6 @@ public class CsvDatasourceTest extends GcsTestBase
 
         assertNotNull(spiller, "No records returned");
         assertTrue(spiller.spilled(), "No records found");
-
     }
 
     @Test(expected = TableNotFoundException.class)

@@ -176,7 +176,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         final int numDatasets = 5;
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, amazonAthena, "test", "test", gcsSchemaUtils, amazonS3);
@@ -188,7 +188,7 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, JsonProcessingException
+    public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         //Get the first dataset name.
         final int numTables = 5;

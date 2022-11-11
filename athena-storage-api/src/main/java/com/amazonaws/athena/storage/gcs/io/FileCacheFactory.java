@@ -37,7 +37,6 @@
  */
 package com.amazonaws.athena.storage.gcs.io;
 
-import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.google.cloud.storage.Storage;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
@@ -214,27 +213,22 @@ public class FileCacheFactory
         return new File(tempFilePath);
     }
 
-    public static File cacheBytesInTempFile(String bucketName, String fileName, byte[] bytes)
+    public static File cacheBytesInTempFile(String bucketName, String fileName, byte[] bytes) throws IOException
     {
         LOGGER.debug("Factory=FileCacheFactory|Message=caching file {}, length {}", fileName, bytes != null ? bytes.length : 0);
-        try {
-            File tempFile = getTempFile(bucketName, fileName);
-            String path = tempFile != null ? tempFile.getPath() : "";
-            deleteExpiredCachedFile(path);
-            if (tempFile != null && bytes != null) {
-                FileUtils.writeByteArrayToFile(tempFile, bytes);
-            }
-            else if (bytes != null) {
-                tempFile = createTempFile(bucketName, fileName);
-                FileUtils.writeByteArrayToFile(tempFile, bytes);
-            }
-            LOGGER.debug("Time took to cache bytes for the file {} under the bucket {}", fileName, bucketName);
-            return tempFile;
+        LOGGER.debug("Caching file {} under the bucket {}", fileName, bucketName);
+        File tempFile = getTempFile(bucketName, fileName);
+        String path = tempFile != null ? tempFile.getPath() : "";
+        deleteExpiredCachedFile(path);
+        if (tempFile != null && bytes != null) {
+            FileUtils.writeByteArrayToFile(tempFile, bytes);
         }
-        catch (Exception exception) {
-            throw new UncheckedStorageDatasourceException(new IOException("File " + fileName + " under the bucket "
-                    + bucketName + " couldn't be cached.", exception));
+        else if (bytes != null) {
+            tempFile = createTempFile(bucketName, fileName);
+            FileUtils.writeByteArrayToFile(tempFile, bytes);
         }
+        LOGGER.debug("Time took to cache bytes for the file {} under the bucket {}", fileName, bucketName);
+        return tempFile;
     }
 
     /**
@@ -260,6 +254,7 @@ public class FileCacheFactory
                 attributes = Files.readAttributes(tempFile.toPath(), BasicFileAttributes.class);
             }
             catch (Exception exception) {
+                // Ignored
                 LOGGER.error("Factory=FileCacheFactory|Message=Unable to read file attributes. Error={}",
                         exception.getMessage());
             }

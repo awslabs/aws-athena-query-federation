@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
 /**
@@ -33,7 +34,7 @@ public class GcsCompositeHandler
     /**
      * The default constructor that initializes metadata and record handlers for GCS
      */
-    public GcsCompositeHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public GcsCompositeHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         super(new GcsMetadataHandler(), new GcsRecordHandler());
     }

@@ -217,11 +217,11 @@ public class ParquetDatasource
     @Override
     public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
     {
-        LOGGER.info("StoragePartition:\n{}", partition);
+        LOGGER.debug("StoragePartition:\n{}", partition);
         List<String> fileNames;
-        LOGGER.info("Checking whether the location {} under the bucket {} is a directory", partition.getBucketName(), partition.getLocation());
+        LOGGER.debug("Checking whether the location {} under the bucket {} is a directory", partition.getBucketName(), partition.getLocation());
         if (partitioned) {
-            LOGGER.info("Location {} is a directory, walking through", partition.getLocation());
+            LOGGER.debug("Location {} is a directory, walking through", partition.getLocation());
             fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
         }
         else {
@@ -230,15 +230,10 @@ public class ParquetDatasource
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
             InputFile inputFile = storageProvider.getInputFile(partition.getBucketName(), fileName);
+            LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
             try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
                 splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
                         reader, recordsPerSplit()));
-            }
-            catch (IOException exception) {
-                // the file might not be supported or corrupted
-                // ignored, but logged
-                LOGGER.error("Unable to read Splits from the file {}, under the bucket {} due to error: {}", fileName,
-                        partition.getBucketName(), exception.getMessage(), exception);
             }
         }
         return splits;
@@ -280,7 +275,7 @@ public class ParquetDatasource
     {
         String databaseName = tableInfo.getSchemaName();
         if (!storeCheckingComplete) {
-            this.checkMetastoreForAll(databaseName);
+            this.checkDatastoreForDatabase(databaseName);
         }
         String bucketName;
         String fileNames = split.getProperty(TABLE_PARAM_OBJECT_NAME_LIST);
@@ -293,17 +288,12 @@ public class ParquetDatasource
         if (bucketName == null) {
             throw new UncheckedStorageDatasourceException("No schema '" + databaseName + "' found");
         }
-        try {
-            final StorageSplit storageSplit
-                    = new ObjectMapper()
-                    .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
-                            StorageSplit.class);
-            readRecords(schema, tableInfo, split, constraints, bucketName, storageSplit.getFileName(), spiller,
-                    queryStatusChecker);
-        }
-        catch (IOException exception) {
-            throw new UncheckedStorageDatasourceException(exception.getMessage(), exception);
-        }
+        final StorageSplit storageSplit
+                = new ObjectMapper()
+                .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
+                        StorageSplit.class);
+        readRecords(schema, tableInfo, split, constraints, bucketName, storageSplit.getFileName(), spiller,
+                queryStatusChecker);
     }
 
     /**
@@ -314,25 +304,19 @@ public class ParquetDatasource
      * @return List of field instances
      */
     @Override
-    protected List<Field> getTableFields(String bucketName, List<String> objectNames)
+    protected List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException
     {
-        try {
-            requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
-            LOGGER.info("Inferring field schema for file(s) {}", objectNames);
-            if (objectNames.isEmpty()) {
-                throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
-            }
-            InputFile inputFile = storageProvider.getInputFile(bucketName, objectNames.get(0));
-            try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
-                ParquetMetadata metadata = reader.getFooter();
-                TypeFactory.FieldResolver fieldResolver = TypeFactory.filedResolver(metadata);
-                return fieldResolver.resolveFields();
-            }
+        LOGGER.debug("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
+        requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
+        if (objectNames.isEmpty()) {
+            throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
         }
-        catch (Exception exception) {
-            LOGGER.error("Unable to retrieve field schema for file(s) {}, under the bucket {}", objectNames,
-                    bucketName);
-            throw new UncheckedStorageDatasourceException(exception.getMessage(), exception);
+        LOGGER.info("Inferring field schema based on file {}", objectNames.get(0));
+        InputFile inputFile = storageProvider.getInputFile(bucketName, objectNames.get(0));
+        try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
+            ParquetMetadata metadata = reader.getFooter();
+            TypeFactory.FieldResolver fieldResolver = TypeFactory.filedResolver(metadata);
+            return fieldResolver.resolveFields();
         }
     }
 
@@ -357,40 +341,35 @@ public class ParquetDatasource
      */
     private void readRecords(Schema schema, TableName tableInfo, Split split, Constraints constraints,
                              String bucketName, String objectName, BlockSpiller spiller,
-                             QueryStatusChecker queryStatusChecker)
+                             QueryStatusChecker queryStatusChecker) throws IOException
     {
-        try {
-            Stopwatch timer = Stopwatch.createStarted();
-            final StorageSplit storageSplit
-                    = new ObjectMapper()
-                    .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
-                            StorageSplit.class);
-            InputFile inputFile = storageProvider.getInputFile(bucketName, storageSplit.getFileName());
-            try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
-                MessageType messageType = reader.getFileMetaData().getSchema();
-                Configuration configuration = new Configuration();
-                configuration.set(ReadSupport.PARQUET_READ_SCHEMA, messageType.toString());
-                final MessageColumnIO columnIO = new ColumnIOFactory().getColumnIO(messageType);
-                List<GroupSplit> groupSplits = storageSplit.getGroupSplits();
-                for (GroupSplit groupSplit : groupSplits) {
-                    PageReadStore pages = reader.readRowGroup(groupSplit.getGroupIndex());
-                    FilterCompat.Filter filter = FilterCompat.get(page(groupSplit.getRowOffset(), groupSplit.getRowCount()));
-                    if (pages != null && queryStatusChecker.isQueryRunning()) {
-                        ParquetFilter parquetFilter = new ParquetFilter(schema, messageType, split);
-                        ConstraintEvaluator evaluator = parquetFilter.evaluator(tableInfo, split, constraints);
-                        gcsGroupRecordConverter = new GcsGroupRecordConverter(messageType, evaluator);
-                        addRecords(schema, messageType, columnIO.getRecordReader(pages,
-                                gcsGroupRecordConverter, filter), objectName, spiller, queryStatusChecker);
-                    }
+        Stopwatch timer = Stopwatch.createStarted();
+        final StorageSplit storageSplit
+                = new ObjectMapper()
+                .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
+                        StorageSplit.class);
+        InputFile inputFile = storageProvider.getInputFile(bucketName, storageSplit.getFileName());
+        try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
+            MessageType messageType = reader.getFileMetaData().getSchema();
+            Configuration configuration = new Configuration();
+            configuration.set(ReadSupport.PARQUET_READ_SCHEMA, messageType.toString());
+            final MessageColumnIO columnIO = new ColumnIOFactory().getColumnIO(messageType);
+            List<GroupSplit> groupSplits = storageSplit.getGroupSplits();
+            for (GroupSplit groupSplit : groupSplits) {
+                PageReadStore pages = reader.readRowGroup(groupSplit.getGroupIndex());
+                FilterCompat.Filter filter = FilterCompat.get(page(groupSplit.getRowOffset(), groupSplit.getRowCount()));
+                if (pages != null && queryStatusChecker.isQueryRunning()) {
+                    ParquetFilter parquetFilter = new ParquetFilter(schema, messageType, split);
+                    ConstraintEvaluator evaluator = parquetFilter.evaluator(tableInfo, split, constraints);
+                    gcsGroupRecordConverter = new GcsGroupRecordConverter(messageType, evaluator);
+                    addRecords(schema, messageType, columnIO.getRecordReader(pages,
+                            gcsGroupRecordConverter, filter), objectName, spiller, queryStatusChecker);
                 }
             }
-            finally {
-                timer.stop();
-                LOGGER.debug("Time took to read records: {}", timer.elapsed(TimeUnit.SECONDS));
-            }
         }
-        catch (Exception e) {
-            throw new UncheckedStorageDatasourceException(e.getMessage(), e);
+        finally {
+            timer.stop();
+            LOGGER.debug("Time took to read records: {}", timer.elapsed(TimeUnit.SECONDS));
         }
     }
 
@@ -404,28 +383,21 @@ public class ParquetDatasource
                             BlockSpiller spiller, QueryStatusChecker queryStatusChecker)
     {
         Group group;
-        try {
             TypeFactory.ValueResolver valueResolver = TypeFactory.valueResolver(messageType);
-            while ((group = groupRecordReader.read()) != null) {
-                if (queryStatusChecker.isQueryRunning()
-                        && (gcsGroupRecordConverter == null || !gcsGroupRecordConverter.shouldSkipCurrent())) {
-                    Map<String, Object> record = valueResolver.getRecord(group);
-                    record.put(BLOCK_PARTITION_COLUMN_NAME, partFileName);
-                    spiller.writeRows((Block block, int rowNum) -> {
-                        boolean isMatched = true;
-                        for (final Field field : schema.getFields()) {
-                            Object fieldValue = record.get(field.getName());
-                            isMatched &= block.offerValue(field.getName(), rowNum, fieldValue);
-                        }
-                        return isMatched ? 1 : 0;
-                    });
-                }
+        while ((group = groupRecordReader.read()) != null) {
+            if (queryStatusChecker.isQueryRunning()
+                    && (gcsGroupRecordConverter == null || !gcsGroupRecordConverter.shouldSkipCurrent())) {
+                Map<String, Object> record = valueResolver.getRecord(group);
+                record.put(BLOCK_PARTITION_COLUMN_NAME, partFileName);
+                spiller.writeRows((Block block, int rowNum) -> {
+                    boolean isMatched = true;
+                    for (final Field field : schema.getFields()) {
+                        Object fieldValue = record.get(field.getName());
+                        isMatched &= block.offerValue(field.getName(), rowNum, fieldValue);
+                    }
+                    return isMatched ? 1 : 0;
+                });
             }
-        }
-        catch (Exception exception) {
-            // ignored
-            LOGGER.error("Error in iterating records. Error message {}", exception.getMessage());
-            exception.printStackTrace();
         }
     }
 }

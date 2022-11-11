@@ -41,7 +41,7 @@ public abstract class FileFormat
     /**
      * Creates data source reflectively based on supplied GCS authentication key JSON and Map of property/value pairs from the environment variables
      *
-     * @param credentialJson Authentication Key JSON to access Google Cloud Storage
+     * @param credentialJson Authentication Key JSON to access underlying storage
      * @param properties     Map of property/value from the environment variables
      * @return An instance of StorageDatasource based on supplied parameters
      * @throws IOException               If occurs
@@ -97,7 +97,7 @@ public abstract class FileFormat
         /**
          * Creates the desired data source reflectively
          *
-         * @param credentialJson Authentication Key JSON to access Google Cloud Storage
+         * @param credentialJson Authentication Key JSON to access underlying storage
          * @param properties     Map of property/value from the environment variables
          * @return An instance of an appropriate StorageDatasource
          * @throws NoSuchMethodException     When reflection error occurs

@@ -91,7 +91,7 @@ public class GcsMetadataHandler
     private final GcsSchemaUtils gcsSchemaUtils;
     private final StorageDatasource datasource;
 
-    public GcsMetadataHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public GcsMetadataHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         super(SOURCE_TYPE);
         gcsSchemaUtils = new GcsSchemaUtils();
@@ -106,7 +106,7 @@ public class GcsMetadataHandler
                                  String spillBucket,
                                  String spillPrefix,
                                  GcsSchemaUtils gcsSchemaUtils,
-                                 AmazonS3 amazonS3) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+                                 AmazonS3 amazonS3) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         this.gcsSchemaUtils = gcsSchemaUtils;
@@ -138,30 +138,22 @@ public class GcsMetadataHandler
      * catalog, database tuple. It also contains the catalog name corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request)
+    public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws IOException
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=queryId {}",
                 request.getQueryId());
         printJson(request, "doListTables");
         List<TableName> tables = new ArrayList<>();
         String nextToken;
-        try {
-            LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Fetching list of tables with page size {} and token {} for scheme {}",
-                    request.getPageSize(), request.getNextToken(), request.getSchemaName());
-            TableListResult result = datasource.getAllTables(request.getSchemaName(), request.getNextToken(),
-                    request.getPageSize());
-            nextToken = result.getNextToken();
-            List<StorageObject> tableNames = result.getTables();
-            LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=tables under schema {} are: {}",
-                    request.getSchemaName(), tableNames);
-            tableNames.forEach(storageObject -> tables.add(new TableName(request.getSchemaName(), storageObject.getTableName())));
-        }
-        catch (Exception exception) {
-            LOGGER.error("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Exception occurred in GcsMetadataHandler.doListTables {}",
-                    exception.getMessage());
-            exception.printStackTrace();
-            throw new RuntimeException("Exception occurred in GcsMetadataHandler.doListTables: " + exception.getMessage(), exception);
-        }
+        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Fetching list of tables with page size {} and token {} for scheme {}",
+                request.getPageSize(), request.getNextToken(), request.getSchemaName());
+        TableListResult result = datasource.getAllTables(request.getSchemaName(), request.getNextToken(),
+                request.getPageSize());
+        nextToken = result.getNextToken();
+        List<StorageObject> tableNames = result.getTables();
+        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=tables under schema {} are: {}",
+                request.getSchemaName(), tableNames);
+        tableNames.forEach(storageObject -> tables.add(new TableName(request.getSchemaName(), storageObject.getTableName())));
         return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
     }
 
@@ -237,7 +229,6 @@ public class GcsMetadataHandler
         List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
         LOGGER.info("Storage partitions:\n{}", partitions);
         requireNonNull(partitions, "List of partition can't be retrieve from metadata");
-        //this.datasource.loadAllTables(tableName.getSchemaName());
         int counter = 0;
         for (int i = 0; i < partitions.size(); i++) {
             final String splitIndex = Integer.toString(i);
@@ -308,11 +299,6 @@ public class GcsMetadataHandler
             LOGGER.debug("No more storage split indices, returning empty split with null continuation token");
             return new GetSplitsResponse(request.getCatalogName(), splits, null);
         }
-//        String objectToExtractFullMetadata = partitioned
-//                ? null
-//                : objectNames.split(",")[0];
-//        List<FilterExpression> expressions = datasource.getExpressions(bucketName, partitioned ? partitionBaseObject : objectToExtractFullMetadata,
-//                request.getSchema(), tableInfo, request.getConstraints(), Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
         int startSplitIndex = storageSplitListIndices.get(0);
         LOGGER.info("Current split start index {}", startSplitIndex);
         for (int curPartition = startSplitIndex; curPartition < partitions.getRowCount(); curPartition++) {

@@ -75,7 +75,7 @@ public class SeekableGcsInputStream extends SeekableInputStream
     public SeekableGcsInputStream(StorageFile storageFile)
     {
         this.storage = storageFile.storage();
-        LOGGER.info("Creating blob id for file {} under teh bucket {}", storageFile.fileName(), storageFile.bucketName());
+        LOGGER.debug("Creating blob id for file {} under teh bucket {}", storageFile.fileName(), storageFile.bucketName());
         this.blobId = BlobId.of(storageFile.bucketName(), storageFile.fileName());
         Blob blob = storage.get(blobId);
         this.fileSize = blob.getSize();
@@ -255,7 +255,6 @@ public class SeekableGcsInputStream extends SeekableInputStream
     }
 
     // static helper
-
     /**
      * Mimics reading bytes from heap buffer. Basically it accesses the bytes directly from GCS storage object
      *

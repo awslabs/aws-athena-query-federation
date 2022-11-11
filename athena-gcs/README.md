@@ -32,7 +32,6 @@ The Amazon Athena GCS Connector exposes several configuration options via Lambda
 * **GcsSecretName** Name of the secret in the AWS Secret Manager
 * **GcsCredentialKey** Name of the key that contains GCS credential JSON (generated via service account key). Please refer to [this document](https://cloud.google.com/iam/docs/creating-managing-service-account-keys) for more details
 * **FileExtension** File extension (without period character) of the file in GCS buckets. Only one extension can be set; eitHer PARQUET or CSV (case-insensitive). These files will be parsed and shown as a Table under a database. So as you know, buckets are treated as databases. Please also note that invalid ANSI SQL characters in the file name will be replaced by an underscore character ('_'), and the file extension will be removed in the Table name
-* **FileNamePattern** Sometimes, one may need to group a set of files under a given bucket when the file names fall in a specific pattern. For example, file1.parquet, file2.parquet, and so on to treat as a single table name **file**. The pattern **must be** in the form of a regular expression. For this example, which would be ([a-zA-z)+)(\d+), the first group in the pattern will be shown as a table and rest of the groups will be ignored. The pattern **must not** include the file extension. If the value is left blank, all files inside the bucket will be treated as multiple tables, such as file1, file2, and so on
 
 ### Terms
 

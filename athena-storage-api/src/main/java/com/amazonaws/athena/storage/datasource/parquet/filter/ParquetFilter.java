@@ -45,7 +45,9 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
 
 /**
- * Currently it only supports returning only a single predicate
+ * Usually a non-JDBC connector we use MetadataHandler and RecordHandler, which are not specific to
+ * JDBC. Thus, we have to handle constraint within the connector. When we fetch constraint summery,
+ * we only have constraints with an AND operator. Other operators are handled by Athena itself
  * <p>
  * This is because AND, and OR operators are not still working with parquet
  */
@@ -130,10 +132,10 @@ public class ParquetFilter
     public ConstraintEvaluator evaluator(TableName tableInfo, Map<String, String> partitionFieldValueMap,
                                          Constraints constraints)
     {
-        LOGGER.info("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
+        LOGGER.debug("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
         List<FilterExpression> expressions = toConjuncts(tableInfo,
                 constraints, partitionFieldValueMap);
-        LOGGER.info("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
+        LOGGER.debug("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
         if (!expressions.isEmpty()) {
             expressions.forEach(this::addToAnd);
         }
