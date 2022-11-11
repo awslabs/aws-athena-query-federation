@@ -24,7 +24,6 @@ import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.testng.Assert.*;
@@ -36,7 +35,7 @@ public class PartitionUtilTest extends GcsTestBase
 {
 
     @Test
-    public void testIsPartionFolder()
+    public void testIsPartitionFolder()
     {
         boolean flag = PartitionUtil.isPartitionFolder("month=april");
         assertTrue(flag);
@@ -49,7 +48,8 @@ public class PartitionUtilTest extends GcsTestBase
     @Test
     public void testToString()
     {
-        Optional<FieldValue> fieldValue =  PartitionUtil.getPartitionFieldValue("month=april");
+        Optional<FieldValue> fieldValue =  PartitionUtil.getPartitionFieldValue("zipcode/StateName='UP'/");
+        System.out.println(fieldValue);
         assertNotNull(fieldValue.get());
     }
 }

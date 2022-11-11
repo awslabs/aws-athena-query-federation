@@ -24,28 +24,28 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class GcsIOUtilTest
+public class StorageIOUtilTest
 {
     @Test
     public void testCheckPartitionLocationIsSuccessful()
     {
         String baseLocation = "/abc/state='UP'/";
-        String actualPartitionedFolder = "state='UP'";
-        String expectedPartitionedFolder = GcsIOUtil.getFolderName(baseLocation);
-        assertEquals("Folders didn't match with expected", expectedPartitionedFolder, actualPartitionedFolder);
+        String expectedPartitionedFolder = "state='UP'";
+        String actualPartitionedFolder = StorageIOUtil.getFolderName(baseLocation);
+        assertEquals("Folders didn't match with expected", actualPartitionedFolder, expectedPartitionedFolder);
     }
 
     @Test
     public void testCheckFileHasExtension()
     {
         String filePath = "/abc/state='UP'/datafile.parquet";
-        assertTrue("File didn't have an extension", GcsIOUtil.containsExtension(filePath));
+        assertTrue("File didn't have an extension", StorageIOUtil.containsExtension(filePath));
     }
 
     @Test
     public void testCheckFileHasNotExtension()
     {
         String filePath = "/abc/state='UP'/datafile.parquet";
-        assertTrue("File did have an extension", GcsIOUtil.containsExtension(filePath));
+        assertTrue("File did have an extension", StorageIOUtil.containsExtension(filePath));
     }
 }

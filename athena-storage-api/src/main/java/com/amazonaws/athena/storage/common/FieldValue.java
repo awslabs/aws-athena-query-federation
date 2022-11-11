@@ -36,7 +36,7 @@ public class FieldValue
     {
         String[] fieldValuePair = fieldValue.split("=");
         if (fieldValuePair.length == 2) {
-            return Optional.of(new FieldValue(fieldValuePair[0], fieldValuePair[1]));
+            return Optional.of(new FieldValue(fieldValuePair[0].toLowerCase(), fieldValuePair[1]));
         }
         return Optional.empty();
     }

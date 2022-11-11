@@ -61,8 +61,8 @@ import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_OBJECT_N
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityNameFromFile;
 import static com.amazonaws.athena.storage.StorageUtil.tableNameFromFile;
-import static com.amazonaws.athena.storage.io.GcsIOUtil.containsExtension;
-import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
+import static com.amazonaws.athena.storage.io.StorageIOUtil.containsExtension;
+import static com.amazonaws.athena.storage.io.StorageIOUtil.getFolderName;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractStorageDatasource implements StorageDatasource
@@ -583,22 +583,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                                 .build());
                     }
                 }
-                else {
-                    LOGGER.debug("NO field values found for folder {} under bucket {}", folder, bucket);
-                    partitions.add(StoragePartition.builder()
-                            .objectNames(List.of(folder))
-                            .location(folder)
-                            .bucketName(bucket)
-                            .build());
-                }
-            }
-            else {
-                LOGGER.debug("Folder {} in bucket {} didn't match with pattern", folder, bucket);
-                partitions.add(StoragePartition.builder()
-                        .objectNames(List.of(folder))
-                        .location(folder)
-                        .bucketName(bucket)
-                        .build());
             }
         }
     }
@@ -606,7 +590,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     private boolean matchWithExpression(StorageObjectSchema objectSchema, List<FilterExpression> expressions,
                                         FieldValue fieldValue)
     {
-        if (expressions == null ||  expressions.isEmpty()) {
+        if (expressions.isEmpty()) {
             LOGGER.debug("No expression found to match against field value {}. Returning...", fieldValue);
             return true;
         }
@@ -618,16 +602,12 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         boolean matchFound = false;
         if (!matchedExpression.isEmpty()) {
             for (FilterExpression expression : matchedExpression) {
-                Object filterValue = expression.filterValue() == null
-                        ? "null"
-                        : expression.filterValue();
-                if (fieldValue.getValue().endsWith(filterValue.toString())) {
+                if (fieldValue.getValue().endsWith(expression.filterValue().toString())) {
                     matchFound = true;
                     break;
                 }
             }
         }
-
         if (!matchFound) {
             long matchCount = objectSchema.getFields().stream()
                     .filter(field -> fieldValue.getField().equalsIgnoreCase(field.getColumnName()))

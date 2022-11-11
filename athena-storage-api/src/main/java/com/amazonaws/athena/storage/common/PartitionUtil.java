@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
+import static com.amazonaws.athena.storage.io.StorageIOUtil.getFolderName;
 
 public class PartitionUtil
 {
