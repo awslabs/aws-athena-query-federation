@@ -6,7 +6,7 @@
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
         <version>2022.42.2</version>
-        <relativePath>../../aws-athena-query-federation</relativePath>
+<!--        <relativePath>../../aws-athena-query-federation/pom.xml</relativePath>-->
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-gcs</artifactId>

@@ -381,7 +381,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             if (!isExtensionCheckMandatory()) {
                 addTable(bucketName, fileName, objectNameMap);
             }
-            else if (fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
+            else if (storageProvider.isPartitionedDirectory(bucketName, fileName)
+                    || fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
                 addTable(bucketName, fileName, objectNameMap);
             }
         }

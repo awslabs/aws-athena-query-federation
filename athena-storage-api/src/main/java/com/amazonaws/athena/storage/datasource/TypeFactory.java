@@ -120,6 +120,7 @@ public class TypeFactory
                 ColumnDescriptor descriptor = columns.get(i);
                 String fieldName = descriptor.getPath()[0];
                 int fieldIndex = schema.getFieldIndex(fieldName);
+                fieldName = fieldName.toLowerCase();
                 try {
                     primitiveType = descriptor.getPrimitiveType();
                     switch (descriptor.getPrimitiveType().getPrimitiveTypeName()) {

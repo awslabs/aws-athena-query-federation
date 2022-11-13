@@ -350,7 +350,7 @@ public class ParquetDatasource
     @Override
     public int recordsPerSplit()
     {
-        return 200_000;
+        return 10_000;
     }
 
     // helpers
@@ -383,6 +383,7 @@ public class ParquetDatasource
                 if (pages != null && queryStatusChecker.isQueryRunning()) {
                     ParquetFilter parquetFilter = new ParquetFilter(schema, messageType, split);
                     ConstraintEvaluator evaluator = parquetFilter.evaluator(tableInfo, split, constraints);
+                    LOGGER.info("Parquet evaluator: {}", evaluator);
                     gcsGroupRecordConverter = new GcsGroupRecordConverter(messageType, evaluator);
                     addRecords(schema, messageType, columnIO.getRecordReader(pages,
                             gcsGroupRecordConverter, filter), objectName, spiller, queryStatusChecker);
@@ -409,6 +410,7 @@ public class ParquetDatasource
         while ((group = groupRecordReader.read()) != null) {
             if (queryStatusChecker.isQueryRunning()
                     && (gcsGroupRecordConverter == null || !gcsGroupRecordConverter.shouldSkipCurrent())) {
+                LOGGER.info("Parquet record group: {}, class name: {}", group, group.getClass().getName());
                 Map<String, Object> record = valueResolver.getRecord(group);
                 record.put(BLOCK_PARTITION_COLUMN_NAME, partFileName);
                 spiller.writeRows((Block block, int rowNum) -> {

@@ -62,6 +62,7 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
     {
         if (!and.contains(expression)) {
             if (!columnIndices.contains(expression.columnIndex())) {
+                LOGGER.info("Adding parquet expression {}", expression);
                 columnIndices.add(expression.columnIndex());
             }
             and.add(expression);

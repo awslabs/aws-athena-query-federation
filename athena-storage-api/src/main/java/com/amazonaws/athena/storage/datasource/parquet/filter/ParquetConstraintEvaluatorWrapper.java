@@ -52,4 +52,10 @@ public final class ParquetConstraintEvaluatorWrapper implements ConstraintEvalua
     {
         // do nothing, wrapper won't mutate the proxy
     }
+
+    @Override
+    public String toString()
+    {
+        return evaluator.toString();
+    }
 }
