@@ -33,7 +33,6 @@ import static org.testng.Assert.*;
 @PrepareForTest({})
 public class PartitionUtilTest extends GcsTestBase
 {
-
     @Test
     public void testIsPartitionFolder()
     {
@@ -51,5 +50,12 @@ public class PartitionUtilTest extends GcsTestBase
         Optional<FieldValue> fieldValue =  PartitionUtil.getPartitionFieldValue("zipcode/StateName='UP'/");
         System.out.println(fieldValue);
         assertNotNull(fieldValue.get());
+    }
+
+    @Test
+    public  void testRootNameOfPrefix()
+    {
+        String rootName = PartitionUtil.getRootName("zipcode/StateName='UP'/");
+        assertEquals(rootName, "zipcode", "Prefix root name not matched");
     }
 }

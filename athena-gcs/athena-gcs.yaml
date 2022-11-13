@@ -8,14 +8,14 @@ Metadata:
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
-    Labels: ['athena-federation']
+    Labels: ['athena-federation', 'GCS', 'Google Cloud Storage', 'parquet', 'csv']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
     SemanticVersion: 2022.42.2
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
   AthenaCatalogName:
-    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Description: 'The name you will give to this catalog is a Lambda name for Athena. Athena will use this name as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SpillBucket:

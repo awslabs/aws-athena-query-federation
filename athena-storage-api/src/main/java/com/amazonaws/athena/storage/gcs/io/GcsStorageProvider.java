@@ -92,7 +92,7 @@ public class GcsStorageProvider implements StorageProvider
         requireNonNull(storage, "Storage was null");
         File tempFile = fromExistingCache(bucket, objectName);
         if (tempFile == null) {
-            LOGGER.debug("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=File {} under the bucket {} not cached. Caching...%n",
+            LOGGER.debug("StorageProvider=GcsStorageProvider|Method=getOfflineInputStream|Message=File {} under the bucket {} not cached. Caching...",
                     objectName, bucket);
             GcsFileByteLoader byteLoader = new GcsFileByteLoader(storage, bucket, objectName);
             tempFile = cacheBytesInTempFile(bucket, objectName, byteLoader.getData());
@@ -140,6 +140,9 @@ public class GcsStorageProvider implements StorageProvider
     {
         BlobId blobId = BlobId.of(bucket, prefix);
         Blob blob = storage.get(blobId);
+        if (blob == null && !prefix.endsWith("/")) { // maybe a folder without ending with a '/' character
+            blob = storage.get(BlobId.of(bucket, prefix + "/"));
+        }
         LOGGER.debug("Blob for prefix {} under the bucket {} is: {} with size: {}", prefix, bucket, blob, blob == null ? -1 : blob.getSize());
         return  (blob != null && blob.getSize() == 0);
     }
@@ -150,11 +153,11 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(location));
         for (Blob blob : blobPage.iterateAll()) {
             if (isPartitionFolder(blob.getName())) {
-                LOGGER.debug("Path {} is a partitioned directory", location);
+                LOGGER.info("Path {} is a partitioned directory", location);
                 return true;
             }
         }
-        LOGGER.debug("Path {} is NOT a partitioned directory", location);
+        LOGGER.info("Path {} is NOT a partitioned directory", location);
         return false;
     }
 

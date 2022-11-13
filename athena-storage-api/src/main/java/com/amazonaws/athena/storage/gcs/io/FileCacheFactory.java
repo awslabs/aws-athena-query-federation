@@ -124,7 +124,7 @@ public class FileCacheFactory
             requireNonNull(storage, "Storage was null");
             File tempFile = fromExistingCache(bucketName, fileName);
             if (tempFile == null) {
-                LOGGER.debug("Factory=FileCacheFactory|Method=createRandomFile|Message=File {} under the bucket {} not cached. Caching...%n",
+                LOGGER.debug("Factory=FileCacheFactory|Method=createRandomFile|Message=File {} under the bucket {} not cached. Caching...",
                         fileName, bucketName);
                 GcsFileByteLoader byteLoader = new GcsFileByteLoader(storage, bucketName, fileName);
                 tempFile = cacheBytesInTempFile(bucketName, fileName, byteLoader.getData());

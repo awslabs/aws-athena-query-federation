@@ -42,7 +42,6 @@ import com.amazonaws.athena.storage.StorageUtil;
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
-import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
@@ -185,30 +184,36 @@ public class CsvDatasource
     }
 
     @Override
-    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
+    public List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints) throws IOException
     {
-        List<String> fileNames;
-        if (partitioned) {
-            LOGGER.debug("Location {} is a directory, walking through", partition.getLocation());
-            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
-        }
-        else {
-            fileNames = List.of(partition.getLocation());
-        }
-        LOGGER.debug("Splitting based on file list: {}", fileNames);
-        List<StorageSplit> splits = new ArrayList<>();
-        for (String fileName : fileNames) {
-            checkFilesSize(partition.getBucketName(), fileName);
-            LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
-            try (InputStream inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName)) {
-                long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
-                LOGGER.debug("Total record found in file {} was {}", fileName, totalRecords);
-                splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
-            }
-        }
-        StorageUtil.printJson(splits, "Csv Splits");
-        return splits;
+        return List.of();
     }
+
+//    @Override
+//    public List<StorageSplit> getSplitsByBucketPrefix(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
+//    {
+//        List<String> fileNames;
+//        if (partitioned) {
+//            LOGGER.debug("Location {} is a directory, walking through", partition.getLocation());
+//            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
+//        }
+//        else {
+//            fileNames = List.of(partition.getLocation());
+//        }
+//        LOGGER.debug("Splitting based on file list: {}", fileNames);
+//        List<StorageSplit> splits = new ArrayList<>();
+//        for (String fileName : fileNames) {
+//            checkFilesSize(partition.getBucketName(), fileName);
+//            LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
+//            try (InputStream inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName)) {
+//                long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
+//                LOGGER.debug("Total record found in file {} was {}", fileName, totalRecords);
+//                splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
+//            }
+//        }
+//        StorageUtil.printJson(splits, "Csv Splits");
+//        return splits;
+//    }
 
     /**
      * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement

@@ -39,4 +39,6 @@ public interface ConstraintEvaluator
      * @return A list of {@link FilterExpression} instances
      */
     List<FilterExpression> getExpressions();
+
+    void addToAnd(FilterExpression expression);
 }

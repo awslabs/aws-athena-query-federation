@@ -81,11 +81,14 @@ public class GcsUtil
 
     public static void printJson(Object object, String prefix)
     {
+        if (true) {
+            return;
+        }
         LOGGER.info("Printing json for {}", prefix);
         try {
             ObjectMapper mapper = new ObjectMapper();
             mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-            LOGGER.info(prefix + ":%n{}", object);
+            LOGGER.info(prefix + ":\n{}", mapper.writeValueAsString(object));
         }
         catch (Exception exception) {
             // ignored

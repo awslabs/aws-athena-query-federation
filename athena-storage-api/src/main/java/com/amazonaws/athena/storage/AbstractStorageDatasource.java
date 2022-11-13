@@ -25,13 +25,16 @@ import com.amazonaws.athena.storage.common.FieldValue;
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.PagedObject;
 import com.amazonaws.athena.storage.common.PartitionUtil;
+import com.amazonaws.athena.storage.common.StorageNode;
 import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
+import com.amazonaws.athena.storage.common.TreeTraversalContext;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
+import com.amazonaws.athena.storage.util.StorageTreeNodeBuilder;
 import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -253,11 +256,39 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         requireNonNull(objectName, "objectName name was null");
         List<StoragePartition> storagePartitions = new ArrayList<>();
         if (storageProvider.isDirectory(bucketName, objectName)) {
-            LOGGER.debug("Object {} under buket {} is a directory", objectName, bucketName);
             if (storageProvider.isPartitionedDirectory(bucketName, objectName)) {
-                LOGGER.debug("Folder {} under buket {} is  partitioned", objectName, bucketName);
-                addPartitionsRecurse(bucketName, objectName, true, schema, tableInfo, constraints,
-                        storagePartitions);
+                TreeTraversalContext context = TreeTraversalContext.builder()
+                        .hasParent(true)
+                        .includeFile(false)
+                        .maxDepth(0) // unlimited
+                        .partitionDepth(1)
+                        .storageDatasource(this)
+                        .build();
+                List<String> fileNames = storageProvider.getLeafObjectsByPartitionPrefix(bucketName, objectName, 1);
+                if (fileNames.isEmpty()) {
+                    throw new UncheckedStorageDatasourceException("No files found to retrieve schema for partitioned table "
+                            + tableInfo.getTableName() + " under schema " + tableInfo.getSchemaName());
+                }
+                List<FilterExpression> expressions = getExpressions(bucketName, fileNames.get(0), schema, tableInfo, constraints, Map.of());
+                LOGGER.info("AbstractStorageDatasource.getStoragePartitions() -> List of expressions:\n{}", expressions);
+                context.addAllFilers(expressions);
+                Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(bucketName,
+                        objectName, objectName, context);
+                List<StoragePartition> partitions = new ArrayList<>();
+                for (StorageNode<String> partitionedFolderNode : optionalRoot.get().getChildren()) {
+                    partitions.add(StoragePartition.builder()
+                            .objectNames(List.of())
+                            .location(partitionedFolderNode.getPath() + "/")
+                            .bucketName(bucketName)
+                            .recordCount(0L)
+                            .children(List.of())
+                            .build());
+                }
+                LOGGER.info("Storage partitions using tree: \n{}", partitions);
+                return partitions;
+            }
+            else {
+                LOGGER.info("Folder {} in bucket {} is not a partitioned folder", objectName, bucketName);
             }
         }
         else {
@@ -283,6 +314,9 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
                                                           TableName tableInfo, Constraints constraints) throws IOException
     {
+        if (true) {
+            return List.of();
+        }
         LOGGER.debug("Retrieving nested object in partition for object {} under the bucket {}", objectName, bucketName);
         return this.getStoragePartitions(schema, tableInfo, constraints, bucketName, objectName);
     }
@@ -488,6 +522,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     // helpers
+
     /**
      * Determines whether a bucket exists for the given database name
      *
@@ -512,6 +547,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     // helpers
+
     /**
      * Mark whether all tables (entities) are loaded maintained in a LoadedEntities object
      *

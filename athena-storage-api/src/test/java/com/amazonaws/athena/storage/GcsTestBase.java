@@ -78,6 +78,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -265,6 +266,23 @@ public class GcsTestBase extends StorageMock
         PowerMockito.when(FileCacheFactory.getGCSInputFile(storage, bucketName, fileName)).thenReturn(inputFile);
         PowerMockito.when(FileCacheFactory.getEmptyGCSInputFile(storage, bucketName, fileName)).thenReturn(inputFile);
         return new StorageWithInputTest(storage, inputFile, storageFile);
+    }
+
+    protected StorageDatasource getTestDataSource(final String extension) throws Exception
+    {
+        String appCredentialsJsonString = "{\n" +
+                "  \"type\": \"service_account\",\n" +
+                "  \"project_id\": \"athena-federated-query\",\n" +
+                "  \"private_key_id\": \"2ad4078f1692a6d3887ab6c4a97254c755566646\",\n" +
+                "  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDIPRq3S8SHygD/\\nDXjq927DtcJ2cLSn0Gl3hFuArAUJjtRb8q0/Zw17drzkH2X+OrtMCutI8rwRmk/M\\nbR3nwetaAS/lSTtw+oN4PeYHAFokjLa12VqJl+zIM2GE0DLXRdar0YlAvwJ89P0B\\nV1/Uk7wdeOGxEfLrc5TIhxV5adV+QFS7jjgRBnkFxsMRMqKb1OMDvaHreqaiXJpP\\nd75Ut1prwB2JLkElfqMBBVcm8o1pSqsEGUamluQVEDK3E96XolsGPVe31k0o7rzf\\nyLP7MUvcwniIq4lrzSjeZ25N3FPkquUGbn+mPsNkLxCbOwcrY/jDxXNOUZTMLeqp\\n7Vkt01OxAgMBAAECggEACoNy0KbwxbRsgvfBHo0pSqtTb4aRZbJCp1zStRnTFeJi\\n8gT25bpSceYVGuEvKL8KsH5uRiFAkKgKgpBEHrQG2G3xhtdmgJMWrgyJ9FonYX3l\\n5fxojYrlislv2FpaIQVwtQrGaxjcV5VBZ32f8XhkSyParcJkf8pMyI6XKQ3OgNdm\\nCTVDD4C60KNq9a4sJqKBopB+FJLn4TnUGLZiZAV+A4uKLUA38zwga6oMWCygxgZz\\nE5eWy17I211NqSju9PErsGH6z4zApR4pTWKctpfn+dZQTBS8ZSoC7g2BBxLk3C0w\\niYlUQXt/KUCZ0xaI+6mQqq1QrvGCa54EKArjc+oxNQKBgQDw9Lst+U5QDNFD4vEg\\n9/NwsOxc79pREG2FgLrw4lZqfHX8o8llg7b8Y1c2ysrYj0B/0apCQVIVDZoRHerj\\nJr0dyXWklotRiXPZ67itPXhun95GXVdUNiSRYwwJEwkIhK584d90j5eXtTCyr5FM\\nWuZadBsAAtv4ZgqIYObiLy3yOwKBgQDUvZO1Jhf1r4MHnhCQ1Nv+2qgnhEtp3uHQ\\ni5h9N3cH0DmPBOisp1qcSlIYwUM8ufVBcEhNTsIAffbDAViWa05ju9/wUcIA6jBi\\nR8P8PF/Ex8TdZtgUCTabysfcONKOLZ2Sa7E0/O4Y9EZgnzsFkZWfx/eSvtW0a3Za\\neB19tH+nAwKBgQCPtIXF/3/zQhG0eS7ySK7JsNrm+q2r1y5ahtH3RCXh0GTVziEZ\\nCBskH2MubHfZ/GWtVbBDX43CvJ/8QWmLG9mCYFpnVNm2QVH00B8OQzEGWRZJxPWG\\nZdwdUYMmDlI+4FLobBXHALSaaBepGgiAD15+5+wKb6odVU5G0/QfRaATbQKBgQDJ\\n+suYO3iYDHDs9Idp2o6cYuEv04z+EVx38XFvwQ9D3dAoF1MJSULgDDfxxNufdjaC\\nUKZ0r4fFi9KSxl5jQbIFQsSUmCsHT1FsnhJXEsMiQ0CHrDMOosi0FUy3q0NNNcXa\\n1GBEnLc5/gIrjkItQVG7h9FoA8NGLpkJv+zQAmUIHQKBgQCG4I9+AsyDJsJvhAyy\\nT5T4oFIHHMD4ODZl+2rdmtEW07KbHatPme0hcMTwlVyZdN/AFJpZZ94Rm0/Zc6c8\\nwaz0nY3XnDw39+6TI6STjLeANIdc1GGTOVsUydsdr7P/MvRHrMABzbbPC7vp7N0v\\nf7lV2ouT0TltRUnyQ3GsqR31fw==\\n-----END PRIVATE KEY-----\\n\",\n" +
+                "  \"client_email\": \"akshay-kachore-trianz-com@athena-federated-query.iam.gserviceaccount.com\",\n" +
+                "  \"client_id\": \"105657958960441983486\",\n" +
+                "  \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\n" +
+                "  \"token_uri\": \"https://oauth2.googleapis.com/token\",\n" +
+                "  \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\n" +
+                "  \"client_x509_cert_url\": \"https://www.googleapis.com/robot/v1/metadata/x509/akshay-kachore-trianz-com%40athena-federated-query.iam.gserviceaccount.com\"\n" +
+                "}";
+        return StorageDatasourceFactory.createDatasource(appCredentialsJsonString, Map.of(FILE_EXTENSION_ENV_VAR, extension));
     }
 
     protected Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)

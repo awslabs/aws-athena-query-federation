@@ -35,6 +35,15 @@ public class PartitionUtil
     {
     }
 
+    public static String getRootName(String prefix)
+    {
+        int indexOfPathSeparator = prefix.indexOf("/");
+        if (indexOfPathSeparator > -1) {
+            return prefix.substring(0, indexOfPathSeparator);
+        }
+        return prefix;
+    }
+
     public static boolean isPartitionFolder(String folderName)
     {
         String simpleName = getFolderName(folderName);
