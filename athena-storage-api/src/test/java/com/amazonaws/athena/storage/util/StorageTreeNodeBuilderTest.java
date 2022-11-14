@@ -44,16 +44,14 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Scanner;
 
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
-import static org.apache.arrow.vector.types.Types.MinorType.BIT;
-import static org.apache.arrow.vector.types.Types.MinorType.DATEDAY;
-import static org.apache.arrow.vector.types.Types.MinorType.FLOAT4;
-import static org.apache.arrow.vector.types.Types.MinorType.FLOAT8;
-import static org.apache.arrow.vector.types.Types.MinorType.INT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -128,7 +126,6 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         assertTrue("File(s) not found with prefix zipcode/StateName='UP'/" , optionalRoot.isPresent());
         System.out.println(optionalRoot.get().getChildren());
     }
-
 
     private void addSchemaFields(SchemaBuilder schemaBuilder, boolean parquetFields)
     {
