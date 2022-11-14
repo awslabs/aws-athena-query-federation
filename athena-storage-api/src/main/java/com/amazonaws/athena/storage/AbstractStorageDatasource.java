@@ -358,16 +358,19 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         markEntitiesLoaded(databaseName);
     }
 
-    protected Map<StorageObject, List<String>> convertBlobsToTableObjectsMap(String bucketName, List<String> fileNames) throws IOException
+    protected Map<StorageObject, List<String>> convertBlobsToTableObjectsMap(String bucketName, List<String> objectNames) throws IOException
     {
         Map<StorageObject, List<String>> objectNameMap = new HashMap<>();
-        for (String fileName : fileNames) {
-            if (!isExtensionCheckMandatory()) {
-                addTable(bucketName, fileName, objectNameMap);
-            }
-            else if (storageProvider.isPartitionedDirectory(bucketName, fileName)
-                    || fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
-                addTable(bucketName, fileName, objectNameMap);
+        for (String objectName : objectNames) {
+//            if (!isExtensionCheckMandatory()) {
+//                addTable(bucketName, fileName, objectNameMap);
+//            }
+//            else if (storageProvider.isPartitionedDirectory(bucketName, fileName)
+//                    || fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
+//                addTable(bucketName, fileName, objectNameMap);
+//            }
+            if (checkValidTable(bucketName, objectName)) {
+                addTable(bucketName, objectName, objectNameMap);
             }
         }
         return objectNameMap;
@@ -541,5 +544,20 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             }
         }
         return Optional.empty();
+    }
+
+    private boolean checkValidTable(String bucket, String objectName) throws IOException
+    {
+        if (storageProvider.isPartitionedDirectory(bucket, objectName)) {
+            Optional<String> optionalObjectName = storageProvider.getFirstObjectNameRecurse(bucket, objectName);
+            return (optionalObjectName.isPresent() && isSupported(bucket, optionalObjectName.get()));
+        }
+        else if (isExtensionCheckMandatory() && objectName.toLowerCase().endsWith(extension.toLowerCase())) {
+            return true;
+        }
+        else if (!isExtensionCheckMandatory()) {
+            return true;
+        }
+        return false;
     }
 }

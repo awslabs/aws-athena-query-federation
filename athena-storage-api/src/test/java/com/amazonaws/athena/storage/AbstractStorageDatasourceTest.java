@@ -231,6 +231,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
                 .when(abstractStorageDatasource)
                 .convertBlobsToTableObjectsMap(BUCKET, bucketList);
 
+
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, new HashMap<>());
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
         Whitebox.setInternalState(abstractStorageDatasource, EXTENSION, "csv");

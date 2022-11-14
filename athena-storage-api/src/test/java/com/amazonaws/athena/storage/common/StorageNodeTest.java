@@ -19,38 +19,23 @@
  */
 package com.amazonaws.athena.storage.common;
 
-import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageDatasource;
-import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
-import com.amazonaws.athena.storage.datasource.parquet.filter.EqualsExpression;
-import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.storage.StorageOptions;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
-import org.junit.jupiter.api.BeforeAll;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Scanner;
+import java.util.Set;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
@@ -78,17 +63,12 @@ public class StorageNodeTest
     }
 
     @Test
-    public void testNodesAreSortedByName() throws Exception {
-        TreeTraversalContext context = TreeTraversalContext.builder()
-                .includeFile(false)
-                .maxDepth(0)
-                .storageDatasource(getTestDataSource("csv"))
-                .build();
-        StorageNode<String> root = new StorageNode<>("zipcode", "zipcode/", context);
-        StorageNode<String> child = root.addChild("StateName='UP'", "zipcode/StateName='UP'/", context);
-        child.addChild("D", "D:\\", context);
-        child.addChild("C", "C:\\", context);
-        root.addChild("StateName='Tamil Nadu'", "zipcode/StateName='Tamil Nadu'/", context);
+    public void testNodesAreSortedByName() {
+        StorageNode<String> root = new StorageNode<>("zipcode", "zipcode/");
+        StorageNode<String> child = root.addChild("StateName='UP'", "zipcode/StateName='UP'/");
+        child.addChild("D", "D:\\");
+        child.addChild("C", "C:\\");
+        root.addChild("StateName='Tamil Nadu'", "zipcode/StateName='Tamil Nadu'/");
         printChildrenRecurse(root.getChildren());
     }
 
@@ -112,7 +92,7 @@ public class StorageNodeTest
                 .maxDepth(3)
                 .storageDatasource(getTestDataSource("parquet"))
                 .build();
-        StorageNode<String> root = new StorageNode<>("/", "/", context);
+        StorageNode<String> root = new StorageNode<>("/", "/");
         for (String data : paths) {
             String[] names = context.normalizePaths(data.split("/"));
             if (names.length == 0 || !root.isChild(names[0])) {
@@ -137,11 +117,9 @@ public class StorageNodeTest
                     if (parent.getPath().equals(path)) {
                         continue;
                     }
-                    parent = parent.addChild(names[i], path, context);
                 }
-                else {
-                    parent = parent.addChild(names[i], path, context);
-                }
+                parent = parent.addChild(names[i], path);
+
             }
         }
         printChildrenRecurse(root.getChildren());

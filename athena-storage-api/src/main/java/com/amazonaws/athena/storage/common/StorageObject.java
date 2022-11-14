@@ -19,17 +19,21 @@
  */
 package com.amazonaws.athena.storage.common;
 
+import java.util.List;
+
 public class StorageObject
 {
     private String tableName;
     private String objectName;
     private boolean partitioned;
+    private List<String> partitionedColumns;
 
-    public StorageObject(String tableName, String objectName, boolean partitioned)
+    public StorageObject(String tableName, String objectName, boolean partitioned, List<String> partitionedColumns)
     {
         this.tableName = tableName;
         this.objectName = objectName;
         this.partitioned = partitioned;
+        this.partitionedColumns = partitionedColumns;
     }
 
     public String getTableName()
@@ -62,6 +66,16 @@ public class StorageObject
         this.partitioned = partitioned;
     }
 
+    public List<String> getPartitionedColumns()
+    {
+        return partitionedColumns;
+    }
+
+    public void setPartitionedColumns(List<String> partitionedColumns)
+    {
+        this.partitionedColumns = partitionedColumns;
+    }
+
     @Override
     public String toString()
     {
@@ -81,6 +95,7 @@ public class StorageObject
         private String tabletName;
         private String objectName;
         private boolean partitioned;
+        private List<String> partitionedColumns;
 
         public Builder setTabletName(final String tabletName)
         {
@@ -100,9 +115,18 @@ public class StorageObject
             return this;
         }
 
+        public Builder partitionedColumns(List<String> partitionedColumns)
+        {
+            this.partitionedColumns = partitionedColumns;
+            return this;
+        }
+
         public StorageObject build()
         {
-            return new StorageObject(this.tabletName, this.objectName,  this.partitioned);
+            return new StorageObject(this.tabletName, this.objectName,  this.partitioned,
+                    this.partitionedColumns == null
+                            ? List.of()
+                            : this.partitionedColumns);
         }
     }
 }

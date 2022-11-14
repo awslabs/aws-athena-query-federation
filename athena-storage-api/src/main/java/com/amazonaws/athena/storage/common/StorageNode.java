@@ -29,21 +29,11 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
     private final T data;
     private final T path;
     private int index = 0;
-    private final TreeTraversalContext context;
 
-    public StorageNode(T data, T path, TreeTraversalContext context)
+    public StorageNode(T data, T path)
     {
         this.data = data;
         this.path = path;
-        this.context = context;
-    }
-
-    public StorageNode(T data, T path, StorageNode<T> parent, TreeTraversalContext context)
-    {
-        this.data = data;
-        this.path = path;
-        this.parent = parent;
-        this.context = context;
     }
 
     public TreeSet<StorageNode<T>> getChildren()
@@ -51,27 +41,13 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
         return children;
     }
 
-    public void setParent(StorageNode<T> parent)
+    public StorageNode<T> addChild(T data, T path)
     {
-        parent.addChild(this);
-        this.parent = parent;
-    }
-
-    public StorageNode<T> addChild(T data, T path, TreeTraversalContext context)
-    {
-        StorageNode<T> child = new StorageNode<>(data, path, context);
+        StorageNode<T> child = new StorageNode<>(data, path);
         child.parent = this;
         child.index = this.children.size();
         this.children.add(child);
         return child;
-    }
-
-    public void addChild(StorageNode<T> child)
-    {
-        if (child.parent == null) {
-            child.parent = this;
-        }
-        this.children.add(child);
     }
 
     public T getData()
@@ -92,11 +68,6 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
     public boolean isLeaf()
     {
         return this.children.size() == 0;
-    }
-
-    public void removeParent()
-    {
-        this.parent = null;
     }
 
     public boolean isChild(String path)
