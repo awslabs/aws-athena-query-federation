@@ -41,15 +41,18 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
 import org.mockito.Mockito;
 
-import java.io.File;
+import javax.sql.DataSource;
+
 import java.io.FileNotFoundException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Scanner;
 
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
@@ -59,6 +62,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 
 public class StorageTreeNodeBuilderTest extends GcsTestBase {
 
+    private final StorageDatasource parquetDatasource = getTestDataSource("parquet");
+
+    public StorageTreeNodeBuilderTest() throws FileNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    {
+    }
+    
     private final static String BUCKET = "mydatalake1";
 
     private final Map<String, ArrowType> parquetFieldSchemaMap = Map.of(
@@ -74,7 +83,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
                 .includeFile(false)
                 .maxDepth(0)
                 .partitionDepth(1)
-                .storageDatasource(getTestDataSource("parquet"))
+                .storageDatasource(parquetDatasource)
                 .build();
         Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(BUCKET,
                 "zipcode", "zipcode", context);
@@ -89,7 +98,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
                 .includeFile(false)
                 .maxDepth(0)
                 .partitionDepth(1)
-                .storageDatasource(getTestDataSource("parquet"))
+                .storageDatasource(parquetDatasource)
                 .build();
         context.addAllFilers(List.of(
                 new EqualsExpression(1, "statename", "UP")
@@ -108,7 +117,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         Schema fieldSchema = schemaBuilder.build();
         Constraints constraints = new GcsConstraints(createSummary());
         TableName tableName = new TableName("mydatalake1", "zipcode");
-        StorageDatasource datasource = getTestDataSource("parquet");
+        StorageDatasource datasource = parquetDatasource;
         List<StoragePartition> partitions = datasource.getStoragePartitions(fieldSchema, tableName, constraints, BUCKET, "zipcode/");
         assertFalse("No partitions found", partitions.isEmpty());
         System.out.println(partitions);
@@ -119,7 +128,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         TreeTraversalContext context = TreeTraversalContext.builder()
                 .hasParent(true)
                 .maxDepth(0)
-                .storageDatasource(getTestDataSource("parquet"))
+                .storageDatasource(parquetDatasource)
                 .build();
         Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildFileOnlyTreeForPrefix(BUCKET,
                 "zipcode", "zipcode/StateName='UP'/", context);

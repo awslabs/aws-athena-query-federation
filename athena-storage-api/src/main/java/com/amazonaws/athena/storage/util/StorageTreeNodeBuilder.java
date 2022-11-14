@@ -35,7 +35,7 @@ public class StorageTreeNodeBuilder
     {
     }
 
-    public static synchronized Optional<StorageNode<String>> buildTreeWithNestedDirectories()
+    public static Optional<StorageNode<String>> buildTableTree(String bucket)
     {
         return Optional.empty();
     }
@@ -53,7 +53,7 @@ public class StorageTreeNodeBuilder
         if (paths.isEmpty()) {
             return Optional.empty();
         }
-        StorageNode<String> root = new StorageNode<>(rootName, rootPath, context);
+        StorageNode<String> root = new StorageNode<>(rootName, rootPath);
         for (String data : paths) {
             String[] names = context.normalizePaths(data.split("/"));
             if (names.length == 0 || !root.isChild(names[0])) {
@@ -78,10 +78,10 @@ public class StorageTreeNodeBuilder
                     if (parent.getPath().equals(path)) {
                         continue;
                     }
-                    parent = parent.addChild(names[i], path, context);
+                    parent = parent.addChild(names[i], path);
                 }
                 else {
-                    parent = parent.addChild(names[i], path, context);
+                    parent = parent.addChild(names[i], path);
                 }
             }
         }
@@ -98,7 +98,7 @@ public class StorageTreeNodeBuilder
         if (paths.isEmpty()) {
             return Optional.empty();
         }
-        StorageNode<String> root = new StorageNode<>(rootName, rootName, context);
+        StorageNode<String> root = new StorageNode<>(rootName, rootName);
         for (String data : paths) {
             String[] names = context.normalizePaths(data.split("/"));
             if (names.length == 0) {
@@ -120,10 +120,10 @@ public class StorageTreeNodeBuilder
                     if (parent.getPath().equals(path)) {
                         continue;
                     }
-                    parent = parent.addChild(names[i], path, context);
+                    parent = parent.addChild(names[i], path);
                 }
                 else {
-                    parent = parent.addChild(names[i], path, context);
+                    parent = parent.addChild(names[i], path);
                 }
             }
         }
