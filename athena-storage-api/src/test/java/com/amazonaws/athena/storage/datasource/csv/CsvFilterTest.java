@@ -31,9 +31,9 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.storage.mock.GcsMarker;
-import com.amazonaws.athena.storage.mock.GcsConstraints;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.athena.storage.mock.AthenaMarker;
+import com.amazonaws.athena.storage.mock.AthenaConstraints;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -75,7 +75,7 @@ public class CsvFilterTest
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(EMPLOYEE_ID, Types.MinorType.VARCHAR.getType()));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = new GcsMarker(block, Marker.Bound.EXACTLY, false).withValue("90");
+        Marker low = new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue("90");
         return Map.of(
                 EMPLOYEE_ID, SortedRangeSet.of(false, new Range(low, low))
         );
@@ -99,8 +99,8 @@ public class CsvFilterTest
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
                 .add("testPartitionCol", "testPartitionValue");
 
-        Constraints constraints = new GcsConstraints(createSummary());
-        GcsReadRecordsRequest recordsRequest = new GcsReadRecordsRequest(federatedIdentity,
+        Constraints constraints = new AthenaConstraints(createSummary());
+        AthenaReadRecordsRequest recordsRequest = new AthenaReadRecordsRequest(federatedIdentity,
                 "default", "testQueryId", new TableName("default", "test"),
                 fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
 
@@ -117,7 +117,7 @@ public class CsvFilterTest
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
                 .add("testPartitionCol", "testPartitionValue");
 
-        Constraints constraints = new GcsConstraints(createSummary());
+        Constraints constraints = new AthenaConstraints(createSummary());
 
         assertNotNull(csvFilter.evaluator(fieldSchema, constraints, new TableName("default", "test"), splitBuilder.build()));
     }

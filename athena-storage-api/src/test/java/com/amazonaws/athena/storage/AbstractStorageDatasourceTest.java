@@ -23,6 +23,7 @@ import com.amazonaws.athena.storage.common.PagedObject;
 import com.amazonaws.athena.storage.common.StorageObject;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
 import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;

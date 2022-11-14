@@ -28,25 +28,21 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.common.StorageNode;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.TreeTraversalContext;
 import com.amazonaws.athena.storage.datasource.parquet.filter.EqualsExpression;
-import com.amazonaws.athena.storage.mock.GcsConstraints;
-import com.amazonaws.athena.storage.mock.GcsMarker;
+import com.amazonaws.athena.storage.mock.AthenaConstraints;
+import com.amazonaws.athena.storage.mock.AthenaMarker;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.jupiter.api.BeforeAll;
 import org.mockito.Mockito;
-
-import javax.sql.DataSource;
 
 import java.io.FileNotFoundException;
 import java.lang.reflect.InvocationTargetException;
@@ -115,7 +111,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         addSchemaFields(schemaBuilder, true);
         Schema fieldSchema = schemaBuilder.build();
-        Constraints constraints = new GcsConstraints(createSummary());
+        Constraints constraints = new AthenaConstraints(createSummary());
         TableName tableName = new TableName("mydatalake1", "zipcode");
         StorageDatasource datasource = parquetDatasource;
         List<StoragePartition> partitions = datasource.getStoragePartitions(fieldSchema, tableName, constraints, BUCKET, "zipcode/");
@@ -151,7 +147,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable("statename", Types.MinorType.VARCHAR.getType()));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = new GcsMarker(block, Marker.Bound.EXACTLY, false).withValue("UP");
+        Marker low = new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue("UP");
         return Map.of(
                 "statename", SortedRangeSet.of(false, new Range(low, low))
         );

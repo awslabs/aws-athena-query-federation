@@ -21,15 +21,15 @@ package com.amazonaws.athena.storage.io;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
-import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
+import com.amazonaws.athena.storage.gcs.CsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
 import com.amazonaws.athena.storage.gcs.io.GcsOnlineStream;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -91,7 +91,7 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         mockStatic(FileCacheFactory.class);
         PowerMockito.when(FileCacheFactory.createRandomFile(storage, BUCKET, CSV_FILE)).thenReturn(storageFile);
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(2, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(2, fileName, 100));
         }
         assertNotNull(splits, "Spits were null");
         assertFalse(splits.isEmpty(), "Split was empty");
@@ -111,7 +111,7 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         mockStatic(FileCacheFactory.class);
         PowerMockito.when(FileCacheFactory.createOnlineGcsStream(storage, BUCKET, CSV_FILE)).thenReturn(gcsOnlineStream);
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(2, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(2, fileName, 100));
         }
         assertNotNull(splits, "Spits were null");
         assertFalse(splits.isEmpty(), "Split was empty");
@@ -137,11 +137,11 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         List<StorageSplit> splits = new ArrayList<>();
         String[] fileNames = {CSV_FILE};
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
         }
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
         csvDatasource.loadAllTables(BUCKET);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
                 BUCKET, CSV_TABLE, splits.get(0), false);
         List<StorageSplit> splits1 = csvDatasource.getStorageSplits(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET,
@@ -158,14 +158,14 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         String[] fileNames = {CSV_FILE};
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
         }
         assertNotNull(splits, "Spits were null");
         assertFalse(splits.isEmpty(), "Split was empty");
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
 
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
                 BUCKET, CSV_TABLE, splits.get(0), false);
         csvDatasource.loadAllTables(BUCKET);
         S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());
@@ -187,13 +187,13 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         String[] fileNames = {CSV_FILE};
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
         }
         assertNotNull(splits, "Spits were null");
         assertFalse(splits.isEmpty(), "Split was empty");
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithLValueRangeEqual("EMPLOYEEID", VARCHAR.getType(), "98"),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithLValueRangeEqual("EMPLOYEEID", VARCHAR.getType(), "98"),
                 BUCKET, CSV_TABLE, splits.get(0), false);
         csvDatasource.loadAllTables(BUCKET);
         S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());
@@ -213,13 +213,13 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         String[] fileNames = {CSV_FILE};
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
         }
         assertNotNull(splits, "Spits were null");
         assertFalse(splits.isEmpty(), "Split was empty");
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithInClause("EMPLOYEEID", VARCHAR.getType(), List.of("90", "98")),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithInClause("EMPLOYEEID", VARCHAR.getType(), List.of("90", "98")),
                 BUCKET, CSV_TABLE, splits.get(0), false);
         csvDatasource.loadAllTables(BUCKET);
         S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());

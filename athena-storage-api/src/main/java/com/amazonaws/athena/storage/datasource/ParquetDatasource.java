@@ -46,7 +46,7 @@ import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.TreeTraversalContext;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
-import com.amazonaws.athena.storage.datasource.parquet.column.GcsGroupRecordConverter;
+import com.amazonaws.athena.storage.datasource.parquet.column.StorgeGroupRecordConverter;
 import com.amazonaws.athena.storage.datasource.parquet.filter.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.parquet.filter.ParquetFilter;
 import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
@@ -101,7 +101,7 @@ public class ParquetDatasource
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ParquetDatasource.class);
 
-    private GcsGroupRecordConverter gcsGroupRecordConverter;
+    private StorgeGroupRecordConverter storgeGroupRecordConverter;
 
     /**
      * This constructor, as of now, is invoked to instantiate an instance of ParquetDatasource reflectively
@@ -260,32 +260,32 @@ public class ParquetDatasource
         return splits;
     }
 
-    /**
-     * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement
-     *
-     * @param schema      Schema of the table
-     * @param constraints Constraint if any
-     * @param tableInfo   Table info with table and schema name
-     * @param bucketName  Name of the bucket
-     * @param objectNames Name of the file under the bucket
-     * @return An instance of {@link StorageSplit}
-     * @throws IOException Raised if any raised during connecting to the cloud storage
-     */
-    @Override
-    public List<StorageSplit> getStorageSplits(Schema schema, Constraints constraints, TableName tableInfo,
-                                               String bucketName, String objectNames) throws IOException
-    {
-        String[] fileNames = objectNames.split(",");
-        List<StorageSplit> splits = new ArrayList<>();
-        for (String fileName : fileNames) {
-            InputFile inputFile = storageProvider.getInputFile(bucketName, fileName);
-            try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
-                splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
-                        reader, recordsPerSplit()));
-            }
-        }
-        return splits;
-    }
+//    /**
+//     * Returns splits, usually by page size with offset and limit so that lambda can parallelize to load data against a given SQL statement
+//     *
+//     * @param schema      Schema of the table
+//     * @param constraints Constraint if any
+//     * @param tableInfo   Table info with table and schema name
+//     * @param bucketName  Name of the bucket
+//     * @param objectNames Name of the file under the bucket
+//     * @return An instance of {@link StorageSplit}
+//     * @throws IOException Raised if any raised during connecting to the cloud storage
+//     */
+//    @Override
+//    public List<StorageSplit> getStorageSplits(Schema schema, Constraints constraints, TableName tableInfo,
+//                                               String bucketName, String objectNames) throws IOException
+//    {
+//        String[] fileNames = objectNames.split(",");
+//        List<StorageSplit> splits = new ArrayList<>();
+//        for (String fileName : fileNames) {
+//            InputFile inputFile = storageProvider.getInputFile(bucketName, fileName);
+//            try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
+//                splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName,
+//                        reader, recordsPerSplit()));
+//            }
+//        }
+//        return splits;
+//    }
 
     /**
      * {{@inheritDoc}}
@@ -384,9 +384,9 @@ public class ParquetDatasource
                     ParquetFilter parquetFilter = new ParquetFilter(schema, messageType, split);
                     ConstraintEvaluator evaluator = parquetFilter.evaluator(tableInfo, split, constraints);
                     LOGGER.info("Parquet evaluator: {}", evaluator);
-                    gcsGroupRecordConverter = new GcsGroupRecordConverter(messageType, evaluator);
+                    storgeGroupRecordConverter = new StorgeGroupRecordConverter(messageType, evaluator);
                     addRecords(schema, messageType, columnIO.getRecordReader(pages,
-                            gcsGroupRecordConverter, filter), objectName, spiller, queryStatusChecker);
+                            storgeGroupRecordConverter, filter), objectName, spiller, queryStatusChecker);
                 }
             }
         }
@@ -409,7 +409,7 @@ public class ParquetDatasource
             TypeFactory.ValueResolver valueResolver = TypeFactory.valueResolver(messageType);
         while ((group = groupRecordReader.read()) != null) {
             if (queryStatusChecker.isQueryRunning()
-                    && (gcsGroupRecordConverter == null || !gcsGroupRecordConverter.shouldSkipCurrent())) {
+                    && (storgeGroupRecordConverter == null || !storgeGroupRecordConverter.shouldSkipCurrent())) {
                 LOGGER.info("Parquet record group: {}, class name: {}", group, group.getClass().getName());
                 Map<String, Object> record = valueResolver.getRecord(group);
                 record.put(BLOCK_PARTITION_COLUMN_NAME, partFileName);

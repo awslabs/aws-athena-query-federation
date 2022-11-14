@@ -19,13 +19,12 @@
  */
 package com.amazonaws.athena.storage.common;
 
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;

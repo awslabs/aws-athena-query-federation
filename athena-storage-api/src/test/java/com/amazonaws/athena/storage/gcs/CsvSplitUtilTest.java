@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.storage.gcs;
 
-import com.amazonaws.athena.storage.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.io.GcsInputFile;
 import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -35,7 +34,7 @@ import static org.testng.Assert.assertNotNull;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
 @PrepareForTest({GcsInputFile.class})
-public class GcsCsvSplitUtilTest extends GcsTestBase
+public class CsvSplitUtilTest extends GcsTestBase
 {
 
     File csvFile;
@@ -45,7 +44,7 @@ public class GcsCsvSplitUtilTest extends GcsTestBase
     {
         URL csvFileResourceUri = ClassLoader.getSystemResource(CSV_FILE);
         csvFile = new File(csvFileResourceUri.toURI());
-        List<StorageSplit> storageSplitList = GcsCsvSplitUtil.getStorageSplitList(99, "Consumer_Complaints.csv", 10);
+        List<StorageSplit> storageSplitList = CsvSplitUtil.getStorageSplitList(99, "Consumer_Complaints.csv", 10);
         assertNotNull(storageSplitList);
     }
 

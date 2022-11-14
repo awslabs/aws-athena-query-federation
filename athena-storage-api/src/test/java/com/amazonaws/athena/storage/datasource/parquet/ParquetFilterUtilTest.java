@@ -22,20 +22,19 @@ package com.amazonaws.athena.storage.datasource.parquet;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.datasource.ParquetDatasource;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.amazonaws.util.ValidationUtils;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.StorageOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -102,7 +101,7 @@ public class ParquetFilterUtilTest extends GcsTestBase
         PowerMockito.when(FileCacheFactory.getEmptyGCSInputFile(Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(storageWithInput.getInputFile());
         PowerMockito.whenNew(ParquetFileReader.class).withAnyArguments().thenReturn(reader);
         StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(createMultiFieldSummaryWithLValueRangeEqual(List.of("id", "name"),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createMultiFieldSummaryWithLValueRangeEqual(List.of("id", "name"),
                         List.of(BIGINT.getType(), VARCHAR.getType()), List.of(1L, "Azam")),
                 BUCKET, "customer_info", splits.get(0), true);
         parquetDatasource.loadAllTables(BUCKET);

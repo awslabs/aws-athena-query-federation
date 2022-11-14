@@ -19,32 +19,21 @@
  */
 package com.amazonaws.athena.storage.mock;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 
-public class GcsMarker extends Marker
+import java.util.Map;
+
+public class AthenaConstraints extends Constraints
 {
-
-    private Object value;
-
-    public GcsMarker(Block block, Bound bound, boolean nullValue)
+    public AthenaConstraints(Map<String, ValueSet> summary)
     {
-        super(block, bound, nullValue);
+        super(summary);
     }
 
     @Override
-    public synchronized Object getValue()
+    public Map<String, ValueSet> getSummary()
     {
-        if (isNullValue()) {
-            throw new IllegalStateException("No value to get");
-        }
-        return this.value;
-//        return FilterContext.getInstance().value(new FilterContext.MarkerKey(getValueBlock(), getBound()));
-    }
-
-    public GcsMarker withValue(Object value)
-    {
-        this.value = value;
-        return this;
+        return super.getSummary();
     }
 }

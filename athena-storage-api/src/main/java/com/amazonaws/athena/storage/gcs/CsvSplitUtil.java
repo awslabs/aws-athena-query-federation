@@ -24,9 +24,9 @@ import java.util.List;
 
 import static java.lang.Math.toIntExact;
 
-public class GcsCsvSplitUtil
+public class CsvSplitUtil
 {
-    private GcsCsvSplitUtil()
+    private CsvSplitUtil()
     {
     }
 

@@ -54,6 +54,8 @@ public class GcsStorageProvider implements StorageProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsStorageProvider.class);
 
+    // This is name is required. When the provider_name environment variable matches with 'gcs', the StorageDatasource loads this
+    // provider to access the GCS storage (bucket and files for listing/reading, etc.)
     private static final String MY_COE_NAME = "gcs";
     private final Storage storage;
 
@@ -67,7 +69,8 @@ public class GcsStorageProvider implements StorageProvider
 
     public static boolean accept(String providerCodeName)
     {
-        return MY_COE_NAME.equalsIgnoreCase(providerCodeName);
+        requireNonNull(providerCodeName, "provider_name environment variable was not found to initialize a storage provider");
+        return MY_COE_NAME.equalsIgnoreCase(providerCodeName.toLowerCase());
     }
 
     /**

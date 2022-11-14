@@ -21,6 +21,10 @@ package com.amazonaws.athena.storage.common;
 
 import java.util.List;
 
+/**
+ * Represents a storage object's meta data, usually for to represent a Table in Athena. It also indicates whether the table is partitioned.
+ * When the table is partitioned, it also contains a list of partition column name list (currently not in used as of this implementation)
+ */
 public class StorageObject
 {
     private String tableName;

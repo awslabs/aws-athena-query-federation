@@ -48,7 +48,7 @@ import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
-import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
+import com.amazonaws.athena.storage.gcs.CsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.util.StorageTreeNodeBuilder;
@@ -223,7 +223,7 @@ public class CsvDatasource
             try (InputStream inputStream = storageProvider.getOfflineInputStream(bucket, fileName)) {
                 long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
                 LOGGER.debug("Total record found in file {} was {}", fileName, totalRecords);
-                splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
+                splits.addAll(CsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
             }
         }
         return splits;
@@ -260,7 +260,7 @@ public class CsvDatasource
     {
         InputStream inputStream = storageProvider.getOfflineInputStream(bucketName, fileName);
         long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
-        return GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit());
+        return CsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit());
     }
 
     /**

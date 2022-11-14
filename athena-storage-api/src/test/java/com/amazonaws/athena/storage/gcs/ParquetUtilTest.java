@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.storage.gcs;
 
-import com.amazonaws.athena.storage.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.StorageOptions;

@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.storage.gcs.cache;
 
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
 import com.amazonaws.athena.storage.gcs.io.GcsInputFile;
 import com.amazonaws.athena.storage.gcs.io.GcsOnlineStream;

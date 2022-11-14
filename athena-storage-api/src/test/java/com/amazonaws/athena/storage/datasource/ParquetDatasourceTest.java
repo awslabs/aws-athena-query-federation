@@ -20,7 +20,7 @@
 package com.amazonaws.athena.storage.datasource;
 
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.ParquetUtil;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;

@@ -26,8 +26,8 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.storage.mock.GcsConstraints;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.athena.storage.mock.AthenaConstraints;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.univocity.parsers.common.processor.RowProcessor;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
@@ -42,7 +42,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 
-import static com.amazonaws.athena.storage.GcsTestBase.CSV_FILE;
+import static com.amazonaws.athena.storage.gcs.GcsTestBase.CSV_FILE;
 import static com.amazonaws.athena.storage.datasource.csv.CsvFilterTest.federatedIdentity;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -70,8 +70,8 @@ public class CsvConstraintEvaluatorTest
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
                 .add("testPartitionCol", "testPartitionValue");
 
-        Constraints constraints = new GcsConstraints(new CsvFilterTest().createSummary());
-        GcsReadRecordsRequest recordsRequest = new GcsReadRecordsRequest(federatedIdentity,
+        Constraints constraints = new AthenaConstraints(new CsvFilterTest().createSummary());
+        AthenaReadRecordsRequest recordsRequest = new AthenaReadRecordsRequest(federatedIdentity,
                 "default", "testQueryId", new TableName("default", "test"),
                 fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
         evaluator = new CsvFilter().evaluator(recordsRequest);

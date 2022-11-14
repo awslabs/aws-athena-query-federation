@@ -26,7 +26,7 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-public class GcsReadRecordsRequest extends ReadRecordsRequest
+public class AthenaReadRecordsRequest extends ReadRecordsRequest
 {
     /**
      * Constructs a new ReadRecordsRequest object.
@@ -41,15 +41,15 @@ public class GcsReadRecordsRequest extends ReadRecordsRequest
      * @param maxBlockSize       The maximum supported block size.
      * @param maxInlineBlockSize The maximum block size before spilling.
      */
-    public GcsReadRecordsRequest(FederatedIdentity identity,
-                                 String catalogName,
-                                 String queryId,
-                                 TableName tableName,
-                                 Schema schema,
-                                 Split split,
-                                 Constraints constraints,
-                                 long maxBlockSize,
-                                 long maxInlineBlockSize)
+    public AthenaReadRecordsRequest(FederatedIdentity identity,
+                                    String catalogName,
+                                    String queryId,
+                                    TableName tableName,
+                                    Schema schema,
+                                    Split split,
+                                    Constraints constraints,
+                                    long maxBlockSize,
+                                    long maxInlineBlockSize)
     {
         super(identity, catalogName, queryId, tableName, schema, split, constraints, maxBlockSize, maxInlineBlockSize);
     }

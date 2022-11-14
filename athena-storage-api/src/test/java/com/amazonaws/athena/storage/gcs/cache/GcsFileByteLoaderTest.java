@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.storage.gcs.cache;
 
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
 import com.amazonaws.athena.storage.gcs.io.GcsInputFile;
 import com.amazonaws.athena.storage.gcs.io.GcsFileByteLoader;
@@ -29,7 +29,6 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
