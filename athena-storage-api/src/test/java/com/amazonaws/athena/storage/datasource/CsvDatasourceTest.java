@@ -25,7 +25,7 @@ import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
-import com.amazonaws.athena.storage.datasource.exception.TableNotFoundException;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.gcs.CsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
@@ -40,6 +40,7 @@ import com.google.cloud.storage.StorageOptions;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -47,7 +48,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,7 +77,28 @@ public class CsvDatasourceTest extends GcsTestBase
     }
 
     @Test
+    public void testGetObjectSchema() throws Exception
+    {
+        StorageWithStreamTest mockStorageWithInputStream = mockStorageWithInputStream(BUCKET, CSV_FILE);
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        StorageObjectSchema storageObjectSchema = csvDatasource.getObjectSchema(BUCKET, CSV_FILE);
+        ValidationUtils.assertNotNull(storageObjectSchema, "Schema were null");
+    }
+
+    @Test
     @Ignore
+    public void testGetSplitsByStoragePartition() throws Exception
+    {
+//        StorageWithStreamTest mockStorageWithInputStream = mockStorageWithInputStream(BUCKET, CSV_FILE);
+//        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+//        StoragePartition partition = StoragePartition.builder().bucketName("test").location("test").objectNames(List.of("test")).recordCount(10L).children(List.of()).build();
+//        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+//        List<StorageSplit> splits = csvDatasource.getSplitsByBucketPrefix(BUCKET, "partition", true, new Constraints(Map.of()));
+//        ValidationUtils.assertNotNull(splits, "Split were null");
+    }
+
+    @Test
     public void testCsvSplitWithUsingDatasource() throws Exception
     {
         StorageWithStreamTest mockStorageWithInputStream = mockStorageWithInputStream(BUCKET, CSV_FILE);
@@ -105,35 +126,13 @@ public class CsvDatasourceTest extends GcsTestBase
     }
 
     @Test
-    @Ignore
-    public void testGetTableFieldsException() throws Exception
+    public void testGetStorageTable() throws Exception
     {
         mockStorageWithInputStream(BUCKET, CSV_FILE);
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
         Optional<StorageTable> obj = csvDatasource.getStorageTable("test", "dimeemployee");
-        assertTrue(obj.isEmpty(), "Storage table was not empty");
-    }
-
-    @Test
-    @Ignore
-    public void testReadException() throws Exception
-    {
-        mockStorageWithInputStreamLargeFiles(BUCKET, CSV_FILE);
-        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
-        List<StorageSplit> splits = new ArrayList<>();
-        String[] fileNames = {CSV_FILE};
-        for (String fileName : fileNames) {
-            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
-        }
-        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        csvDatasource.loadAllTables(BUCKET);
-        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
-                BUCKET, CSV_TABLE, splits.get(0), false);
-        List<StorageSplit> splits1 = csvDatasource.getStorageSplits(recordsRequest.getSchema(),
-                recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET,
-                CSV_FILE);
-        assertNotNull(splits1, "splits");
+        assertFalse(obj.isEmpty(), "Storage table was not empty");
     }
 
     @Test(expected = Exception.class)
@@ -153,34 +152,6 @@ public class CsvDatasourceTest extends GcsTestBase
 
         assertNotNull(spiller, "No records returned");
         assertTrue(spiller.spilled(), "No records found");
-    }
-
-    @Test(expected = TableNotFoundException.class)
-    public void testCsvGetRecords() throws Exception
-    {
-        mockStorageWithInputStream(BUCKET, CSV_FILE);
-        String[] fileNames = {CSV_FILE};
-        List<StorageSplit> splits = new ArrayList<>();
-        for (String fileName : fileNames) {
-            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
-        }
-        assertNotNull(splits, "Spits were null");
-        assertFalse(splits.isEmpty(), "Split was empty");
-        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
-        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
-                BUCKET, "CSV_TABLE", splits.get(0), false);
-        csvDatasource.loadAllTables(BUCKET);
-        S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());
-        assertFalse(spiller.spilled(), "No records found");
-        QueryStatusChecker mockedQueryStatusChecker = mock(QueryStatusChecker.class);
-        when(mockedQueryStatusChecker.isQueryRunning()).thenReturn(true);
-        csvDatasource.readRecords(recordsRequest.getSchema(),
-                recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
-                spiller, mockedQueryStatusChecker);
-        assertNotNull(spiller, "No records returned");
-        assertTrue(spiller.spilled(), "No records found");
-
     }
 
 }

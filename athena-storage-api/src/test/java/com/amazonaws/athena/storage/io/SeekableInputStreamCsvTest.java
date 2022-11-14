@@ -34,7 +34,6 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -51,7 +50,6 @@ import java.util.Map;
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static com.amazonaws.util.ValidationUtils.assertNotNull;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
@@ -62,7 +60,6 @@ import static org.testng.Assert.assertTrue;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
 @PrepareForTest({GoogleCredentials.class, StorageOptions.class})
-@Ignore
 public class SeekableInputStreamCsvTest extends GcsTestBase
 {
     static File csvFile;
@@ -143,6 +140,7 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         csvDatasource.loadAllTables(BUCKET);
         AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
                 BUCKET, CSV_TABLE, splits.get(0), false);
+
         List<StorageSplit> splits1 = csvDatasource.getStorageSplits(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET,
                 CSV_FILE);

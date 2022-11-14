@@ -63,24 +63,13 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.UUID;
+import java.util.*;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static java.util.Objects.requireNonNull;
@@ -140,7 +129,6 @@ public class GcsTestBase extends StorageMock
         when(table.getSize()).thenReturn(11L);
         when(tables.getValues()).thenReturn(List.of(table));
         doReturn(tables).when(storage).list(anyString());
-        //doReturn(tables).when(storage).list(anyString());
         doReturn(List.of(table)).when(tables).iterateAll();
         return storage;
     }
@@ -156,6 +144,12 @@ public class GcsTestBase extends StorageMock
         PowerMockito.when(bucket.getName()).thenReturn(bucketName);
 
         return storage;
+    }
+
+    protected StorageDatasource getTestDataSource(final String extension) throws FileNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    {
+        Storage storage = mockStorageWithBlobIterator(BUCKET);
+        return StorageDatasourceFactory.createDatasource(gcsCredentialsJson, Map.of(FILE_EXTENSION_ENV_VAR, extension));
     }
 
     public StorageWithInputTest mockStorageWithInputFile(String bucketName, String fileName) throws Exception
@@ -191,7 +185,7 @@ public class GcsTestBase extends StorageMock
         URL fileResourceUri = ClassLoader.getSystemResource(fileName);
         File csvFile = new File(fileResourceUri.toURI());
         Storage storage = mockStorageWithBlobIterator(bucketName, csvFile.length(), fileName);
-
+        getFileCacheFactoryInfoTest(fileName, "csv", storage);
         GcsOnlineStream gcsOnlineStream = new GcsOnlineStream()
                 .storage(storage)
                 .bucketName(bucketName)
@@ -203,8 +197,8 @@ public class GcsTestBase extends StorageMock
                 .file(csvFile)
                 .inputStream(new FileInputStream(csvFile));
         mockStatic(FileCacheFactory.class);
-        PowerMockito.when(FileCacheFactory.createOfflineGcsStream(storage, bucketName, fileName)).thenReturn(gcsOfflineStream);
-        PowerMockito.when(FileCacheFactory.createOnlineGcsStream(storage, bucketName, fileName)).thenReturn(gcsOnlineStream);
+        PowerMockito.when(FileCacheFactory.cacheBytesInTempFile(anyString(), anyString(), Mockito.any())).thenReturn(csvFile);
+//        PowerMockito.when(FileCacheFactory.createOnlineGcsStream(storage, bucketName, fileName)).thenReturn(gcsOnlineStream);
         GoogleCredentials credentials = mock(GoogleCredentials.class);
         mockStatic(GoogleCredentials.class);
         PowerMockito.when(GoogleCredentials.fromStream(ArgumentMatchers.any())).thenReturn(credentials);
@@ -270,12 +264,6 @@ public class GcsTestBase extends StorageMock
         PowerMockito.when(FileCacheFactory.getGCSInputFile(storage, bucketName, fileName)).thenReturn(inputFile);
         PowerMockito.when(FileCacheFactory.getEmptyGCSInputFile(storage, bucketName, fileName)).thenReturn(inputFile);
         return new StorageWithInputTest(storage, inputFile, storageFile);
-    }
-
-    protected StorageDatasource getTestDataSource(final String extension) throws FileNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
-    {
-        String jsonCredential = new Scanner(new File("/home/mdaliazam/afq/sec/akshay-gcs-creds.json")).useDelimiter("\\Z").next();
-        return StorageDatasourceFactory.createDatasource(jsonCredential, Map.of(FILE_EXTENSION_ENV_VAR, extension));
     }
 
     protected Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)
@@ -384,6 +372,11 @@ public class GcsTestBase extends StorageMock
 
     protected FileCacheFactoryInfoTest prepareFileCacheFactory(String fileName, String cachePrefix) throws IOException, URISyntaxException
     {
+        Storage storage = mock(Storage.class);
+        return getFileCacheFactoryInfoTest(fileName, cachePrefix, storage);
+    }
+
+    private FileCacheFactoryInfoTest getFileCacheFactoryInfoTest(String fileName, String cachePrefix, Storage storage) throws IOException, URISyntaxException {
         if (fileName == null) {
             fileName = PARQUET_FILE;
         }
@@ -395,8 +388,6 @@ public class GcsTestBase extends StorageMock
         try (OutputStream out = new FileOutputStream(tmpFile)) {
             Files.copy(parquetFile.toPath(), out);
         }
-
-        Storage storage = mock(Storage.class);
         Blob blobObject = mock(Blob.class);
         doReturn(parquetFile.length()).when(blobObject).getSize();
         ReadChannel readChannel = mock(ReadChannel.class);

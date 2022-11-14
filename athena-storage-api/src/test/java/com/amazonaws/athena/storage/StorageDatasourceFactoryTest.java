@@ -27,9 +27,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 import java.lang.reflect.InvocationTargetException;
 
-import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*",
@@ -46,29 +44,12 @@ public class StorageDatasourceFactoryTest extends GcsTestBase
     @Test
     public void testGetParquetDataSource()
     {
-        Throwable throwable = null;
-        try {
-            StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-            assertNull("PARQUET StorageDatasource was not null", parquetDatasource);
-        }
-        catch (Exception exception) {
-            throwable = exception;
-        }
-        assertTrue(throwable instanceof InvocationTargetException);
+        assertThrows(InvocationTargetException.class, () -> StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps));
     }
 
     @Test
     public void testGetCsvDataSource()
     {
-        Throwable throwable = null;
-        try {
-            parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
-            StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-            assertNull("CSV StorageDatasource was not null", parquetDatasource);
-        }
-        catch (Exception exception) {
-            throwable = exception;
-        }
-        assertTrue(throwable instanceof InvocationTargetException);
+        assertThrows(InvocationTargetException.class , () -> StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps));
     }
 }

@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.TableListResult;
 import com.amazonaws.athena.storage.common.StorageObject;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import org.apache.arrow.vector.types.Types;
@@ -79,7 +80,7 @@ public class GcsTestUtils
         List<Field> fields = getFields();
         Map<String, String> map = new HashMap<>();
         map.put("bucketName", "test");
-        map.put("objectName", "test");
+        map.put("partitioned_table_base", "test");
         return new StorageTable("test", "test", map, fields, false);
     }
 
@@ -121,5 +122,10 @@ public class GcsTestUtils
                 .addStringField(STRING_FIELD_NAME_1)
                 .addFloat8Field(FLOAT_FIELD_NAME_1)
                 .build();
+    }
+
+    public static List<StoragePartition> getStoragePartition() {
+        return List.of(StoragePartition.builder().bucketName("test").objectNames(List.of("test")).location("test").recordCount(10L).children(List.of()).build(),
+                StoragePartition.builder().bucketName("test").objectNames(List.of("test")).location("test").recordCount(10L).children(List.of()).build());
     }
 }

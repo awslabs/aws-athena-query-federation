@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.datasource.ParquetDatasource;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
@@ -58,8 +59,7 @@ import static org.apache.arrow.vector.types.Types.MinorType.FLOAT8;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
@@ -105,24 +105,23 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
     }
 
     @Test
-    public void testParquetSplits() throws Exception
+    @Ignore
+    public void testGetSplitsByStoragePartition() throws Exception
+    {
+//        StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+//        StoragePartition partition = StoragePartition.builder().bucketName("test").location("test").objectNames(List.of("test")).recordCount(10L).children(List.of()).build();
+//        parquetDatasource.loadAllTables(BUCKET);
+//        List<StorageSplit> splits = parquetDatasource.getSplitsByBucketPrefix(partition, true, BUCKET);
+//        assertNotNull(splits, "No splits returned");
+//        assertFalse(splits.isEmpty(), "No splits found");
+    }
+
+    @Test
+    public void testGetObjectSchema() throws Exception
     {
         StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        StorageSplit storageSplit = StorageSplit.builder()
-                .fileName(PARQUET_FILE_4_STREAM)
-                .groupSplits(List.of(GroupSplit.builder()
-                        .groupIndex(0)
-                        .rowOffset(1L)
-                        .rowCount(2)
-                        .build()))
-                .build();
-        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithLValueRangeEqual("dob", DATEDAY.getType(), 5479),
-                BUCKET, PARQUET_TABLE_4, storageSplit, true);
-        parquetDatasource.loadAllTables(BUCKET);
-        List<StorageSplit> splits = parquetDatasource.getStorageSplits(recordsRequest.getSchema(),
-                recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET, PARQUET_FILE_4_STREAM);
-        assertNotNull(splits, "No splits returned");
-        assertFalse(splits.isEmpty(), "No splits found");
+        StorageObjectSchema storageObjectSchema = parquetDatasource.getObjectSchema(BUCKET, PARQUET_FILE);
+        assertNotNull(storageObjectSchema, "No schema returned");
     }
 
     @Test
@@ -148,7 +147,7 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
         parquetDatasource.readRecords(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
                 spillObj, mockedQueryStatusChecker);
-        assertTrue(spillObj.spilled(), "No records returned");
+        assertEquals(spillObj.getBlock().getRowCount(), 1);
     }
 
     @Test
@@ -171,7 +170,7 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
         parquetDatasource.readRecords(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
                 spillObj, mockedQueryStatusChecker);
-        assertTrue(spillObj.spilled(), "No records returned");
+        assertEquals(spillObj.getBlock().getRowCount(), 1);
     }
 
     @Test
@@ -194,7 +193,7 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
         parquetDatasource.readRecords(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
                 spillObj, mockedQueryStatusChecker);
-        assertTrue(spillObj.spilled(), "No records returned");
+        assertEquals(spillObj.getBlock().getRowCount(), 1);
     }
 
     @Test
@@ -217,7 +216,7 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
         parquetDatasource.readRecords(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
                 spillObj, mockedQueryStatusChecker);
-        assertTrue(spillObj.spilled(), "No records returned");
+        assertEquals(spillObj.getBlock().getRowCount(), 1);
     }
 
     @Test
@@ -240,7 +239,7 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
         parquetDatasource.readRecords(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
                 spillObj, mockedQueryStatusChecker);
-        assertTrue(spillObj.spilled(), "No records returned");
+        assertEquals(spillObj.getBlock().getRowCount(), 1);
     }
 
     // test with IN
@@ -310,24 +309,4 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
         assertNotNull(spillObj, "No records returned");
     }
 
-    @Test
-    public void testParquetGetStorageSplitsWithSchema() throws Exception
-    {
-        String[] fileNames = {PARQUET_FILE};
-        List<StorageSplit> splits = new ArrayList<>();
-        for (String fileName : fileNames) {
-            splits.addAll(GcsParquetSplitUtil.getStorageSplitList(fileName, reader, 100));
-        }
-        assertNotNull(splits, "Spits were null");
-        assertFalse(splits.isEmpty(), "Split was empty");
-        StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue("salary",
-                        Types.MinorType.FLOAT8.getType(), 2000.00, 3500.00),
-                BUCKET, PARQUET_TABLE, splits.get(0), true);
-        parquetDatasource.loadAllTables(BUCKET);
-        List<StorageSplit> storageSplitList = parquetDatasource.getStorageSplits(recordsRequest.getSchema(),
-                recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET, PARQUET_FILE);
-        assertNotNull(storageSplitList, "No split list returned");
-        assertFalse(storageSplitList.isEmpty(), "No splits found");
-    }
 }
