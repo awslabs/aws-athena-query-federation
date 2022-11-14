@@ -221,7 +221,7 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                 Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
-            LOGGER.debug("GcsStorageProvider.getFirstObjectNameRecurse(): checking if {} is a folder under prefix {}", blob.getName(), prefix);
+            LOGGER.info("GcsStorageProvider.getFirstObjectNameRecurse(): checking if {} is a folder under prefix {}", blob.getName(), prefix);
             if (prefix.equals(blob.getName())) {
                 continue;
             }
@@ -229,7 +229,10 @@ public class GcsStorageProvider implements StorageProvider
                 return Optional.of(blob.getName());
             }
             else {
-                return getFirstObjectNameRecurse(bucket, blob.getName());
+                Optional<String> optionalObjectName = getFirstObjectNameRecurse(bucket, blob.getName());
+                if (optionalObjectName.isPresent()) {
+                    return optionalObjectName;
+                }
             }
         }
         return Optional.empty();

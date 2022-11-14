@@ -196,7 +196,8 @@ public class ParquetDatasource
     @Override
     public boolean isSupported(String bucket, String objectName) throws IOException
     {
-        boolean isWithValidExtension = objectName.toLowerCase().endsWith(datasourceConfig.extension());
+        boolean isWithValidExtension = containsInvalidExtension(objectName);
+        LOGGER.info("File {} is with valid extension? {}", objectName, isWithValidExtension);
         if (!isWithValidExtension) {
             InputFile inputFile = storageProvider.getInputFile(bucket, objectName);
             try (SeekableInputStream inputStream = inputFile.newStream()) {
@@ -204,7 +205,9 @@ public class ParquetDatasource
                 byte[] initBytes = new byte[4];
                 int readSize = inputStream.read(initBytes);
                 if (readSize == 4) {
-                    return PARQUET_MAGIC_BYTES_STRING.equals(new String(initBytes));
+                    String magicString = new String(initBytes);
+                    LOGGER.info("Magic string in file {} is {}", objectName, magicString);
+                    return PARQUET_MAGIC_BYTES_STRING.equals(magicString);
                 }
             }
         }

@@ -574,7 +574,9 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             LOGGER.info("Object {} in the bucket {} is partitioned", objectName, bucket);
             Optional<String> optionalObjectName = storageProvider.getFirstObjectNameRecurse(bucket, objectName);
             boolean isValid = (optionalObjectName.isPresent() && isSupported(bucket, optionalObjectName.get()));
-            LOGGER.info("Object {} in the bucket is valid? {}", objectName, bucket);
+            LOGGER.info("In datasource {} the file {} is valid? {}", this.getClass().getSimpleName(),
+                    optionalObjectName.orElse("NONE"), isValid);
+            return isValid;
         }
         else if (isExtensionCheckMandatory() && objectName.toLowerCase().endsWith(extension.toLowerCase())) {
             return true;
