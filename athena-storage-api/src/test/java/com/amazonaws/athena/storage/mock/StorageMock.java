@@ -155,11 +155,11 @@ public class StorageMock
                 ))
                 .build()
         );
-        when(datasource.getStorageSplits(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
-                .thenReturn(splits);
-
-        when(datasource.getStorageSplits(Mockito.any(), Mockito.any()))
-                .thenReturn(splits);
+//        when(datasource.getStorageSplits(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+//                .thenReturn(splits);
+//
+//        when(datasource.getStorageSplits(Mockito.any(), Mockito.any()))
+//                .thenReturn(splits);
     }
 
     public synchronized GcsReadRecordsRequest buildReadRecordsRequest(Map<String, ValueSet> summary,

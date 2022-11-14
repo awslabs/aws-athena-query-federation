@@ -40,6 +40,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -184,7 +185,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
                 .loadTablesInternal("test", null, 2);
-        PowerMockito.when(abstractStorageDatasource.convertBlobsToTableObjectsMap(Mockito.any(), Mockito.any())).thenReturn(Map.of(new StorageObject("test", "test.csv", false), List.of("test")));
+        PowerMockito.when(abstractStorageDatasource.convertBlobsToTableObjectsMap(Mockito.any(), Mockito.any())).thenReturn(Map.of(new StorageObject("test", "test.csv", false, List.of("test")), List.of("test")));
 
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, new HashMap<>());
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of());
@@ -199,7 +200,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
                 .loadTablesInternal("test");
-        PowerMockito.when(abstractStorageDatasource.convertBlobsToTableObjectsMap(Mockito.any(), Mockito.any())).thenReturn(Map.of(new StorageObject("test", "test.csv", false), List.of("test")));
+        PowerMockito.when(abstractStorageDatasource.convertBlobsToTableObjectsMap(Mockito.any(), Mockito.any())).thenReturn(Map.of(new StorageObject("test", "test.csv", false, List.of("test")), List.of("test")));
 
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, new HashMap<>());
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test1", "test"));
@@ -214,7 +215,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
                 .loadTablesInternal("test");
-        PowerMockito.when(abstractStorageDatasource.convertBlobsToTableObjectsMap(Mockito.any(), Mockito.any())).thenReturn(Map.of(new StorageObject("test", "test.csv", false), List.of("test")));
+        PowerMockito.when(abstractStorageDatasource.convertBlobsToTableObjectsMap(Mockito.any(), Mockito.any())).thenReturn(Map.of(new StorageObject("test", "test.csv", false, List.of("test")), List.of("test")));
 
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, new HashMap<>());
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
@@ -247,7 +248,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         HashMap<StorageObject, List<String>> map = new HashMap<>();
         List<String> sList = new ArrayList<>();
         sList.add("test");
-        map.put(new StorageObject("test", "test.csv", false), sList);
+        map.put(new StorageObject("test", "test.csv", false, List.of("test")), sList);
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
                 .addTable("test", "test.csv", map);
@@ -312,7 +313,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
                 CSV_FILE);
     }
 
-    @Test(expected = UncheckedStorageDatasourceException.class)
+    @Test(expected = Exception.class)
     public void testGetStoragePartitionsException() throws Exception {
         Storage storage = mockStorageWithInputStream(BUCKET, "name=test\\"+CSV_FILE).getStorage();
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");

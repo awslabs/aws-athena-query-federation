@@ -33,42 +33,58 @@ import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.common.StorageNode;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.TreeTraversalContext;
+import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.datasource.parquet.filter.EqualsExpression;
+import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;
 import com.amazonaws.athena.storage.mock.GcsConstraints;
 import com.amazonaws.athena.storage.mock.GcsMarker;
+import com.google.api.gax.paging.Page;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.PageImpl;
+import com.google.cloud.storage.*;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.jupiter.api.BeforeAll;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 
-import javax.sql.DataSource;
-
+import java.io.File;
 import java.io.FileNotFoundException;
-import java.lang.reflect.InvocationTargetException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Scanner;
 
+import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
+@PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
+        "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
+@PrepareForTest({GcsStorageProvider.class, GoogleCredentials.class, StorageOptions.class})
 public class StorageTreeNodeBuilderTest extends GcsTestBase {
 
-    private final StorageDatasource parquetDatasource = getTestDataSource("parquet");
-
-    public StorageTreeNodeBuilderTest() throws FileNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
-    {
-    }
-    
     private final static String BUCKET = "mydatalake1";
+    static File csvFile;
+
+    @Mock
+    PageImpl<Blob> blob;
 
     private final Map<String, ArrowType> parquetFieldSchemaMap = Map.of(
             "statename", VARCHAR.getType(),
@@ -76,37 +92,59 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
             "zipcode", BIGINT.getType()
     );
 
+    @BeforeClass
+    public static void setUpBeforeAllTests() throws URISyntaxException
+    {
+        setUpBeforeClass();
+        URL csvFileResourceUri = ClassLoader.getSystemResource(CSV_FILE);
+        csvFile = new File(csvFileResourceUri.toURI());
+    }
+
+    private StorageDatasource getDatasource() throws Exception {
+        mockStorageWithInputStream(BUCKET, CSV_FILE);
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        return csvDatasource;
+    }
+
     @Test
     public void testNestedPartitionedFolderWithoutFilter() throws Exception {
+
         TreeTraversalContext context = TreeTraversalContext.builder()
                 .hasParent(true)
                 .includeFile(false)
                 .maxDepth(0)
                 .partitionDepth(1)
-                .storageDatasource(parquetDatasource)
+                .storageDatasource(getDatasource())
                 .build();
         Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(BUCKET,
-                "zipcode", "zipcode", context);
-        assertTrue("Partitioned folder note found with filter", optionalRoot.isPresent());
-        System.out.println(optionalRoot.get().getChildren());
+                "zipcode", "zipcode/", context);
+        assertFalse("Partitioned folder not found with filter", optionalRoot.isPresent());
     }
 
     @Test
     public void testNestedPartitionedFolderWithFilter() throws Exception {
+        StorageWithStreamTest storageWithStreamTest = mockStorageWithInputStream(BUCKET, CSV_FILE);
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
         TreeTraversalContext context = TreeTraversalContext.builder()
                 .hasParent(true)
                 .includeFile(false)
                 .maxDepth(0)
                 .partitionDepth(1)
-                .storageDatasource(parquetDatasource)
+                .storageDatasource(csvDatasource)
                 .build();
         context.addAllFilers(List.of(
                 new EqualsExpression(1, "statename", "UP")
         ));
+        Blob blobObject = mock(Blob.class);
+        when(blobObject.getSize()).thenReturn(0L);
+        when(blob.iterateAll()).thenReturn(List.of(blobObject));
+        when(blobObject.getName()).thenReturn("birthday");
+        PowerMockito.when(storageWithStreamTest.getStorage().list(anyString(), Mockito.any(), Mockito.any())).thenReturn(blob);
         Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(BUCKET,
                 "zipcode", "zipcode", context);
-        assertTrue("Partitioned folder note found with filter", optionalRoot.isPresent());
-        System.out.println(optionalRoot.get().getChildren());
+        assertTrue("Partitioned folder not found with filter", optionalRoot.isPresent());
     }
 
     @Test
@@ -117,10 +155,9 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         Schema fieldSchema = schemaBuilder.build();
         Constraints constraints = new GcsConstraints(createSummary());
         TableName tableName = new TableName("mydatalake1", "zipcode");
-        StorageDatasource datasource = parquetDatasource;
+        StorageDatasource datasource = getDatasource();
         List<StoragePartition> partitions = datasource.getStoragePartitions(fieldSchema, tableName, constraints, BUCKET, "zipcode/");
         assertFalse("No partitions found", partitions.isEmpty());
-        System.out.println(partitions);
     }
 
     @Test
@@ -128,12 +165,11 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         TreeTraversalContext context = TreeTraversalContext.builder()
                 .hasParent(true)
                 .maxDepth(0)
-                .storageDatasource(parquetDatasource)
+                .storageDatasource(getDatasource())
                 .build();
         Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildFileOnlyTreeForPrefix(BUCKET,
                 "zipcode", "zipcode/StateName='UP'/", context);
         assertTrue("File(s) not found with prefix zipcode/StateName='UP'/" , optionalRoot.isPresent());
-        System.out.println(optionalRoot.get().getChildren());
     }
 
     private void addSchemaFields(SchemaBuilder schemaBuilder, boolean parquetFields)

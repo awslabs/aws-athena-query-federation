@@ -80,7 +80,7 @@ public class GcsTestUtils
         List<Field> fields = getFields();
         Map<String, String> map = new HashMap<>();
         map.put("bucketName", "test");
-        map.put("objectName", "test");
+        map.put("partitioned_table_base", "test");
         return new StorageTable("test", "test", map, fields, false);
     }
 

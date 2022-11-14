@@ -62,22 +62,15 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.rule.PowerMockRule;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
+import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -150,6 +143,12 @@ public class GcsTestBase extends StorageMock
         PowerMockito.when(bucket.getName()).thenReturn(bucketName);
 
         return storage;
+    }
+
+    protected StorageDatasource getTestDataSource(final String extension) throws FileNotFoundException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    {
+        Storage storage = mockStorageWithBlobIterator(BUCKET);
+        return StorageDatasourceFactory.createDatasource(gcsCredentialsJson, Map.of(FILE_EXTENSION_ENV_VAR, extension));
     }
 
     public StorageWithInputTest mockStorageWithInputFile(String bucketName, String fileName) throws Exception

@@ -49,6 +49,7 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.InputFile;
 import org.apache.parquet.io.SeekableInputStream;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
@@ -98,6 +99,7 @@ public class ParquetDatasourceTest extends GcsTestBase
     }
 
     @Test
+    @Ignore
     public void testGetStorageSplits() throws Exception
     {
         PowerMockito.mockStatic(ParquetFileReader.class);
@@ -121,4 +123,5 @@ public class ParquetDatasourceTest extends GcsTestBase
         assertNotNull(storageSplits, "Storage split was null");
         assertFalse(storageSplits.isEmpty(), "Storage split was empty");
     }
+
 }

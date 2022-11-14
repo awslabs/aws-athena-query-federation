@@ -84,8 +84,7 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -153,8 +152,7 @@ public class GcsMetadataHandlerTest
         when(csvDatasource.getAllDatabases()).thenReturn(GcsTestUtils.getDatasetList());
         when(csvDatasource.getAllTables(anyString(), anyString(), anyInt())).thenReturn(GcsTestUtils.getTableList());
         when(csvDatasource.getStorageTable(Mockito.any(), Mockito.any())).thenReturn(Optional.of(GcsTestUtils.getTestSchemaFields()));
-        when(csvDatasource.getStorageSplits(Mockito.any(), Mockito.any(), Mockito.any(), anyString(), anyString())).thenReturn(GcsTestUtils.getSplits());
-        when(csvDatasource.getByObjectNameInBucket(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(GcsTestUtils.getStoragePartition());
+        when(csvDatasource.getSplitsByBucketPrefix(anyString(), anyString(), anyBoolean(), any(Constraints.class))).thenReturn(GcsTestUtils.getSplits());
         when(csvDatasource.getStoragePartitions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(GcsTestUtils.getStoragePartition());
         MockitoAnnotations.initMocks(this);
         suppress(constructor(MetadataHandler.class, com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory.class, com.amazonaws.services.secretsmanager.AWSSecretsManager.class, com.amazonaws.services.athena.AmazonAthena.class, java.lang.String.class, java.lang.String.class, java.lang.String.class));
@@ -236,7 +234,7 @@ public class GcsMetadataHandlerTest
     @Test
     public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
-        String yearCol = "PART_ID";
+        String yearCol = "part_name";
         //This is the schema that ExampleMetadataHandler has laid out for a 'Partition' so we need to populate this
         //minimal set of info here.
         Schema schema = SchemaBuilder.newBuilder()

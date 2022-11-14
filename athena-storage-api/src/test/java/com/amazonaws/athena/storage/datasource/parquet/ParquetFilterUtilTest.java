@@ -112,6 +112,6 @@ public class ParquetFilterUtilTest extends GcsTestBase
         parquetDatasource.readRecords(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), recordsRequest.getSplit(),
                 spiller, mockedQueryStatusChecker);
-        assertTrue(spiller.spilled());
+        assertNotNull(spiller.getBlock().getRowCount());
     }
 }
