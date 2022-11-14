@@ -29,17 +29,29 @@ import java.util.Optional;
 
 import static com.amazonaws.athena.storage.io.StorageIOUtil.getParentPath;
 
+/**
+ * A tree node builder builds a tree of child nodes much like a file tree seen in the popular GUI based OS. For example,
+ * a file explorer in Windows.  From the root to children, all are the instance of {@link StorageNode}.
+ * Currently it's generic, because a specific storage provider may have a different kind of object to represent a buckets/files/folders
+ * Unlike other three structure, the node has storage specific information.
+ *
+ */
 public class StorageTreeNodeBuilder
 {
     private StorageTreeNodeBuilder()
     {
     }
 
-    public static Optional<StorageNode<String>> buildTableTree(String bucket)
-    {
-        return Optional.empty();
-    }
-
+    /**
+     * When a folder is partitioned, that is, it contains one or more FIELD_NAME=FIELD_VALUE patterned sub-folder, this method reads all
+     * nested partitioned folder(s)
+     * @param bucket Name of the bucket
+     * @param rootName Name of the root node
+     * @param rootPath Path of the root node
+     * @param context An instance of {@link TreeTraversalContext} that tells upto which level, it needs to traverse, what is the start level
+     *                from where it should checking and loading partitioned folder(s), whether to load files or not and much more
+     * @return An optional instance of {@link StorageNode} as the root node with one or more children
+     */
     public static synchronized Optional<StorageNode<String>> buildTreeWithPartitionedDirectories(String bucket,
                                                                                                  String rootName,
                                                                                                  String rootPath,
@@ -78,16 +90,22 @@ public class StorageTreeNodeBuilder
                     if (parent.getPath().equals(path)) {
                         continue;
                     }
-                    parent = parent.addChild(names[i], path);
                 }
-                else {
-                    parent = parent.addChild(names[i], path);
-                }
+                parent = parent.addChild(names[i], path);
             }
         }
         return Optional.of(root);
     }
 
+    /**
+     * Loads all supported files as per file_extension environment variable recursively within the prefix (usually a partitoned folder)
+     * @param bucket Name of the bucket
+     * @param rootName Name of the root node
+     * @param prefix From where in the bucket, this method will load files. It's usually a partitioned folder
+     * @param context An instance of {@link TreeTraversalContext} that tells upto which level, it needs to traverse, what is the start level
+     *                from where it should checking and loading partitioned folder(s), whether to load files or not and much more
+     * @return An optional instance of {@link StorageNode} as the root node with one or more children
+     */
     public static synchronized Optional<StorageNode<String>> buildFileOnlyTreeForPrefix(String bucket,
                                                                                         String rootName,
                                                                                         String prefix,

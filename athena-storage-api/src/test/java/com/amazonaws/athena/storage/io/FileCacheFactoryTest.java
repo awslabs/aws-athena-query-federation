@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.storage.io;
 
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
 import com.amazonaws.athena.storage.gcs.io.GcsOfflineStream;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -30,7 +30,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;

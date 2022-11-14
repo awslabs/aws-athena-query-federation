@@ -74,7 +74,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     protected boolean storeCheckingComplete = false;
     protected List<LoadedEntities> loadedEntitiesList = new ArrayList<>();
     protected StorageProvider storageProvider;
-    protected String baseObjectName;
 
     /**
      * Instantiate a storage data source object with provided config
@@ -242,6 +241,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return Optional.empty();
     }
 
+    /**
+     * Retrieves all the partitions from a given object. When the object is a:
+     * <ol>
+     *     <li>single file, it contains only a single partition</li>
+     *     <li>director and partitioned, that is, it contains sub-folder in form of FIELD_NAME=FIELD_VALUE, it may contains one or more partitions</li>
+     *     <li>director and not partitioned, this method ignores the directory</li>
+     * </ol>
+     * @param schema An instance of {@link Schema}
+     * @param tableInfo An instance of {@link TableName} that contains schema name and table name
+     * @param constraints An instance of {@link Constraints} that contains predicate information
+     * @param bucketName Name of the bucket
+     * @param objectName Name of the object
+     * @return An list of {@link StoragePartition} instances
+     * @throws IOException Occurs if any during walk-through the buckets/files within the underlying storage provider
+     */
     @Override
     public List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
                                                        String bucketName, String objectName) throws IOException
@@ -270,16 +284,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(bucketName,
                         objectName, objectName, context);
                 List<StoragePartition> partitions = new ArrayList<>();
-                for (StorageNode<String> partitionedFolderNode : optionalRoot.get().getChildren()) {
-                    partitions.add(StoragePartition.builder()
-                            .objectNames(List.of())
-                            .location(partitionedFolderNode.getPath() + "/")
-                            .bucketName(bucketName)
-                            .recordCount(0L)
-                            .children(List.of())
-                            .build());
+                if (optionalRoot.isPresent()) {
+                    for (StorageNode<String> partitionedFolderNode : optionalRoot.get().getChildren()) {
+                        partitions.add(StoragePartition.builder()
+                                .objectNames(List.of())
+                                .location(partitionedFolderNode.getPath() + "/")
+                                .bucketName(bucketName)
+                                .recordCount(0L)
+                                .children(List.of())
+                                .build());
+                    }
+                    LOGGER.info("Storage partitions using tree: \n{}", partitions);
                 }
-                LOGGER.info("Storage partitions using tree: \n{}", partitions);
+                else {
+                    LOGGER.info("the object {} in the bucket {} is partitioned. However, it doesn't contain any nested objects", objectName, bucketName);
+                }
                 return partitions;
             }
             else {
@@ -362,14 +381,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     {
         Map<StorageObject, List<String>> objectNameMap = new HashMap<>();
         for (String objectName : objectNames) {
-//            if (!isExtensionCheckMandatory()) {
-//                addTable(bucketName, fileName, objectNameMap);
-//            }
-//            else if (storageProvider.isPartitionedDirectory(bucketName, fileName)
-//                    || fileName.toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
-//                addTable(bucketName, fileName, objectNameMap);
-//            }
-            if (checkValidTable(bucketName, objectName)) {
+            if (checkTableIsValid(bucketName, objectName)) {
                 addTable(bucketName, objectName, objectNameMap);
             }
         }
@@ -377,7 +389,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     /**
-     * Adds a table with multi parts files. This will maintain a list of multipart files
+     * Adds a table with one or more files (when it's partitioned)
      *
      * @param objectName Name of the object in storage (file)
      * @param tableMap   Name of the table under which we'll maintain a list of files fall under the pattern
@@ -511,6 +523,16 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         entities.tablesLoaded = true;
     }
 
+    /**
+     * Loads all classes from the class loader that are implementation of {@link StorageProvider} interface. An implementation of StorageProvider must
+     * contain a static method named accept(String), which returns true. When it accepts the value set in the provider_name environment variable, it returns
+     * true. In such case, this method initialize the storage provider. An implementation of {@link StorageProvider} MUST have a constructor that has a String argument
+     *
+     * @throws InvocationTargetException Occurs if any
+     * @throws InstantiationException When constructor raises an error or the MUST-HAVE constructor does not exist
+     * @throws IllegalAccessException Classes scope is not accessible
+     * @throws NoSuchMethodException Occurs if any when accept(String) static method is not present
+     */
     private void loadStorageProvider() throws InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
     {
         String providerCodeName = datasourceConfig.getPropertyElseDefault(STORAGE_PROVIDER_ENV_VAR, "gcs");
@@ -546,18 +568,17 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return Optional.empty();
     }
 
-    private boolean checkValidTable(String bucket, String objectName) throws IOException
+    private boolean checkTableIsValid(String bucket, String objectName) throws IOException
     {
         if (storageProvider.isPartitionedDirectory(bucket, objectName)) {
+            LOGGER.info("Object {} in the bucket {} is partitioned", objectName, bucket);
             Optional<String> optionalObjectName = storageProvider.getFirstObjectNameRecurse(bucket, objectName);
-            return (optionalObjectName.isPresent() && isSupported(bucket, optionalObjectName.get()));
+            boolean isValid = (optionalObjectName.isPresent() && isSupported(bucket, optionalObjectName.get()));
+            LOGGER.info("Object {} in the bucket is valid? {}", objectName, bucket);
         }
         else if (isExtensionCheckMandatory() && objectName.toLowerCase().endsWith(extension.toLowerCase())) {
             return true;
         }
-        else if (!isExtensionCheckMandatory()) {
-            return true;
-        }
-        return false;
+        return !isExtensionCheckMandatory();
     }
 }

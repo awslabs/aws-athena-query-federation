@@ -41,16 +41,16 @@ import com.amazonaws.athena.storage.datasource.parquet.filter.ConstraintEvaluato
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.io.api.PrimitiveConverter;
 
-class GcsSimplePrimitiveConverter extends PrimitiveConverter
+class StorageSimplePrimitiveConverter extends PrimitiveConverter
 {
     /**
      * The parent converter that converts a row to an instance of Group
      */
-    private final GcsSimpleGroupConverter parent;
+    private final StorageSimpleGroupConverter parent;
     private final int index;
     private final ConstraintEvaluator evaluator;
 
-    GcsSimplePrimitiveConverter(GcsSimpleGroupConverter parent, int index, ConstraintEvaluator evaluator)
+    StorageSimplePrimitiveConverter(StorageSimpleGroupConverter parent, int index, ConstraintEvaluator evaluator)
     {
         this.evaluator = evaluator;
         this.parent = parent;

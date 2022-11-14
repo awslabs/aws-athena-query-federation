@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.storage.mock;
+package com.amazonaws.athena.storage.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
@@ -36,6 +36,9 @@ import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.datasource.ParquetDatasource;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
+import com.amazonaws.athena.storage.mock.AthenaConstraints;
+import com.amazonaws.athena.storage.mock.AthenaMarker;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.PageImpl;
@@ -162,21 +165,21 @@ public class StorageMock
 //                .thenReturn(splits);
     }
 
-    public synchronized GcsReadRecordsRequest buildReadRecordsRequest(Map<String, ValueSet> summary,
-                                                                      String schema, String table, StorageSplit split,
-                                                                      boolean parquetFields) throws JsonProcessingException
+    public synchronized AthenaReadRecordsRequest buildReadRecordsRequest(Map<String, ValueSet> summary,
+                                                                         String schema, String table, StorageSplit split,
+                                                                         boolean parquetFields) throws JsonProcessingException
     {
         TableName inputTableName = new TableName(schema, table);
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         addSchemaFields(schemaBuilder, parquetFields);
         Schema fieldSchema = schemaBuilder.build();
-        Constraints constraints = new GcsConstraints(summary);
+        Constraints constraints = new AthenaConstraints(summary);
         S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
         Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
                 .add(StorageConstants.STORAGE_SPLIT_JSON, new ObjectMapper().writeValueAsString(split))
                 .add(TABLE_PARAM_OBJECT_NAME_LIST, split.getFileName())
                 .add(TABLE_PARAM_BUCKET_NAME, table);
-        return new GcsReadRecordsRequest(this.federatedIdentity,
+        return new AthenaReadRecordsRequest(this.federatedIdentity,
                 "default", "testQueryId", inputTableName,
                 fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
     }
@@ -189,9 +192,9 @@ public class StorageMock
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(field, fieldType));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = new GcsMarker(block, Marker.Bound.ABOVE, false).withValue(lowValue);
+        Marker low = new AthenaMarker(block, Marker.Bound.ABOVE, false).withValue(lowValue);
 
-        Marker high = new GcsMarker(block, Marker.Bound.BELOW, false).withValue(highValue);
+        Marker high = new AthenaMarker(block, Marker.Bound.BELOW, false).withValue(highValue);
         return Map.of(
                 "salary", SortedRangeSet.of(false, new Range(low, high))
         );

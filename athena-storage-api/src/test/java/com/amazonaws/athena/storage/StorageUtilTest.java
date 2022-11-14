@@ -25,7 +25,7 @@ import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
 
-import static com.amazonaws.athena.storage.GcsTestBase.CSV_FILE;
+import static com.amazonaws.athena.storage.gcs.GcsTestBase.CSV_FILE;
 import static com.amazonaws.athena.storage.StorageUtil.getCsvRecordCount;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityNameFromFile;

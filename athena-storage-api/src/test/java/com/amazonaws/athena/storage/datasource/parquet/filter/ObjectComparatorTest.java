@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.storage.datasource.parquet.filter;
 
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
 import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;

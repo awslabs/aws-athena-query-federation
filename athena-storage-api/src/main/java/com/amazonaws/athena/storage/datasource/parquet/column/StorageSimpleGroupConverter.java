@@ -48,12 +48,12 @@ import org.apache.parquet.schema.Type;
 import java.util.HashMap;
 import java.util.Map;
 
-class GcsSimpleGroupConverter extends GroupConverter
+class StorageSimpleGroupConverter extends GroupConverter
 {
     /**
      * Self as parent. Could be null
      */
-    private final GcsSimpleGroupConverter parent;
+    private final StorageSimpleGroupConverter parent;
 
     /**
      * Maps field index to associated Type
@@ -85,7 +85,7 @@ class GcsSimpleGroupConverter extends GroupConverter
      */
     private final Converter[] converters;
 
-    GcsSimpleGroupConverter(GcsSimpleGroupConverter parent, int index, GroupType schema, ConstraintEvaluator evaluator)
+    StorageSimpleGroupConverter(StorageSimpleGroupConverter parent, int index, GroupType schema, ConstraintEvaluator evaluator)
     {
         this.parent = parent;
         this.index = index;
@@ -96,10 +96,10 @@ class GcsSimpleGroupConverter extends GroupConverter
             final Type type = schema.getType(i);
             typeMap.put(i, type);
             if (type.isPrimitive()) {
-                converters[i] = new GcsSimplePrimitiveConverter(this, i, evaluator);
+                converters[i] = new StorageSimplePrimitiveConverter(this, i, evaluator);
             }
             else {
-                converters[i] = new GcsSimpleGroupConverter(this, i, type.asGroupType(), evaluator);
+                converters[i] = new StorageSimpleGroupConverter(this, i, type.asGroupType(), evaluator);
             }
         }
     }

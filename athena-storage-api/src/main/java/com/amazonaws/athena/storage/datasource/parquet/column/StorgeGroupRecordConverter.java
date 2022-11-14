@@ -45,7 +45,7 @@ import org.apache.parquet.io.api.GroupConverter;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 
-public class GcsGroupRecordConverter extends RecordMaterializer<Group>
+public class StorgeGroupRecordConverter extends RecordMaterializer<Group>
 {
     /**
      * Factory to create Group (as a record)
@@ -58,7 +58,7 @@ public class GcsGroupRecordConverter extends RecordMaterializer<Group>
      */
     private boolean matched = true;
 
-    private final GcsSimpleGroupConverter root;
+    private final StorageSimpleGroupConverter root;
 
     /**
      * Constructs a row converter tha converts a row to a Group.
@@ -66,15 +66,15 @@ public class GcsGroupRecordConverter extends RecordMaterializer<Group>
      * @param schema    An instance of {@link org.apache.arrow.vector.types.pojo.Schema}
      * @param evaluator An instance of {@link ParquetConstraintEvaluator}
      */
-    public GcsGroupRecordConverter(MessageType schema, ConstraintEvaluator evaluator)
+    public StorgeGroupRecordConverter(MessageType schema, ConstraintEvaluator evaluator)
     {
         this.simpleGroupFactory = new SimpleGroupFactory(schema);
-        this.root = new GcsSimpleGroupConverter(null, 0, schema, evaluator)
+        this.root = new StorageSimpleGroupConverter(null, 0, schema, evaluator)
         {
             @Override
             public void start()
             {
-                GcsGroupRecordConverter.this.matched = true;
+                StorgeGroupRecordConverter.this.matched = true;
                 this.current = simpleGroupFactory.newGroup();
             }
 
