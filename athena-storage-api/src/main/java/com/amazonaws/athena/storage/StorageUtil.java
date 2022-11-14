@@ -37,7 +37,7 @@ public class StorageUtil
 
     /**
      * Regular expression to remove invalid characters from entity name as per ANSI/ISO Entry SQL-92 standard, except
-     * entity names in GCS connector are all lower case
+     * entity names in underlying storage specific connector are all lower case
      * Also replace invalid characters for file naming (for example, '/' characters is not valid for file naming)
      */
     private static final String INVALID_CHARS_REPLACE_REGEX = "[^A-Za-z0-9]+|[\\\\/:*?\"<>|]+";
