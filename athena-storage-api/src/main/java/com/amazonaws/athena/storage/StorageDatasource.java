@@ -213,16 +213,6 @@ public interface StorageDatasource
     Optional<String> getBaseName(String bucket, String objectName) throws IOException;
 
     /**
-     * Provides a cached partition list for  given a table as per objectName provided uunder the specified ubcket
-     *
-     * @param objectName Name of the object
-     * @param bucketName Name of the bucket
-     * @return A list of in-memory cached (in an instance member) StoragePartition, if any
-     */
-    List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
-                                                   TableName tableInfo, Constraints constraints) throws IOException;
-
-    /**
      * Creates a list of splits for the given {@link StoragePartition}
      * @param partition An instance of {@link StoragePartition}
      * @param partitioned Indicates whether this the spit will be base on a partitioned table

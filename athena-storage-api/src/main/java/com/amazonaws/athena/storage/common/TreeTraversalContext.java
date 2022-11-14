@@ -23,8 +23,11 @@ import com.amazonaws.athena.storage.StorageDatasource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class TreeTraversalContext
 {
@@ -34,6 +37,7 @@ public class TreeTraversalContext
     private int partitionDepth = -1;
     private StorageDatasource storageDatasource;
     private final List<FilterExpression> filters = new ArrayList<>();
+    private final Set<String> expressionFields = new HashSet<>();
 
     public TreeTraversalContext(boolean hasParent, boolean includeFile, int maxDepth, int partitionDepth, StorageDatasource storageDatasource)
     {
@@ -98,19 +102,12 @@ public class TreeTraversalContext
         return partitionDepth;
     }
 
-    public void setPartitionDepth(int partitionDepth)
-    {
-        this.partitionDepth = partitionDepth;
-    }
-
-    public void addFiler(FilterExpression filter)
-    {
-        this.filters.add(filter);
-    }
-
     public void addAllFilers(List<FilterExpression> filters)
     {
         this.filters.addAll(filters);
+        expressionFields.addAll(this.filters.stream()
+                .map(FilterExpression::columnName)
+                .collect(Collectors.toList()));
     }
 
     public boolean isFile(String bucket, String path)
@@ -145,7 +142,7 @@ public class TreeTraversalContext
     // helpers
     private boolean matchAnyFilter(FieldValue fieldValue)
     {
-        if (filters.isEmpty()) {
+        if (filters.isEmpty() || !expressionFields.contains(fieldValue.getField())) {
             return true;
         }
 

@@ -93,7 +93,6 @@ public class StorageTreeNodeBuilder
                                                                                         String prefix,
                                                                                         TreeTraversalContext context)
     {
-//        prefix = normalizePrefix(prefix);
         StorageProvider storageProvider = context.getStorageDatasource().getStorageProvider();
         List<String> paths = storageProvider.getLeafObjectsByPartitionPrefix(bucket, prefix, Integer.MAX_VALUE);
         if (paths.isEmpty()) {
