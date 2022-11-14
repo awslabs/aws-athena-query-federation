@@ -89,13 +89,12 @@ public class GcsMetadataHandler
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "gcs";
-    private final GcsSchemaUtils gcsSchemaUtils;
+    private static final GcsSchemaUtils gcsSchemaUtils = new GcsSchemaUtils();
     private final StorageDatasource datasource;
 
     public GcsMetadataHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         super(SOURCE_TYPE);
-        gcsSchemaUtils = new GcsSchemaUtils();
         this.datasource = createDatasource(getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
@@ -110,7 +109,6 @@ public class GcsMetadataHandler
                                  AmazonS3 amazonS3) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
-        this.gcsSchemaUtils = gcsSchemaUtils;
         this.datasource = createDatasource(getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR))), System.getenv());
     }
 
