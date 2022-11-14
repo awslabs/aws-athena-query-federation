@@ -197,7 +197,7 @@ public class ParquetDatasource
     public boolean isSupported(String bucket, String objectName) throws IOException
     {
         boolean isWithValidExtension = containsInvalidExtension(objectName);
-        LOGGER.info("File {} is with valid extension? {}", objectName, isWithValidExtension);
+        LOGGER.debug("File {} is with valid extension? {}", objectName, isWithValidExtension);
         if (!isWithValidExtension) {
             InputFile inputFile = storageProvider.getInputFile(bucket, objectName);
             try (SeekableInputStream inputStream = inputFile.newStream()) {
@@ -206,7 +206,7 @@ public class ParquetDatasource
                 int readSize = inputStream.read(initBytes);
                 if (readSize == 4) {
                     String magicString = new String(initBytes);
-                    LOGGER.info("Magic string in file {} is {}", objectName, magicString);
+                    LOGGER.debug("Magic string in file {} is {}", objectName, magicString);
                     return PARQUET_MAGIC_BYTES_STRING.equals(magicString);
                 }
             }
@@ -243,7 +243,7 @@ public class ParquetDatasource
                         .collect(Collectors.toList());
             }
             else {
-                LOGGER.info("Prefix {}'s root  not present", prefix);
+                LOGGER.debug("Prefix {}'s root  not present", prefix);
                 return List.of();
             }
         }
@@ -251,7 +251,7 @@ public class ParquetDatasource
             fileNames = List.of(prefix);
         }
         List<StorageSplit> splits = new ArrayList<>();
-        LOGGER.info("Splitting based on files {}", prefix);
+        LOGGER.debug("Splitting based on files {}", prefix);
         for (String fileName : fileNames) {
             InputFile inputFile = storageProvider.getInputFile(bucket, fileName);
             LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, bucket);
@@ -316,7 +316,7 @@ public class ParquetDatasource
                 = new ObjectMapper()
                 .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         StorageSplit.class);
-        LOGGER.info("Reading records for split {} ", storageSplit);
+        LOGGER.debug("Reading records for split {} ", storageSplit);
         readRecords(schema, tableInfo, split, constraints, bucketName, storageSplit.getFileName(), spiller,
                 queryStatusChecker);
     }
@@ -336,7 +336,7 @@ public class ParquetDatasource
         if (objectNames.isEmpty()) {
             throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
         }
-        LOGGER.info("Inferring field schema based on file {}", objectNames.get(0));
+        LOGGER.debug("Inferring field schema based on file {}", objectNames.get(0));
         InputFile inputFile = storageProvider.getInputFile(bucketName, objectNames.get(0));
         try (ParquetFileReader reader = new ParquetFileReader(inputFile, ParquetReadOptions.builder().build())) {
             ParquetMetadata metadata = reader.getFooter();
@@ -386,7 +386,7 @@ public class ParquetDatasource
                 if (pages != null && queryStatusChecker.isQueryRunning()) {
                     ParquetFilter parquetFilter = new ParquetFilter(schema, messageType, split);
                     ConstraintEvaluator evaluator = parquetFilter.evaluator(tableInfo, split, constraints);
-                    LOGGER.info("Parquet evaluator: {}", evaluator);
+                    LOGGER.debug("Parquet evaluator: {}", evaluator);
                     storgeGroupRecordConverter = new StorgeGroupRecordConverter(messageType, evaluator);
                     addRecords(schema, messageType, columnIO.getRecordReader(pages,
                             storgeGroupRecordConverter, filter), objectName, spiller, queryStatusChecker);
@@ -413,7 +413,7 @@ public class ParquetDatasource
         while ((group = groupRecordReader.read()) != null) {
             if (queryStatusChecker.isQueryRunning()
                     && (storgeGroupRecordConverter == null || !storgeGroupRecordConverter.shouldSkipCurrent())) {
-                LOGGER.info("Parquet record group: {}, class name: {}", group, group.getClass().getName());
+                LOGGER.debug("Parquet record group: {}, class name: {}", group, group.getClass().getName());
                 Map<String, Object> record = valueResolver.getRecord(group);
                 record.put(BLOCK_PARTITION_COLUMN_NAME, partFileName);
                 spiller.writeRows((Block block, int rowNum) -> {

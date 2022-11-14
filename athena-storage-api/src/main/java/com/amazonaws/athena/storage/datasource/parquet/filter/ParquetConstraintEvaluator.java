@@ -48,7 +48,7 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
             return true;
         }
         boolean evaluate = doAnd(columnIndex, value);
-        LOGGER.info("ParquetConstraintEvaluator.evaluate returning {}", evaluate);
+        LOGGER.debug("ParquetConstraintEvaluator.evaluate returning {}", evaluate);
         return evaluate;
     }
 
@@ -62,7 +62,7 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
     {
         if (!and.contains(expression)) {
             if (!columnIndices.contains(expression.columnIndex())) {
-                LOGGER.info("Adding parquet expression {}", expression);
+                LOGGER.debug("Adding parquet expression {}", expression);
                 columnIndices.add(expression.columnIndex());
             }
             and.add(expression);

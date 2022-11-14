@@ -156,11 +156,11 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(location));
         for (Blob blob : blobPage.iterateAll()) {
             if (isPartitionFolder(blob.getName())) {
-                LOGGER.info("Path {} is a partitioned directory", location);
+                LOGGER.debug("Path {} is a partitioned directory", location);
                 return true;
             }
         }
-        LOGGER.info("Path {} is NOT a partitioned directory", location);
+        LOGGER.debug("Path {} is NOT a partitioned directory", location);
         return false;
     }
 
@@ -221,7 +221,7 @@ public class GcsStorageProvider implements StorageProvider
         Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
                 Storage.BlobListOption.prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
-            LOGGER.info("GcsStorageProvider.getFirstObjectNameRecurse(): checking if {} is a folder under prefix {}", blob.getName(), prefix);
+            LOGGER.debug("GcsStorageProvider.getFirstObjectNameRecurse(): checking if {} is a folder under prefix {}", blob.getName(), prefix);
             if (prefix.equals(blob.getName())) {
                 continue;
             }

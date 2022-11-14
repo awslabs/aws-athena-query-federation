@@ -215,7 +215,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (bucketName == null) {
             throw new RuntimeException("StorageHiveDatastore.getTable: bucket null does not exist");
         }
-        LOGGER.info("Resolving Table {} under the schema {}", tableObjects, databaseName);
+        LOGGER.debug("Resolving Table {} under the schema {}", tableObjects, databaseName);
         Map<StorageObject, List<String>> objectNameMap = tableObjects.get(databaseName);
         if (objectNameMap != null && !objectNameMap.isEmpty()) {
             Optional<StorageObject> optionalStorageObjectKey = findStorageObjectKey(tableName, databaseName);
@@ -279,7 +279,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                             + tableInfo.getTableName() + " under schema " + tableInfo.getSchemaName());
                 }
                 List<FilterExpression> expressions = getExpressions(bucketName, fileNames.get(0), schema, tableInfo, constraints, Map.of());
-                LOGGER.info("AbstractStorageDatasource.getStoragePartitions() -> List of expressions:\n{}", expressions);
+                LOGGER.debug("AbstractStorageDatasource.getStoragePartitions() -> List of expressions:\n{}", expressions);
                 context.addAllFilers(expressions);
                 Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(bucketName,
                         objectName, objectName, context);
@@ -294,15 +294,15 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                                 .children(List.of())
                                 .build());
                     }
-                    LOGGER.info("Storage partitions using tree: \n{}", partitions);
+                    LOGGER.debug("Storage partitions using tree: \n{}", partitions);
                 }
                 else {
-                    LOGGER.info("the object {} in the bucket {} is partitioned. However, it doesn't contain any nested objects", objectName, bucketName);
+                    LOGGER.debug("the object {} in the bucket {} is partitioned. However, it doesn't contain any nested objects", objectName, bucketName);
                 }
                 return partitions;
             }
             else {
-                LOGGER.info("Folder {} in bucket {} is not a partitioned folder", objectName, bucketName);
+                LOGGER.debug("Folder {} in bucket {} is not a partitioned folder", objectName, bucketName);
             }
         }
         else {
@@ -571,10 +571,10 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     private boolean checkTableIsValid(String bucket, String objectName) throws IOException
     {
         if (storageProvider.isPartitionedDirectory(bucket, objectName)) {
-            LOGGER.info("Object {} in the bucket {} is partitioned", objectName, bucket);
+            LOGGER.debug("Object {} in the bucket {} is partitioned", objectName, bucket);
             Optional<String> optionalObjectName = storageProvider.getFirstObjectNameRecurse(bucket, objectName);
             boolean isValid = (optionalObjectName.isPresent() && isSupported(bucket, optionalObjectName.get()));
-            LOGGER.info("In datasource {} the file {} is valid? {}", this.getClass().getSimpleName(),
+            LOGGER.debug("In datasource {} the file {} is valid? {}", this.getClass().getSimpleName(),
                     optionalObjectName.orElse("NONE"), isValid);
             return isValid;
         }

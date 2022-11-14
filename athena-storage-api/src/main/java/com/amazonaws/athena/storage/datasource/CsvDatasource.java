@@ -191,7 +191,7 @@ public class CsvDatasource
     @Override
     public List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints) throws IOException
     {
-        LOGGER.info("CsvDatasource.getSplitsByBucketPrefix() -> Prefix: {} in bucket {}", prefix, bucket);
+        LOGGER.debug("CsvDatasource.getSplitsByBucketPrefix() -> Prefix: {} in bucket {}", prefix, bucket);
         List<String> fileNames;
         if (partitioned) {
             LOGGER.debug("Location {} is a directory, walking through", prefix);
@@ -208,7 +208,7 @@ public class CsvDatasource
                         .collect(Collectors.toList());
             }
             else {
-                LOGGER.info("Prefix {}'s root  not present", prefix);
+                LOGGER.debug("Prefix {}'s root  not present", prefix);
                 return List.of();
             }
         }
