@@ -152,7 +152,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     }
 
     /**
-     * Creating splits for each partition. We break each topic partitions into more pieces
+     * Creating splits for each partition. We are further dividing each topic partition into more pieces
      * to increase the number of Split to result more parallelism.
      *
      * In the split metadata we are keeping the topic name and partition key
@@ -166,6 +166,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
+        LOGGER.debug("Inside doGetSplits");
         String topic = request.getTableName().getTableName();
 
         // Get the available partitions of the topic from kafka server.
@@ -185,13 +186,13 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         for (TopicPartition partition : topicPartitions) {
             // Calculate how many pieces we can divide a topic partition.
             topicPartitionPieces = pieceTopicPartition(endOffsets.get(partition));
-            System.out.printf("[kafka] Total pieces created %s for partition %s in topic %s %n",
+            LOGGER.info("[kafka] Total pieces created %s for partition %s in topic %s %n",
                     topicPartitionPieces.size(), partition.partition(), partition.topic()
             );
 
             // And for each piece we will create new split
             for (TopicPartitionPiece topicPartitionPiece : topicPartitionPieces) {
-                // In split, we are putting parameters so that latter, in RecordHandler we know
+                // In split, we are putting parameters so that later, in RecordHandler we know
                 // for which topic and for which partition we will initiate a kafka consumer
                 // as well as to consume data from which start offset to which end offset.
                 splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
@@ -203,7 +204,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
             }
         }
 
-        System.out.printf("[kafka] Total split created %s %n", splits.size());
+        LOGGER.debug("[kafka] Total split created %s %n", splits.size());
         return new GetSplitsResponse(request.getCatalogName(), splits);
     }
 
