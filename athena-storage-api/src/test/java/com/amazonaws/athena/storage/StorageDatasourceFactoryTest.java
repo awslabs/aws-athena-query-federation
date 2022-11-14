@@ -20,6 +20,7 @@
 package com.amazonaws.athena.storage;
 
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;

@@ -21,13 +21,13 @@ package com.amazonaws.athena.storage.datasource;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.amazonaws.util.ValidationUtils;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.StorageOptions;
@@ -41,7 +41,6 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.pig.convert.DecimalUtils;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
@@ -155,7 +154,7 @@ public class ParquetReadFieldsTest extends GcsTestBase
         assertFalse(splits.isEmpty(), "Split was empty");
 
         StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue(
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue(
                         "salary", Types.MinorType.FLOAT8.getType(), 2000.00, 3500.00),
                 BUCKET, PARQUET_TABLE_4, splits.get(0), true);
         parquetDatasource.loadAllTables(BUCKET);
@@ -183,7 +182,7 @@ public class ParquetReadFieldsTest extends GcsTestBase
         assertFalse(splits.isEmpty(), "Split was empty");
         PowerMockito.when(FileCacheFactory.getEmptyGCSInputFile(any(), any(), any())).thenReturn(storageWithInput.getInputFile());
         StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(), BUCKET, "customer_info", splits.get(0), true);
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(), BUCKET, "customer_info", splits.get(0), true);
         parquetDatasource.loadAllTables(BUCKET);
         S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());
         QueryStatusChecker mockedQueryStatusChecker = mock(QueryStatusChecker.class);
@@ -212,7 +211,7 @@ public class ParquetReadFieldsTest extends GcsTestBase
         assertFalse(splits.isEmpty(), "Split was empty");
 
         StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue(
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue(
                         "salary", Types.MinorType.FLOAT8.getType(), 2000.00, 3500.00),
                 BUCKET, PARQUET_TABLE_4, splits.get(0), true);
         parquetDatasource.loadAllTables(BUCKET);
@@ -245,7 +244,7 @@ public class ParquetReadFieldsTest extends GcsTestBase
         assertFalse(splits.isEmpty(), "Split was empty");
 
         StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue(
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(createSummaryWithSummaryRangeValue(
                         "salary", Types.MinorType.FLOAT8.getType(), 2000.00, 3500.00),
                 BUCKET, PARQUET_TABLE_4, splits.get(0), true);
         parquetDatasource.loadAllTables(BUCKET);

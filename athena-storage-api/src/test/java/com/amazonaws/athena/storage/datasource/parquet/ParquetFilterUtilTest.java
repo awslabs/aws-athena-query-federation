@@ -55,7 +55,6 @@ import java.util.List;
 
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.*;

@@ -20,7 +20,7 @@
 package com.amazonaws.athena.storage.common;
 
 
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;

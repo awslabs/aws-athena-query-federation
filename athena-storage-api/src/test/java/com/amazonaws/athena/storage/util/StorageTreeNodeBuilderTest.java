@@ -28,7 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.common.StorageNode;
 import com.amazonaws.athena.storage.common.StoragePartition;
@@ -36,9 +36,8 @@ import com.amazonaws.athena.storage.common.TreeTraversalContext;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.datasource.parquet.filter.EqualsExpression;
 import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;
-import com.amazonaws.athena.storage.mock.GcsConstraints;
-import com.amazonaws.athena.storage.mock.GcsMarker;
-import com.google.api.gax.paging.Page;
+import com.amazonaws.athena.storage.mock.AthenaConstraints;
+import com.amazonaws.athena.storage.mock.AthenaMarker;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.PageImpl;
 import com.google.cloud.storage.*;
@@ -48,7 +47,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -57,20 +55,17 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Scanner;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static org.apache.arrow.vector.types.Types.MinorType.BIGINT;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -153,7 +148,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         addSchemaFields(schemaBuilder, true);
         Schema fieldSchema = schemaBuilder.build();
-        Constraints constraints = new GcsConstraints(createSummary());
+        Constraints constraints = new AthenaConstraints(createSummary());
         TableName tableName = new TableName("mydatalake1", "zipcode");
         StorageDatasource datasource = getDatasource();
         List<StoragePartition> partitions = datasource.getStoragePartitions(fieldSchema, tableName, constraints, BUCKET, "zipcode/");
@@ -187,7 +182,7 @@ public class StorageTreeNodeBuilderTest extends GcsTestBase {
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable("statename", Types.MinorType.VARCHAR.getType()));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = new GcsMarker(block, Marker.Bound.EXACTLY, false).withValue("UP");
+        Marker low = new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue("UP");
         return Map.of(
                 "statename", SortedRangeSet.of(false, new Range(low, low))
         );

@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.storage;
+package com.amazonaws.athena.storage.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -32,11 +32,12 @@ import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.storage.AbstractStorageDatasource;
+import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.cache.CustomGcsReadChannel;
 import com.amazonaws.athena.storage.gcs.io.*;
-import com.amazonaws.athena.storage.mock.GcsMarker;
-import com.amazonaws.athena.storage.mock.StorageMock;
+import com.amazonaws.athena.storage.mock.AthenaMarker;
 import com.amazonaws.services.s3.AmazonS3;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.PageImpl;
@@ -276,7 +277,7 @@ public class GcsTestBase extends StorageMock
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(fieldName, fieldType));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = new GcsMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue);
+        Marker low = new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue);
         return Map.of(
                 fieldName, SortedRangeSet.of(false, new Range(low, low))
         );
@@ -300,7 +301,7 @@ public class GcsTestBase extends StorageMock
             Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(fieldName, fieldType));
 
             Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-            Marker marker = new GcsMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue);
+            Marker marker = new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue);
             valueSetMap.put(fieldName, SortedRangeSet.of(false, toRange(marker)));
         }
         return ImmutableMap.<String, ValueSet>builder().putAll(valueSetMap).build();
@@ -318,7 +319,7 @@ public class GcsTestBase extends StorageMock
             Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(fieldName, fieldType));
 
             Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-            markers.add(new GcsMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue));
+            markers.add(new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue));
         }
         return Map.of(fieldName, SortedRangeSet.of(false, toRange(markers.get(0)),
                 toRanges(markers.subList(1, markers.size()))));

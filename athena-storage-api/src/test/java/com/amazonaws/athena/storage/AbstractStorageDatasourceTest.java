@@ -25,14 +25,13 @@ import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
-import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
-import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
+import com.amazonaws.athena.storage.gcs.CsvSplitUtil;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
-import com.amazonaws.util.ValidationUtils;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -40,7 +39,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -48,14 +46,13 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.reflect.Whitebox;
-import org.testng.Assert;
+
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static org.junit.Assert.*;
@@ -302,36 +299,15 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         List<StorageSplit> splits = new ArrayList<>();
         String[] fileNames = {CSV_FILE};
         for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+            splits.addAll(CsvSplitUtil.getStorageSplitList(99, fileName, 100));
         }
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
         csvDatasource.loadAllTables(BUCKET);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
                 BUCKET, CSV_TABLE, splits.get(0), false);
         csvDatasource.getStoragePartitions(recordsRequest.getSchema(),
                 recordsRequest.getTableName(), recordsRequest.getConstraints(), BUCKET,
                 CSV_FILE);
     }
 
-    @Test(expected = Exception.class)
-    public void testGetStoragePartitionsException() throws Exception {
-        Storage storage = mockStorageWithInputStream(BUCKET, "name=test\\"+CSV_FILE).getStorage();
-        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
-        List<StorageSplit> splits = new ArrayList<>();
-        String[] fileNames = {"name=test/"};
-        for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
-        }
-        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        csvDatasource.loadAllTables(BUCKET);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
-                BUCKET, CSV_TABLE, splits.get(0), false);
-        Blob blobObject = mock(Blob.class);
-        when(blobObject.getSize()).thenReturn(0L);
-        PowerMockito.when(storage.get((BlobId) any())).thenReturn(blobObject);
-        PowerMockito.when(blobObject.getName()).thenReturn("name=test/");
-        List<StoragePartition> partitionList = csvDatasource.getStoragePartitions(recordsRequest.getSchema(),
-                recordsRequest.getTableName(), recordsRequest.getConstraints(), BUCKET,
-                "name=test/");
-    }
 }

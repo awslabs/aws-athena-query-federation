@@ -21,21 +21,16 @@ package com.amazonaws.athena.storage.datasource;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
-import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.gcs.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
-import com.amazonaws.athena.storage.common.StoragePartition;
-import com.amazonaws.athena.storage.common.StorageProvider;
-import com.amazonaws.athena.storage.datasource.exception.TableNotFoundException;
-import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
+import com.amazonaws.athena.storage.gcs.CsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.cache.CustomGcsReadChannel;
-import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
-import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.athena.storage.mock.AthenaReadRecordsRequest;
 import com.amazonaws.util.ValidationUtils;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.ReadChannel;
@@ -45,7 +40,7 @@ import com.google.cloud.storage.StorageOptions;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.mockito.Mockito;
+
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -53,7 +48,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,14 +55,13 @@ import java.util.Optional;
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 import static com.amazonaws.util.ValidationUtils.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
-@PrepareForTest({ GcsCsvSplitUtil.class, CsvDatasource.class, SeekableGcsInputStream.class,
+@PrepareForTest({ CsvSplitUtil.class, CsvDatasource.class, SeekableGcsInputStream.class,
         GoogleCredentials.class, StorageOptions.class, AbstractStorageDatasource.class})
 public class CsvDatasourceTest extends GcsTestBase
 {
@@ -148,7 +141,7 @@ public class CsvDatasourceTest extends GcsTestBase
         mockStorageWithInputStream(BUCKET, CSV_FILE);
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
+        AthenaReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
                 BUCKET, CSV_TABLE, new StorageSplit(), false);
         S3BlockSpiller spiller = getS3SpillerObject(recordsRequest.getSchema());
         assertFalse(spiller.spilled(), "No records found");
