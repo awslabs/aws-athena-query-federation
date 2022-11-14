@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.storage.datasource.csv;
 
-public class IsNotNullExpression extends AbstractFilterExpression<Void>
+public class IsNotNullExpression extends AbstractCsvExpression<Void>
 {
     /**
      * Constructor to instantiate not null expression with the column name to check to see if the column value is NOT NULL

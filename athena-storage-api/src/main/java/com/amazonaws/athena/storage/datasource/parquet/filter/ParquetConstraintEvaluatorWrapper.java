@@ -46,4 +46,16 @@ public final class ParquetConstraintEvaluatorWrapper implements ConstraintEvalua
     {
         return evaluator.getExpressions();
     }
+
+    @Override
+    public void addToAnd(FilterExpression expression)
+    {
+        // do nothing, wrapper won't mutate the proxy
+    }
+
+    @Override
+    public String toString()
+    {
+        return evaluator.toString();
+    }
 }

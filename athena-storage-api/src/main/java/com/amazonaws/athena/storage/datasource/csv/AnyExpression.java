@@ -21,7 +21,7 @@ package com.amazonaws.athena.storage.datasource.csv;
 
 import java.util.List;
 
-public class AnyExpression extends AbstractFilterExpression<List<String>>
+public class AnyExpression extends AbstractCsvExpression<List<String>>
 {
     /**
      * Constructor to instantiate AnyExpression expression with the column name and a collection of other expression. If any of the expressions is evaluated to true

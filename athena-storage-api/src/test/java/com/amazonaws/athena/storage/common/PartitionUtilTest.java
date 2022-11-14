@@ -24,7 +24,6 @@ import org.junit.Test;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.testng.Assert.*;
@@ -51,5 +50,12 @@ public class PartitionUtilTest extends GcsTestBase
     {
         Optional<FieldValue> fieldValue =  PartitionUtil.getPartitionFieldValue("month=april");
         assertNotNull(fieldValue.get());
+    }
+
+    @Test
+    public  void testRootNameOfPrefix()
+    {
+        String rootName = PartitionUtil.getRootName("zipcode/StateName='UP'/");
+        assertEquals(rootName, "zipcode", "Prefix root name not matched");
     }
 }

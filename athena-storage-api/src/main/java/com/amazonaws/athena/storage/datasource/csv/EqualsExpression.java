@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.storage.datasource.csv;
 
-public class EqualsExpression extends AbstractFilterExpression<String>
+public class EqualsExpression extends AbstractCsvExpression<String>
 {
     /**
      * Constructor to instantiate equals expression with the column name and the value

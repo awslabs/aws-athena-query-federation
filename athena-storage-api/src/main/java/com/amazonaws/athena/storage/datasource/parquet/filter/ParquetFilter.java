@@ -99,19 +99,22 @@ public class ParquetFilter
     /**
      * Construct an instance of this type with schema fields, fields from the instance of {@link MessageType}, and a {@link Split}.
      *
-     * @param schema      An instance of {@link Schema} to retrieve list of Fields
      * @param objectSchema The shorter version of real schema of the underlying PARQUET file (to be used to retrieve column information)
      * @param partitionFieldValueMap A map of partition field(s) and value(s)
      */
-    public ParquetFilter(Schema schema, StorageObjectSchema objectSchema, Map<String, String> partitionFieldValueMap)
+    @SuppressWarnings("unchecked")
+    public ParquetFilter(StorageObjectSchema objectSchema, Map<String, String> partitionFieldValueMap)
     {
-        this.fields = schema.getFields().stream()
-                .filter(c -> !partitionFieldValueMap.containsKey(c.getName()))
-                .collect(Collectors.toList());
+        this.fields = (List<Field>) objectSchema.getBaseSchema();
+//        this.fields = schema.getFields().stream()
+//                .filter(c -> !partitionFieldValueMap.containsKey(c.getName()))
+//                .collect(Collectors.toList());
+        LOGGER.info("List of fields from schema ParquetFilter:\n{}", this.fields);
         List<StorageObjectField> schemaFields = objectSchema.getFields();
         for (StorageObjectField field : schemaFields) {
             columnIndices.put(field.getColumnName(), field.getColumnIndex());
         }
+        LOGGER.info("Column indices for ParquetFilter:\n{}", columnIndices);
         this.evaluator = new ParquetConstraintEvaluator(and);
     }
 
@@ -132,12 +135,12 @@ public class ParquetFilter
     public ConstraintEvaluator evaluator(TableName tableInfo, Map<String, String> partitionFieldValueMap,
                                          Constraints constraints)
     {
-        LOGGER.debug("Filter::ParquetFilter|Constraint summary:\n{}", constraints.getSummary());
+        LOGGER.info("Filter::ParquetFilter|Constraint:\n{}", constraints);
         List<FilterExpression> expressions = toConjuncts(tableInfo,
                 constraints, partitionFieldValueMap);
         LOGGER.debug("Filter::ParquetFilter|Generated expressions:\n{}", expressions);
         if (!expressions.isEmpty()) {
-            expressions.forEach(this::addToAnd);
+            expressions.forEach(evaluator::addToAnd);
         }
         return new ParquetConstraintEvaluatorWrapper(evaluator);
     }
@@ -172,6 +175,7 @@ public class ParquetFilter
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
+                LOGGER.info("Value set for column {} was {}", column, valueSet);
                 if (valueSet != null) {
                     conjuncts.addAll(addParquetExpressions(column.getName(), valueSet, column.getType()));
                 }

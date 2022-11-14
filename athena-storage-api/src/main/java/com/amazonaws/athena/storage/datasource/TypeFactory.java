@@ -120,6 +120,7 @@ public class TypeFactory
                 ColumnDescriptor descriptor = columns.get(i);
                 String fieldName = descriptor.getPath()[0];
                 int fieldIndex = schema.getFieldIndex(fieldName);
+                fieldName = fieldName.toLowerCase();
                 try {
                     primitiveType = descriptor.getPrimitiveType();
                     switch (descriptor.getPrimitiveType().getPrimitiveTypeName()) {
@@ -390,22 +391,22 @@ public class TypeFactory
                 for (String px : p) {
                     sb.append(px);
                 }
-                String fieldName = sb.toString();
+                String fieldName = sb.toString().toLowerCase();
                 PrimitiveType primitiveType = descriptor.getPrimitiveType();
                 switch (primitiveType.getPrimitiveTypeName()) {
                     case BOOLEAN:
-                        fieldListBuilder.add(new Field(sb.toString(), FieldType.nullable(new ArrowType.Bool()),
+                        fieldListBuilder.add(new Field(fieldName, FieldType.nullable(new ArrowType.Bool()),
                                 null));
                         break;
                     case DOUBLE:
-                        fieldListBuilder.add(new Field(sb.toString(),
+                        fieldListBuilder.add(new Field(fieldName.toLowerCase(),
                                 FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), null));
                         break;
                     case FIXED_LEN_BYTE_ARRAY:
                         addFixedLenByteArrayField(primitiveType, fieldName);
                         break;
                     case FLOAT:
-                        fieldListBuilder.add(new Field(sb.toString(),
+                        fieldListBuilder.add(new Field(fieldName,
                                 FieldType.nullable(new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), null));
                         break;
                     case INT32:
@@ -420,11 +421,11 @@ public class TypeFactory
                     case BINARY:
                         FieldType binaryFieldType = new FieldType(true, new ArrowType.Utf8(), null,
                                 Map.of("baseType", "BINARY"));
-                        fieldListBuilder.add(new Field(sb.toString(),
+                        fieldListBuilder.add(new Field(fieldName,
                                 binaryFieldType, null));
                         break;
                     default:
-                        fieldListBuilder.add(new Field(sb.toString(),
+                        fieldListBuilder.add(new Field(fieldName,
                                 FieldType.nullable(new ArrowType.Utf8()), null));
                         break;
                 }

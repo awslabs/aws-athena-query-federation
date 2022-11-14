@@ -37,9 +37,9 @@ public class StoragePartition
     {
     }
 
-    public StoragePartition(List<String> objectName, String location, String bucketName, Long recordCount, List<StoragePartition> children)
+    public StoragePartition(List<String> objectNames, String location, String bucketName, Long recordCount, List<StoragePartition> children)
     {
-        this.objectName = requireNonNull(objectName, "objectName was null");
+        this.objectName = requireNonNull(objectNames, "objectNames was null");
         this.location = requireNonNull(location, "location was null");
         this.bucketName = requireNonNull(bucketName, "bucketName was null");
         this.recordCount = requireNonNull(recordCount, "recordCount was null");

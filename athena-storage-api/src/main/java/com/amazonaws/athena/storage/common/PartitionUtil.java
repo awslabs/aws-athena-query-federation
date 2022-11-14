@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static com.amazonaws.athena.storage.io.GcsIOUtil.getFolderName;
+import static com.amazonaws.athena.storage.io.StorageIOUtil.getFolderName;
 
 public class PartitionUtil
 {
@@ -33,6 +33,15 @@ public class PartitionUtil
 
     private PartitionUtil()
     {
+    }
+
+    public static String getRootName(String prefix)
+    {
+        int indexOfPathSeparator = prefix.indexOf("/");
+        if (indexOfPathSeparator > -1) {
+            return prefix.substring(0, indexOfPathSeparator);
+        }
+        return prefix;
     }
 
     public static boolean isPartitionFolder(String folderName)

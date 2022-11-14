@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.storage.io;
 
-public class GcsIOUtil
+public class StorageIOUtil
 {
-    private GcsIOUtil()
+    private StorageIOUtil()
     {
     }
 

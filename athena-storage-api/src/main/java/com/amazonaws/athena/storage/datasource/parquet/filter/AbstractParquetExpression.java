@@ -52,7 +52,7 @@ public abstract class AbstractParquetExpression<T> implements FilterExpression /
     @Override
     public String columnName()
     {
-        throw new UnsupportedOperationException("Method column() implemented in class " + getClass().getSimpleName());
+        return this.columnName;
     }
 
     /**

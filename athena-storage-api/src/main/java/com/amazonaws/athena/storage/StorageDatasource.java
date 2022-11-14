@@ -228,7 +228,7 @@ public interface StorageDatasource
      * @param partitioned Indicates whether this the spit will be base on a partitioned table
      * @return List of {@link StorageSplit} found in the specified partition
      */
-    List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException;
+    List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints) throws IOException;
 
     /**
      * Checks to see if the extension of the object is invalid for the underlying datasource. For example

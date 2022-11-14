@@ -40,9 +40,10 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.StorageUtil;
 import com.amazonaws.athena.storage.common.FilterExpression;
+import com.amazonaws.athena.storage.common.StorageNode;
 import com.amazonaws.athena.storage.common.StorageObjectField;
 import com.amazonaws.athena.storage.common.StorageObjectSchema;
-import com.amazonaws.athena.storage.common.StoragePartition;
+import com.amazonaws.athena.storage.common.TreeTraversalContext;
 import com.amazonaws.athena.storage.datasource.csv.ConstraintEvaluator;
 import com.amazonaws.athena.storage.datasource.csv.CsvFilter;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
@@ -50,6 +51,7 @@ import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasou
 import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
+import com.amazonaws.athena.storage.util.StorageTreeNodeBuilder;
 import com.google.common.collect.ImmutableList;
 import com.univocity.parsers.common.record.RecordMetaData;
 import com.univocity.parsers.csv.CsvParser;
@@ -77,11 +79,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.storage.StorageConstants.MAX_CSV_FILES_SIZE;
 import static com.amazonaws.athena.storage.StorageConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.storage.StorageUtil.getValidEntityName;
 import static com.amazonaws.athena.storage.StorageUtil.printJson;
+import static com.amazonaws.athena.storage.common.PartitionUtil.getRootName;
 import static java.util.Objects.requireNonNull;
 
 @ThreadSafe
@@ -185,28 +189,43 @@ public class CsvDatasource
     }
 
     @Override
-    public List<StorageSplit> getSplitsByStoragePartition(StoragePartition partition, boolean partitioned, String partitionBase) throws IOException
+    public List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints) throws IOException
     {
+        LOGGER.info("CsvDatasource.getSplitsByBucketPrefix() -> Prefix: {} in bucket {}", prefix, bucket);
         List<String> fileNames;
         if (partitioned) {
-            LOGGER.debug("Location {} is a directory, walking through", partition.getLocation());
-            fileNames = storageProvider.getLeafObjectsByPartitionPrefix(partition.getBucketName(), partitionBase, 0);
+            LOGGER.debug("Location {} is a directory, walking through", prefix);
+            TreeTraversalContext context = TreeTraversalContext.builder()
+                    .hasParent(true)
+                    .maxDepth(0)
+                    .storageDatasource(this)
+                    .build();
+            Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildFileOnlyTreeForPrefix(bucket,
+                    getRootName(prefix), prefix, context);
+            if (optionalRoot.isPresent()) {
+                fileNames = optionalRoot.get().getChildren().stream()
+                        .map(node -> node.getPath())
+                        .collect(Collectors.toList());
+            }
+            else {
+                LOGGER.info("Prefix {}'s root  not present", prefix);
+                return List.of();
+            }
         }
         else {
-            fileNames = List.of(partition.getLocation());
+            fileNames = List.of(prefix);
         }
         LOGGER.debug("Splitting based on file list: {}", fileNames);
         List<StorageSplit> splits = new ArrayList<>();
         for (String fileName : fileNames) {
-            checkFilesSize(partition.getBucketName(), fileName);
-            LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, partition.getBucketName());
-            try (InputStream inputStream = storageProvider.getOfflineInputStream(partition.getBucketName(), fileName)) {
+            checkFilesSize(bucket, fileName);
+            LOGGER.debug("Reading Splits from the file {}, under the bucket {}", fileName, bucket);
+            try (InputStream inputStream = storageProvider.getOfflineInputStream(bucket, fileName)) {
                 long totalRecords = StorageUtil.getCsvRecordCount(inputStream);
                 LOGGER.debug("Total record found in file {} was {}", fileName, totalRecords);
                 splits.addAll(GcsCsvSplitUtil.getStorageSplitList(totalRecords, fileName, recordsPerSplit()));
             }
         }
-        StorageUtil.printJson(splits, "Csv Splits");
         return splits;
     }
 

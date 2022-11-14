@@ -21,12 +21,16 @@ package com.amazonaws.athena.storage.datasource.parquet.filter;
 
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public final class ParquetConstraintEvaluator implements ConstraintEvaluator
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParquetConstraintEvaluator.class);
+
     private final List<Integer> columnIndices = new ArrayList<>();
     private final List<FilterExpression> and = new ArrayList<>();
 
@@ -43,7 +47,9 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
         if (!columnIndices.contains(columnIndex)) {
             return true;
         }
-        return doAnd(columnIndex, value);
+        boolean evaluate = doAnd(columnIndex, value);
+        LOGGER.info("ParquetConstraintEvaluator.evaluate returning {}", evaluate);
+        return evaluate;
     }
 
     @Override
@@ -52,10 +58,11 @@ public final class ParquetConstraintEvaluator implements ConstraintEvaluator
         return ImmutableList.copyOf(and);
     }
 
-    private void addToAnd(FilterExpression expression)
+    public void addToAnd(FilterExpression expression)
     {
         if (!and.contains(expression)) {
             if (!columnIndices.contains(expression.columnIndex())) {
+                LOGGER.info("Adding parquet expression {}", expression);
                 columnIndices.add(expression.columnIndex());
             }
             and.add(expression);

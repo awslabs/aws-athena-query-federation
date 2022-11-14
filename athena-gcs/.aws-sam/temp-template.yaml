@@ -1,0 +1,19 @@
+Resources:
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 300
+      MemorySize: 1152
+      Handler: com.amazonaws.athena.connectors.gcs.GcsCompositeHandler
+      CodeUri: /home/mdaliazam/afq/awslabs/aws-athena-query-federation/athena-gcs
+      Runtime: java11
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          disable_spill_encryption: false
+          file_extension: parquet
+          gcs_credential_key: gcs_credential_keys
+          gcs_secret_name: gcs-athena
+          spill_bucket: vertica-spill-bucket
+          spill_prefix: athena-spill

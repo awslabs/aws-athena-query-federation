@@ -21,7 +21,7 @@ package com.amazonaws.athena.storage.datasource.csv;
 
 import com.amazonaws.athena.storage.common.FilterExpression;
 
-public abstract class AbstractFilterExpression<T> implements FilterExpression
+public abstract class AbstractCsvExpression<T> implements FilterExpression
 {
     /**
      * Column name to retrieve value to apply the expression
@@ -55,7 +55,7 @@ public abstract class AbstractFilterExpression<T> implements FilterExpression
      *
      * @param columnName Name of the column for the expression
      */
-    public AbstractFilterExpression(String columnName)
+    public AbstractCsvExpression(String columnName)
     {
         this.column = columnName;
     }
@@ -66,7 +66,7 @@ public abstract class AbstractFilterExpression<T> implements FilterExpression
      * @param columnName Name of the column for the expression
      * @param expression Expression to be evaluated
      */
-    public AbstractFilterExpression(String columnName, T expression)
+    public AbstractCsvExpression(String columnName, T expression)
     {
         this.column = columnName.toLowerCase();
         this.expression = expression;
