@@ -21,13 +21,10 @@ package com.amazonaws.athena.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.storage.common.FieldValue;
 import com.amazonaws.athena.storage.common.FilterExpression;
 import com.amazonaws.athena.storage.common.PagedObject;
-import com.amazonaws.athena.storage.common.PartitionUtil;
 import com.amazonaws.athena.storage.common.StorageNode;
 import com.amazonaws.athena.storage.common.StorageObject;
-import com.amazonaws.athena.storage.common.StorageObjectSchema;
 import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.common.TreeTraversalContext;
@@ -53,9 +50,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.storage.StorageConstants.IS_TABLE_PARTITIONED;
 import static com.amazonaws.athena.storage.StorageConstants.STORAGE_PROVIDER_ENV_VAR;
 import static com.amazonaws.athena.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
@@ -310,17 +305,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return this.storageProvider;
     }
 
-    @Override
-    public List<StoragePartition> getByObjectNameInBucket(String objectName, String bucketName, Schema schema,
-                                                          TableName tableInfo, Constraints constraints) throws IOException
-    {
-        if (true) {
-            return List.of();
-        }
-        LOGGER.debug("Retrieving nested object in partition for object {} under the bucket {}", objectName, bucketName);
-        return this.getStoragePartitions(schema, tableInfo, constraints, bucketName, objectName);
-    }
-
     /**
      * Returns the size of records per split
      *
@@ -482,48 +466,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
     }
 
-    // inner class
-    private static class ObjectStoragePartition
-    {
-        private String baseObject;
-        private boolean directory;
-        private List<StoragePartition> partitions;
-
-        public ObjectStoragePartition(String baseObject, boolean directory, List<StoragePartition> partitions)
-        {
-            this.baseObject = baseObject;
-            this.directory = directory;
-            this.partitions = partitions;
-        }
-
-        public String getBaseObject()
-        {
-            return baseObject;
-        }
-
-        public boolean isDirectory()
-        {
-            return directory;
-        }
-
-        public List<StoragePartition> getPartitions()
-        {
-            return partitions;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "ObjectStoragePartition{" +
-                    "baseObject='" + baseObject + '\'' +
-                    ", directory=" + directory +
-                    ", partitions=" + partitions +
-                    '}';
-        }
-    }
-
     // helpers
-
     /**
      * Determines whether a bucket exists for the given database name
      *
@@ -548,7 +491,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     }
 
     // helpers
-
     /**
      * Mark whether all tables (entities) are loaded maintained in a LoadedEntities object
      *
@@ -586,74 +528,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         }
     }
 
-    private void addPartitionsRecurse(String bucket, String prefix, boolean isPrefixedRoot, Schema schema, TableName tableName,
-                                      Constraints constraints, List<StoragePartition> partitions) throws IOException
-    {
-        if (baseObjectName == null) {
-            Optional<String> optionalBaseObjectName = getBaseName(bucket, prefix);
-            if (optionalBaseObjectName.isEmpty()) {
-                throw new UncheckedStorageDatasourceException("No file(s) found under bucket '" + bucket + "'"
-                        + " inside the folder " + prefix);
-            }
-            baseObjectName = optionalBaseObjectName.get();
-        }
-        List<FilterExpression> expressions = getExpressions(bucket, baseObjectName, schema, tableName, constraints,
-                Map.of(BLOCK_PARTITION_COLUMN_NAME, BLOCK_PARTITION_COLUMN_NAME));
-        LOGGER.debug("List of expressions for table {} under bucket {} \n{}", tableName, bucket, expressions);
-        StorageObjectSchema objectSchema = getObjectSchema(bucket, baseObjectName);
-        List<String> folders = storageProvider.getNestedFolders(bucket, prefix);
-        if (folders.isEmpty()) {
-            LOGGER.debug("Bucket {}, with prefix {} does not contain any nested folders", bucket, partitions);
-            return;
-        }
-        for (String folder : folders) {
-            if (PartitionUtil.isPartitionFolder(folder)) {
-                Optional<FieldValue> optionalFieldValue = PartitionUtil.getPartitionFieldValue(folder);
-                if (optionalFieldValue.isPresent()) {
-                    LOGGER.debug("Field value {} found for folder {} under bucket {}", optionalFieldValue.get(), folder, bucket);
-                    if (matchWithExpression(objectSchema, expressions, optionalFieldValue.get())) {
-                        LOGGER.debug("Partitioned folder {} is being added under bucket {}", folder, bucket);
-                        partitions.add(StoragePartition.builder()
-                                .objectNames(List.of(folder))
-                                .location(folder)
-                                .bucketName(bucket)
-                                .build());
-                    }
-                }
-            }
-        }
-    }
-
-    private boolean matchWithExpression(StorageObjectSchema objectSchema, List<FilterExpression> expressions,
-                                        FieldValue fieldValue)
-    {
-        if (expressions.isEmpty()) {
-            LOGGER.debug("No expression found to match against field value {}. Returning...", fieldValue);
-            return true;
-        }
-        LOGGER.debug("Matching partition folder for field with value {}", fieldValue);
-        LOGGER.debug("Filter expression field {}", expressions.stream().map(e -> e.columnName()).collect(Collectors.toList()));
-        List<FilterExpression> matchedExpression = expressions.stream()
-                .filter(expression -> fieldValue.getField().equalsIgnoreCase(expression.columnName()))
-                .collect(Collectors.toList());
-        boolean matchFound = false;
-        if (!matchedExpression.isEmpty()) {
-            for (FilterExpression expression : matchedExpression) {
-                if (fieldValue.getValue().endsWith(expression.filterValue().toString())) {
-                    matchFound = true;
-                    break;
-                }
-            }
-        }
-        if (!matchFound) {
-            long matchCount = objectSchema.getFields().stream()
-                    .filter(field -> fieldValue.getField().equalsIgnoreCase(field.getColumnName()))
-                    .count();
-            matchFound = (matchCount == 0L);
-        }
-        return matchFound;
-    }
-
     private Optional<StorageObject> findStorageObjectKey(String tableName, String databaseName)
     {
         LOGGER.debug("Resolving Table {} under the schema {}", tableObjects, databaseName);
@@ -667,10 +541,5 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             }
         }
         return Optional.empty();
-    }
-
-    private boolean isBaseFolderPartitioned()
-    {
-        return false;
     }
 }
