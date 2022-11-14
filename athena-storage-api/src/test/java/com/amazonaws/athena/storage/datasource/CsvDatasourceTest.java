@@ -25,6 +25,8 @@ import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
 import com.amazonaws.athena.storage.StorageTable;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.common.StorageProvider;
 import com.amazonaws.athena.storage.datasource.exception.TableNotFoundException;
 import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
@@ -81,7 +83,27 @@ public class CsvDatasourceTest extends GcsTestBase
     }
 
     @Test
-    @Ignore
+    public void testGetObjectSchema() throws Exception
+    {
+        StorageWithStreamTest mockStorageWithInputStream = mockStorageWithInputStream(BUCKET, CSV_FILE);
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        StorageObjectSchema storageObjectSchema = csvDatasource.getObjectSchema(BUCKET, CSV_FILE);
+        ValidationUtils.assertNotNull(storageObjectSchema, "Schema were null");
+    }
+
+    @Test
+    public void testGetSplitsByStoragePartition() throws Exception
+    {
+        StorageWithStreamTest mockStorageWithInputStream = mockStorageWithInputStream(BUCKET, CSV_FILE);
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        StoragePartition partition = StoragePartition.builder().bucketName("test").location("test").objectNames(List.of("test")).recordCount(10L).children(List.of()).build();
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        List<StorageSplit> splits = csvDatasource.getSplitsByStoragePartition(partition, true, BUCKET);
+        ValidationUtils.assertNotNull(splits, "Split were null");
+    }
+
+    @Test
     public void testCsvSplitWithUsingDatasource() throws Exception
     {
         StorageWithStreamTest mockStorageWithInputStream = mockStorageWithInputStream(BUCKET, CSV_FILE);
@@ -109,35 +131,13 @@ public class CsvDatasourceTest extends GcsTestBase
     }
 
     @Test
-    @Ignore
-    public void testGetTableFieldsException() throws Exception
+    public void testGetStorageTable() throws Exception
     {
         mockStorageWithInputStream(BUCKET, CSV_FILE);
         parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
         StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
         Optional<StorageTable> obj = csvDatasource.getStorageTable("test", "dimeemployee");
-        assertTrue(obj.isEmpty(), "Storage table was not empty");
-    }
-
-    @Test
-    @Ignore
-    public void testReadException() throws Exception
-    {
-        mockStorageWithInputStreamLargeFiles(BUCKET, CSV_FILE);
-        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
-        List<StorageSplit> splits = new ArrayList<>();
-        String[] fileNames = {CSV_FILE};
-        for (String fileName : fileNames) {
-            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
-        }
-        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
-        csvDatasource.loadAllTables(BUCKET);
-        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
-                BUCKET, CSV_TABLE, splits.get(0), false);
-        List<StorageSplit> splits1 = csvDatasource.getStorageSplits(recordsRequest.getSchema(),
-                recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET,
-                CSV_FILE);
-        assertNotNull(splits1, "splits");
+        assertFalse(obj.isEmpty(), "Storage table was not empty");
     }
 
     @Test(expected = Exception.class)

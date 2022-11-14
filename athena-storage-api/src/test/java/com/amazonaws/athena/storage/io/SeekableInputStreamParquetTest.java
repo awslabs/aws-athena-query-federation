@@ -23,6 +23,8 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.storage.GcsTestBase;
 import com.amazonaws.athena.storage.StorageDatasource;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.ParquetDatasource;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.gcs.GcsParquetSplitUtil;
@@ -123,6 +125,25 @@ public class SeekableInputStreamParquetTest extends GcsTestBase
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET, PARQUET_FILE_4_STREAM);
         assertNotNull(splits, "No splits returned");
         assertFalse(splits.isEmpty(), "No splits found");
+    }
+
+    @Test
+    public void testGetSplitsByStoragePartition() throws Exception
+    {
+        StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        StoragePartition partition = StoragePartition.builder().bucketName("test").location("test").objectNames(List.of("test")).recordCount(10L).children(List.of()).build();
+        parquetDatasource.loadAllTables(BUCKET);
+        List<StorageSplit> splits = parquetDatasource.getSplitsByStoragePartition(partition, true, BUCKET);
+        assertNotNull(splits, "No splits returned");
+        assertFalse(splits.isEmpty(), "No splits found");
+    }
+
+    @Test
+    public void testGetObjectSchema() throws Exception
+    {
+        StorageDatasource parquetDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        StorageObjectSchema storageObjectSchema = parquetDatasource.getObjectSchema(BUCKET, PARQUET_FILE);
+        assertNotNull(storageObjectSchema, "No schema returned");
     }
 
     @Test

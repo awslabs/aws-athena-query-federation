@@ -21,11 +21,22 @@ package com.amazonaws.athena.storage;
 
 import com.amazonaws.athena.storage.common.PagedObject;
 import com.amazonaws.athena.storage.common.StorageObject;
+import com.amazonaws.athena.storage.common.StoragePartition;
 import com.amazonaws.athena.storage.datasource.StorageDatasourceConfig;
+import com.amazonaws.athena.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.athena.storage.datasource.exception.DatabaseNotFoundException;
+import com.amazonaws.athena.storage.datasource.exception.UncheckedStorageDatasourceException;
+import com.amazonaws.athena.storage.gcs.GcsCsvSplitUtil;
 import com.amazonaws.athena.storage.gcs.SeekableGcsInputStream;
+import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.GcsStorageProvider;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;
+import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.util.ValidationUtils;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -36,6 +47,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.reflect.Whitebox;
+import org.testng.Assert;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,17 +57,17 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
+import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
-@PrepareForTest({SeekableGcsInputStream.class, StorageFile.class, StorageOptions.class})
+@PrepareForTest({SeekableGcsInputStream.class, StorageFile.class, StorageOptions.class, GoogleCredentials.class})
 public class AbstractStorageDatasourceTest extends GcsTestBase
 {
     public static final String TABLE_OBJECTS = "tableObjects";
@@ -106,7 +118,7 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
     {
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
-                .getAllTables("test", null, 2);
+                .getAllTables(BUCKET, null, 2);
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, Map.of("test", Map.of("test", List.of("test"))));
 
         TableListResult bList = abstractStorageDatasource.getAllTables("test", null, 2);
@@ -114,17 +126,11 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
     }
 
     @Test
-    public void testCheckDatastoreForPagination() throws IOException
+    public void testCheckDatastoreForPagination() throws Exception
     {
-        PowerMockito.when(abstractStorageDatasource.loadTablesInternal(anyString(), anyString(), anyInt())).thenReturn("token");
-        PowerMockito.doCallRealMethod()
-                .when(abstractStorageDatasource)
-                .loadTablesWithContinuationToken("test", null, 2);
-        Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
-        Whitebox.setInternalState(abstractStorageDatasource, "datasourceConfig", new StorageDatasourceConfig().credentialsJson(gcsCredentialsJson).properties(properties));
-        String token = abstractStorageDatasource.loadTablesWithContinuationToken("test", null, 2);
-        assertNull(token);
-
+        mockStorageWithInputStream(BUCKET, CSV_FILE);
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, csvProps);
+        assertNull(csvDatasource.loadTablesWithContinuationToken(BUCKET, null, 2));
     }
 
     @Test
@@ -132,37 +138,27 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
     {
         PowerMockito.doCallRealMethod()
                 .when(abstractStorageDatasource)
-                .loadAllTables("test");
+                .loadAllTables(BUCKET);
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, Map.of("test", Map.of("test", List.of("test"))));
 
-        List<StorageObject> bList = abstractStorageDatasource.loadAllTables("test");
+        List<StorageObject> bList = abstractStorageDatasource.loadAllTables(BUCKET);
         assertNotNull(bList);
     }
 
     @Test
-    public void testCheckDatastoreForAll() throws IOException
+    public void testCheckDatastoreForAll() throws Exception
     {
-        PowerMockito.doCallRealMethod()
-                .when(abstractStorageDatasource)
-                .checkDatastoreForDatabase("test");
-        Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, Map.of("test", Map.of("test", List.of("test"))));
-        Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
-
-        abstractStorageDatasource.checkDatastoreForDatabase("test");
-        verify(abstractStorageDatasource, times(3)).checkDatastoreForDatabase("test");
+        mockStorageWithInputStream(BUCKET, CSV_FILE);
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, csvProps);
+        csvDatasource.checkDatastoreForDatabase(BUCKET);
     }
 
     @Test
-    public void testGetStorageTable() throws IOException
+    public void testGetStorageTable() throws Exception
     {
-        PowerMockito.doCallRealMethod()
-                .when(abstractStorageDatasource)
-                .getStorageTable("test", "test");
-        Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, Map.of("test", Map.of("test", List.of("test"))));
-        Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
-
-        Optional<StorageTable> obj = abstractStorageDatasource.getStorageTable("test", "test");
-        assertNotNull(obj);
+        mockStorageWithInputStream(BUCKET, CSV_FILE);
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, csvProps);
+        assertNotNull(csvDatasource.getStorageTable(BUCKET, "dimeemployee"));
     }
 
     @Test
@@ -235,7 +231,6 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
                 .when(abstractStorageDatasource)
                 .convertBlobsToTableObjectsMap(BUCKET, bucketList);
 
-
         Whitebox.setInternalState(abstractStorageDatasource, TABLE_OBJECTS, new HashMap<>());
         Whitebox.setInternalState(abstractStorageDatasource, DATABASE_BUCKETS, Map.of("test", "test"));
         Whitebox.setInternalState(abstractStorageDatasource, EXTENSION, "csv");
@@ -288,5 +283,53 @@ public class AbstractStorageDatasourceTest extends GcsTestBase
         assertFalse(st);
     }
 
+    @Test
+    public void testContainsInvalidExtension()
+    {
+        PowerMockito.doCallRealMethod()
+                .when(abstractStorageDatasource)
+                .containsInvalidExtension("test.csv");
+        Whitebox.setInternalState(abstractStorageDatasource, "datasourceConfig", new StorageDatasourceConfig().credentialsJson(gcsCredentialsJson).properties(csvProps));
+        assertFalse(abstractStorageDatasource.containsInvalidExtension("test.csv"));
+    }
 
+    @Test
+    public void testGetStoragePartitions() throws Exception {
+        Storage storage = mockStorageWithInputStream(BUCKET, CSV_FILE).getStorage();
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        List<StorageSplit> splits = new ArrayList<>();
+        String[] fileNames = {CSV_FILE};
+        for (String fileName : fileNames) {
+            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+        }
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        csvDatasource.loadAllTables(BUCKET);
+        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
+                BUCKET, CSV_TABLE, splits.get(0), false);
+        csvDatasource.getStoragePartitions(recordsRequest.getSchema(),
+                recordsRequest.getTableName(), recordsRequest.getConstraints(), BUCKET,
+                CSV_FILE);
+    }
+
+    @Test(expected = UncheckedStorageDatasourceException.class)
+    public void testGetStoragePartitionsException() throws Exception {
+        Storage storage = mockStorageWithInputStream(BUCKET, "name=test\\"+CSV_FILE).getStorage();
+        parquetProps.put(FILE_EXTENSION_ENV_VAR, "csv");
+        List<StorageSplit> splits = new ArrayList<>();
+        String[] fileNames = {"name=test/"};
+        for (String fileName : fileNames) {
+            splits.addAll(GcsCsvSplitUtil.getStorageSplitList(99, fileName, 100));
+        }
+        StorageDatasource csvDatasource = StorageDatasourceFactory.createDatasource(gcsCredentialsJson, parquetProps);
+        csvDatasource.loadAllTables(BUCKET);
+        GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
+                BUCKET, CSV_TABLE, splits.get(0), false);
+        Blob blobObject = mock(Blob.class);
+        when(blobObject.getSize()).thenReturn(0L);
+        PowerMockito.when(storage.get((BlobId) any())).thenReturn(blobObject);
+        PowerMockito.when(blobObject.getName()).thenReturn("name=test/");
+        List<StoragePartition> partitionList = csvDatasource.getStoragePartitions(recordsRequest.getSchema(),
+                recordsRequest.getTableName(), recordsRequest.getConstraints(), BUCKET,
+                "name=test/");
+    }
 }

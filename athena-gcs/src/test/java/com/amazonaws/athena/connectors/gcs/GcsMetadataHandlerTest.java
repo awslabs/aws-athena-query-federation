@@ -154,6 +154,8 @@ public class GcsMetadataHandlerTest
         when(csvDatasource.getAllTables(anyString(), anyString(), anyInt())).thenReturn(GcsTestUtils.getTableList());
         when(csvDatasource.getStorageTable(Mockito.any(), Mockito.any())).thenReturn(Optional.of(GcsTestUtils.getTestSchemaFields()));
         when(csvDatasource.getStorageSplits(Mockito.any(), Mockito.any(), Mockito.any(), anyString(), anyString())).thenReturn(GcsTestUtils.getSplits());
+        when(csvDatasource.getByObjectNameInBucket(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(GcsTestUtils.getStoragePartition());
+        when(csvDatasource.getStoragePartitions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(GcsTestUtils.getStoragePartition());
         MockitoAnnotations.initMocks(this);
         suppress(constructor(MetadataHandler.class, com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory.class, com.amazonaws.services.secretsmanager.AWSSecretsManager.class, com.amazonaws.services.athena.AmazonAthena.class, java.lang.String.class, java.lang.String.class, java.lang.String.class));
         PowerMockito.mockStatic(GoogleCredentials.class);
@@ -232,7 +234,6 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    @Ignore
     public void testDoGetSplitsMultiSplits() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         String yearCol = "PART_ID";
@@ -265,10 +266,9 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    @Ignore
     public void testGetPartitions() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
-        when(csvDatasource.getStorageSplits(Mockito.any(), anyString())).thenReturn(GcsTestUtils.getSplits());
+        when(csvDatasource.getStoragePartitions(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).thenReturn(GcsTestUtils.getStoragePartition());
         BlockWriter blockWriter = mock(BlockWriter.class);
         final List<String> writtenList = new ArrayList<>();
         doAnswer(l -> writtenList.add("Test")).when(blockWriter).writeRows(any(BlockWriter.RowWriter.class));

@@ -135,7 +135,6 @@ public class GcsTestBase extends StorageMock
         when(table.getSize()).thenReturn(11L);
         when(tables.getValues()).thenReturn(List.of(table));
         doReturn(tables).when(storage).list(anyString());
-        //doReturn(tables).when(storage).list(anyString());
         doReturn(List.of(table)).when(tables).iterateAll();
         return storage;
     }
@@ -186,7 +185,7 @@ public class GcsTestBase extends StorageMock
         URL fileResourceUri = ClassLoader.getSystemResource(fileName);
         File csvFile = new File(fileResourceUri.toURI());
         Storage storage = mockStorageWithBlobIterator(bucketName, csvFile.length(), fileName);
-
+        getFileCacheFactoryInfoTest(fileName, "csv", storage);
         GcsOnlineStream gcsOnlineStream = new GcsOnlineStream()
                 .storage(storage)
                 .bucketName(bucketName)
@@ -198,8 +197,8 @@ public class GcsTestBase extends StorageMock
                 .file(csvFile)
                 .inputStream(new FileInputStream(csvFile));
         mockStatic(FileCacheFactory.class);
-        PowerMockito.when(FileCacheFactory.createOfflineGcsStream(storage, bucketName, fileName)).thenReturn(gcsOfflineStream);
-        PowerMockito.when(FileCacheFactory.createOnlineGcsStream(storage, bucketName, fileName)).thenReturn(gcsOnlineStream);
+        PowerMockito.when(FileCacheFactory.cacheBytesInTempFile(anyString(), anyString(), Mockito.any())).thenReturn(csvFile);
+//        PowerMockito.when(FileCacheFactory.createOnlineGcsStream(storage, bucketName, fileName)).thenReturn(gcsOnlineStream);
         GoogleCredentials credentials = mock(GoogleCredentials.class);
         mockStatic(GoogleCredentials.class);
         PowerMockito.when(GoogleCredentials.fromStream(ArgumentMatchers.any())).thenReturn(credentials);
@@ -373,6 +372,11 @@ public class GcsTestBase extends StorageMock
 
     protected FileCacheFactoryInfoTest prepareFileCacheFactory(String fileName, String cachePrefix) throws IOException, URISyntaxException
     {
+        Storage storage = mock(Storage.class);
+        return getFileCacheFactoryInfoTest(fileName, cachePrefix, storage);
+    }
+
+    private FileCacheFactoryInfoTest getFileCacheFactoryInfoTest(String fileName, String cachePrefix, Storage storage) throws IOException, URISyntaxException {
         if (fileName == null) {
             fileName = PARQUET_FILE;
         }
@@ -384,8 +388,6 @@ public class GcsTestBase extends StorageMock
         try (OutputStream out = new FileOutputStream(tmpFile)) {
             Files.copy(parquetFile.toPath(), out);
         }
-
-        Storage storage = mock(Storage.class);
         Blob blobObject = mock(Blob.class);
         doReturn(parquetFile.length()).when(blobObject).getSize();
         ReadChannel readChannel = mock(ReadChannel.class);

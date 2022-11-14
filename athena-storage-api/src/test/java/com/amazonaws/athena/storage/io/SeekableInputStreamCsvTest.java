@@ -36,6 +36,7 @@ import com.google.cloud.storage.StorageOptions;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -62,7 +63,6 @@ import static org.testng.Assert.assertTrue;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
 @PrepareForTest({GoogleCredentials.class, StorageOptions.class})
-@Ignore
 public class SeekableInputStreamCsvTest extends GcsTestBase
 {
     static File csvFile;
@@ -143,6 +143,7 @@ public class SeekableInputStreamCsvTest extends GcsTestBase
         csvDatasource.loadAllTables(BUCKET);
         GcsReadRecordsRequest recordsRequest = buildReadRecordsRequest(Map.of(),
                 BUCKET, CSV_TABLE, splits.get(0), false);
+
         List<StorageSplit> splits1 = csvDatasource.getStorageSplits(recordsRequest.getSchema(),
                 recordsRequest.getConstraints(), recordsRequest.getTableName(), BUCKET,
                 CSV_FILE);

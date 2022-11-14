@@ -165,8 +165,7 @@ public class GcsMetadataHandlerExceptionTest
         gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
     }
 
-    @Test
-    @Ignore
+    @Test(expected = NullPointerException.class)
     public void testDoListSchemaNames() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
@@ -191,8 +190,7 @@ public class GcsMetadataHandlerExceptionTest
 
     }
 
-    @Test
-    @Ignore
+    @Test(expected = NullPointerException.class)
     public void testDoListTables() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
         PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), Mockito.any())).thenReturn(null);
@@ -203,7 +201,6 @@ public class GcsMetadataHandlerExceptionTest
 
         gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, amazonAthena, "test", "test", gcsSchemaUtils, amazonS3);
         ListTablesResponse tableNames = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
-        assertEquals(tableNames.getTables().size(), 0);
     }
 
     @Test(expected = Exception.class)

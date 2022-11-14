@@ -21,19 +21,31 @@ package com.amazonaws.athena.storage.datasource;
 
 import com.amazonaws.athena.storage.AbstractStorageDatasource;
 import com.amazonaws.athena.storage.GcsTestBase;
+import com.amazonaws.athena.storage.StorageDatasource;
+import com.amazonaws.athena.storage.common.StorageObjectSchema;
+import com.amazonaws.athena.storage.common.StoragePartition;
+import com.amazonaws.athena.storage.gcs.GroupSplit;
 import com.amazonaws.athena.storage.gcs.ParquetUtil;
 import com.amazonaws.athena.storage.gcs.StorageSplit;
 import com.amazonaws.athena.storage.gcs.io.FileCacheFactory;
 import com.amazonaws.athena.storage.gcs.io.GcsInputFile;
 import com.amazonaws.athena.storage.gcs.io.StorageFile;
+import com.amazonaws.athena.storage.mock.GcsReadRecordsRequest;
+import com.amazonaws.util.ValidationUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.parquet.ParquetReadOptions;
 import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.InputFile;
 import org.apache.parquet.io.SeekableInputStream;
 import org.junit.Before;
@@ -45,9 +57,12 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 
+import java.io.File;
 import java.net.URL;
 import java.util.List;
 
+import static com.amazonaws.athena.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
+import static org.apache.arrow.vector.types.Types.MinorType.DATEDAY;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -59,7 +74,7 @@ import static org.testng.Assert.assertNotNull;
 
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"})
-@PrepareForTest({FilterCompat.class, ParquetUtil.class, StorageFile.class, AbstractStorageDatasource.class, ObjectMapper.class, SeekableInputStream.class, ParquetFileReader.class})
+@PrepareForTest({StorageOptions.class, FilterCompat.class, ParquetUtil.class, StorageFile.class, AbstractStorageDatasource.class, ObjectMapper.class, SeekableInputStream.class, ParquetFileReader.class, GoogleCredentials.class})
 public class ParquetDatasourceTest extends GcsTestBase
 {
 
@@ -77,9 +92,9 @@ public class ParquetDatasourceTest extends GcsTestBase
         ObjectMapper objectMapper = PowerMockito.mock(ObjectMapper.class);
         PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
         PowerMockito.when(objectMapper.readValue(anyString(), eq(StorageSplit.class))).thenReturn(mock(StorageSplit.class));
-
         suppress(constructor(AbstractStorageDatasource.class));
         parquetDatasource = mockParquetDatasource();
+
     }
 
     @Test
