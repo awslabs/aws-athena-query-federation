@@ -52,7 +52,7 @@ public class MskCsvDeserializerTest extends MskAbstractDeserializerTest
         assertEquals(resultSet.getDataFormat(), topicSchema.getMessage().getDataFormat());
     }
 
-    @Test(expected = SerializationException.class)
+    @Test
     public void testExceptionInMskCsvDeserializer() throws Exception
     {
         TopicSchema topicSchema = createCsvTopicSchema();

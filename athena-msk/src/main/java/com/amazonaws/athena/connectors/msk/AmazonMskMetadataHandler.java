@@ -63,7 +63,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskMetadataHandler.class);
     private final Consumer<String, String> kafkaConsumer;
 
-    public AmazonMskMetadataHandler()
+    public AmazonMskMetadataHandler() throws Exception
     {
         this(AmazonMskUtils.getKafkaConsumer());
     }

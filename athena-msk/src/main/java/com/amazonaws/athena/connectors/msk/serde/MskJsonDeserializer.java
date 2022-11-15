@@ -25,12 +25,14 @@ import com.amazonaws.athena.connectors.msk.dto.Message;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.kafka.common.errors.SerializationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
 public class MskJsonDeserializer extends MskDeserializer
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MskJsonDeserializer.class);
     public MskJsonDeserializer(Schema schema)
     {
         super(schema);
@@ -43,16 +45,16 @@ public class MskJsonDeserializer extends MskDeserializer
             return null;
         }
 
+        // Initiating TopicResultSet pojo to put the raw data.
+        TopicResultSet topicResultSet = new TopicResultSet();
+        topicResultSet.setTopicName(topic);
+        topicResultSet.setDataFormat(Message.DATA_FORMAT_JSON);
+
         try {
             // Transforming the topic raw (json) data to JsonNode using ObjectMapper.
             JsonNode json = AmazonMskUtils
                     .getObjectMapper()
                     .readValue(new String(data, StandardCharsets.UTF_8), JsonNode.class);
-
-            // Initiating TopicResultSet pojo to put the raw data.
-            TopicResultSet topicResultSet = new TopicResultSet();
-            topicResultSet.setTopicName(topic);
-            topicResultSet.setDataFormat(Message.DATA_FORMAT_JSON);
 
             // Creating Field object for each fields in raw data.
             // Also putting additional information in fields from fields metadata.
@@ -71,8 +73,10 @@ public class MskJsonDeserializer extends MskDeserializer
             return topicResultSet;
         }
         catch (Exception e) {
-            throw new SerializationException("MskJsonDeserializer: Error when deserializing byte[] to TopicResultSet");
+            LOGGER.error("MskJsonDeserializer: Error when deserializing byte[] to TopicResultSet");
+            e.printStackTrace();
         }
+        return topicResultSet;
     }
 
     /**

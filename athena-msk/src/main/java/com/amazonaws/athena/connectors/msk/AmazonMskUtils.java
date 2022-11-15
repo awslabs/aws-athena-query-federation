@@ -98,16 +98,10 @@ public class AmazonMskUtils
      *
      * @return @return {@link KafkaConsumer}
      */
-    public static Consumer<String, String> getKafkaConsumer()
+    public static Consumer<String, String> getKafkaConsumer() throws Exception
     {
         Properties properties;
-        try {
             properties = getKafkaProperties();
-        }
-        catch (Exception e) {
-            LOGGER.info("Exception: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
 
         return new KafkaConsumer<>(properties);
     }

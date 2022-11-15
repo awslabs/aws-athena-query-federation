@@ -233,8 +233,7 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testGetKafkaConsumer()
-    {
+    public void testGetKafkaConsumer() throws Exception {
         environmentVariables.set("auth_type", "NOAUTH");
         Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer();
         assertNotNull(consumer);

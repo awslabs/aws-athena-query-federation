@@ -24,7 +24,7 @@ import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 public class AmazonMskCompositeHandler
         extends CompositeHandler
 {
-    public AmazonMskCompositeHandler()
+    public AmazonMskCompositeHandler() throws Exception
     {
         super(new AmazonMskMetadataHandler(), new AmazonMskRecordHandler());
     }

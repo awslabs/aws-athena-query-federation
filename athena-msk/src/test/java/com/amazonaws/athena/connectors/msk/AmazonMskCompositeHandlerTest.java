@@ -65,7 +65,7 @@ public class AmazonMskCompositeHandlerTest {
     }
 
     @Test
-    public void amazonMskCompositeHandlerTest() {
+    public void amazonMskCompositeHandlerTest() throws Exception {
         mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
         mockStatic(System.class);

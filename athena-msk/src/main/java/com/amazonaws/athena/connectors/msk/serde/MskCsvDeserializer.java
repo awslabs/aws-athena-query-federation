@@ -23,7 +23,8 @@ import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.Message;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.kafka.common.errors.SerializationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 
 public class MskCsvDeserializer extends MskDeserializer
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MskCsvDeserializer.class);
     public MskCsvDeserializer(Schema schema)
     {
         super(schema);
@@ -43,6 +45,10 @@ public class MskCsvDeserializer extends MskDeserializer
         if (data == null) {
             return null;
         }
+        // Initiating TopicResultSet pojo to put the raw data.
+        TopicResultSet topicResultSet = new TopicResultSet();
+        topicResultSet.setTopicName(topic);
+        topicResultSet.setDataFormat(Message.DATA_FORMAT_CSV);
 
         try {
             // Transforming the topic raw (csv) data to string List.
@@ -50,11 +56,6 @@ public class MskCsvDeserializer extends MskDeserializer
                     .stream(new String(data, StandardCharsets.UTF_8).split(","))
                     .map(String::trim)
                     .collect(Collectors.toList());
-
-            // Initiating TopicResultSet pojo to put the raw data.
-            TopicResultSet topicResultSet = new TopicResultSet();
-            topicResultSet.setTopicName(topic);
-            topicResultSet.setDataFormat(Message.DATA_FORMAT_CSV);
 
             // Creating Field object for each fields in raw data.
             // Also putting additional information in fields from fields metadata.
@@ -73,8 +74,10 @@ public class MskCsvDeserializer extends MskDeserializer
             return topicResultSet;
         }
         catch (Exception e) {
-            throw new SerializationException("MskCsvDeserializer: Error when deserializing byte[] to TopicResultSet");
+            LOGGER.error("MskCsvDeserializer: Error when deserializing byte[] to TopicResultSet");
+            e.printStackTrace();
         }
+        return topicResultSet;
     }
 
     /**

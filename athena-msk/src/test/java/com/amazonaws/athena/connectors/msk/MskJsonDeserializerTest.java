@@ -51,7 +51,7 @@ public class MskJsonDeserializerTest extends MskAbstractDeserializerTest
         assertEquals(resultSet.getDataFormat(), topicSchema.getMessage().getDataFormat());
     }
 
-    @Test(expected = SerializationException.class)
+    @Test
     public void testExceptionInMskJsonDeserializer() throws Exception
     {
         TopicSchema topicSchema = createJsonTopicSchema();
