@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.msk;
 
-import com.amazonaws.athena.connectors.msk.dto.SplitParam;
+import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -119,7 +119,7 @@ public class AmazonMskUtilsTest {
         environmentVariables.set("aws.region", "us-west-2");
         environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-MSK");
         environmentVariables.set("secret_manager_msk_creds_name", "testSecret");
-        environmentVariables.set("kafka_node", "12.207.18.179:9092");
+        environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
         environmentVariables.set("certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/");
         environmentVariables.set("secrets_manager_secret", "AmazonMSK_afq");
         PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
@@ -243,14 +243,14 @@ public class AmazonMskUtilsTest {
     @Test
     public void testCreateSplitParam() {
         Map<String, String> params = Map.of(
-                SplitParam.TOPIC, "testTopic",
-                SplitParam.PARTITION, "0",
-                SplitParam.START_OFFSET, "0",
-                SplitParam.END_OFFSET, "100"
+                SplitParameters.TOPIC, "testTopic",
+                SplitParameters.PARTITION, "0",
+                SplitParameters.START_OFFSET, "0",
+                SplitParameters.END_OFFSET, "100"
         );
-        SplitParam splitParam = createSplitParam(params);
-        assertEquals("testTopic", splitParam.topic);
-        assertEquals(100L, splitParam.endOffset);
+        SplitParameters splitParameters = createSplitParam(params);
+        assertEquals("testTopic", splitParameters.topic);
+        assertEquals(100L, splitParameters.endOffset);
     }
 
     @Test(expected = RuntimeException.class)

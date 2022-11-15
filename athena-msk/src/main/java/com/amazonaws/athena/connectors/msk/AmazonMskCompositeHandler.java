@@ -20,17 +20,12 @@
 package com.amazonaws.athena.connectors.msk;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AmazonMskCompositeHandler
         extends CompositeHandler
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskCompositeHandler.class);
-
     public AmazonMskCompositeHandler()
     {
         super(new AmazonMskMetadataHandler(), new AmazonMskRecordHandler());
-        LOGGER.debug("Inside MskCompositeHandler()");
     }
 }

@@ -28,7 +28,7 @@ public class Message
     public static final String DATA_FORMAT_CSV = "csv";
 
     String dataFormat;
-    List<Field> fields = new ArrayList<>();
+    List<MSKField> fields = new ArrayList<>();
 
     public String getDataFormat()
     {
@@ -40,12 +40,12 @@ public class Message
         this.dataFormat = dataFormat;
     }
 
-    public List<Field> getFields()
+    public List<MSKField> getFields()
     {
         return fields;
     }
 
-    public void setFields(List<Field> fields)
+    public void setFields(List<MSKField> fields)
     {
         this.fields = fields;
     }

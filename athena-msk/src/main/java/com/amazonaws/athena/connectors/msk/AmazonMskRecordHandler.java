@@ -24,8 +24,8 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.msk.dto.Field;
-import com.amazonaws.athena.connectors.msk.dto.SplitParam;
+import com.amazonaws.athena.connectors.msk.dto.MSKField;
+import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
@@ -59,14 +59,12 @@ public class AmazonMskRecordHandler
                 AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient()
         );
-        LOGGER.debug("  AmazonMskRecordHandler constructor() ");
     }
 
     @VisibleForTesting
     public AmazonMskRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
     {
         super(amazonS3, secretsManager, athena, AmazonMskConstants.KAFKA_SOURCE);
-        LOGGER.debug(" STEP 2.0  AmazonMskRecordHandler constructor() ");
     }
 
     /**
@@ -80,13 +78,13 @@ public class AmazonMskRecordHandler
     public void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker) throws Exception
     {
         // Taking the Split parameters in a readable pojo format.
-        SplitParam splitParam = AmazonMskUtils.createSplitParam(recordsRequest.getSplit().getProperties());
-        LOGGER.info("[kafka]%s RecordHandler running %n", splitParam);
+        SplitParameters splitParameters = AmazonMskUtils.createSplitParam(recordsRequest.getSplit().getProperties());
+        LOGGER.info("[kafka]%s RecordHandler running %n", splitParameters);
 
         // Initiate new KafkaConsumer that MUST not belong to any consumer group.
         try (Consumer<String, TopicResultSet> kafkaConsumer = AmazonMskUtils.getKafkaConsumer(recordsRequest.getSchema())) {
             // Set which topic and partition we are going to read.
-            TopicPartition partition = new TopicPartition(splitParam.topic, splitParam.partition);
+            TopicPartition partition = new TopicPartition(splitParameters.topic, splitParameters.partition);
             Collection<TopicPartition> partitions = List.of(partition);
 
             // Assign the topic and partition into this consumer.
@@ -94,17 +92,17 @@ public class AmazonMskRecordHandler
 
             // Setting the start offset from where we are interested to read data from topic partition.
             // We have configured this start offset when we had created the split on MetadataHandler.
-            kafkaConsumer.seek(partition, splitParam.startOffset);
+            kafkaConsumer.seek(partition, splitParameters.startOffset);
 
             // If endOffsets is 0 that means there is no data close consumer and exit
             Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(partitions);
             if (endOffsets.get(partition) == 0) {
-                LOGGER.info("[kafka]%s topic does not have data, closing consumer %n", splitParam);
+                LOGGER.info("[kafka]%s topic does not have data, closing consumer %n", splitParameters);
                 kafkaConsumer.close();
                 return;
             }
             // Consume topic data
-            consume(spiller, recordsRequest, queryStatusChecker, splitParam, kafkaConsumer);
+            consume(spiller, recordsRequest, queryStatusChecker, splitParameters, kafkaConsumer);
         }
     }
 
@@ -114,7 +112,7 @@ public class AmazonMskRecordHandler
      * @param spiller - instance of {@link BlockSpiller}
      * @param recordsRequest - instance of {@link ReadRecordsRequest}
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
-     * @param splitParam - instance of {@link SplitParam}
+     * @param splitParameters - instance of {@link SplitParameters}
      * @param kafkaConsumer - instance of {@link KafkaConsumer}
      * @throws Exception - {@link Exception}
      */
@@ -122,17 +120,17 @@ public class AmazonMskRecordHandler
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest,
             QueryStatusChecker queryStatusChecker,
-            SplitParam splitParam,
+            SplitParameters splitParameters,
             Consumer<String, TopicResultSet> kafkaConsumer) throws Exception
     {
         int emptyResultFoundCount = 0;
 
         whileLoop:
         while (true) {
-            LOGGER.info("[kafka]%s Polling for data %n", splitParam);
+            LOGGER.info("[kafka]%s Polling for data %n", splitParameters);
 
             if (!queryStatusChecker.isQueryRunning()) {
-                LOGGER.info("[kafka]%s Stopping and closing consumer due to query execution terminated by athena %n", splitParam);
+                LOGGER.info("[kafka]%s Stopping and closing consumer due to query execution terminated by athena %n", splitParameters);
                 kafkaConsumer.close();
                 break;
             }
@@ -140,7 +138,7 @@ public class AmazonMskRecordHandler
             // Call the poll on consumer to fetch data from kafka server
             // poll returns data as batch which can be configured.
             ConsumerRecords<String, TopicResultSet> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
-            LOGGER.info("[kafka]%s polled records size %s %n", splitParam, records.count());
+            LOGGER.info("[kafka]%s polled records size %s %n", splitParameters, records.count());
 
             // Keep track for how many times we are getting empty result for the polling call.
             if (records.count() == 0) {
@@ -151,7 +149,7 @@ public class AmazonMskRecordHandler
             // Here we are comparing with a max threshold (MAX_EMPTY_RESULT_FOUNT_COUNT) to
             // stop the polling.
             if (emptyResultFoundCount >= MAX_EMPTY_RESULT_FOUND_COUNT) {
-                LOGGER.info("[kafka]%s Closing consumer due to getting empty result from broker %n", splitParam);
+                LOGGER.info("[kafka]%s Closing consumer due to getting empty result from broker %n", splitParameters);
                 kafkaConsumer.close();
                 break;
             }
@@ -159,12 +157,12 @@ public class AmazonMskRecordHandler
             for (ConsumerRecord<String, TopicResultSet> record : records) {
                 // Pass batch data one by one to be processed to execute. execute method is
                 // a kind of abstraction to keep data filtering and writing on spiller separate.
-                execute(spiller, recordsRequest, queryStatusChecker, splitParam, record);
+                execute(spiller, recordsRequest, queryStatusChecker, splitParameters, record);
 
                 // If we have reached at the end offset of the partition. we will not continue
                 // to call the polling.
-                if (record.offset() >= splitParam.endOffset - 1) {
-                    LOGGER.info("[kafka]%s Closing consumer due to reach at end offset (current record offset is %s) %n", splitParam, record.offset());
+                if (record.offset() >= splitParameters.endOffset - 1) {
+                    LOGGER.info("[kafka]%s Closing consumer due to reach at end offset (current record offset is %s) %n", splitParameters, record.offset());
                     kafkaConsumer.close();
                     break whileLoop;
                 }
@@ -178,7 +176,7 @@ public class AmazonMskRecordHandler
      * @param spiller - instance of {@link BlockSpiller}
      * @param recordsRequest - instance of {@link ReadRecordsRequest}
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
-     * @param splitParam - instance of {@link SplitParam}
+     * @param splitParameters - instance of {@link SplitParameters}
      * @param record - instance of {@link ConsumerRecord}
      * @throws Exception - {@link Exception}
      */
@@ -186,12 +184,12 @@ public class AmazonMskRecordHandler
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest,
             QueryStatusChecker queryStatusChecker,
-            SplitParam splitParam,
+            SplitParameters splitParameters,
             ConsumerRecord<String, TopicResultSet> record) throws Exception
     {
         spiller.writeRows((Block block, int rowNum) -> {
             boolean isMatched;
-            for (Field field : record.value().getFields()) {
+            for (MSKField field : record.value().getFields()) {
                 isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
                 if (!isMatched) {
                     return 0;

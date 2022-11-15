@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.msk.serde;
 
 import com.amazonaws.athena.connectors.msk.AmazonMskUtils;
-import com.amazonaws.athena.connectors.msk.dto.Field;
+import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.Message;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,7 +58,7 @@ public class MskJsonDeserializer extends MskDeserializer
             // Also putting additional information in fields from fields metadata.
             schema.getFields().forEach(field -> {
                 String mapping = field.getMetadata().get("mapping");
-                topicResultSet.getFields().add(new Field(
+                topicResultSet.getFields().add(new MSKField(
                         field.getName(),
                         mapping,
                         field.getMetadata().get("type"),

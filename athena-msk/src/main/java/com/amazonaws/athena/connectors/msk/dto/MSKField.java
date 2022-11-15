@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.msk.dto;
 
-public class Field
+public class MSKField
 {
     String name = "";
     String mapping = "";
@@ -27,11 +27,11 @@ public class Field
     String formatHint = "";
     Object value = "";
 
-    public Field()
+    public MSKField()
     {
     }
 
-    public Field(String name, String mapping, String type, String formatHint, Object value)
+    public MSKField(String name, String mapping, String type, String formatHint, Object value)
     {
         this.name = name;
         this.mapping = mapping;

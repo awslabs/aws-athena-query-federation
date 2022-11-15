@@ -36,7 +36,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
-import com.amazonaws.athena.connectors.msk.dto.SplitParam;
+import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
 import com.google.common.annotations.VisibleForTesting;
@@ -196,10 +196,10 @@ public class AmazonMskMetadataHandler extends MetadataHandler
                 // for which topic and for which partition we will initiate a kafka consumer
                 // as well as to consume data from which start offset to which end offset.
                 splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(SplitParam.TOPIC, partition.topic())
-                        .add(SplitParam.PARTITION, Integer.toString(partition.partition()))
-                        .add(SplitParam.START_OFFSET, Long.toString(topicPartitionPiece.startOffset))
-                        .add(SplitParam.END_OFFSET, Long.toString(topicPartitionPiece.endOffset));
+                        .add(SplitParameters.TOPIC, partition.topic())
+                        .add(SplitParameters.PARTITION, Integer.toString(partition.partition()))
+                        .add(SplitParameters.START_OFFSET, Long.toString(topicPartitionPiece.startOffset))
+                        .add(SplitParameters.END_OFFSET, Long.toString(topicPartitionPiece.endOffset));
                 splits.add(splitBuilder.build());
             }
         }

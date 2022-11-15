@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.msk;
 
 import com.amazonaws.athena.connectors.msk.dto.Message;
-import com.amazonaws.athena.connectors.msk.dto.SplitParam;
+import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
 import com.amazonaws.athena.connectors.msk.serde.MskCsvDeserializer;
@@ -131,12 +131,15 @@ public class AmazonMskUtils
         String dataFormat = schema.getCustomMetadata().get("dataFormat");
 
         // Based on topic data type we should select Deserializer to be attached to KafkaConsumer
-        Deserializer<TopicResultSet> valueDeserializer = null;
+        Deserializer<TopicResultSet> valueDeserializer;
         if (dataFormat.equals(Message.DATA_FORMAT_JSON)) {
             valueDeserializer = new MskJsonDeserializer(schema);
         }
-        else {
+        else if (dataFormat.equals(Message.DATA_FORMAT_CSV)) {
             valueDeserializer = new MskCsvDeserializer(schema);
+        }
+        else {
+            throw new Exception("Unsupported Format provided" + dataFormat);
         }
 
         return new KafkaConsumer<>(
@@ -185,7 +188,7 @@ public class AmazonMskUtils
     {
         // Create the necessary properties to use for kafka connection
         Properties properties = new Properties();
-        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getEnvVar(AmazonMskConstants.ENV_KAFKA_NODE));
+        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getEnvVar(AmazonMskConstants.ENV_KAFKA_ENDPOINT));
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
         properties.setProperty(ConsumerConfig.EXCLUDE_INTERNAL_TOPICS_CONFIG, "true");
         properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
@@ -386,15 +389,15 @@ public class AmazonMskUtils
      * Translates Split parameters as readable pojo format.
      *
      * @param params - the properties for split object
-     * @return {@link SplitParam}
+     * @return {@link SplitParameters}
      */
-    public static SplitParam createSplitParam(Map<String, String> params)
+    public static SplitParameters createSplitParam(Map<String, String> params)
     {
-        String topic = params.get(SplitParam.TOPIC);
-        int partition = Integer.parseInt(params.get(SplitParam.PARTITION));
-        long startOffset = Long.parseLong(params.get(SplitParam.START_OFFSET));
-        long endOffset = Long.parseLong(params.get(SplitParam.END_OFFSET));
-        return new SplitParam(topic, partition, startOffset, endOffset);
+        String topic = params.get(SplitParameters.TOPIC);
+        int partition = Integer.parseInt(params.get(SplitParameters.PARTITION));
+        long startOffset = Long.parseLong(params.get(SplitParameters.START_OFFSET));
+        long endOffset = Long.parseLong(params.get(SplitParameters.END_OFFSET));
+        return new SplitParameters(topic, partition, startOffset, endOffset);
     }
 
     /**

@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
     Name: AthenaMSKConnector
-    Description: 'This connector enables Amazon Athena to communicate with Synapse using JDBC driver.'
+    Description: 'This connector enables Amazon Athena to communicate with Kafka clusters and fetch data.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -15,7 +15,7 @@ Metadata:
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AuthType:
-    Description: 'auth details TLS/SASL/IAM/NOAUTH'
+    Description: 'auth details TLS/SCRAM/IAM/NOAUTH'
     Type: String
     Default: NOAUTH
     AllowedValues:
@@ -23,7 +23,7 @@ Parameters:
       - SCRAM
       - NOAUTH
       - IAM
-  KafkaNodes:
+  KafkaEndpoint:
     Description: 'Kafka/MSK cluster endpoint'
     Type: String
   LambdaFunctionName:
@@ -75,7 +75,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           secrets_manager_secret: !Ref SecretNamePrefix
           certificates_s3_reference: !Ref CertificatesS3Reference
-          kafka_node: !Ref KafkaNodes
+          kafka_endpoint: !Ref KafkaEndpoint
           auth_type: !Ref AuthType
           glue_registry_arn:  !Ref GlueRegistryArn
       FunctionName: !Ref LambdaFunctionName

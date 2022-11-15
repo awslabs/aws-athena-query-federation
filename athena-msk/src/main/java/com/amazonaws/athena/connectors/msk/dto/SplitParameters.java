@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.msk.dto;
 
-public class SplitParam
+public class SplitParameters
 {
     public static final String TOPIC = "topic";
     public static final String PARTITION = "partition";
@@ -32,13 +32,13 @@ public class SplitParam
     public final long endOffset;
 
     /**
-     *
+     * These parameters need to be set while creating the split and will be used when retrieving records in RecordHandler class.
      * @param topic
      * @param partition
      * @param startOffset
      * @param endOffset
      */
-    public SplitParam(String topic, int partition, long startOffset, long endOffset)
+    public SplitParameters(String topic, int partition, long startOffset, long endOffset)
     {
         this.topic = topic;
         this.partition = partition;

@@ -51,7 +51,7 @@ public class AmazonMskConstants
     /**
      * This is kafka node details
      */
-    public static final String ENV_KAFKA_NODE = "kafka_node";
+    public static final String ENV_KAFKA_ENDPOINT = "kafka_endpoint";
     /**
      * This is the type of authentication client has set for the cluster
      */

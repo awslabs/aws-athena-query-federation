@@ -31,10 +31,7 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connectors.msk.dto.Message;
-import com.amazonaws.athena.connectors.msk.dto.SplitParam;
-import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
-import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
+import com.amazonaws.athena.connectors.msk.dto.*;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -142,12 +139,12 @@ public class AmazonMskRecordHandlerTest {
         offsets.put(new TopicPartition("myTopic", 0), 1L);
         consumer.updateEndOffsets(offsets);
 
-        SplitParam splitParam = new SplitParam("myTopic", 0, 0, 1);
+        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
         PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema)).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParam);
+        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
         when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer(
@@ -175,12 +172,12 @@ public class AmazonMskRecordHandlerTest {
         offsets.put(new TopicPartition("myTopic", 0), 1L);
         consumer.updateEndOffsets(offsets);
 
-        SplitParam splitParam = new SplitParam("myTopic", 0, 0, 1);
+        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
         PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema)).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParam);
+        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(false);
@@ -203,12 +200,12 @@ public class AmazonMskRecordHandlerTest {
         offsets.put(new TopicPartition("myTopic", 0), 0L);
         consumer.updateEndOffsets(offsets);
 
-        SplitParam splitParam = new SplitParam("myTopic", 0, 0, 1);
+        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
         PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema)).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParam);
+        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
         amazonMskRecordHandler.readWithConstraint(null, request, null);
@@ -227,12 +224,12 @@ public class AmazonMskRecordHandlerTest {
         offsets.put(new TopicPartition("myTopic", 0), 10L);
         consumer.updateEndOffsets(offsets);
 
-        SplitParam splitParam = new SplitParam("myTopic", 0, 0, 1);
+        SplitParameters splitParameters = new SplitParameters("myTopic", 0, 0, 1);
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
         PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema)).thenReturn(consumer);
-        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParam);
+        PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -269,10 +266,10 @@ public class AmazonMskRecordHandlerTest {
         TopicResultSet resultSet = new TopicResultSet();
         resultSet.setTopicName(topic);
         resultSet.setDataFormat(Message.DATA_FORMAT_CSV);
-        resultSet.getFields().add(new com.amazonaws.athena.connectors.msk.dto.Field("id", "0", "INTEGER", "", Integer.parseInt("1")));
-        resultSet.getFields().add(new com.amazonaws.athena.connectors.msk.dto.Field("name", "1", "VARCHAR", "", new String("Smith")));
-        resultSet.getFields().add(new com.amazonaws.athena.connectors.msk.dto.Field("isActive", "2", "BOOLEAN", "", Boolean.valueOf("true")));
-        resultSet.getFields().add(new com.amazonaws.athena.connectors.msk.dto.Field("code", "3", "TINYINT", "", Byte.parseByte("101")));
+        resultSet.getFields().add(new MSKField("id", "0", "INTEGER", "", Integer.parseInt("1")));
+        resultSet.getFields().add(new MSKField("name", "1", "VARCHAR", "", new String("Smith")));
+        resultSet.getFields().add(new MSKField("isActive", "2", "BOOLEAN", "", Boolean.valueOf("true")));
+        resultSet.getFields().add(new MSKField("code", "3", "TINYINT", "", Byte.parseByte("101")));
         return resultSet;
     }
 

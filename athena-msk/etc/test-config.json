@@ -13,7 +13,7 @@
     "auth_type" : "<auth type>",                        /* Authentication type to kafka node eg:NOAUTH,TLS,SERVERLESS,SCRAM */
     "certificates_s3_reference" : "<bucket_path to retrieve certificates>", /* The S3 bucket path used to retrieve certificate */
     "glue_registry_arn" : "<glue registry arn>", /* Glue Registry ARN to retrieve schema details from AWS Glue */
-    "kafka_node" : "<kafka node>", /* Kafka Node */
+    "kafka_endpoint" : "<kafka node>", /* Kafka Node */
     "secrets_manager_secret" : "<secret name>" /* Secret name used to retrieve user kafka credentials from SecretsManager. */
   },
   "vpc_configuration" : {                         /* VPC configuration for DB instances within a VPC */
