@@ -116,7 +116,9 @@ public class AmazonMskUtilsTest {
 
     @Before
     public void init() throws Exception {
-        environmentVariables.set("aws.region", "us-west-2");
+        System.setProperty("aws.region", "us-west-2");
+        System.setProperty("aws.accessKeyId", "xxyyyioyuu");
+        System.setProperty("aws.secretKey", "vamsajdsjkl");
         environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-MSK");
         environmentVariables.set("secret_manager_msk_creds_name", "testSecret");
         environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
