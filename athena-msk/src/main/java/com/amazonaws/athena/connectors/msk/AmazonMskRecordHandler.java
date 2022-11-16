@@ -79,7 +79,7 @@ public class AmazonMskRecordHandler
     {
         // Taking the Split parameters in a readable pojo format.
         SplitParameters splitParameters = AmazonMskUtils.createSplitParam(recordsRequest.getSplit().getProperties());
-        LOGGER.info("[kafka]%s RecordHandler running %n", splitParameters);
+        LOGGER.info("[kafka] {} RecordHandler running", splitParameters);
 
         // Initiate new KafkaConsumer that MUST not belong to any consumer group.
         try (Consumer<String, TopicResultSet> kafkaConsumer = AmazonMskUtils.getKafkaConsumer(recordsRequest.getSchema())) {
@@ -97,7 +97,7 @@ public class AmazonMskRecordHandler
             // If endOffsets is 0 that means there is no data close consumer and exit
             Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(partitions);
             if (endOffsets.get(partition) == 0) {
-                LOGGER.debug("[kafka]%s topic does not have data, closing consumer %n", splitParameters);
+                LOGGER.debug("[kafka] topic does not have data, closing consumer {}", splitParameters);
                 kafkaConsumer.close();
                 return;
             }
@@ -114,21 +114,20 @@ public class AmazonMskRecordHandler
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
      * @param splitParameters - instance of {@link SplitParameters}
      * @param kafkaConsumer - instance of {@link KafkaConsumer}
-     * @throws Exception - {@link Exception}
      */
     private void consume(
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest,
             QueryStatusChecker queryStatusChecker,
             SplitParameters splitParameters,
-            Consumer<String, TopicResultSet> kafkaConsumer) throws Exception
+            Consumer<String, TopicResultSet> kafkaConsumer)
     {
-        LOGGER.info("[kafka]%s Polling for data %n", splitParameters);
+        LOGGER.info("[kafka] {} Polling for data", splitParameters);
         int emptyResultFoundCount = 0;
         whileLoop:
         while (true) {
             if (!queryStatusChecker.isQueryRunning()) {
-                LOGGER.debug("[kafka]%s Stopping and closing consumer due to query execution terminated by athena %n", splitParameters);
+                LOGGER.debug("[kafka]{}  Stopping and closing consumer due to query execution terminated by athena", splitParameters);
                 kafkaConsumer.close();
                 break;
             }
@@ -136,7 +135,7 @@ public class AmazonMskRecordHandler
             // Call the poll on consumer to fetch data from kafka server
             // poll returns data as batch which can be configured.
             ConsumerRecords<String, TopicResultSet> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
-            LOGGER.debug("[kafka]%s polled records size %s %n", splitParameters, records.count());
+            LOGGER.debug("[kafka] {} polled records size {}", splitParameters, records.count());
 
             // Keep track for how many times we are getting empty result for the polling call.
             if (records.count() == 0) {
@@ -147,7 +146,7 @@ public class AmazonMskRecordHandler
             // Here we are comparing with a max threshold (MAX_EMPTY_RESULT_FOUNT_COUNT) to
             // stop the polling.
             if (emptyResultFoundCount >= MAX_EMPTY_RESULT_FOUND_COUNT) {
-                LOGGER.debug("[kafka]%s Closing consumer due to getting empty result from broker %n", splitParameters);
+                LOGGER.debug("[kafka] {} Closing consumer due to getting empty result from broker", splitParameters);
                 kafkaConsumer.close();
                 break;
             }
@@ -160,7 +159,7 @@ public class AmazonMskRecordHandler
                 // If we have reached at the end offset of the partition. we will not continue
                 // to call the polling.
                 if (record.offset() >= splitParameters.endOffset - 1) {
-                    LOGGER.debug("[kafka]%s Closing consumer due to reach at end offset (current record offset is %s) %n", splitParameters, record.offset());
+                    LOGGER.debug("[kafka] {} Closing consumer due to reach at end offset (current record offset is {})", splitParameters, record.offset());
                     kafkaConsumer.close();
                     break whileLoop;
                 }
@@ -176,14 +175,13 @@ public class AmazonMskRecordHandler
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
      * @param splitParameters - instance of {@link SplitParameters}
      * @param record - instance of {@link ConsumerRecord}
-     * @throws Exception - {@link Exception}
      */
     private void execute(
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest,
             QueryStatusChecker queryStatusChecker,
             SplitParameters splitParameters,
-            ConsumerRecord<String, TopicResultSet> record) throws Exception
+            ConsumerRecord<String, TopicResultSet> record)
     {
         spiller.writeRows((Block block, int rowNum) -> {
             boolean isMatched;

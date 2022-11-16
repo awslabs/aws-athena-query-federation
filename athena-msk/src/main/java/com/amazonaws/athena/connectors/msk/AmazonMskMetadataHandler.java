@@ -85,12 +85,12 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @Override
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
-            LOGGER.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
-            final List<String> schemas = new ArrayList<>();
-            // for now, there is only one default schema
-            schemas.add(AmazonMskConstants.KAFKA_SCHEMA);
-            LOGGER.info("Found {} schemas!", schemas.size());
-            return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+        LOGGER.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
+        final List<String> schemas = new ArrayList<>();
+        // for now, there is only one default schema
+        schemas.add(AmazonMskConstants.KAFKA_SCHEMA);
+        LOGGER.info("Found {} schemas!", schemas.size());
+        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
     }
 
     /**
@@ -101,7 +101,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
      * @return {@link ListTablesResponse}
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest) throws Exception
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
         List<TableName> tableNames = new ArrayList<>();
@@ -124,7 +124,8 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest) throws Exception
     {
         Schema tableSchema = getSchema(getTableRequest.getTableName().getTableName());
-        return new GetTableResponse(getTableRequest.getCatalogName(), getTableRequest.getTableName(), tableSchema);
+        TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName(), tableSchema.getCustomMetadata().get("topicName"));
+        return new GetTableResponse(getTableRequest.getCatalogName(), tableName, tableSchema);
     }
 
     /**
@@ -175,8 +176,15 @@ public class AmazonMskMetadataHandler extends MetadataHandler
                 .map(it -> new TopicPartition(it.topic(), it.partition()))
                 .collect(Collectors.toList());
 
+        LOGGER.debug("[kafka][split] total partitions {} found for topic: {}", topicPartitions.size(), topic);
+
         // Get end offset of each topic partitions from kafka server.
         Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(topicPartitions);
+        endOffsets.forEach((k, v) -> {
+            LOGGER.debug("[kafka][split] offset info [topic: {}, partition: {}, end-offset: {}]",
+                    k.topic(), k.partition(), v
+            );
+        });
 
         Set<Split> splits = new HashSet<>();
         SpillLocation spillLocation = makeSpillLocation(request);
@@ -186,7 +194,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         for (TopicPartition partition : topicPartitions) {
             // Calculate how many pieces we can divide a topic partition.
             topicPartitionPieces = pieceTopicPartition(endOffsets.get(partition));
-            LOGGER.info("[kafka] Total pieces created %s for partition %s in topic %s %n",
+            LOGGER.info("[kafka] Total pieces created {} for partition {} in topic {}",
                     topicPartitionPieces.size(), partition.partition(), partition.topic()
             );
 
@@ -204,7 +212,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
             }
         }
 
-        LOGGER.debug("[kafka] Total split created %s %n", splits.size());
+        LOGGER.debug("[kafka] Total split created {} ", splits.size());
         return new GetSplitsResponse(request.getCatalogName(), splits);
     }
 
@@ -243,6 +251,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
 
         // Putting the additional schema level information into the metadata in ArrowType schema.
         schemaBuilder.addMetadata("dataFormat", topicSchema.getMessage().getDataFormat());
+        schemaBuilder.addMetadata("topicName", topicSchema.getTopicName());
 
         return schemaBuilder.build();
     }
