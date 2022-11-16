@@ -275,9 +275,9 @@ public class AmazonMskUtils
      */
     protected static void copyCertificatesFromS3ToTempFolder() throws Exception
     {
+        LOGGER.debug("Creating the connection with AWS S3 for copying certificates to Temp Folder");
         Path tempDir = getTempDirPath();
         AWSCredentials credentials = new DefaultAWSCredentialsProviderChain().getCredentials();
-        LOGGER.debug("Creating the connection with AWS S3");
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard().
                 withCredentials(new AWSStaticCredentialsProvider(credentials)).
                 build();
@@ -328,7 +328,6 @@ public class AmazonMskUtils
         GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
         getSecretValueRequest.setSecretId(getEnvVar(AmazonMskConstants.SECRET_MANAGER_MSK_CREDS_NAME));
         GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        LOGGER.info("response: {}", response);
         return new ObjectMapper().readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
         {
         });

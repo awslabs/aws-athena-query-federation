@@ -73,7 +73,6 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     {
         super(AmazonMskConstants.KAFKA_SOURCE);
         this.kafkaConsumer = kafkaConsumer;
-        LOGGER.debug(" Inside MskMetadataHandler constructor() ");
     }
 
     /**
