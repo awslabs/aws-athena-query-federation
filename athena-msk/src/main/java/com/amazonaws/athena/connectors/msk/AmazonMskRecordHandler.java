@@ -97,7 +97,7 @@ public class AmazonMskRecordHandler
             // If endOffsets is 0 that means there is no data close consumer and exit
             Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(partitions);
             if (endOffsets.get(partition) == 0) {
-                LOGGER.info("[kafka]%s topic does not have data, closing consumer %n", splitParameters);
+                LOGGER.debug("[kafka]%s topic does not have data, closing consumer %n", splitParameters);
                 kafkaConsumer.close();
                 return;
             }

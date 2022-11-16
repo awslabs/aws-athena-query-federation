@@ -104,6 +104,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest) throws Exception
     {
+        LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
         List<TableName> tableNames = new ArrayList<>();
         List<String> topicList = AmazonMskUtils.getTopicListFromGlueRegistry();
         topicList.forEach(topic -> {
@@ -166,7 +167,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
     {
-        LOGGER.debug("Inside doGetSplits");
+        LOGGER.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName().getTableName());
         String topic = request.getTableName().getTableName();
 
         // Get the available partitions of the topic from kafka server.
@@ -218,7 +219,6 @@ public class AmazonMskMetadataHandler extends MetadataHandler
      */
     private Schema getSchema(String tableName) throws Exception
     {
-        LOGGER.debug(" getSchema()");
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         // Get topic schema json from GLue registry as translated to TopicSchema pojo
