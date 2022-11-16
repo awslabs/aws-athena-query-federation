@@ -316,22 +316,52 @@ public class ParquetConverter
                     (FieldWriter) (Object context, int rowNum) ->
                     {
                         SimpleGroup record = (SimpleGroup) context;
-                        Group list = record.getGroup(fieldName, 0);
-                        var x = IntStream
-                            .range(0, list.getFieldRepetitionCount(0))
-                            .mapToObj(idx -> resolver.getFieldValue(field.getChildren().get(0), list.getGroup(0, idx)))
-                            .collect(Collectors.toList());
-                        BlockUtils.setComplexValue(vector, rowNum, resolver, x);
+                        if (record.getFieldRepetitionCount(fieldName) > 0) {
+                            Group list = record.getGroup(fieldName, 0);
+                            var x = IntStream
+                                .range(0, list.getFieldRepetitionCount(0))
+                                .mapToObj(idx -> resolver.getFieldValue(
+                                    field.getChildren().get(0),
+                                    list.getGroup(0, idx)
+                                ))
+                                .collect(Collectors.toList());
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, x);
+                        }
+                        else {
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, null);
+                        }
+
                         return true;
                     };
             case MAP:
+                return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
+                    (FieldWriter) (Object context, int rowNum) ->
+                    {
+                        SimpleGroup record = (SimpleGroup) context;
+                        var name = field.getName();
+                        if (record.getFieldRepetitionCount(name) > 0) {
+                            Object x = record.getGroup(name, 0);
+                            Object y = resolver.getFieldValue(vector.getField(), x);
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, y);
+                        }
+                        else {
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, null);
+                        }
+                        return true;
+                    };
             case STRUCT:
                 return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                     (FieldWriter) (Object context, int rowNum) ->
                     {
-                        SimpleGroup grp = (SimpleGroup) context;
-                        Object x = grp.getGroup(field.getName(), 0);
-                        BlockUtils.setComplexValue(vector, rowNum, resolver, x);
+                        SimpleGroup record = (SimpleGroup) context;
+                        var name = field.getName();
+                        if (record.getFieldRepetitionCount(name) > 0) {
+                            Object x = record.getGroup(name, 0);
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, x);
+                        }
+                        else {
+                            BlockUtils.setComplexValue(vector, rowNum, resolver, null);
+                        }
                         return true;
                     };
             default:

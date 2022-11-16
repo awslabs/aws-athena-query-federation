@@ -2,8 +2,8 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: DeltalakeAthenaConnector
-    Description: DeltalakeAthenaConnector Description
+    Name: AthenaDeltalakeConnector
+    Description: 'Enable AWS Athena to communicate with DeltaLake table stored in S3, making them accesible via SQL.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
@@ -21,6 +21,7 @@ Parameters:
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
+    Default: "rafalslo-athena-events-query-spill"
   DataBucket:
       Description: "The bucket where the Delta tables live."
       Type: String
@@ -43,7 +44,6 @@ Parameters:
   LambdaRole:
     Description: "(Optional) A custom role to be used by the Connector lambda"
     Type: String
-    Default: ""
 
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
@@ -85,6 +85,7 @@ Resources:
               - "sts:AssumeRole"
 
   FunctionExecutionPolicy:
+    Condition: NotHasLambdaRole
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: FunctionExecutionPolicy

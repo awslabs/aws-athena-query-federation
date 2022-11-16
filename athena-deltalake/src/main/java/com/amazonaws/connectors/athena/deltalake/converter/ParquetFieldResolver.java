@@ -30,6 +30,7 @@ import org.apache.parquet.schema.PrimitiveType;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -37,6 +38,10 @@ import java.util.stream.IntStream;
 
 import static org.apache.arrow.vector.types.Types.MinorType.MAP;
 
+/***
+ * Disclaimer: This code is totally rubbish, when all functionalities would be confirmed as working, than refactoring would be needed
+ * cheers ;)
+ */
 public class ParquetFieldResolver implements FieldResolver
 {
     private static final int JULIAN_EPOCH_OFFSET_DAYS = 2_440_588;
@@ -56,21 +61,36 @@ public class ParquetFieldResolver implements FieldResolver
         Types.MinorType minorType = Types.getMinorTypeForArrowType(field.getType());
         String fieldName = field.getName();
         Group record = (Group) value;
-        if (minorType == MAP && record.getType().containsField("key_value") && record.getFieldRepetitionCount(
-            "key_value") > 0) {
-            var keyValField = field.getChildren().get(0).getChildren();
-            var keyField = keyValField.get(0);
-            var valField = keyValField.get(1);
-            return IntStream
-                .range(0, record.getFieldRepetitionCount("key_value"))
-                .mapToObj(idx -> record.getGroup("key_value", idx))
-                .collect(Collectors.toMap(x -> getFieldValue(keyField, x), x -> getFieldValue(valField, x)));
+        if (minorType == MAP && record.getType().containsField("key_value")) {
+            if (record.getFieldRepetitionCount("key_value") > 0) {
+                var keyValField = field.getChildren().get(0).getChildren();
+                var keyField = keyValField.get(0);
+                var valField = keyValField.get(1);
+                return IntStream
+                    .range(0, record.getFieldRepetitionCount("key_value"))
+                    .mapToObj(idx -> record.getGroup("key_value", idx))
+                    .collect(HashMap::new, (m, v)->m.put(getFieldValue(keyField, v), getFieldValue(valField, v)), HashMap::putAll);
+            }
+            else {
+//                return new HashMap<>();
+                return null;
+            }
         }
-        else if (record.getFieldRepetitionCount(fieldName) > 0) {
+        else if (record.getType().containsField(fieldName) && record.getFieldRepetitionCount(fieldName) > 0) {
             switch (minorType) {
                 case STRUCT:
-                case MAP:
                     return record.getGroup(fieldName, rowNum);
+                case MAP:
+                    if (record.getFieldRepetitionCount(fieldName) > 0) {
+                        var mapRecord = record.getGroup(fieldName, rowNum);
+                        return mapRecord.getType().containsField("key_value")
+                            && mapRecord.getFieldRepetitionCount("key_value") > 0
+                                ? mapRecord
+                                : null;
+                    }
+                    else {
+                        return null;
+                    }
                 case LIST:
                     Group list = record.getGroup(fieldName, rowNum);
                     return IntStream
@@ -155,5 +175,23 @@ public class ParquetFieldResolver implements FieldResolver
             }
         }
         return null;
+    }
+
+    @Override
+    public Object getMapValue(Field field, Object value)
+    {
+        Types.MinorType minorType = Types.getMinorTypeForArrowType(field.getType());
+        switch (minorType) {
+            case MAP:
+                Group record = (Group) value;
+                if (record.getFieldRepetitionCount("key_value") > 0) {
+                    return value;
+                }
+                else {
+                    return null;
+                }
+            default:
+                return value;
+        }
     }
 }
