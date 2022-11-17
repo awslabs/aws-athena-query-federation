@@ -3,11 +3,11 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.42.2</version>
+        <version>2022.46.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-elasticsearch</artifactId>
-    <version>2022.42.2</version>
+    <version>2022.46.1</version>
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
     </properties>
@@ -15,7 +15,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.42.2</version>
+            <version>2022.46.1</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
@@ -27,7 +27,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2022.42.2</version>
+            <version>2022.46.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -112,7 +112,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.42.2</version>
+            <version>2022.46.1</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
