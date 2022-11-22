@@ -37,7 +37,7 @@ import static com.amazonaws.athena.connector.validation.FederationServiceProvide
  */
 public class LambdaRecordProvider
 {
-  private static final Logger log = LoggerFactory.getLogger(LambdaMetadataProvider.class);
+  private static final Logger log = LoggerFactory.getLogger(LambdaRecordProvider.class);
   
   private static final long MAX_BLOCK_SIZE = 16000000;
   private static final long MAX_INLINE_BLOCK_SIZE = 5242880;
