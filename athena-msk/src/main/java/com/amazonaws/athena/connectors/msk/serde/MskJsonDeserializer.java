@@ -70,15 +70,13 @@ public class MskJsonDeserializer extends MskDeserializer
                     ));
                 }
                 catch (Exception e) {
-                    LOGGER.error("MskJsonDeserializer: Error in castValue : while converting raw value to typed value");
-                    e.printStackTrace();
+                    LOGGER.error("MskJsonDeserializer: Error in castValue : while converting raw value to typed value", e.getMessage(), e);
                 }
             });
             return topicResultSet;
         }
         catch (Exception e) {
-            LOGGER.error("MskJsonDeserializer: Error when deserializing byte[] to TopicResultSet");
-            e.printStackTrace();
+            LOGGER.error("MskJsonDeserializer: Error when deserializing byte[] to TopicResultSet", e.getMessage(), e);
         }
         finally {
             close();
