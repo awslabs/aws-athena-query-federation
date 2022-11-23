@@ -82,6 +82,10 @@ public class DynamoDBFieldResolver
                 return DDBTypeUtils.coerceValueToExpectedType(fieldValue, field, fieldType, metadata);
         }
 
+	if (fieldValue == null) {
+            return null;
+	}
+
         throw new RuntimeException("Invalid field value encountered in DB record for field: " + field +
                 ",value: " + fieldValue);
     }
