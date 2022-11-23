@@ -72,8 +72,7 @@ public class BigQueryUtils
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
         String endpoint = System.getenv(BigQueryConstants.BIG_QUERY_ENDPOINT);
-        if(StringUtils.isNotEmpty(endpoint))
-        {
+        if (StringUtils.isNotEmpty(endpoint)) {
             bigqueryBuilder.setHost(endpoint);
         }
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
