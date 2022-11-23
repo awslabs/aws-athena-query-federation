@@ -69,6 +69,10 @@ public class DynamoDBFieldResolver
             }
         }
 
+        if (fieldValue == null) {
+            return null;
+        }
+
         switch (fieldType) {
             case LIST:
                 return DDBTypeUtils.coerceListToExpectedType(fieldValue, field, metadata);
@@ -80,10 +84,6 @@ public class DynamoDBFieldResolver
                 break;
             default:
                 return DDBTypeUtils.coerceValueToExpectedType(fieldValue, field, fieldType, metadata);
-        }
-
-        if (fieldValue == null) {
-            return null;
         }
 
         throw new RuntimeException("Invalid field value encountered in DB record for field: " + field +
