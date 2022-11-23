@@ -39,6 +39,7 @@ import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +59,7 @@ public class BigQueryUtils
     private BigQueryUtils() {}
 
     public static Credentials getCredentialsFromSecretsManager()
-        throws IOException
+            throws IOException
     {
         AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
         GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
@@ -67,10 +68,14 @@ public class BigQueryUtils
         return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes()));
     }
 
-    public static BigQuery getBigQueryClient()
-        throws IOException
+    public static BigQuery getBigQueryClient() throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
+        String endpoint = System.getenv(BigQueryConstants.Big_QUERY_ENDPOINT);
+        if(StringUtils.isNotEmpty(endpoint))
+        {
+            bigqueryBuilder.setHost(endpoint);
+        }
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
         return bigqueryBuilder.build().getService();
     }
@@ -153,7 +158,7 @@ public class BigQueryUtils
             }
         }
         throw new IllegalArgumentException("Google Table with name " + datasetName +
-            " could not be found in Project " + projectName + " in GCP. ");
+                " could not be found in Project " + projectName + " in GCP. ");
     }
 
     static Object getObjectFromFieldValue(String fieldName, FieldValue fieldValue, ArrowType arrowType, boolean isTimeStampCol) throws ParseException

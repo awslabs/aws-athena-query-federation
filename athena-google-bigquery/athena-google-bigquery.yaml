@@ -23,6 +23,10 @@ Parameters:
   GCPProjectID:
     Description: "The project ID within Google Cloud Platform ."
     Type: String
+  BigQueryEndpoint:
+    Description: "(Optional) BigQuery Private Endpoint"
+    Default: ''
+    Type: String
   SecretNamePrefix:
     Description: "The secret name within AWS Secrets Manager that contains your Google Cloud Platform Credentials."
     Type: String
@@ -66,6 +70,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           secret_manager_gcp_creds_name: !Ref SecretNamePrefix
           gcp_project_id: !Ref GCPProjectID
+          big_query_endpoint: !Ref BigQueryEndpoint
           concurrencyLimit: !Ref ConcurrencyLimit
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.google.bigquery.BigQueryCompositeHandler"
