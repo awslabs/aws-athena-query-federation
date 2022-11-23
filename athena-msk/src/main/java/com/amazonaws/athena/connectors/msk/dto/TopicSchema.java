@@ -65,5 +65,4 @@ public class TopicSchema
     {
         this.message = message;
     }
-
 }
