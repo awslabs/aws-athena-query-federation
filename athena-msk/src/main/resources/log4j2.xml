@@ -28,9 +28,9 @@
         </Lambda>
     </Appenders>
     <Loggers>
-        <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-debug}" />
-        <Logger name="com.athena.connectors.msk" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-debug}" />
-        <Root level="debug">
+        <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
+        <Logger name="com.amazonaws.athena.connectors.msk" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
+        <Root level="info">
             <AppenderRef ref="Lambda" />
         </Root>
     </Loggers>

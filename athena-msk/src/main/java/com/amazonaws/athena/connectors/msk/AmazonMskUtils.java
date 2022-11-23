@@ -45,7 +45,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -85,6 +84,15 @@ public class AmazonMskUtils
     private static final String KAFKA_SASL_JAAS_CONFIG = "sasl.jaas.config";
     private static final String KAFKA_SASL_MECHANISM = "sasl.mechanism";
     private static final String KAFKA_SASL_CLIENT_CALLBACK_HANDLER_CLASS = "sasl.client.callback.handler.class";
+    private static final String KAFKA_BOOTSTRAP_SERVERS_CONFIG = "bootstrap.servers";
+    private static final String KAFKA_GROUP_ID_CONFIG = "group.id";
+    private static final String KAFKA_EXCLUDE_INTERNAL_TOPICS_CONFIG = "exclude.internal.topics";
+    private static final String KAFKA_ENABLE_AUTO_COMMIT_CONFIG = "enable.auto.commit";
+    private static final String KAFKA_AUTO_OFFSET_RESET_CONFIG = "auto.offset.reset";
+    private static final String KAFKA_MAX_POLL_RECORDS_CONFIG = "max.poll.records";
+    private static final String KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG = "max.partition.fetch.bytes";
+    private static final String KAFKA_KEY_DESERIALIZER_CLASS_CONFIG = "key.deserializer";
+    private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
 
     private static GlueRegistryReader glueRegistryReader;
     private static ObjectMapper objectMapper;
@@ -182,30 +190,36 @@ public class AmazonMskUtils
     {
         // Create the necessary properties to use for kafka connection
         Properties properties = new Properties();
-        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, getEnvVar(AmazonMskConstants.ENV_KAFKA_ENDPOINT));
-        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
-        properties.setProperty(ConsumerConfig.EXCLUDE_INTERNAL_TOPICS_CONFIG, "true");
-        properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-        properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.setProperty(KAFKA_BOOTSTRAP_SERVERS_CONFIG, getEnvVar(AmazonMskConstants.ENV_KAFKA_ENDPOINT));
+        properties.setProperty(KAFKA_GROUP_ID_CONFIG, UUID.randomUUID().toString());
+        properties.setProperty(KAFKA_EXCLUDE_INTERNAL_TOPICS_CONFIG, "true");
+        properties.setProperty(KAFKA_ENABLE_AUTO_COMMIT_CONFIG, "false");
+        properties.setProperty(KAFKA_AUTO_OFFSET_RESET_CONFIG, "earliest");
+        properties.setProperty(KAFKA_MAX_POLL_RECORDS_CONFIG, "10000");
+        properties.setProperty(KAFKA_MAX_PARTITION_FETCH_BYTES_CONFIG, "1048576");
+        properties.setProperty(KAFKA_KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //fetch authentication type for the kafka cluster
         String authType = getEnvVar(AmazonMskConstants.AUTH_TYPE).toUpperCase().trim();
 
         switch (authType) {
             case AUTH_TLS:
-                return getTLSAuthKafkaProperties(properties);
+                setTLSAuthKafkaProperties(properties);
+                break;
             case AUTH_SCRAM:
-                return getScramAuthKafkaProperties(properties);
+                setScramAuthKafkaProperties(properties);
+                break;
             case AUTH_IAM:
-                return getIAMAuthKafkaProperties(properties);
+                setIAMAuthKafkaProperties(properties);
+                break;
             case NO_AUTH:
-                return properties;
+                break;
             default:
                 LOGGER.error("Unsupported Authentication type {}", authType);
                 throw new RuntimeException("Unsupported Authentication type" + authType);
         }
+        return properties;
     }
 
     /**
@@ -215,13 +229,10 @@ public class AmazonMskUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties getTLSAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setTLSAuthKafkaProperties(Properties properties) throws Exception
     {
-        // Create temp directory
-        Path tempDir = getTempDirPath();
-
         // Download certificates for kafka connection from S3 and save to temp directory
-        copyCertificatesFromS3ToTempFolder();
+        Path tempDir = copyCertificatesFromS3ToTempFolder();
 
         // Fetch the secrets for kafka connection from AWS SecretManager and set required kafka properties for
         //establishing successful connection
@@ -242,7 +253,7 @@ public class AmazonMskUtils
      * @param properties - IAM specific properties for kafka consumer
      * @return {@link Properties}
      */
-    protected static Properties getIAMAuthKafkaProperties(Properties properties)
+    protected static Properties setIAMAuthKafkaProperties(Properties properties)
     {
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_SSL");
         properties.setProperty(KAFKA_SASL_MECHANISM, "AWS_MSK_IAM");
@@ -258,7 +269,7 @@ public class AmazonMskUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties getScramAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setScramAuthKafkaProperties(Properties properties) throws Exception
     {
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_SSL");
         properties.setProperty(KAFKA_SASL_MECHANISM, "SCRAM-SHA-512");
@@ -273,7 +284,7 @@ public class AmazonMskUtils
      *
      * @throws Exception - {@link Exception}
      */
-    protected static void copyCertificatesFromS3ToTempFolder() throws Exception
+    protected static Path copyCertificatesFromS3ToTempFolder() throws Exception
     {
         LOGGER.debug("Creating the connection with AWS S3 for copying certificates to Temp Folder");
         Path tempDir = getTempDirPath();
@@ -297,6 +308,7 @@ public class AmazonMskUtils
                 Files.copy(inputStream, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
         }
+        return tempDir;
     }
 
     /**

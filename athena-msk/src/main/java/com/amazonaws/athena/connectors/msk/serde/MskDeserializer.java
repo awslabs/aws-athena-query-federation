@@ -22,12 +22,10 @@ package com.amazonaws.athena.connectors.msk.serde;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Map;
 
 public abstract class MskDeserializer implements Deserializer<TopicResultSet>
 {
@@ -37,24 +35,6 @@ public abstract class MskDeserializer implements Deserializer<TopicResultSet>
     public MskDeserializer(Schema schema)
     {
         this.schema = schema;
-    }
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey)
-    {
-        Deserializer.super.configure(configs, isKey);
-    }
-
-    @Override
-    public TopicResultSet deserialize(String topic, Headers headers, byte[] data)
-    {
-        return Deserializer.super.deserialize(topic, headers, data);
-    }
-
-    @Override
-    public void close()
-    {
-        Deserializer.super.close();
     }
 
     /**

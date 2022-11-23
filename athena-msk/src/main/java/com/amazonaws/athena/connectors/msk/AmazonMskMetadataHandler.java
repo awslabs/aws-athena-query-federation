@@ -104,11 +104,8 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
         LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-        List<TableName> tableNames = new ArrayList<>();
         List<String> topicList = AmazonMskUtils.getTopicListFromGlueRegistry();
-        topicList.forEach(topic -> {
-            tableNames.add(new TableName(listTablesRequest.getSchemaName(), topic));
-        });
+        List<TableName> tableNames  = topicList.stream().map(topic -> new TableName(listTablesRequest.getSchemaName(), topic)).collect(Collectors.toList());
         return new ListTablesResponse(listTablesRequest.getCatalogName(), tableNames, null);
     }
 
@@ -180,20 +177,19 @@ public class AmazonMskMetadataHandler extends MetadataHandler
 
         // Get end offset of each topic partitions from kafka server.
         Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(topicPartitions);
-        endOffsets.forEach((k, v) -> {
-            LOGGER.debug("[kafka][split] offset info [topic: {}, partition: {}, end-offset: {}]",
-                    k.topic(), k.partition(), v
-            );
-        });
+        if (LOGGER.isDebugEnabled()) {
+            endOffsets.forEach((k, v) -> {
+                LOGGER.debug("[kafka][split] offset info [topic: {}, partition: {}, end-offset: {}]",
+                        k.topic(), k.partition(), v
+                );
+            });
+        }
 
         Set<Split> splits = new HashSet<>();
         SpillLocation spillLocation = makeSpillLocation(request);
-
-        List<TopicPartitionPiece> topicPartitionPieces;
-        Split.Builder splitBuilder;
         for (TopicPartition partition : topicPartitions) {
             // Calculate how many pieces we can divide a topic partition.
-            topicPartitionPieces = pieceTopicPartition(endOffsets.get(partition));
+            List<TopicPartitionPiece>  topicPartitionPieces = pieceTopicPartition(endOffsets.get(partition));
             LOGGER.info("[kafka] Total pieces created {} for partition {} in topic {}",
                     topicPartitionPieces.size(), partition.partition(), partition.topic()
             );
@@ -203,7 +199,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
                 // In split, we are putting parameters so that later, in RecordHandler we know
                 // for which topic and for which partition we will initiate a kafka consumer
                 // as well as to consume data from which start offset to which end offset.
-                splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                         .add(SplitParameters.TOPIC, partition.topic())
                         .add(SplitParameters.PARTITION, Integer.toString(partition.partition()))
                         .add(SplitParameters.START_OFFSET, Long.toString(topicPartitionPiece.startOffset))

@@ -24,6 +24,7 @@ public class TopicSchema
     String tableName;
     String schemaName;
     String topicName;
+    Message message = new Message();
 
     public String getTableName()
     {
@@ -65,5 +66,4 @@ public class TopicSchema
         this.message = message;
     }
 
-    Message message = new Message();
 }

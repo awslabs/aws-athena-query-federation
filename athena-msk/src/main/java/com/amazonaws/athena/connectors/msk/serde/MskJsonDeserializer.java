@@ -60,21 +60,28 @@ public class MskJsonDeserializer extends MskDeserializer
             // Also putting additional information in fields from fields metadata.
             schema.getFields().forEach(field -> {
                 String mapping = field.getMetadata().get("mapping");
-                topicResultSet.getFields().add(new MSKField(
-                        field.getName(),
-                        mapping,
-                        field.getMetadata().get("type"),
-                        field.getMetadata().get("formatHint"),
-                        castValue(field, json.get(mapping).asText())
-                ));
+                try {
+                    topicResultSet.getFields().add(new MSKField(
+                            field.getName(),
+                            mapping,
+                            field.getMetadata().get("type"),
+                            field.getMetadata().get("formatHint"),
+                            castValue(field, json.get(mapping).asText())
+                    ));
+                }
+                catch (Exception e) {
+                    LOGGER.error("MskJsonDeserializer: Error in castValue : while converting raw value to typed value");
+                    e.printStackTrace();
+                }
             });
-
-            close();
             return topicResultSet;
         }
         catch (Exception e) {
             LOGGER.error("MskJsonDeserializer: Error when deserializing byte[] to TopicResultSet");
             e.printStackTrace();
+        }
+        finally {
+            close();
         }
         return topicResultSet;
     }
@@ -86,14 +93,8 @@ public class MskJsonDeserializer extends MskDeserializer
      * @param value - raw value
      * @return Object
      */
-    private Object castValue(org.apache.arrow.vector.types.pojo.Field field, String value)
+    private Object castValue(org.apache.arrow.vector.types.pojo.Field field, String value) throws Exception
     {
-        Object object = null;
-        try {
-            object = cast(field, value);
-        }
-        catch (Exception ignored) {
-        }
-        return object;
+        return cast(field, value);
     }
 }
