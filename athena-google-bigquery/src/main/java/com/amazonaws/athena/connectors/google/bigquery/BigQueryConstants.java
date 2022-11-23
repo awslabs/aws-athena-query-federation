@@ -40,7 +40,7 @@ public class BigQueryConstants
     /**
      * The Private Endpoint which is configured with Google BigQuery.
      */
-    public static final String Big_QUERY_ENDPOINT ="big_query_endpoint";
+    public static final String BIG_QUERY_ENDPOINT ="big_query_endpoint";
     /**
      * The name of the secret within Secrets Manager that contains credentials JSON that provides this Lambda access
      * to call Google BigQuery.
