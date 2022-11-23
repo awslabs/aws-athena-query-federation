@@ -71,7 +71,7 @@ public class BigQueryUtils
     public static BigQuery getBigQueryClient() throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
-        String endpoint = System.getenv(BigQueryConstants.Big_QUERY_ENDPOINT);
+        String endpoint = System.getenv(BigQueryConstants.BIG_QUERY_ENDPOINT);
         if(StringUtils.isNotEmpty(endpoint))
         {
             bigqueryBuilder.setHost(endpoint);
