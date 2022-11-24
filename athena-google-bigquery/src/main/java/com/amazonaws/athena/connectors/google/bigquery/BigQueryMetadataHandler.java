@@ -64,6 +64,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForDatasetName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.fixCaseForTableName;
 import static com.amazonaws.athena.connectors.google.bigquery.BigQueryUtils.translateToArrowType;
@@ -132,19 +133,29 @@ public class BigQueryMetadataHandler
             logger.info("doListTables called with request {}:{}", listTablesRequest.getCatalogName(),
                     listTablesRequest.getSchemaName());
             //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
+            String nextToken = null;
             final String projectName = BigQueryUtils.getProjectName(listTablesRequest);
             final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
             final DatasetId datasetId = DatasetId.of(projectName, datasetName);
             List<TableName> tables = new ArrayList<>();
-            Page<Table> response = bigQuery.listTables(datasetId,
-                     BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
-            for (Table table : response.iterateAll()) {
-                if (tables.size() > BigQueryConstants.MAX_RESULTS) {
-                    throw new BigQueryExceptions.TooManyTablesException();
+            if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+                Page<Table> response = bigQuery.listTables(datasetId);
+                for (Table table : response.iterateAll()) {
+                    if (tables.size() > BigQueryConstants.MAX_RESULTS) {
+                        throw new BigQueryExceptions.TooManyTablesException();
+                    }
+                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
                 }
-                tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
             }
-            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, response.getNextPageToken());
+            else {
+                Page<Table> response = bigQuery.listTables(datasetId,
+                        BigQuery.TableListOption.pageToken(listTablesRequest.getNextToken()), BigQuery.TableListOption.pageSize(listTablesRequest.getPageSize()));
+                for (Table table : response.getValues()) {
+                    tables.add(new TableName(listTablesRequest.getSchemaName(), table.getTableId().getTable()));
+                }
+                nextToken = response.getNextPageToken();
+            }
+            return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
         }
         catch
         (Exception e) {
