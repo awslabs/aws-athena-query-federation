@@ -135,6 +135,17 @@ Resources:
           - Action:
               - athena:GetQueryExecution
               - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
+              - kms:Decrypt
+              - glue:*
             Effect: Allow
             Resource: '*'
           - Action:
