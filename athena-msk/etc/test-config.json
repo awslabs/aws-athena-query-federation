@@ -1,0 +1,25 @@
+{
+  "connector_name" : "AmazonMskConnector", /* connector name */
+  "athena_result_location": "<bucket_path (without s3://)>", /* The s3 bucket path used to store results of Athena queries */
+  "athena_work_group" : "primary", /* The Athena Workgroup used for running integration tests (default: FederationIntegrationTests) */
+  "secrets_manager_secret" : "<secret name>", /* Secret name used to retrieve user credentials from SecretsManager. */
+  "region" : "<region>", /* aws region name */
+  "amazonmsk_db_name" : "<db name>", /* kafka db name */
+  "table_name" : "<table name>", /* kafka table name */
+  "environment_vars" : {
+    "spill_bucket" : "<spill bucket>", /* The S3 bucket used for spilling excess data */
+    "spill_prefix" : "athena-spill",              /* The prefix within the S3 spill bucket (default: athena-spill) */
+    "disable_spill_encryption" : "false",         /* If set to true encryption for spilled data is disabled (default: false) */
+    "auth_type" : "<auth type>",                        /* Authentication type to kafka node eg:NOAUTH,TLS,SERVERLESS,SCRAM */
+    "certificates_s3_reference" : "<bucket_path to retrieve certificates>", /* The S3 bucket path used to retrieve certificate */
+    "glue_registry_arn" : "<glue registry arn>", /* Glue Registry ARN to retrieve schema details from AWS Glue */
+    "kafka_endpoint" : "<kafka node>", /* Kafka Node */
+    "secrets_manager_secret" : "<secret name>" /* Secret name used to retrieve user kafka credentials from SecretsManager. */
+  },
+  "vpc_configuration" : {                         /* VPC configuration for DB instances within a VPC */
+    "vpc_id": "<Enter Value>",                     /* The VPC Id (e.g. vpc-xxx) */
+    "security_group_id": "<Enter Value>",  /* The Security Group Id (e.g. sg-xxx) */
+    "subnet_ids": ["<Subnet 1>", "<Subnet 2>"],            /* A list consisting of at least one Subnet Id (e.g. subnet-xxxx) */
+    "availability_zones": ["<Zone 1>", "<Zone 2>"]          /* A list consisting of at least one AZ (e.g. us-east-1a) */
+  }
+}
