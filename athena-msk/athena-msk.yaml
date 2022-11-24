@@ -11,7 +11,7 @@ Metadata:
       - msk
       - athena-federation
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.46.1
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AuthType:
@@ -64,6 +64,14 @@ Parameters:
   GlueRegistryArn:
     Description: 'AWS GLUE registry ARN to be provided where topic schemas has been uploaded'
     Type: String
+  LambdaRoleARN:
+    Description: "(Must for auth type IAM) A custom role to be used by the Connector lambda"
+    Default: ""
+    Type: String
+
+Conditions:
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
+
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -80,46 +88,62 @@ Resources:
           glue_registry_arn:  !Ref GlueRegistryArn
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler"
-      CodeUri: "./target/athena-msk-2022.46.1.jar"
+      CodeUri: "./target/athena-msk-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with MSK and Kafka clusters"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
-      Policies:
-        - Statement:
-            - Action:
-                - secretsmanager:GetSecretValue
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - logs:CreateLogGroup
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - logs:CreateLogStream
-                - logs:PutLogEvents
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - athena:GetQueryExecution
-                - s3:ListAllMyBuckets
-                - kms:Decrypt
-                - glue:*
-              Effect: Allow
-              Resource: '*'
-          Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
-        - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
-        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
-        - VPCAccessPolicy: {}
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+
+  FunctionExecutionPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+          - Action:
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
+          - Action:
+              - athena:GetQueryExecution
+              - s3:ListAllMyBuckets
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DetachNetworkInterface
+              - autoscaling:CompleteLifecycleAction
+            Effect: Allow
+            Resource: '*'
+      Roles:
+        - !Ref FunctionRole
