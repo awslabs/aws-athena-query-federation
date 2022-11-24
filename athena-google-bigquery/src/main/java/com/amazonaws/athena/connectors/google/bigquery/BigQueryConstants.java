@@ -38,6 +38,10 @@ public class BigQueryConstants
     public static final String GCP_PROJECT_ID = "gcp_project_id";
 
     /**
+     * The Private Endpoint which is configured with Google BigQuery.
+     */
+    public static final String BIG_QUERY_ENDPOINT = "big_query_endpoint";
+    /**
      * The name of the secret within Secrets Manager that contains credentials JSON that provides this Lambda access
      * to call Google BigQuery.
      */

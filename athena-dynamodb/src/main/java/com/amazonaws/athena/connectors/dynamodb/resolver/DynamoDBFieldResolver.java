@@ -69,6 +69,10 @@ public class DynamoDBFieldResolver
             }
         }
 
+        if (fieldValue == null) {
+            return null;
+        }
+
         switch (fieldType) {
             case LIST:
                 return DDBTypeUtils.coerceListToExpectedType(fieldValue, field, metadata);
