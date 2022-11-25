@@ -30,7 +30,7 @@ public class BigQueryConstants
     /**
      * The maximum number of datasets and tables that can be returned from Google BigQuery API calls for metadata.
      */
-    public static final long MAX_RESULTS = 10_000;
+    public static final long MAX_RESULTS = 100_000;
 
     /**
      * The Project ID within the Google Cloud Platform where the datasets and tables exist to query.
