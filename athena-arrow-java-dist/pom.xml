@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-athena-query-federation</artifactId>
+        <version>2022.47.1</version>
+    </parent>
+    <groupId>com.amazonaws</groupId>
+    <artifactId>athena-arrow-java-dist</artifactId>
+    <version>2022.47.1</version>
+    <packaging>pom</packaging>
+    <name>athena-arrow-java-dist</name>
+    <!-- Source: https://github.com/henrymai/arrow/commits/apache-arrow-10.0.1-amzn -->
+    <!-- When Arrow's official distribution turns on GCS support, we can remove this module. -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>org.apache.arrow:arrow-dataset</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <groupId>org.apache.arrow</groupId>
+                            <artifactId>arrow-dataset</artifactId>
+                            <version>10.0.1</version>
+                            <packaging>jar</packaging>
+                            <file>${basedir}/arrow-dataset-10.0.1.jar</file>
+                            <pomFile>${basedir}/arrow-dataset-10.0.1.pom</pomFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
