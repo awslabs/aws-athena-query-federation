@@ -25,7 +25,7 @@
         <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
         <log4j2Version>2.17.1</log4j2Version>
-        <apache.arrow.version>9.0.0</apache.arrow.version>
+        <apache.arrow.version>10.0.1</apache.arrow.version>
         <netty.version>4.1.81.Final</netty.version>
     </properties>
     <dependencyManagement>
@@ -67,6 +67,7 @@
         <tag>HEAD</tag>
     </scm>
     <modules>
+        <module>athena-arrow-java-dist</module>
         <module>athena-cloudwatch</module>
         <module>athena-docdb</module>
         <module>athena-redis</module>
