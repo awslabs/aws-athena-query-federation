@@ -55,7 +55,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -64,6 +63,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.isPartitionFolder;
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.containsExtension;
@@ -96,7 +96,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param config An instance of GcsDatasourceConfig that contains necessary properties for instantiating an appropriate data source
      * @throws IOException If occurs during initializing input stream with GCS credential JSON
      */
-    protected AbstractStorageDatasource(StorageDatasourceConfig config) throws IOException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
+    protected AbstractStorageDatasource(StorageDatasourceConfig config) throws IOException
     {
         this.datasourceConfig = requireNonNull(config, "StorageDatastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");
@@ -126,19 +126,16 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @return List of field instances
      */
     @Override
-    public List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException
+    public List<Field> getTableFields(String bucketName, List<String> objectNames)
     {
-        System.out.printf("Retrieving field schema for file(s) %s, under the bucket %s%n", objectNames, bucketName);
         LOGGER.info("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
         requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
         if (objectNames.isEmpty()) {
             throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
         }
-        System.out.printf("Inferring field schema based on file %s%n", objectNames.get(0));
         LOGGER.debug("Inferring field schema based on file {}", objectNames.get(0));
         String uri = createUri(bucketName, objectNames.get(0));
-        System.out.printf("Retrieving fields for URI %s%n", uri);
-        BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+        BufferAllocator allocator = new RootAllocator();
         DatasetFactory factory = new FileSystemDatasetFactory(allocator,
                 NativeMemoryPool.getDefault(), getFileFormat(), uri);
         // inspect schema
@@ -176,7 +173,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public synchronized TableListResult getAllTables(String databaseName, String nextToken, int pageSize) throws Exception
     {
         String currentNextToken = null;
-        System.out.println("checking complete? " + storeCheckingComplete + ", tables are loaded for database? " + databaseName + ": " + tablesLoadedForDatabase(databaseName));
         if (!storeCheckingComplete
                 || !tablesLoadedForDatabase(databaseName)) {
             currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
@@ -199,7 +195,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     public synchronized String loadTablesWithContinuationToken(String databaseName, String nextToken, int pageSize) throws Exception
     {
         if (!checkBucketExists(databaseName)) {
-            System.out.println("Not bucket exists for database " + databaseName);
             return null;
         }
         String currentNextToken = loadTablesInternal(databaseName, nextToken, pageSize);
@@ -252,19 +247,14 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         if (bucketName == null) {
             throw new RuntimeException("StorageHiveDatastore.getTable: bucket null does not exist");
         }
-        System.out.printf("Resolving Table %s under the schema %s%n", tableObjects, databaseName);
         LOGGER.debug("Resolving Table {} under the schema {}", tableObjects, databaseName);
         Map<StorageObject, List<String>> objectNameMap = tableObjects.get(databaseName);
         if (objectNameMap != null && !objectNameMap.isEmpty()) {
-            System.out.printf("Searching storage key for table %s in %s database%n", tableName, databaseName);
             Optional<StorageObject> optionalStorageObjectKey = findStorageObjectKey(tableName, databaseName);
             if (optionalStorageObjectKey.isPresent()) {
-                System.out.printf("Searching storage key for table %s in %s database found %s%n", tableName, databaseName, optionalStorageObjectKey.get());
                 StorageObject key = optionalStorageObjectKey.get();
                 List<String> objectNames = objectNameMap.get(key);
-                System.out.printf("Object names for for key %s are %s%n", key, objectNames);
                 if (objectNames != null) {
-                    System.out.printf("Getting storage table for object %s in %s bucket%n", key.getObjectName(), bucketName);
                     StorageTable table = StorageTable.builder()
                             .setDatabaseName(databaseName)
                             .setTableName(tableName)
@@ -295,7 +285,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param constraints An instance of {@link Constraints} that contains predicate information
      * @param bucketName Name of the bucket
      * @param objectName Name of the object
-     * @return An list of {@link StoragePartition} instances
+     * @return A list of {@link StoragePartition} instances
      * @throws IOException Occurs if any during walk-through the buckets/files within the underlying storage provider
      */
     @Override
@@ -307,10 +297,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         requireNonNull(objectName, "objectName name was null");
         List<StoragePartition> storagePartitions = new ArrayList<>();
         if (isDirectory(bucketName, objectName)) {
-//            if (true) {
-//                // TODO: as of now no partition support
-//                return List.of();
-//            }
             if (isPartitionedDirectory(bucketName, objectName)) {
                 TreeTraversalContext context = TreeTraversalContext.builder()
                         .hasParent(true)
@@ -319,12 +305,21 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                         .partitionDepth(1)
                         .storage(storage)
                         .build();
-                List<String> fileNames = getLeafObjectsByPartitionPrefix(bucketName, objectName, 1);
+                Optional<StorageNode<String>> optionalNode = StorageTreeNodeBuilder.buildFileOnlyTreeForPrefix(bucketName, bucketName,
+                        bucketName + "/" + objectName,
+                        TreeTraversalContext.builder()
+                                .hasParent(true)
+                                .maxDepth(0)
+                                .storage(storage)
+                                .build());
+                List<String> fileNames = new ArrayList<>();
+                optionalNode.ifPresent(stringStorageNode -> fileNames.addAll(stringStorageNode.getChildren().stream()
+                        .map(StorageNode::getPath)
+                        .collect(Collectors.toList())));
                 if (fileNames.isEmpty()) {
                     throw new UncheckedStorageDatasourceException("No files found to retrieve schema for partitioned table "
                             + tableInfo.getTableName() + " under schema " + tableInfo.getSchemaName());
                 }
-//                List<FilterExpression> expressions = getExpressions(bucketName, fileNames.get(0), schema, tableInfo, constraints, Map.of());
                 List<FilterExpression> expressions;
                 Optional<Schema> optionalSchema = GcsSchemaUtils.getSchemaFromGcsPrefix(fileNames.get(0), getFileFormat(), this.datasourceConfig);
                 if (optionalSchema.isPresent()) {
@@ -344,7 +339,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                     for (StorageNode<String> partitionedFolderNode : optionalRoot.get().getChildren()) {
                         partitions.add(StoragePartition.builder()
                                 .objectNames(List.of())
-                                .location(partitionedFolderNode.getPath() + "/")
+                                .location(partitionedFolderNode.getPath())
                                 .bucketName(bucketName)
                                 .recordCount(0L)
                                 .children(List.of())
@@ -380,24 +375,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         return storage;
     }
 
-    public StorageDatasourceConfig getConfig()
-    {
-        return datasourceConfig;
-    }
-
-//    @Override
-//    public StorageProvider getStorageProvider()
-//    {
-//        return this.storageProvider;
-//    }
-
-    /**
-     * Returns the size of records per split
-     *
-     * @return Size of records per split
-     */
-    public abstract int recordsPerSplit();
-
     /**
      * Loads all tables for the given database ana maintain a references of actual bucket and file names
      *
@@ -408,7 +385,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      */
     protected String loadTablesInternal(String databaseName, String nextToken, int pageSize) throws Exception
     {
-        System.out.println("Loading tables internal with token " + nextToken);
         requireNonNull(databaseName, "Database name was null");
         String bucketName = databaseBuckets.get(databaseName);
         if (bucketName == null) {
@@ -429,7 +405,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
 
     private PagedObject getObjectNames(String bucket, String continuationToken, int pageSize)
     {
-        System.out.println("Getting object names from bucket " + bucket);
         Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
         Page<Blob> blobs;
         if (continuationToken != null) {
@@ -453,7 +428,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 blobNameList.add(blob.getName());
             }
         }
-        System.out.println("blobNameList\n" + blobNameList);
         LOGGER.debug("blobNameList\n{}", blobNameList);
         return ImmutableList.copyOf(blobNameList);
     }
@@ -478,7 +452,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
 
     protected Map<StorageObject, List<String>> convertBlobsToTableObjectsMap(String bucketName, List<String> objectNames) throws Exception
     {
-        System.out.println("Converting blobs to object name map");
         Map<StorageObject, List<String>> objectNameMap = new HashMap<>();
         for (String objectName : objectNames) {
             if (checkTableIsValid(bucketName, objectName)) {
@@ -621,7 +594,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
                 .findFirst();
         if (optionalLoadedEntities.isEmpty()) {
             return false;
-//            throw new DatabaseNotFoundException("Schema " + database + " not found");
         }
         LoadedEntities entities = optionalLoadedEntities.get();
         return entities.tablesLoaded;
@@ -683,36 +655,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
         entities.tablesLoaded = true;
     }
 
-//    /**
-//     * Loads all classes from the class loader that are implementation of {@link StorageProvider} interface. An implementation of StorageProvider must
-//     * contain a static method named accept(String), which returns true. When it accepts the value set in the provider_name environment variable, it returns
-//     * true. In such case, this method initialize the storage provider. An implementation of {@link StorageProvider} MUST have a constructor that has a String argument
-//     *
-//     * @throws InvocationTargetException Occurs if any
-//     * @throws InstantiationException When constructor raises an error or the MUST-HAVE constructor does not exist
-//     * @throws IllegalAccessException Classes scope is not accessible
-//     * @throws NoSuchMethodException Occurs if any when accept(String) static method is not present
-//     */
-//    private void loadStorageProvider() throws InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException
-//    {
-//        String providerCodeName = datasourceConfig.getPropertyElseDefault(STORAGE_PROVIDER_ENV_VAR, "gcs");
-//        Reflections reflections = new Reflections("com.amazonaws.athena.storage");
-//        Set<Class<? extends StorageProvider>> classes = reflections.getSubTypesOf(StorageProvider.class);
-//        for (Class<?> storageProviderImpl : classes) {
-//            Method acceptMethod = storageProviderImpl.getMethod("accept", String.class);
-//            Object trueOfFalse = acceptMethod.invoke(null, providerCodeName);
-//            if (((Boolean) trueOfFalse)) {
-//                Constructor<?> constructor = storageProviderImpl.getConstructor(String.class);
-//                storageProvider = (StorageProvider) constructor.newInstance(datasourceConfig.credentialsJson());
-//                break;
-//            }
-//        }
-//        // Still no storage providers found? Then throw run-time exception
-//        if (storageProvider == null) {
-//            throw new UncheckedStorageDatasourceException("Storage provider for code name '" + providerCodeName + "' was not found");
-//        }
-//    }
-
     private Optional<StorageObject> findStorageObjectKey(String tableName, String databaseName)
     {
         LOGGER.debug("Resolving Table {} under the schema {}", tableObjects, databaseName);
@@ -731,11 +673,6 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
     private boolean checkTableIsValid(String bucket, String objectName) throws Exception
     {
         if (isPartitionedDirectory(bucket, objectName)) {
-            System.out.println("Object " + objectName + " in bucket " + bucket + " is a partitioned");
-//            if (true) {
-//                // TODO: as of now no partition support
-//                return false;
-//            }
             LOGGER.debug("Object {} in the bucket {} is partitioned", objectName, bucket);
             Optional<String> optionalObjectName = getFirstObjectNameRecurse(bucket, objectName);
             boolean isValid = (optionalObjectName.isPresent() && isSupported(bucket, optionalObjectName.get()));
@@ -744,10 +681,8 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
             return isValid;
         }
         else if (isExtensionCheckMandatory() && objectName.toLowerCase().endsWith(extension.toLowerCase())) {
-            System.out.println("Object " + objectName + "'s extension check is mandatory and it matches, and isn't partitioned. It is in bucket " + bucket);
             return true;
         }
-        System.out.println("Object " + objectName + " in bucket " + bucket  + " isn't partitioned. Check partitioned mandatory? " + isExtensionCheckMandatory());
         return !isExtensionCheckMandatory();
     }
 

@@ -19,15 +19,11 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static java.util.Objects.requireNonNull;
 
 public class StorageSplit
 {
     private String fileName;
-    private List<GroupSplit> groupSplits = new ArrayList<>();
 
     // Jackson uses this constructor
     @SuppressWarnings("unused")
@@ -39,12 +35,10 @@ public class StorageSplit
      * Constructor to instantiate with the given arguments
      *
      * @param fileName    Name of the file from GCS
-     * @param groupSplits An instance of {@link StorageSplit}
      */
-    public StorageSplit(String fileName, List<GroupSplit> groupSplits)
+    public StorageSplit(String fileName)
     {
         this.fileName = requireNonNull(fileName, "File name can't be null");
-        this.groupSplits = requireNonNull(groupSplits, "Group splits can't be null");
     }
 
     public String getFileName()
@@ -57,23 +51,11 @@ public class StorageSplit
         this.fileName = fileName;
     }
 
-    public List<GroupSplit> getGroupSplits()
-    {
-        return new ArrayList<>(groupSplits);
-    }
-
-    @SuppressWarnings("unused")
-    public void setGroupSplits(List<GroupSplit> groupSplits)
-    {
-        this.groupSplits.addAll(groupSplits);
-    }
-
     @Override
     public String toString()
     {
         return "StorageSplit("
                 + "fileName=" + fileName + ","
-                + (groupSplits.isEmpty() ? "" : groupSplits)
                 + ")";
     }
 
@@ -92,13 +74,6 @@ public class StorageSplit
         }
 
         private String fileName;
-        private List<GroupSplit> groupSplits = new ArrayList<>();
-
-        public Builder groupSplits(List<GroupSplit> groupSplits)
-        {
-            this.groupSplits.addAll(groupSplits);
-            return this;
-        }
 
         public Builder fileName(String fileName)
         {
@@ -113,7 +88,7 @@ public class StorageSplit
          */
         public StorageSplit build()
         {
-            return new StorageSplit(this.fileName, this.groupSplits);
+            return new StorageSplit(this.fileName);
         }
     }
 }
