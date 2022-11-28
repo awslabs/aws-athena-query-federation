@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
+import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 
 public class GcsSchemaUtils
@@ -79,9 +80,8 @@ public class GcsSchemaUtils
                 }
                 schemaBuilder.addField(getCompatibleField(field));
             }
-//            schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
+            schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
             Schema schema = schemaBuilder.build();
-            System.out.printf("Schema Fields %n%s%n", schema.getFields());
             return schema;
         }
         else {

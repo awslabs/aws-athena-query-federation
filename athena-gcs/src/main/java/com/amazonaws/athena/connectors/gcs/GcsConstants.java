@@ -25,8 +25,6 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 
 public class GcsConstants
 {
-    static final String ALL_PARTITIONS = "0";
-
     /**
      * A deserialized JSON from an instance of {@link com.amazonaws.athena.connectors.gcs.storage.StorageSplit} to be added as a property
      * of a Split. This Split will be passed to the {@link GcsRecordHandler#readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)} to
@@ -48,17 +46,10 @@ public class GcsConstants
     public static final String GCS_CREDENTIAL_KEYS_ENV_VAR = "gcs_credential_key";
 
     /**
-     * An environment variable in the deployed Lambda that says the key name under the configured secret that
-     * contains credential keys/other values in the form of  key to access the GCS buckets/objects
+     * A file name constant to store the GCP service account's credential JSON
+     * The file location is fixed at /tmp directory and the file used to access gs://.. like URI to read files
+     * to retrieve metadata and fetch data
      */
-    public static final String GCS_HMAC_KEY_ENV_VAR = "gcs_hmac_key";
-
-    /**
-     * An environment variable in the deployed Lambda that says the key name under the configured secret that
-     * contains credential keys/other values in the form of  secret to access the GCS buckets/objects
-     */
-    public static final String GCS_HMAC_SECRET_ENV_VAR = "gcs_hmac_secret";
-
     public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_NAME = "service-account.json";
 
     /**

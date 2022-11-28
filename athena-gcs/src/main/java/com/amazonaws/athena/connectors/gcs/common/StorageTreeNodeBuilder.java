@@ -95,9 +95,10 @@ public class StorageTreeNodeBuilder
                         continue;
                     }
                 }
-                parent = parent.addChild(names[i], path);
+                parent = parent.addChild(names[i], path).partitionedPath();
             }
         }
+        root.getChildren().removeIf(node -> !PartitionUtil.isPartitionFolder(node.getData()));
         return Optional.of(root);
     }
 
@@ -131,13 +132,10 @@ public class StorageTreeNodeBuilder
                                                                                         String prefix,
                                                                                         TreeTraversalContext context)
     {
-        System.out.printf("Retrieving files for root %s with prefix %s in the bucket %s with context%n%s%n",
-                rootName, prefix, bucket, context);
         if (context.hasParent()) {
             prefix = getPrefixWithoutRoot(rootName, prefix);
         }
         List<String> paths = getLeafObjectsByPartitionPrefix(bucket, prefix, Integer.MAX_VALUE);
-        System.out.printf("Got path of size %s, all paths are %n%s%n", paths.size(), paths);
         if (paths.isEmpty()) {
             return Optional.empty();
         }
@@ -152,6 +150,7 @@ public class StorageTreeNodeBuilder
         return Optional.of(root);
     }
 
+    // helpers
     private static String getPathWithRoot(String rootName, String path)
     {
         if (!rootName.endsWith("/")) {

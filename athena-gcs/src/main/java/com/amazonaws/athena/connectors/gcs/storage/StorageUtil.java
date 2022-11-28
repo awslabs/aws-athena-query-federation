@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.base.CharMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,24 +119,8 @@ public class StorageUtil
         return objectName;
     }
 
-    public static void printJson(Object object, String prefix)
-    {
-        LOGGER.debug("Printing json for {}:", prefix);
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-            LOGGER.debug("{}", object);
-        }
-        catch (Exception exception) {
-            // Ignored. Printing object instead as a fall-back
-            LOGGER.debug("Printing object for {}:\n{}", prefix, object);
-        }
-    }
-
     public static String createUri(String bucketName, String objectNames)
     {
-//        return "s3://" + datasourceConfig.getHmacKey() + ":" + datasourceConfig.getHmacSecret() + "@" + bucketName + "/" + objectNames
-//                + "?endpoint_override=https%3A%2F%2Fstorage.googleapis.com";
         return "gs://" + bucketName + "/" + objectNames;
     }
 
