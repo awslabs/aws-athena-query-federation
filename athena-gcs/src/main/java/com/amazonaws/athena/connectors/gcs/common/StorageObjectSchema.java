@@ -21,43 +21,43 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 import java.util.List;
 
-public class PagedObject
+public class StorageObjectSchema
 {
-    private List<String> fileName;
-    private String nextToken;
+    private List<StorageObjectField> fields;
+    private Object baseSchema;
 
-    public PagedObject(List<String> fileName, String nextToken)
+    public StorageObjectSchema(List<StorageObjectField> fields, Object baseSchema)
     {
-        this.fileName = fileName;
-        this.nextToken = nextToken;
+        this.fields = fields;
+        this.baseSchema = baseSchema;
     }
 
-    public List<String> getFileNames()
+    public List<StorageObjectField> getFields()
     {
-        return fileName;
+        return fields;
     }
 
-    public void setFileName(List<String> fileName)
+    public void setFields(List<StorageObjectField> fields)
     {
-        this.fileName = fileName;
+        this.fields = fields;
     }
 
-    public String getNextToken()
+    public Object getBaseSchema()
     {
-        return nextToken;
+        return baseSchema;
     }
 
-    public void setNextToken(String nextToken)
+    public void setBaseSchema(Object baseSchema)
     {
-        this.nextToken = nextToken;
+        this.baseSchema = baseSchema;
     }
 
     @Override
     public String toString()
     {
-        return "PagedObject{" +
-                "fileName=" + fileName +
-                ", continuationToken='" + nextToken + '\'' +
+        return "StorageObjectSchema{" +
+                "fields=" + fields +
+                ", baseSchema=" + baseSchema +
                 '}';
     }
 
@@ -68,24 +68,24 @@ public class PagedObject
 
     public static class Builder
     {
-        private List<String> fileNames;
-        private String nextToken;
+        private List<StorageObjectField> fields;
+        private Object baseSchema;
 
-        public Builder fileNames(final List<String> fileNames)
+        public Builder fields(final List<StorageObjectField> fields)
         {
-            this.fileNames = fileNames;
+            this.fields = fields;
             return this;
         }
 
-        public Builder nextToken(final String nextToken)
+        public Builder baseSchema(Object baseSchema)
         {
-            this.nextToken = nextToken;
+            this.baseSchema = baseSchema;
             return this;
         }
 
-        public PagedObject build()
+        public StorageObjectSchema build()
         {
-            return new PagedObject(this.fileNames, this.nextToken);
+            return new StorageObjectSchema(this.fields, this.baseSchema);
         }
     }
 }

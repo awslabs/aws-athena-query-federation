@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
@@ -41,6 +40,5 @@ public class GcsCompositeHandler
     {
         super(new GcsMetadataHandler(), new GcsRecordHandler());
         installCaCertificate();
-        installGoogleCredentialsJsonFile();
     }
 }

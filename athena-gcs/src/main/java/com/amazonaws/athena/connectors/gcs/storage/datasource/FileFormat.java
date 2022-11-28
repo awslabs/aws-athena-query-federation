@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
+import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -50,8 +50,8 @@ public abstract class FileFormat
      * @throws InstantiationException    If reflection failed
      * @throws IllegalAccessException    If reflection failed
      */
-    public abstract StorageMetadata createDatasource(String credentialJson,
-                                                     Map<String, String> properties)
+    public abstract StorageDatasource createDatasource(String credentialJson,
+                                                       Map<String, String> properties)
             throws IOException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException;
 
     /**
@@ -106,11 +106,11 @@ public abstract class FileFormat
          * @throws IllegalAccessException    When reflection error occurs
          */
         @Override
-        public StorageMetadata createDatasource(String credentialJson, Map<String, String> properties)
+        public StorageDatasource createDatasource(String credentialJson, Map<String, String> properties)
                 throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException
         {
             Constructor<?> constructor = datasourceType.getConstructor(String.class, Map.class);
-            return (StorageMetadata) constructor.newInstance(credentialJson, properties);
+            return (StorageDatasource) constructor.newInstance(credentialJson, properties);
         }
 
         /**

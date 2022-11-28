@@ -58,9 +58,21 @@ Parameters:
     Description: 'GCS credential secret key that contains the GCS credentials JSON value (key in key/value).'
     Type: String
     Default: "gcs_credential_keys"
+  GcsHMACKey:
+    Description: SecretManager key using what the GCS HMAC key will be retrieved.
+    Type: String
+    Default: gcs_HMAC_key
+  GcsHMACSecret:
+    Description: SecretManager key using what the GCS HMAC secret will be retrieved.
+    Type: String
+    Default: gcs_HMAC_secret
   FileExtension:
     Description: File extension to filter file names in a specific storage bucket. It can be any of PARQUET, and CSV.
     Type: String
+  SSLCertFile:
+    Description: Location of SSL cert file.
+    Type: String
+    Default: "/tmp/cacert.pem"
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -72,13 +84,14 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           gcs_secret_name: !Ref GcsSecretName
           gcs_credential_key: !Ref GcsCredentialKey
+          gcs_hmac_key: !Ref GcsHMACKey
+          gcs_hmac_secret: !Ref GcsHMACSecret
           file_extension: !Ref FileExtension
-          SSL_CERT_FILE: '/tmp/cacert.pem'
-          GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
+          SSL_CERT_FILE: !Ref SSLCertFile
 
       FunctionName: !Sub "${AthenaCatalogName}"
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
-      CodeUri: "./target/athena-gcs-2022.47.2.jar"
+      CodeUri: "./target/athena-gcs-2022.42.2.jar"
       Description: "Amazon Athena Gcs Connector"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

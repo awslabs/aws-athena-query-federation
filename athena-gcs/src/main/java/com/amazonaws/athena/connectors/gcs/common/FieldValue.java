@@ -21,10 +21,6 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 import java.util.Optional;
 
-/**
- * Used to evaluate expression to select a partition folder based on constraints
- * Constraints are built using another util
- */
 public class FieldValue
 {
     private final String field;

@@ -19,8 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
+import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.exception.UncheckedStorageDatasourceException;
 
 import java.lang.reflect.InvocationTargetException;
@@ -38,16 +37,16 @@ public class StorageDatasourceFactory
     /**
      * Creates a data source based on properties. It highly depends on an environment variable named file_extension
      * Currently, file_extension only supports either PARQUET or CSV. Based on this value, this factory method will
-     * create either ParquetDataSource or CsvDatasource which is a subclass of {@link AbstractStorageMetadata},
-     * which in turn an implementation of {@link StorageMetadata}
+     * create either ParquetDataSource or CsvDatasource which is a subclass of {@link com.amazonaws.athena.connectors.gcs.storage.AbstractStorageDatasource},
+     * which in turn an implementation of {@link StorageDatasource}
      *
      * @param credentialJsonString Credential JSON to access target storage service for example Google's GCS (Google Cloud Storage)
      * @param properties              Map of property/value pairs from the lambda environment
      * @return An instance of StorageDatasource
-     * @see StorageMetadata
+     * @see StorageDatasource
      */
-    public static StorageMetadata createDatasource(String credentialJsonString,
-                                                   Map<String, String> properties) throws InvocationTargetException,
+    public static StorageDatasource createDatasource(String credentialJsonString,
+                                                     Map<String, String> properties) throws InvocationTargetException,
             NoSuchMethodException, InstantiationException, IllegalAccessException
     {
         String fileFormat = properties.get(FILE_EXTENSION_ENV_VAR);

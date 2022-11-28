@@ -19,14 +19,15 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
-import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,18 +35,17 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_NAME;
 import static java.util.Objects.requireNonNull;
 
 public class GcsUtil
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsUtil.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private GcsUtil()
@@ -75,6 +75,23 @@ public class GcsUtil
                 + " in the secret " + System.getenv(gcsCredentialKeysEnvVar));
     }
 
+    public static void printJson(Object object, String prefix)
+    {
+        if (true) {
+            return;
+        }
+        LOGGER.info("Printing json for {}", prefix);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+            LOGGER.info(prefix + ":\n{}", mapper.writeValueAsString(object));
+        }
+        catch (Exception exception) {
+            // ignored
+            LOGGER.error("Unable to print JSON for {}. Error: {}", prefix, exception.getMessage());
+        }
+    }
+
     /**
      * Builds a string representation of an instance of {@link StorageSplit}
      *
@@ -98,22 +115,20 @@ public class GcsUtil
         ClassLoader classLoader = GcsRecordHandler.class.getClassLoader();
         File file = new File(requireNonNull(classLoader.getResource("")).getFile());
         File src = new File(file.getAbsolutePath() + File.separator + "cacert.pem");
-        File dest = new File(System.getenv(SSL_CERT_FILE_LOCATION));
+        File dest = new File(Paths.get("/tmp").toAbsolutePath() + File.separator  + "cacert.pem");
         if (!dest.exists()) {
             Files.copy(src.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
-    public static void installGoogleCredentialsJsonFile() throws IOException
+    public static void installGoogleCredentialsJsonFile(String gcsCredentialJsonString) throws IOException
     {
-        CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
-        String gcsCredentialsJsonString = getGcsCredentialJsonString(secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        File dest = new File(System.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION));
+        File dest = new File(Paths.get("/tmp").toAbsolutePath() + File.separator  + GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_NAME);
         if (dest.exists()) {
             return;
         }
         try (OutputStream out = new FileOutputStream(dest)) {
-            out.write(gcsCredentialsJsonString.getBytes(StandardCharsets.UTF_8));
+            out.write(gcsCredentialJsonString.getBytes(StandardCharsets.UTF_8));
             out.flush();
         }
     }

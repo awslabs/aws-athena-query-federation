@@ -26,6 +26,11 @@ public class StorageConstants
     }
 
     /**
+     * Maximum size of a CSV file
+     */
+    public static final long MAX_CSV_FILES_SIZE = 524288000L; // 500 MB
+
+    /**
      * part_name columns contains the source file name. It helps filter when files are gruped in a single table
      */
     public static final String BLOCK_PARTITION_COLUMN_NAME = "part_name";
@@ -37,6 +42,11 @@ public class StorageConstants
 
     // Environment variables passed as properties in ObjectStorageMetadataConfig
     public static final String FILE_EXTENSION_ENV_VAR = "file_extension";
+
+    /**
+     * This is to specify what is the storage provider, foe example 'gcs'
+     */
+    public static final String STORAGE_PROVIDER_ENV_VAR = "storage_provider";
 
     // split constants
     public static final String TABLE_PARAM_BUCKET_NAME = "bucketName";

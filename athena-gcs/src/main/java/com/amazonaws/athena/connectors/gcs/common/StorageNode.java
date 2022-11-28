@@ -27,7 +27,7 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
     private final TreeSet<StorageNode<T>> children = new TreeSet<>();
     private StorageNode<T> parent = null;
     private final T data;
-    private T path;
+    private final T path;
     private int index = 0;
 
     public StorageNode(T data, T path)
@@ -81,17 +81,6 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
             return Optional.of(this);
         }
         return findByPathRecurse(path, this.children);
-    }
-
-    @SuppressWarnings("unchecked")
-    public StorageNode<T> partitionedPath()
-    {
-        String rootedPath = path.toString();
-        if (!rootedPath.endsWith("/")) {
-            rootedPath += "/";
-        }
-        path = (T) rootedPath;
-        return this;
     }
 
     @Override

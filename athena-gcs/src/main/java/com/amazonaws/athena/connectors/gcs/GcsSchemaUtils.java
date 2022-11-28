@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
+import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 
 public class GcsSchemaUtils
@@ -62,26 +61,27 @@ public class GcsSchemaUtils
     /**
      * Builds the table schema based on the provided field by the retrieved instance of {@link StorageTable}
      *
-     * @param datasource   An instance of {@link StorageMetadata}
+     * @param datasource   An instance of {@link StorageDatasource}
      * @param databaseName Name of the bucket in GCS
      * @param tableName    Name of the storage object (file) from GCS
      * @return An instance of {@link Schema}
      */
-    public static Schema buildTableSchema(StorageMetadata datasource, String databaseName, String tableName) throws Exception
+    public static Schema buildTableSchema(StorageDatasource datasource, String databaseName, String tableName) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(databaseName, tableName);
         if (optionalStorageTable.isPresent()) {
             StorageTable table = optionalStorageTable.get();
-            LOGGER.debug("Schema Fields\n{}", table.getFields());
+            LOGGER.info("Schema Fields\n{}", table.getFields());
             for (Field field : table.getFields()) {
                 if (isFieldTypeNull(field)) {
                     field = Field.nullable(field.getName(), Types.MinorType.VARCHAR.getType());
                 }
                 schemaBuilder.addField(getCompatibleField(field));
             }
-            schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
+//            schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
             Schema schema = schemaBuilder.build();
+            System.out.printf("Schema Fields %n%s%n", schema.getFields());
             return schema;
         }
         else {
