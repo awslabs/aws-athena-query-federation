@@ -31,13 +31,13 @@ public class FileFormatSupport
      * SupportedFileFormat that supports parquet file. Also helps to instantiate corresponding datasource
      */
     private static final FileFormat.SupportedFileFormat PARQUET_FILE_FORMAT
-            = new FileFormat.SupportedFileFormat("parquet", ParquetDatasource.class);
+            = new FileFormat.SupportedFileFormat("parquet", ParquetMetadata.class);
 
     /**
      * SupportedFileFormat that supports csv file. Also helps to instantiate corresponding datasource
      */
     private static final FileFormat.SupportedFileFormat CSV_FILE_FORMAT
-            = new FileFormat.SupportedFileFormat("csv", CsvDatasource.class);
+            = new FileFormat.SupportedFileFormat("csv", CsvMetadata.class);
 
     /**
      * A list of supported file format. As of the current implementation, only PARQUET and CSV
