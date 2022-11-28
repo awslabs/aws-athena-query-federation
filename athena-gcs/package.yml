@@ -1,0 +1,135 @@
+Transform: AWS::Serverless-2016-10-31
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: AthenaGcsConnector
+    Description: This connector enables Amazon Athena to communicate with GCS to read Parquet and CSV files to render as Tables to enable running SQL statements in AWS Athena Console
+    Author: default author
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: s3://trianz-teradata-athena-jdbc/bd035db9b1e51c59a8ac5f82a75ca8fb
+    ReadmeUrl: s3://trianz-teradata-athena-jdbc/772fdbc212b580760d724fe8ff7e4dd7
+    Labels:
+    - athena-federation
+    HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
+    SemanticVersion: 2022.10.1
+    SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
+Parameters:
+  AthenaCatalogName:
+    Description: The name you will give to this catalog in Athena. It will also be
+      used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SpillBucket:
+    Description: The name of the bucket where this function can spill data.
+    Type: String
+    Default: gcs-spill-bucket
+  SpillPrefix:
+    Description: The prefix within SpillBucket where this function can spill data.
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: Lambda memory in MB (min 128 - 3008 max).
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: 'WARNING: If set to ''true'' encryption for spilled data is disabled.'
+    Default: 'false'
+    Type: String
+  VpcId:
+    Description: VPC ID
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-06f76e1c48ba80f38
+  SubnetIds:
+    Description: One or more Subnet IDs corresponding to the Subnet that the Lambda
+      function can use to access you data source. (e.g. subnet1,subnet2)
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: subnet-01743fd8cca039a9e
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Default: sg-0398b41444bcbb0ee
+  SecretNameOrPrefix:
+    Description: The name or prefix of a set of names within Secrets Manager that
+      this function should have access to. (e.g. gcs-*).
+    Type: String
+    Default: gcs-*
+  GcsSecretName:
+    Description: Secret name in AWS SecretManager from where the GCS credentials key will be retrieved.
+    Type: String
+    Default: gcs-athena
+  GcsCredentialKey:
+    Description: Credential secret keys using what the GCS credentials JSON will be retrieved.
+    Type: String
+    Default: gcs_credential_keys
+  FileExtension:
+    Description: File extension to filter file names in a specific storage bucket. It can be any of PARQUET, AVRO, CSV, and JSON. Current version only supports PARQUET, and CSV
+    Type: String
+  LicneseKey:
+    Description: Trianz licene key to use the connector with Voltge cryptograpy
+    Type: String
+    Default: jCkDF8BoK9tpRrX8mQziBwp5ZdZpsViP08yebx1e4chReKayLFG4YtFA9CJ8vdl/ZCvBgoxQ9QZUzMg//bTU03XbeC6zoxxymUvZZb+k/Ho71GzhUw74MFJILYk5DLBMBUbD2vLlcomi8q2ERdW3lLxsJvHshiS2+mVdQvzLv+QmqX1nGUZVVNd8I/zE4TgF;C0gMiUd5ekGOT34IJpkve9ejz6HVG6+aIit07kDp5vtpVLbRVgZOZpBgpPXDegS+ZeyK/W6B3GcWhwvvku1yDvR1spDi92CfmOWBMhR0+slBxfRntq3+INLoUKCr40fVlmcyYUsJGZ26MeVKmq0sR2Bzh3WJromQIUbqoKXPAIVVWYc5S8DtmydvHtt0+wTNhGrMIwFiFZmofUFOlMkKsnLu0Spf87qz6olNAzlqjBQkXdxnxIuOFr27H8sO9AtsCwzcYE48AVWTIziK23jBvc4wzmBd28LJoGlWepPHC5psQPzIK72RVcwI6JVL7CQ5m1zv6yj4+SOmejz/mIfOGg==
+Resources:
+  ConnectorConfig:
+    Type: AWS::Serverless::Function
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption:
+            Ref: DisableSpillEncryption
+          spill_bucket:
+            Ref: SpillBucket
+          spill_prefix:
+            Ref: SpillPrefix
+          gcs_secret_name:
+            Ref: GcsSecretName
+          gcs_credential_key:
+            Ref: GcsCredentialKey
+          file_extension:
+            Ref: FileExtension
+          licenceKey:
+            Ref: LicneseKey
+      FunctionName:
+        Fn::Sub: ${AthenaCatalogName}
+      Handler: com.amazonaws.athena.connectors.gcs.GcsCompositeHandler
+      CodeUri: s3://trianz-teradata-athena-jdbc/6aa50e0995c70bfcc046c8a369d3de2e
+      Description: Amazon Athena GCS Connector
+      Runtime: java11
+      Timeout:
+        Ref: LambdaTimeout
+      MemorySize:
+        Ref: LambdaMemory
+      Policies:
+      - Statement:
+        - Action:
+          - athena:GetQueryExecution
+          - s3:ListAllMyBuckets
+          Effect: Allow
+          Resource: '*'
+        Version: '2012-10-17'
+      - Statement:
+        - Action:
+          - s3:ListBucket
+          Effect: Allow
+          Resource:
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${SpillBucket}
+        Version: '2012-10-17'
+      - Statement:
+        - Action:
+          - secretsmanager:GetSecretValue
+          Effect: Allow
+          Resource:
+            Fn::Sub: arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}
+      - S3ReadPolicy:
+          BucketName:
+            Ref: SpillBucket
+      - S3WritePolicy:
+          BucketName:
+            Ref: SpillBucket
+      VpcConfig:
+        SecurityGroupIds:
+        - Ref: SecurityGroupIds
+        SubnetIds:
+          Ref: SubnetIds
