@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.gcs.common;
 
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
-import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
 import com.google.cloud.storage.Storage;
 
 import java.util.ArrayList;
@@ -33,11 +32,11 @@ import java.util.stream.Collectors;
 
 public class TreeTraversalContext
 {
-    private boolean hasParent;
-    private boolean includeFile;
-    private int maxDepth;
+    private final boolean hasParent;
+    private final boolean includeFile;
+    private final int maxDepth;
     private int partitionDepth = -1;
-    private Storage storage;
+    private final Storage storage;
     private final List<FilterExpression> filters = new ArrayList<>();
     private final Set<String> expressionFields = new HashSet<>();
 
@@ -55,39 +54,14 @@ public class TreeTraversalContext
         return includeFile;
     }
 
-    public void setIncludeFile(boolean includeFile)
-    {
-        this.includeFile = includeFile;
-    }
-
-    public int getMaxDepth()
-    {
-        return maxDepth;
-    }
-
-    public void setMaxDepth(int maxDepth)
-    {
-        this.maxDepth = maxDepth;
-    }
-
     public Storage getStorage()
     {
         return storage;
     }
 
-    public void setStorageDatasource(StorageDatasource storageDatasource)
-    {
-        this.storage = storage;
-    }
-
     public boolean hasParent()
     {
         return hasParent;
-    }
-
-    public void setHasParent(boolean hasParent)
-    {
-        this.hasParent = hasParent;
     }
 
     public String[] normalizePaths(String[] paths)

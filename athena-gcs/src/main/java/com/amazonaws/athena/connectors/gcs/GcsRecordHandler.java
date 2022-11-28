@@ -27,7 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.gcs.storage.StorageConstants;
-import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
@@ -69,7 +69,7 @@ public class GcsRecordHandler
 
     private static final String SOURCE_TYPE = "gcs";
 
-    private final StorageDatasource datasource;
+    private final StorageMetadata datasource;
 
     public GcsRecordHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
