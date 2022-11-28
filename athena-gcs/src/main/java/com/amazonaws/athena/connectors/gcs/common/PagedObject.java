@@ -21,6 +21,10 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 import java.util.List;
 
+/**
+ * Used to metadata pagination during table listing
+ * Tables are files in a GCS bucket
+ */
 public class PagedObject
 {
     private List<String> fileName;
