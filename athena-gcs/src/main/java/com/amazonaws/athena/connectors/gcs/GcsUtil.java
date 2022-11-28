@@ -23,11 +23,8 @@ import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -45,7 +42,6 @@ import static java.util.Objects.requireNonNull;
 
 public class GcsUtil
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(GcsUtil.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private GcsUtil()
@@ -73,23 +69,6 @@ public class GcsUtil
         return requireNonNull(appCredentialsJsonString, "GCS credential was null using key "
                 + gcsCredentialKeysEnvVar
                 + " in the secret " + System.getenv(gcsCredentialKeysEnvVar));
-    }
-
-    public static void printJson(Object object, String prefix)
-    {
-        if (true) {
-            return;
-        }
-        LOGGER.info("Printing json for {}", prefix);
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-            LOGGER.info(prefix + ":\n{}", mapper.writeValueAsString(object));
-        }
-        catch (Exception exception) {
-            // ignored
-            LOGGER.error("Unable to print JSON for {}. Error: {}", prefix, exception.getMessage());
-        }
     }
 
     /**
