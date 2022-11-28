@@ -30,8 +30,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.getParentPath;
-import static com.amazonaws.athena.connectors.gcs.storage.AbstractStorageDatasource.getLeafObjectsByPartitionPrefix;
-import static com.amazonaws.athena.connectors.gcs.storage.AbstractStorageDatasource.isDirectory;
+import static com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata.getLeafObjectsByPartitionPrefix;
+import static com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata.isDirectory;
 
 /**
  * A tree node builder builds a tree of child nodes much like a file tree seen in the popular GUI based OS. For example,

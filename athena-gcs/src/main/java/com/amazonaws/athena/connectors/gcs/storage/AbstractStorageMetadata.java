@@ -78,9 +78,9 @@ import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEn
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.tableNameFromFile;
 import static java.util.Objects.requireNonNull;
 
-public abstract class AbstractStorageDatasource implements StorageDatasource
+public abstract class AbstractStorageMetadata implements StorageMetadata
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStorageDatasource.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStorageMetadata.class);
 
     protected final String extension;
     protected final StorageDatasourceConfig datasourceConfig;
@@ -96,7 +96,7 @@ public abstract class AbstractStorageDatasource implements StorageDatasource
      * @param config An instance of GcsDatasourceConfig that contains necessary properties for instantiating an appropriate data source
      * @throws IOException If occurs during initializing input stream with GCS credential JSON
      */
-    protected AbstractStorageDatasource(StorageDatasourceConfig config) throws IOException
+    protected AbstractStorageMetadata(StorageDatasourceConfig config) throws IOException
     {
         this.datasourceConfig = requireNonNull(config, "StorageDatastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");

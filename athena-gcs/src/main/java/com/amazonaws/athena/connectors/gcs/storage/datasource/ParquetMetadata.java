@@ -37,7 +37,7 @@ import com.amazonaws.athena.connectors.gcs.GcsSchemaUtils;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
 import com.amazonaws.athena.connectors.gcs.common.StorageTreeNodeBuilder;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
-import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageDatasource;
+import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import org.apache.arrow.dataset.file.FileFormat;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -56,10 +56,10 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 
 @ThreadSafe
-public class ParquetDatasource
-        extends AbstractStorageDatasource
+public class ParquetMetadata
+        extends AbstractStorageMetadata
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ParquetDatasource.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ParquetMetadata.class);
 
     /**
      * This constructor, as of now, is invoked to instantiate an instance of ParquetDatasource reflectively
@@ -69,8 +69,8 @@ public class ParquetDatasource
      * @throws IOException If any occurs
      */
     @SuppressWarnings("unused")
-    public ParquetDatasource(String gcsCredentialJsonString,
-                             Map<String, String> properties) throws IOException
+    public ParquetMetadata(String gcsCredentialJsonString,
+                           Map<String, String> properties) throws IOException
     {
         this(new StorageDatasourceConfig()
                 .credentialsJson(gcsCredentialJsonString)
@@ -84,7 +84,7 @@ public class ParquetDatasource
      * @param config An instance of GcsDatasourceConfig
      * @throws IOException If any occurs
      */
-    public ParquetDatasource(StorageDatasourceConfig config) throws IOException
+    public ParquetMetadata(StorageDatasourceConfig config) throws IOException
     {
         super(config);
     }

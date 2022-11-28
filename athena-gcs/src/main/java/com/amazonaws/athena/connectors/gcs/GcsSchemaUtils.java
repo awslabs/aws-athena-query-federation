@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -62,12 +62,12 @@ public class GcsSchemaUtils
     /**
      * Builds the table schema based on the provided field by the retrieved instance of {@link StorageTable}
      *
-     * @param datasource   An instance of {@link StorageDatasource}
+     * @param datasource   An instance of {@link StorageMetadata}
      * @param databaseName Name of the bucket in GCS
      * @param tableName    Name of the storage object (file) from GCS
      * @return An instance of {@link Schema}
      */
-    public static Schema buildTableSchema(StorageDatasource datasource, String databaseName, String tableName) throws Exception
+    public static Schema buildTableSchema(StorageMetadata datasource, String databaseName, String tableName) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(databaseName, tableName);

@@ -36,7 +36,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
 import com.amazonaws.athena.connectors.gcs.common.StorageTreeNodeBuilder;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
-import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageDatasource;
+import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import org.apache.arrow.dataset.file.FileFormat;
 import org.slf4j.Logger;
@@ -54,22 +54,22 @@ import java.util.stream.Collectors;
 import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.getRootName;
 
 @ThreadSafe
-public class CsvDatasource
-        extends AbstractStorageDatasource
+public class CsvMetadata
+        extends AbstractStorageMetadata
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CsvDatasource.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CsvMetadata.class);
 
     // Used by reflection
     @SuppressWarnings("unused")
-    public CsvDatasource(String storageCredentialJsonString,
-                         Map<String, String> properties) throws IOException
+    public CsvMetadata(String storageCredentialJsonString,
+                       Map<String, String> properties) throws IOException
     {
         this(new StorageDatasourceConfig()
                 .credentialsJson(storageCredentialJsonString)
                 .properties(properties));
     }
 
-    public CsvDatasource(StorageDatasourceConfig config) throws IOException
+    public CsvMetadata(StorageDatasourceConfig config) throws IOException
     {
         super(config);
     }
