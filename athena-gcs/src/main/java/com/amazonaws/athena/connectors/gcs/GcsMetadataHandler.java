@@ -41,7 +41,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.StorageObject;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
-import com.amazonaws.athena.connectors.gcs.storage.StorageDatasource;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.athena.connectors.gcs.storage.TableListResult;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
@@ -89,7 +89,7 @@ public class GcsMetadataHandler
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "gcs";
-    private final StorageDatasource datasource;
+    private final StorageMetadata datasource;
 
     public GcsMetadataHandler() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
