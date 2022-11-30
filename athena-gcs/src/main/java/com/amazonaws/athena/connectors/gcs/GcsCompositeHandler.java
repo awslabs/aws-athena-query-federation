@@ -24,9 +24,9 @@ import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.*;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
+
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
