@@ -94,7 +94,6 @@ public class GcsMetadataHandler
     {
         super(SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        GcsUtil.installGoogleCredentialsJsonFile(gcsCredentialsJsonString);
         this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
     }
 
@@ -109,7 +108,6 @@ public class GcsMetadataHandler
     {
         super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        GcsUtil.installGoogleCredentialsJsonFile(gcsCredentialsJsonString);
         this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
         System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
     }
