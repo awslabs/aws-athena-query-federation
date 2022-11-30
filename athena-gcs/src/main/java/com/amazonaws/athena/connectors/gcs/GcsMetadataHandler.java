@@ -49,7 +49,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -228,10 +227,10 @@ public class GcsMetadataHandler
         requireNonNull(partitions, "List of partition can't be retrieve from metadata");
         int counter = 0;
         for (int i = 0; i < partitions.size(); i++) {
-            StoragePartition storagePartition = partitions.get(i);
+            final int currentIndex = i;
             blockWriter.writeRows((Block block, int rowNum) ->
             {
-                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, storagePartition.getLocation());
+                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, String.valueOf(currentIndex));
                 //we wrote 1 row so we return 1
                 return 1;
             });
@@ -257,6 +256,7 @@ public class GcsMetadataHandler
     {
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         String bucketName = "";
+        String objectName = "";
         boolean partitioned = false;
         TableName tableInfo = request.getTableName();
         LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Schema name{}, table name {}",
@@ -267,8 +267,10 @@ public class GcsMetadataHandler
         if (optionalTable.isPresent()) {
             StorageTable table = optionalTable.get();
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
+            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
             partitioned = Boolean.parseBoolean(table.getParameters().get(IS_TABLE_PARTITIONED));
         }
+        LOGGER.debug("Object {} under bucket {} is partitioned? {}", objectName, bucketName, partitioned);
         LOGGER.debug("Block partition @ doGetSplits \n{}", partitioned);
         Block partitions = request.getPartitions();
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Partition block {}", partitions);
@@ -278,14 +280,13 @@ public class GcsMetadataHandler
         int partitionContd = decodeContinuationToken(request);
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
                 partitionContd);
+        List<StoragePartition> storagePartitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
         int startSplitIndex = 0;
         LOGGER.info("Current split start index {}", startSplitIndex);
-        FieldReader reader = partitions.getFieldReader(BLOCK_PARTITION_COLUMN_NAME);
         for (int curPartition = 0; curPartition < partitions.getRowCount(); curPartition++) {
             SpillLocation spillLocation = makeSpillLocation(request);
-            reader.setPosition(curPartition);
-            String prefix = String.valueOf(reader.readText());
-            List<StorageSplit> storageSplits = datasource.getSplitsByBucketPrefix(bucketName, bucketName + "/" + prefix,
+            StoragePartition partition = storagePartitions.get(curPartition);
+            List<StorageSplit> storageSplits = datasource.getSplitsByBucketPrefix(bucketName, bucketName + "/" + partition.getLocation(),
                     partitioned, request.getConstraints());
             LOGGER.info("Splitting based on partition at position {}", curPartition);
             for (StorageSplit split : storageSplits) {
