@@ -65,8 +65,9 @@ Resources:
                 - glue:GetDatabase
                 - athena:GetQueryExecution
                 - s3:ListAllMyBuckets
-                #TODO: make this more specific later
-                - timestream:*
+                - timestream:Describe*
+                - timestream:List*
+                - timestream:Select*
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'
