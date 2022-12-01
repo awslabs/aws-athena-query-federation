@@ -99,7 +99,11 @@ public class GcsUtil
         File file = new File(requireNonNull(classLoader.getResource("")).getFile());
         File src = new File(file.getAbsolutePath() + File.separator + "cacert.pem");
         File dest = new File(System.getenv(SSL_CERT_FILE_LOCATION));
+        File parentDest = new File(dest.getParent());
         if (!dest.exists()) {
+            if (!parentDest.exists()) {
+                parentDest.mkdirs();
+            }
             Files.copy(src.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
@@ -109,7 +113,8 @@ public class GcsUtil
         CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         String gcsCredentialsJsonString = getGcsCredentialJsonString(secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
         File dest = new File(System.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION));
-        if (dest.exists()) {
+        boolean destDirExists = new File(dest.getParent()).mkdirs();
+        if (!destDirExists && dest.exists()) {
             return;
         }
         try (OutputStream out = new FileOutputStream(dest)) {
