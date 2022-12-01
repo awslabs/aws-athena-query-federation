@@ -128,7 +128,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     @Override
     public List<Field> getTableFields(String bucketName, List<String> objectNames)
     {
-        LOGGER.info("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
+        LOGGER.debug("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
         requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
         if (objectNames.isEmpty()) {
             throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");

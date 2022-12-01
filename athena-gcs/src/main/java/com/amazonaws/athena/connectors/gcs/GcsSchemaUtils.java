@@ -73,7 +73,7 @@ public class GcsSchemaUtils
         Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(databaseName, tableName);
         if (optionalStorageTable.isPresent()) {
             StorageTable table = optionalStorageTable.get();
-            LOGGER.info("Schema Fields\n{}", table.getFields());
+            LOGGER.debug("Schema Fields\n{}", table.getFields());
             for (Field field : table.getFields()) {
                 if (isFieldTypeNull(field)) {
                     field = Field.nullable(field.getName(), Types.MinorType.VARCHAR.getType());
