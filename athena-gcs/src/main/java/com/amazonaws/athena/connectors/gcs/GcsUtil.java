@@ -99,8 +99,11 @@ public class GcsUtil
         File file = new File(requireNonNull(classLoader.getResource("")).getFile());
         File src = new File(file.getAbsolutePath() + File.separator + "cacert.pem");
         File dest = new File(System.getenv(SSL_CERT_FILE_LOCATION));
-        boolean destDirExists = new File(dest.getParent()).mkdirs();
-        if (destDirExists && !dest.exists()) {
+        File parentDest = new File(dest.getParent());
+        if (!dest.exists()) {
+            if (!parentDest.exists()) {
+                parentDest.mkdirs();
+            }
             Files.copy(src.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
