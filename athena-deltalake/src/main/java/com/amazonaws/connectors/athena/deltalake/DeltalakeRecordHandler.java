@@ -19,6 +19,7 @@
  */
 package com.amazonaws.connectors.athena.deltalake;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
@@ -78,12 +79,19 @@ public class DeltalakeRecordHandler
 
     private static final String SOURCE_TYPE = "deltalake";
 
-    private Configuration conf;
-    private String dataBucket;
+    private final Configuration conf;
+    private final String dataBucket;
 
     public DeltalakeRecordHandler(String dataBucket)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), new Configuration(), dataBucket);
+        this(AmazonS3ClientBuilder
+                .standard()
+                .withClientConfiguration(new ClientConfiguration().withMaxConnections(200))
+                .build(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            new Configuration(),
+            dataBucket);
     }
 
     @VisibleForTesting
