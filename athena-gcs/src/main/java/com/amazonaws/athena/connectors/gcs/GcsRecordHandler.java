@@ -90,7 +90,6 @@ public class GcsRecordHandler
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        GcsUtil.installGoogleCredentialsJsonFile(gcsCredentialsJsonString);
         this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
     }
 

@@ -46,11 +46,18 @@ public class GcsConstants
     public static final String GCS_CREDENTIAL_KEYS_ENV_VAR = "gcs_credential_key";
 
     /**
+     * A ssl file location constant to store the SSL cerificate
+     * The file location is fixed at /tmp directory
+     * to retrieve ssl certificate location
+     */
+    public static final String SSL_CERT_FILE_LOCATION = "SSL_CERT_FILE";
+
+    /**
      * A file name constant to store the GCP service account's credential JSON
      * The file location is fixed at /tmp directory and the file used to access gs://.. like URI to read files
      * to retrieve metadata and fetch data
      */
-    public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_NAME = "service-account.json";
+    public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION = "GOOGLE_APPLICATION_CREDENTIALS";
 
     /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering
