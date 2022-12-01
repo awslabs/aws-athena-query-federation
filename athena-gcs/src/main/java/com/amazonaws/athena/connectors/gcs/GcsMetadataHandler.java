@@ -141,7 +141,7 @@ public class GcsMetadataHandler
     {
         List<TableName> tables = new ArrayList<>();
         String nextToken;
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Fetching list of tables with page size {} and token {} for scheme {}",
+        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Fetching list of tables with page size {} and token {} for scheme {}",
                 request.getPageSize(), request.getNextToken(), request.getSchemaName());
         TableListResult result = datasource.getAllTables(request.getSchemaName(), request.getNextToken(),
                 request.getPageSize());
@@ -217,13 +217,13 @@ public class GcsMetadataHandler
             bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
             objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
         }
-        LOGGER.info("Getting storage table for {} under bucket {}", objectName, bucketName);
+        LOGGER.debug("Getting storage table for {} under bucket {}", objectName, bucketName);
         requireNonNull(bucketName, "Schema + '" + tableName.getSchemaName() + "' not found");
         requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
                 + tableName.getSchemaName() + "'");
 
         List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
-        LOGGER.info("GcsMetadataHandler.getPartitions() -> Storage partitions:\n{}", partitions);
+        LOGGER.debug("GcsMetadataHandler.getPartitions() -> Storage partitions:\n{}", partitions);
         requireNonNull(partitions, "List of partition can't be retrieve from metadata");
         int counter = 0;
         for (int i = 0; i < partitions.size(); i++) {
@@ -273,25 +273,25 @@ public class GcsMetadataHandler
         LOGGER.debug("Object {} under bucket {} is partitioned? {}", objectName, bucketName, partitioned);
         LOGGER.debug("Block partition @ doGetSplits \n{}", partitioned);
         Block partitions = request.getPartitions();
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Partition block {}", partitions);
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Block partition row count {}",
+        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Partition block {}", partitions);
+        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Block partition row count {}",
                 partitions.getRowCount());
         Set<Split> splits = new HashSet<>();
         int partitionContd = decodeContinuationToken(request);
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
+        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
                 partitionContd);
         List<StoragePartition> storagePartitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
         int startSplitIndex = 0;
-        LOGGER.info("Current split start index {}", startSplitIndex);
+        LOGGER.debug("Current split start index {}", startSplitIndex);
         for (int curPartition = 0; curPartition < partitions.getRowCount(); curPartition++) {
             SpillLocation spillLocation = makeSpillLocation(request);
             StoragePartition partition = storagePartitions.get(curPartition);
             List<StorageSplit> storageSplits = datasource.getSplitsByBucketPrefix(bucketName, bucketName + "/" + partition.getLocation(),
                     partitioned, request.getConstraints());
-            LOGGER.info("Splitting based on partition at position {}", curPartition);
+            LOGGER.debug("Splitting based on partition at position {}", curPartition);
             for (StorageSplit split : storageSplits) {
                 String storageSplitJson = splitAsJson(split);
-                LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
+                LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSO\n{}",
                         storageSplitJson);
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
                         .add(STORAGE_SPLIT_JSON, storageSplitJson);
@@ -301,7 +301,7 @@ public class GcsMetadataHandler
                     return new GetSplitsResponse(request.getCatalogName(), splits, String.valueOf(curPartition + 1));
                 }
             }
-            LOGGER.info("Splits created {}", splits);
+            LOGGER.debug("Splits created {}", splits);
         }
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
     }

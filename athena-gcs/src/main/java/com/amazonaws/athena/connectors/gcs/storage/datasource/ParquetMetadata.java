@@ -117,7 +117,7 @@ public class ParquetMetadata
     @Override
     public List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints)
     {
-        LOGGER.info("ParquetDatasource.getSplitsByBucketPrefix() -> Prefix: {} in bucket {}", prefix, bucket);
+        LOGGER.debug("ParquetDatasource.getSplitsByBucketPrefix() -> Prefix: {} in bucket {}", prefix, bucket);
         List<String> fileNames;
         if (partitioned) {
             LOGGER.debug("Location {} is a directory, walking through", prefix);
