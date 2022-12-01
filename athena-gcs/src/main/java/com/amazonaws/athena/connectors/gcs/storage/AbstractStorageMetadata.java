@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -173,13 +174,37 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     public synchronized TableListResult getAllTables(String databaseName, String nextToken, int pageSize) throws Exception
     {
         String currentNextToken = null;
-        if (!storeCheckingComplete
-                || !tablesLoadedForDatabase(databaseName)) {
-            currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
+        Storage.BlobListOption maxTableCountOption = Storage.BlobListOption.pageSize(pageSize);
+        Page<Blob> blobs;
+        if (nextToken != null) {
+            blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
+                    Storage.BlobListOption.pageToken(nextToken), maxTableCountOption);
         }
-        LOGGER.debug("tableObjects:\n{}", tableObjects);
-        List<StorageObject> tables = List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
-        return new TableListResult(tables, currentNextToken);
+        else {
+            blobs = storage.list(bucket, Storage.BlobListOption.currentDirectory(), maxTableCountOption);
+        }
+        Set<String> tableNames = new HashSet<>();
+        for (Blob blob : blobs.iterateAll()) {
+            String tableName = blob.getName();
+            String  validName = getValidEntityName(tableName);
+            if (tableNames.contains(validName)) {
+                
+            }
+        }
+        return new TableListResult(ImmutableList.of(), currentNextToken);
+        PagedObject pagedObject = PagedObject.builder()
+                .fileNames(toImmutableObjectNameList(blobs))
+                .nextToken(blobs.getNextPageToken())
+                .build();
+
+
+//        if (!storeCheckingComplete
+//                || !tablesLoadedForDatabase(databaseName)) {
+//            currentNextToken = this.loadTablesWithContinuationToken(databaseName, nextToken, pageSize);
+//        }
+//        LOGGER.debug("tableObjects:\n{}", tableObjects);
+//        List<StorageObject> tables = List.copyOf(tableObjects.getOrDefault(databaseName, Map.of()).keySet());
+//        return new TableListResult(tables, currentNextToken);
     }
 
     /**
@@ -292,81 +317,127 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     public List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
                                                        String bucketName, String objectName) throws Exception
     {
-        LOGGER.info("Retrieving partitions for object {}, under bucket {}", objectName, bucketName);
-        requireNonNull(bucketName, "Bucket name was null");
-        requireNonNull(objectName, "objectName name was null");
-        List<StoragePartition> storagePartitions = new ArrayList<>();
-        if (isDirectory(bucketName, objectName)) {
-            if (isPartitionedDirectory(bucketName, objectName)) {
-                TreeTraversalContext context = TreeTraversalContext.builder()
-                        .hasParent(true)
-                        .includeFile(false)
-                        .maxDepth(0) // unlimited
-                        .partitionDepth(1)
-                        .storage(storage)
-                        .build();
-                Optional<StorageNode<String>> optionalNode = StorageTreeNodeBuilder.buildFileOnlyTreeForPrefix(bucketName, bucketName,
-                        bucketName + "/" + objectName,
-                        TreeTraversalContext.builder()
-                                .hasParent(true)
-                                .maxDepth(0)
-                                .storage(storage)
-                                .build());
-                List<String> fileNames = new ArrayList<>();
-                optionalNode.ifPresent(stringStorageNode -> fileNames.addAll(stringStorageNode.getChildren().stream()
-                        .map(StorageNode::getPath)
-                        .collect(Collectors.toList())));
-                if (fileNames.isEmpty()) {
-                    throw new UncheckedStorageDatasourceException("No files found to retrieve schema for partitioned table "
-                            + tableInfo.getTableName() + " under schema " + tableInfo.getSchemaName());
-                }
-                List<FilterExpression> expressions;
-                Optional<Schema> optionalSchema = GcsSchemaUtils.getSchemaFromGcsPrefix(fileNames.get(0), getFileFormat(), this.datasourceConfig);
-                if (optionalSchema.isPresent()) {
-                    expressions = new FilterExpressionBuilder(optionalSchema.get())
-                            .getExpressions(constraints, Map.of());
-                }
-                else {
-                    throw new UncheckedStorageDatasourceException("Table schema couldn't be retrieved for table " + tableInfo.getSchemaName()
-                            + " under the database " + tableInfo.getSchemaName() + ". Please check whether the file is corrupted or having other issues.");
-                }
-                LOGGER.debug("AbstractStorageDatasource.getStoragePartitions() -> List of expressions:\n{}", expressions);
-                context.addAllFilers(expressions);
-                Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(bucketName,
-                        objectName, objectName, context);
+        LOGGER.info("Getting partitions for object {} in bucket {}", objectName, bucketName);
+        if (objectName.endsWith("/")) { // a folder
+            List<String> files = getStorageFiles(bucketName, objectName);
+            if (isPartitionedDirectory(files)) {
                 List<StoragePartition> partitions = new ArrayList<>();
-                if (optionalRoot.isPresent()) {
-                    for (StorageNode<String> partitionedFolderNode : optionalRoot.get().getChildren()) {
-                        partitions.add(StoragePartition.builder()
-                                .objectNames(List.of())
-                                .location(partitionedFolderNode.getPath())
-                                .bucketName(bucketName)
-                                .recordCount(0L)
-                                .children(List.of())
-                                .build());
-                    }
-                    LOGGER.debug("Storage partitions using tree: \n{}", partitions);
-                }
-                else {
-                    LOGGER.debug("the object {} in the bucket {} is partitioned. However, it doesn't contain any nested objects", objectName, bucketName);
+                for (String file : files) {
+                    partitions.add(StoragePartition.builder()
+                            .bucketName(bucketName)
+                            .location(file)
+                            .build());
                 }
                 return partitions;
             }
-            else {
-                LOGGER.debug("Folder {} in bucket {} is not a partitioned folder", objectName, bucketName);
-            }
         }
         else {
-            LOGGER.debug("Folder {} under buket {} is NOT partitioned", objectName, bucketName);
-            // A file (aka Table) under a non-partitioned bucket/folder
-            StoragePartition partition = StoragePartition.builder()
-                    .objectNames(List.of(objectName))
-                    .location(objectName)
+            return List.of(StoragePartition.builder()
                     .bucketName(bucketName)
-                    .build();
-            return List.of(partition);
+                    .location(objectName)
+                    .build());
         }
-        return storagePartitions;
+        return List.of();
+//        LOGGER.info("Retrieving partitions for object {}, under bucket {}", objectName, bucketName);
+//        requireNonNull(bucketName, "Bucket name was null");
+//        requireNonNull(objectName, "objectName name was null");
+//        List<StoragePartition> storagePartitions = new ArrayList<>();
+//        if (isDirectory(bucketName, objectName)) {
+//            if (isPartitionedDirectory(bucketName, objectName)) {
+//                TreeTraversalContext context = TreeTraversalContext.builder()
+//                        .hasParent(true)
+//                        .includeFile(false)
+//                        .maxDepth(0) // unlimited
+//                        .partitionDepth(1)
+//                        .storage(storage)
+//                        .build();
+//                Optional<StorageNode<String>> optionalNode = StorageTreeNodeBuilder.buildFileOnlyTreeForPrefix(bucketName, bucketName,
+//                        bucketName + "/" + objectName,
+//                        TreeTraversalContext.builder()
+//                                .hasParent(true)
+//                                .maxDepth(0)
+//                                .storage(storage)
+//                                .build());
+//                List<String> fileNames = new ArrayList<>();
+//                optionalNode.ifPresent(stringStorageNode -> fileNames.addAll(stringStorageNode.getChildren().stream()
+//                        .map(StorageNode::getPath)
+//                        .collect(Collectors.toList())));
+//                if (fileNames.isEmpty()) {
+//                    throw new UncheckedStorageDatasourceException("No files found to retrieve schema for partitioned table "
+//                            + tableInfo.getTableName() + " under schema " + tableInfo.getSchemaName());
+//                }
+//                List<FilterExpression> expressions;
+//                Optional<Schema> optionalSchema = GcsSchemaUtils.getSchemaFromGcsPrefix(fileNames.get(0), getFileFormat(), this.datasourceConfig);
+//                if (optionalSchema.isPresent()) {
+//                    expressions = new FilterExpressionBuilder(optionalSchema.get())
+//                            .getExpressions(constraints, Map.of());
+//                }
+//                else {
+//                    throw new UncheckedStorageDatasourceException("Table schema couldn't be retrieved for table " + tableInfo.getSchemaName()
+//                            + " under the database " + tableInfo.getSchemaName() + ". Please check whether the file is corrupted or having other issues.");
+//                }
+//                LOGGER.debug("AbstractStorageDatasource.getStoragePartitions() -> List of expressions:\n{}", expressions);
+//                context.addAllFilers(expressions);
+//                Optional<StorageNode<String>> optionalRoot = StorageTreeNodeBuilder.buildTreeWithPartitionedDirectories(bucketName,
+//                        objectName, objectName, context);
+//                List<StoragePartition> partitions = new ArrayList<>();
+//                if (optionalRoot.isPresent()) {
+//                    for (StorageNode<String> partitionedFolderNode : optionalRoot.get().getChildren()) {
+//                        partitions.add(StoragePartition.builder()
+//                                .objectNames(List.of())
+//                                .location(partitionedFolderNode.getPath())
+//                                .bucketName(bucketName)
+//                                .recordCount(0L)
+//                                .children(List.of())
+//                                .build());
+//                    }
+//                    LOGGER.debug("Storage partitions using tree: \n{}", partitions);
+//                }
+//                else {
+//                    LOGGER.debug("the object {} in the bucket {} is partitioned. However, it doesn't contain any nested objects", objectName, bucketName);
+//                }
+//                return partitions;
+//            }
+//            else {
+//                LOGGER.debug("Folder {} in bucket {} is not a partitioned folder", objectName, bucketName);
+//            }
+//        }
+//        else {
+//            LOGGER.debug("Folder {} under buket {} is NOT partitioned", objectName, bucketName);
+//            // A file (aka Table) under a non-partitioned bucket/folder
+//            StoragePartition partition = StoragePartition.builder()
+//                    .objectNames(List.of(objectName))
+//                    .location(objectName)
+//                    .bucketName(bucketName)
+//                    .build();
+//            return List.of(partition);
+//        }
+//        return storagePartitions;
+    }
+
+    private List<String> getStorageFiles(String bucket, String prefix)
+    {
+        List<String> fileNames = new ArrayList<>();
+        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(), Storage.BlobListOption.prefix(prefix));
+        for (Blob blob : blobPage.getValues()) {
+            if (blob.getName().toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
+                fileNames.add(blob.getName());
+            }
+        }
+        return fileNames;
+    }
+
+    private boolean isPartitionedDirectory(List<String> paths)
+    {
+        for (String path : paths) {
+            String[] folders = path.split("/");
+            for (String folder : folders) {
+                if (isPartitionFolder(folder)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override

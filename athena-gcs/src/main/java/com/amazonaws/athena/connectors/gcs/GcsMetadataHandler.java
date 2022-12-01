@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
@@ -49,8 +48,6 @@ import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +60,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
@@ -71,12 +67,10 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSO
 import static com.amazonaws.athena.connectors.gcs.GcsSchemaUtils.buildTableSchema;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.IS_TABLE_PARTITIONED;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
 import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
-import static java.util.Objects.requireNonNull;
 
 public class GcsMetadataHandler
         extends MetadataHandler
@@ -158,12 +152,12 @@ public class GcsMetadataHandler
      *
      * @return An instance of {@link Schema}
      */
-    public Schema getPartitionSchema()
-    {
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
-                .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
-        return schemaBuilder.build();
-    }
+//    public Schema getPartitionSchema()
+//    {
+//        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder()
+//                .addField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR.getType());
+//        return schemaBuilder.build();
+//    }
 
     /**
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
@@ -190,9 +184,9 @@ public class GcsMetadataHandler
         Schema schema = buildTableSchema(this.datasource,
                 tableInfo.getSchemaName(),
                 tableInfo.getTableName());
-        Schema partitionSchema = getPartitionSchema();
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema,
-                partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
+//        Schema partitionSchema = getPartitionSchema();
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema); //,
+//                partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
     }
 
     /**
@@ -205,38 +199,38 @@ public class GcsMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws Exception
     {
-        LOGGER.debug("Handler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
-        LOGGER.info("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
-        TableName tableName = request.getTableName();
-        String bucketName = null;
-        String objectName = null;
-        Optional<StorageTable> optionalTable = datasource.getStorageTable(tableName.getSchemaName(),
-                tableName.getTableName());
-        if (optionalTable.isPresent()) {
-            StorageTable table = optionalTable.get();
-            bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
-            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
-        }
-        LOGGER.info("Getting storage table for {} under bucket {}", objectName, bucketName);
-        requireNonNull(bucketName, "Schema + '" + tableName.getSchemaName() + "' not found");
-        requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
-                + tableName.getSchemaName() + "'");
-
-        List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
-        LOGGER.info("GcsMetadataHandler.getPartitions() -> Storage partitions:\n{}", partitions);
-        requireNonNull(partitions, "List of partition can't be retrieve from metadata");
-        int counter = 0;
-        for (int i = 0; i < partitions.size(); i++) {
-            final int currentIndex = i;
-            blockWriter.writeRows((Block block, int rowNum) ->
-            {
-                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, String.valueOf(currentIndex));
-                //we wrote 1 row so we return 1
-                return 1;
-            });
-            counter++;
-        }
-        LOGGER.debug("Total partition rows written: {}", counter);
+//        LOGGER.debug("Handler=GcsMetadataHandler|Method=getPartitions|Message=queryId {}", request.getQueryId());
+//        LOGGER.info("readWithConstraint: schema[{}] tableName[{}]", request.getSchema(), request.getTableName());
+//        TableName tableName = request.getTableName();
+//        String bucketName = null;
+//        String objectName = null;
+//        Optional<StorageTable> optionalTable = datasource.getStorageTable(tableName.getSchemaName(),
+//                tableName.getTableName());
+//        if (optionalTable.isPresent()) {
+//            StorageTable table = optionalTable.get();
+//            bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
+//            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
+//        }
+//        LOGGER.info("Getting storage table for {} under bucket {}", objectName, bucketName);
+//        requireNonNull(bucketName, "Schema + '" + tableName.getSchemaName() + "' not found");
+//        requireNonNull(objectName, "Table '" + tableName.getTableName() + "' not found under schema '"
+//                + tableName.getSchemaName() + "'");
+//
+//        List<StoragePartition> partitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
+//        LOGGER.info("GcsMetadataHandler.getPartitions() -> Storage partitions:\n{}", partitions);
+//        requireNonNull(partitions, "List of partition can't be retrieve from metadata");
+//        int counter = 0;
+//        for (int i = 0; i < partitions.size(); i++) {
+//            final int currentIndex = i;
+//            blockWriter.writeRows((Block block, int rowNum) ->
+//            {
+//                block.setValue(BLOCK_PARTITION_COLUMN_NAME, rowNum, String.valueOf(currentIndex));
+//                //we wrote 1 row so we return 1
+//                return 1;
+//            });
+//            counter++;
+//        }
+//        LOGGER.debug("Total partition rows written: {}", counter);
     }
 
     /**
