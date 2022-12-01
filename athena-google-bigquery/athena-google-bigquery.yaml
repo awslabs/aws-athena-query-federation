@@ -13,7 +13,7 @@ Metadata:
       - Athena-Federation
       - Google-SDK
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.42.2
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -22,6 +22,10 @@ Parameters:
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   GCPProjectID:
     Description: "The project ID within Google Cloud Platform ."
+    Type: String
+  BigQueryEndpoint:
+    Description: "(Optional) BigQuery Private Endpoint"
+    Default: ''
     Type: String
   SecretNamePrefix:
     Description: "The secret name within AWS Secrets Manager that contains your Google Cloud Platform Credentials."
@@ -66,10 +70,11 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           secret_manager_gcp_creds_name: !Ref SecretNamePrefix
           gcp_project_id: !Ref GCPProjectID
+          big_query_endpoint: !Ref BigQueryEndpoint
           concurrencyLimit: !Ref ConcurrencyLimit
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.google.bigquery.BigQueryCompositeHandler"
-      CodeUri: "./target/athena-google-bigquery-2022.42.2.jar"
+      CodeUri: "./target/athena-google-bigquery-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with BigQuery using Google SDK"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

@@ -4,7 +4,7 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>2022.42.2</version>
+    <version>2022.47.1</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>
@@ -21,11 +21,11 @@
         <jqwik.version>1.6.3</jqwik.version>
         <assertj.version>3.22.0</assertj.version>
         <testng.version>7.0.0</testng.version>
-        <fasterxml.jackson.version>2.13.4</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.14.1</fasterxml.jackson.version>
         <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
         <log4j2Version>2.17.1</log4j2Version>
-        <apache.arrow.version>9.0.0</apache.arrow.version>
+        <apache.arrow.version>10.0.1</apache.arrow.version>
         <netty.version>4.1.81.Final</netty.version>
     </properties>
     <dependencyManagement>
@@ -67,6 +67,7 @@
         <tag>HEAD</tag>
     </scm>
     <modules>
+        <module>athena-arrow-java-dist</module>
         <module>athena-cloudwatch</module>
         <module>athena-docdb</module>
         <module>athena-redis</module>
@@ -100,6 +101,7 @@
         <module>athena-cloudera-impala</module>
         <module>athena-hortonworks-hive</module>
         <module>athena-db2</module>
+        <module>athena-msk</module>
         <module>athena-deltalake</module>
     </modules>
     <dependencies>

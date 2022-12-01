@@ -1,0 +1,160 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Metadata:
+  'AWS::ServerlessRepo::Application':
+    Name: AthenaMSKConnector
+    Description: 'This connector enables Amazon Athena to communicate with Kafka clusters and fetch data.'
+    Author: 'default author'
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels:
+      - msk
+      - athena-federation
+    HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+    SemanticVersion: 2022.47.1
+    SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
+Parameters:
+  AuthType:
+    Description: 'auth details TLS/SCRAM/IAM/NOAUTH'
+    Type: String
+    Default: NOAUTH
+    AllowedValues:
+      - TLS
+      - SCRAM
+      - NOAUTH
+      - IAM
+  KafkaEndpoint:
+    Description: 'Kafka/MSK cluster endpoint'
+    Type: String
+  LambdaFunctionName:
+    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Type: String
+    AllowedPattern: ^[a-z0-9-_]{1,64}$
+  SecretNamePrefix:
+    Description: "The secret name within AWS Secrets Manager that contains your aws key and secret Credentials."
+    Type: String
+  SpillBucket:
+    Description: 'The name of the bucket where this function can spill data.'
+    Type: String
+  SpillPrefix:
+    Description: 'The prefix within SpillBucket where this function can spill data.'
+    Type: String
+    Default: athena-spill
+  LambdaTimeout:
+    Description: 'Maximum Lambda invocation runtime in seconds. (min 1 - 900 max)'
+    Default: 900
+    Type: Number
+  LambdaMemory:
+    Description: 'Lambda memory in MB (min 128 - 3008 max).'
+    Default: 3008
+    Type: Number
+  DisableSpillEncryption:
+    Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
+    Default: 'false'
+    Type: String
+  SecurityGroupIds:
+    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
+    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+  SubnetIds:
+    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
+    Type: 'List<AWS::EC2::Subnet::Id>'
+  CertificatesS3Reference:
+    Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded,applicable for TLS auth '
+    Type: String
+  GlueRegistryArn:
+    Description: 'AWS GLUE registry ARN to be provided where topic schemas has been uploaded'
+    Type: String
+  LambdaRoleARN:
+    Description: "(Must for auth type IAM) A custom role to be used by the Connector lambda"
+    Default: ""
+    Type: String
+
+Conditions:
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
+
+Resources:
+  JdbcConnectorConfig:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Environment:
+        Variables:
+          disable_spill_encryption: !Ref DisableSpillEncryption
+          spill_bucket: !Ref SpillBucket
+          spill_prefix: !Ref SpillPrefix
+          secrets_manager_secret: !Ref SecretNamePrefix
+          certificates_s3_reference: !Ref CertificatesS3Reference
+          kafka_endpoint: !Ref KafkaEndpoint
+          auth_type: !Ref AuthType
+          glue_registry_arn:  !Ref GlueRegistryArn
+      FunctionName: !Ref LambdaFunctionName
+      Handler: "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler"
+      CodeUri: "./target/athena-msk-2022.47.1.jar"
+      Description: "Enables Amazon Athena to communicate with MSK and Kafka clusters"
+      Runtime: java11
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemory
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
+      VpcConfig:
+        SecurityGroupIds: !Ref SecurityGroupIds
+        SubnetIds: !Ref SubnetIds
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+
+  FunctionExecutionPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+          - Action:
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
+          - Action:
+              - athena:GetQueryExecution
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetBucketLocation
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:PutObjectAcl
+              - s3:GetLifecycleConfiguration
+              - s3:PutLifecycleConfiguration
+              - s3:DeleteObject
+              - kms:Decrypt
+              - glue:*
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DetachNetworkInterface
+              - autoscaling:CompleteLifecycleAction
+            Effect: Allow
+            Resource: '*'
+      Roles:
+        - !Ref FunctionRole
