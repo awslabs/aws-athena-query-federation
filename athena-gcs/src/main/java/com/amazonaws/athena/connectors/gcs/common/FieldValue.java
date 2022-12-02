@@ -19,16 +19,18 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Used to evaluate expression to select a partition folder based on constraints
- * Constraints are built using another util
+ * Used to evaluate expression to select a partition folder based on the constraints
+ * The constraints are built using another util
  */
 public class FieldValue
 {
     private final String field;
     private final String value;
+    private String originalValue;
 
     public FieldValue(String field, String value)
     {
@@ -40,7 +42,9 @@ public class FieldValue
     {
         String[] fieldValuePair = fieldValue.split("=");
         if (fieldValuePair.length == 2) {
-            return Optional.of(new FieldValue(fieldValuePair[0].toLowerCase(), fieldValuePair[1].replace("'", "").replace("\"", "")));
+            FieldValue value = new FieldValue(fieldValuePair[0].toLowerCase(), fieldValuePair[1].replace("'", "").replace("\"", ""));
+            value.originalValue = fieldValue;
+            return Optional.of(value);
         }
         return Optional.empty();
     }
@@ -53,6 +57,30 @@ public class FieldValue
     public String getValue()
     {
         return value;
+    }
+
+    public String getOriginalValue()
+    {
+        return originalValue;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof FieldValue)) {
+            return false;
+        }
+        FieldValue that = (FieldValue) o;
+        return getField().equals(that.getField()) && getValue().equals(that.getValue());
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getField(), getValue());
     }
 
     @Override

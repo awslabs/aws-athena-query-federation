@@ -21,10 +21,13 @@ package com.amazonaws.athena.connectors.gcs.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
 import com.amazonaws.athena.connectors.gcs.common.StorageObject;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
+import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
+import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.exception.UncheckedStorageDatasourceException;
@@ -59,6 +62,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.getPartitionFieldValue;
 import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.isPartitionFolder;
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.containsExtension;
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.getFolderName;
@@ -103,21 +107,18 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     public List<Field> getTableFields(String bucketName, List<String> objectNames)
     {
 <<<<<<< HEAD
+<<<<<<< HEAD
         LOGGER.debug("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
 =======
         LOGGER.info("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
 >>>>>>> 3a864c14 (Rename all instances with datasource to metadata)
         requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
+=======
+>>>>>>> 3d441084 (Apply constraints on the partition folder(s)  to optimize performance)
         if (objectNames.isEmpty()) {
             throw new UncheckedStorageDatasourceException("List of tables in bucket " + bucketName + " was empty");
         }
-        LOGGER.debug("Inferring field schema based on file {}", objectNames.get(0));
-        String uri = createUri(bucketName, objectNames.get(0));
-        BufferAllocator allocator = new RootAllocator();
-        DatasetFactory factory = new FileSystemDatasetFactory(allocator,
-                NativeMemoryPool.getDefault(), getFileFormat(), uri);
-        // inspect schema
-        return factory.inspect().getFields();
+        return getFileSchema(bucketName, objectNames.get(0)).getFields();
     }
 
     /**
@@ -276,21 +277,31 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
         LOGGER.info("Getting partitions for object {} in bucket {}", objectName, bucketName);
         if (objectName.endsWith("/")) { // a folder
             List<String> files = getStorageFiles(bucketName, objectName);
-            if (isPartitionedDirectory(files)) {
-                List<StoragePartition> partitions = new ArrayList<>();
-                for (String file : files) {
-                    if (!file.toLowerCase().endsWith(datasourceConfig.extension())) {
-                        continue;
-                    }
-                    partitions.add(StoragePartition.builder()
+            if (!files.isEmpty()) { // We fot a list of FieldValue for partition folder
+                Schema fileSchema = getFileSchema(bucketName, files.get(0));
+                Set<FieldValue> fieldValueList = getPartitionedFieldValue(files);
+                if (!fieldValueList.isEmpty()) {
+                    LOGGER.info("AbstractStorageMetadata::getStoragePartitions ->  field values for partition folder(s)\n{}", fieldValueList);
+                    List<FilterExpression> expressions = new FilterExpressionBuilder(fileSchema).getExpressions(constraints, Map.of());
+                    LOGGER.info("AbstractStorageMetadata::getStoragePartitions -> List of expressions:\n{}", expressions);
+                    List<StoragePartition> partitions = new ArrayList<>();
+                    for (String file : files) {
+                        if (!file.toLowerCase().endsWith(datasourceConfig.extension())) {
+                            continue;
+                        }
+                        if (!partitionSelected(file, expressions, fieldValueList)) {
+                            continue;
+                        }
+                        partitions.add(StoragePartition.builder()
                                 .objectNames(List.of())
                                 .location(file)
                                 .bucketName(bucketName)
                                 .recordCount(0L)
                                 .children(List.of())
                                 .build());
+                    }
+                    return partitions;
                 }
-                return partitions;
             }
         }
         else {
@@ -408,6 +419,23 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
         return false;
     }
 
+    private Set<FieldValue> getPartitionedFieldValue(List<String> paths)
+    {
+        Set<FieldValue> fieldValues = new HashSet<>();
+        LOGGER.info("Getting FieldValue from the following path if any are partitioned\n{}", paths);
+        for (String path : paths) {
+            String[] folders = path.split("/");
+            for (String folder : folders) {
+                if (isPartitionFolder(folder)) {
+                    Optional<FieldValue> optionalFieldValue = getPartitionFieldValue(folder);
+                    optionalFieldValue.ifPresent(fieldValues::add);
+                }
+            }
+        }
+        LOGGER.info("Field values for partitioned folder(s) {}", fieldValues);
+        return fieldValues;
+    }
+
     private String getBucketByDatabase(String databaseName)
     {
         if (dbMap.containsKey(databaseName)) {
@@ -449,5 +477,38 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
                 getLeafObjectsRecurse(bucket, blob.getName(), leafObjects, maxCount);
             }
         }
+    }
+
+    private boolean partitionSelected(String file, List<FilterExpression> expressions, Set<FieldValue> fieldValueList)
+    {
+        if (expressions.isEmpty() || fieldValueList.isEmpty()) {
+            LOGGER.info("All partition folder selected for for file {}", file);
+            return true;
+        }
+
+        for (FieldValue fieldValue : fieldValueList) {
+            if (file.contains(fieldValue.getOriginalValue())) {
+                for (FilterExpression expression : expressions) {
+                    if (expression.apply(fieldValue.getValue())) {
+                        LOGGER.info("Partition folder {} for file {} is selected", fieldValue.getOriginalValue(), file);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public Schema getFileSchema(String bucketName, String fileName)
+    {
+        requireNonNull(bucketName, "bucketName was null");
+        requireNonNull(fileName, "fileName was null");
+        LOGGER.info("Retrieving field schema from file {}, under the bucket {}", fileName, bucketName);
+        String uri = createUri(bucketName, fileName);
+        BufferAllocator allocator = new RootAllocator();
+        DatasetFactory factory = new FileSystemDatasetFactory(allocator,
+                NativeMemoryPool.getDefault(), getFileFormat(), uri);
+        // inspect schema
+        return factory.inspect();
     }
 }

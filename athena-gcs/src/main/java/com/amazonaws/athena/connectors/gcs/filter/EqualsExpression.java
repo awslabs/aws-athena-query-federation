@@ -19,19 +19,10 @@
  */
 package com.amazonaws.athena.connectors.gcs.filter;
 
-import org.apache.arrow.vector.util.Text;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class EqualsExpression extends AbstractFilterExpression<Object>
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
-
     /**
      * {@inheritDoc}
-     *
-     * @param columnIndex
-     * @param expression
      */
     public EqualsExpression(Integer columnIndex, String columnName, Object expression)
     {
@@ -40,22 +31,35 @@ public class EqualsExpression extends AbstractFilterExpression<Object>
 
     /**
      * {@inheritDoc}
-     *
-     * @param value Column value
-     * @return
      */
     @Override
     public boolean apply(Object value)
     {
-        boolean evaluated;
-        if (expression.getClass().equals(Text.class)) {
+        boolean evaluated = false;
+        if (expression == null
+                && (value == null || value.toString().equals("null") || value.toString().equals("NULL"))) {
+            evaluated = true;
+        }
+        else if (expression != null) {
+            evaluated = expression.toString().equals(value.toString());
+        }
+        return evaluated;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean apply(String value)
+    {
+        boolean evaluated = false;
+        if (expression == null
+                && (value == null || value.equals("null") || value.equals("NULL"))) {
+            evaluated = true;
+        }
+        else if (expression != null) {
             evaluated = expression.toString().equals(value);
         }
-        else {
-            evaluated = expression.equals(value);
-        }
-        LOGGER.debug("Applying value {} on the following expression that evaluated to {}. value type was {}. And expression type is: {}. String val is: {}\n",
-                value, evaluated, value.getClass().getName(), expression.getClass().getName(), this);
         return evaluated;
     }
 }

@@ -69,7 +69,7 @@ public class GcsSchemaUtils
             LOGGER.info("Schema Fields\n{}", table.getFields());
             for (Field field : table.getFields()) {
                 if (isFieldTypeNull(field)) {
-                    field = Field.nullable(field.getName(), Types.MinorType.VARCHAR.getType());
+                    field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
                 }
                 schemaBuilder.addField(getCompatibleField(field));
             }
@@ -83,6 +83,7 @@ public class GcsSchemaUtils
 
     public static Field getCompatibleField(Field field)
     {
+        String fieldName = field.getName().toLowerCase();
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         switch (fieldType) {
             case TIMESTAMPNANO:
@@ -93,22 +94,22 @@ public class GcsSchemaUtils
             case TIMESTAMPMICROTZ:
             case TIMENANO:
                 if (field.isNullable()) {
-                    return new Field(field.getName(),
+                    return new Field(fieldName,
                             FieldType.nullable(Types.MinorType.DATEMILLI.getType()), List.of());
                 }
                 else {
-                    return new Field(field.getName(),
+                    return new Field(fieldName,
                             FieldType.notNullable(Types.MinorType.DATEMILLI.getType()), List.of());
                 }
             case FIXEDSIZEBINARY:
             case LARGEVARBINARY:
             case VARBINARY:
                 if (field.isNullable()) {
-                    return new Field(field.getName(),
+                    return new Field(fieldName,
                             FieldType.nullable(Types.MinorType.VARCHAR.getType()), List.of());
                 }
                 else {
-                    return new Field(field.getName(),
+                    return new Field(fieldName,
                             FieldType.notNullable(Types.MinorType.VARCHAR.getType()), List.of());
                 }
             default:
