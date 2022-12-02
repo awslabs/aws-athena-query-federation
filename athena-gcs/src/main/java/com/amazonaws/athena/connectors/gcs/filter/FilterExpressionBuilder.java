@@ -91,6 +91,7 @@ public class FilterExpressionBuilder
     public List<FilterExpression> getExpressions(Constraints constraints,
                                                  Map<String, String> partitionFieldValueMap)
     {
+        LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
         List<FilterExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
             if (partitionFieldValueMap.containsKey(column.getName())) {
@@ -99,9 +100,9 @@ public class FilterExpressionBuilder
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
-                LOGGER.debug("Value set for column {} was {}", column, valueSet);
+                LOGGER.info("Value set for column {} was {}", column, valueSet);
                 if (valueSet != null) {
-                    conjuncts.addAll(addParquetExpressions(column.getName(), valueSet, column.getType()));
+                    conjuncts.addAll(addFilterExpressions(column.getName(), valueSet, column.getType()));
                 }
             }
         }
@@ -116,14 +117,16 @@ public class FilterExpressionBuilder
      * @param type       Type of the column
      * @return List of {@link FilterExpression}
      */
-    private List<FilterExpression> addParquetExpressions(String columnName, ValueSet valueSet, ArrowType type)
+    private List<FilterExpression> addFilterExpressions(String columnName, ValueSet valueSet, ArrowType type)
     {
+        LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
         List<FilterExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
         if (valueSet instanceof SortedRangeSet) {
+            LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
             if (!valueSet.isNullAllowed() && isHighLowEquals(valueSet)
                     && valueSet.getRanges().getSpan().getLow().getBound().equals(EXACTLY)) {
-                return List.of(new EqualsExpression(columnIndices.get(columnName), columnName, valueSet.getRanges().getSpan().getLow().getValue()));
+                return List.of(new EqualsExpression(columnIndices.get(columnName), columnName.toLowerCase(), valueSet.getRanges().getSpan().getLow().getValue()));
             }
 
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
@@ -132,7 +135,7 @@ public class FilterExpressionBuilder
                 }
             }
             if (singleValues.size() == 1) {
-                disjuncts.add(new EqualsExpression(columnIndices.get(columnName), columnName, singleValues.get(0)));
+                disjuncts.add(new EqualsExpression(columnIndices.get(columnName), columnName.toLowerCase(), singleValues.get(0)));
             }
         }
         disjuncts.forEach(this::addToOr);
@@ -148,7 +151,9 @@ public class FilterExpressionBuilder
     private boolean isHighLowEquals(ValueSet valueSet)
     {
         Range range = valueSet.getRanges().getSpan();
-        return (range.getLow() != null && range.getHigh() != null && range.getLow().equals(range.getHigh()));
+        boolean exactly = (range.getLow() != null && range.getHigh() != null && range.getLow().equals(range.getHigh()));
+        LOGGER.info("FilterExpressionBuilder::isHighLowEquals -> exactly same? {}", exactly);
+        return exactly;
     }
 
     private void addToAnd(FilterExpression expression)
