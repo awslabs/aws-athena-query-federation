@@ -83,7 +83,7 @@ public class StorageDatasourceConfig
      */
     public String extension()
     {
-        return "." + properties.get(FILE_EXTENSION_ENV_VAR);
+        return "." + properties.get(FILE_EXTENSION_ENV_VAR).toLowerCase();
     }
 
     public String getPropertyElseDefault(String key, String defaultValue)

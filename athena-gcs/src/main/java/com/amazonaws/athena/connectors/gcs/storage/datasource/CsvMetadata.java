@@ -32,33 +32,18 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.gcs.common.StorageNode;
-import com.amazonaws.athena.connectors.gcs.common.StorageTreeNodeBuilder;
-import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
 import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
-import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import org.apache.arrow.dataset.file.FileFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.getRootName;
 
 @ThreadSafe
 public class CsvMetadata
         extends AbstractStorageMetadata
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CsvMetadata.class);
-
     // Used by reflection
     @SuppressWarnings("unused")
     public CsvMetadata(String storageCredentialJsonString,
@@ -92,6 +77,7 @@ public class CsvMetadata
      * {@inheritDoc}
      */
     @Override
+<<<<<<< HEAD
     public List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints)
     {
 <<<<<<< HEAD
@@ -136,6 +122,8 @@ public class CsvMetadata
      * {@inheritDoc}
      */
     @Override
+=======
+>>>>>>> d5acf6f5 (Complete the following:)
     public FileFormat getFileFormat()
     {
         return FileFormat.CSV;

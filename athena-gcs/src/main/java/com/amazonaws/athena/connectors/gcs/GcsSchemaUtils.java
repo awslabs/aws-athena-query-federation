@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import org.apache.arrow.dataset.file.FileFormat;
 import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
@@ -33,9 +32,7 @@ import org.apache.arrow.dataset.source.DatasetFactory;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.ipc.ArrowReader;
-import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -46,14 +43,10 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.BLOCK_PARTITION_COLUMN_NAME;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 
 public class GcsSchemaUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsSchemaUtils.class);
-
-    private static final ArrowType.ArrowTypeID TIMESTAMP_NANO_TYPE = new ArrowType.Timestamp(TimeUnit.NANOSECOND, null).getTypeID();
 
     private GcsSchemaUtils()
     {
@@ -80,9 +73,7 @@ public class GcsSchemaUtils
                 }
                 schemaBuilder.addField(getCompatibleField(field));
             }
-            schemaBuilder.addStringField(BLOCK_PARTITION_COLUMN_NAME);
-            Schema schema = schemaBuilder.build();
-            return schema;
+            return schemaBuilder.build();
         }
         else {
             LOGGER.error("Table '{}' was not found under schema '{}'", tableName, databaseName);
@@ -123,12 +114,6 @@ public class GcsSchemaUtils
             default:
                 return field;
         }
-    }
-
-    public static Optional<Schema> getSchemaFromGcsPrefix(String prefix, FileFormat fileFormat, StorageDatasourceConfig config) throws Exception
-    {
-        String uri = createUri(prefix);
-        return getSchemaFromGcsUri(uri, fileFormat);
     }
 
     public static Optional<Schema> getSchemaFromGcsUri(String uri, FileFormat fileFormat) throws Exception
