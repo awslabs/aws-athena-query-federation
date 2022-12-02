@@ -99,6 +99,12 @@ public class StubbingCursor<T>
             }
 
             @Override
+            public MongoCursor<X> cursor()
+            {
+                return iterator();
+            }
+
+            @Override
             public X first()
             {
                 throw new UnsupportedOperationException();
