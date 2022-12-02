@@ -8,9 +8,6 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-mysql</artifactId>
     <version>2022.47.1</version>
-    <properties>
-        <slf4jVersion>1.7.30</slf4jVersion>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -31,9 +28,20 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.28</version>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf3.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.0.31</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
         <dependency>

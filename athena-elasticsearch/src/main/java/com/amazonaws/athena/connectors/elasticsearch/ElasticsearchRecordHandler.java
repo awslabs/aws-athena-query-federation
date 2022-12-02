@@ -40,7 +40,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -172,7 +172,7 @@ public class ElasticsearchRecordHandler
                         .scroll(scroll)
                         .source(searchSource.from(0));
 
-                //Read the returned scroll id, which points to the search context that’s being kept alive and will be needed in the following search scroll call
+                //Read the returned scroll id, which points to the search context that's being kept alive and will be needed in the following search scroll call
                 SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
 
                 while (searchResponse.getHits() != null
