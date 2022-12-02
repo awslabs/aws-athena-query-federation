@@ -26,11 +26,6 @@ public class StorageConstants
     }
 
     /**
-     * part_name columns contains the source file name. It helps filter when files are gruped in a single table
-     */
-    public static final String BLOCK_PARTITION_COLUMN_NAME = "part_name";
-
-    /**
      * A key that stores JSON representation of {@link com.amazonaws.athena.connectors.gcs.storage.StorageSplit} as a string
      */
     public static final String STORAGE_SPLIT_JSON = "storage_split_json";

@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.gcs.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.gcs.common.StorageObject;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.google.cloud.storage.Storage;
@@ -56,14 +55,6 @@ public interface StorageMetadata
     TableListResult getAllTables(String databaseName, String nextToken, int pageSie) throws Exception;
 
     /**
-     * List all tables in a database
-     *
-     * @param databaseName Name of the database
-     * @return List of all tables under the database
-     */
-    List<StorageObject> loadAllTables(String databaseName) throws Exception;
-
-    /**
      * Returns a storage object (file) as a DB table with field names and associated file type
      *
      * @param databaseName Name of the database
@@ -73,20 +64,12 @@ public interface StorageMetadata
     Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws Exception;
 
     default List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
-                                                        String bucketName, String objectName) throws Exception
+                                                        String bucketName, String objectName)
     {
         throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> " +
                 "getStoragePartitions(Constraints, TableName, Split, String, String) not implemented in class "
                 + getClass().getSimpleName()));
     }
-
-    /**
-     * Checks datastore for a specific database (bucket). It looks whether the database exists, if it does, it loads all
-     * the tables (files) in it based on extension specified in the environment variables
-     *
-     * @param database For which datastore will be checked
-     */
-    void checkDatastoreForDatabase(String database) throws Exception;
 
     /**
      * Indicates whether a file's extension check is mandatory.
@@ -105,14 +88,6 @@ public interface StorageMetadata
      * @return true if supported, false otherwise
      */
     boolean isSupported(String bucket, String objectName) throws Exception;
-
-    /**
-     * Creates a list of splits for the given {@link StoragePartition}
-     * @param bucket An instance of {@link StoragePartition}
-     * @param partitioned Indicates whether this the spit will be base on a partitioned table
-     * @return List of {@link StorageSplit} found in the specified partition
-     */
-    List<StorageSplit> getSplitsByBucketPrefix(String bucket, String prefix, boolean partitioned, Constraints constraints) throws IOException;
 
     /**
      * Checks to see if the extension of the object is invalid for the underlying datasource. For example

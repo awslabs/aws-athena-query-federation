@@ -75,6 +75,16 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
         return ((String) this.path).isBlank() || this.path.equals("/") || this.path.equals(path);
     }
 
+    public Optional<StorageNode<T>> findChildByData(String data)
+    {
+        for (StorageNode<T> node : children) {
+            if (node.data.equals(data)) {
+                return Optional.of(node);
+            }
+        }
+        return Optional.empty();
+    }
+
     public Optional<StorageNode<T>> findByPath(String path)
     {
         if (this.path.equals(path)) {
@@ -97,7 +107,10 @@ public class StorageNode<T extends Comparable<T>> implements Comparable<StorageN
     @Override
     public String toString()
     {
-        return (String) path;
+        return "StorageNode{" +
+                "data=" + data +
+                ", path=" + path +
+                '}';
     }
 
     @Override
