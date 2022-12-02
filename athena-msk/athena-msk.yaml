@@ -15,7 +15,7 @@ Metadata:
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   AuthType:
-    Description: 'auth details TLS/SCRAM/IAM/NOAUTH'
+    Description: 'auth details TLS/SCRAM/IAM/NOAUTH/SASL_PLAINTEXT/SASL_SSL'
     Type: String
     Default: NOAUTH
     AllowedValues:
@@ -23,6 +23,8 @@ Parameters:
       - SCRAM
       - NOAUTH
       - IAM
+      - SASL_PLAINTEXT
+      - SASL_SSL
   KafkaEndpoint:
     Description: 'Kafka/MSK cluster endpoint'
     Type: String
@@ -59,7 +61,7 @@ Parameters:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
   CertificatesS3Reference:
-    Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded,applicable for TLS auth '
+    Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded,applicable for TLS/SSL auth '
     Type: String
   GlueRegistryArn:
     Description: 'AWS GLUE registry ARN to be provided where topic schemas has been uploaded'
