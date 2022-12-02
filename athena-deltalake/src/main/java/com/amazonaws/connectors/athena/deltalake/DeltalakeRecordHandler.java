@@ -19,7 +19,6 @@
  */
 package com.amazonaws.connectors.athena.deltalake;
 
-import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
@@ -84,10 +83,7 @@ public class DeltalakeRecordHandler
 
     public DeltalakeRecordHandler(String dataBucket)
     {
-        this(AmazonS3ClientBuilder
-                .standard()
-                .withClientConfiguration(new ClientConfiguration().withMaxConnections(200))
-                .build(),
+        this(AmazonS3ClientBuilder.defaultClient(),
             AWSSecretsManagerClientBuilder.defaultClient(),
             AmazonAthenaClientBuilder.defaultClient(),
             new Configuration(),
@@ -150,10 +146,12 @@ public class DeltalakeRecordHandler
         String tablePath = String.format("s3a://%s/%s/%s", dataBucket, schemaName, tableName);
         String filePath = String.format("%s/%s", tablePath, relativeFilePath);
 
-        MessageType parquetSchema = ParquetFileReader.open(HadoopInputFile.fromPath(new Path(filePath), conf))
+        ParquetFileReader fileReader = ParquetFileReader.open(HadoopInputFile.fromPath(new Path(filePath), conf));
+        MessageType parquetSchema = fileReader
                 .getFooter()
                 .getFileMetaData()
                 .getSchema();
+        fileReader.close();
 
         List<Field> fields = recordsRequest.getSchema().getFields();
 
@@ -199,5 +197,6 @@ public class DeltalakeRecordHandler
             spiller.writeRows((block, rowNum) -> rowWriter.writeRow(block, rowNum, finalRecord) ? 1 : 0);
             record = reader.read();
         }
+        reader.close();
     }
 }
