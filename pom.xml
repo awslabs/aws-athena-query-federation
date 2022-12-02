@@ -70,6 +70,7 @@
     <modules>
         <module>athena-arrow-java-dist</module>
         <module>athena-cloudwatch</module>
+        <module>athena-deltalake</module>
         <module>athena-docdb</module>
         <module>athena-redis</module>
         <module>athena-aws-cmdb</module>
@@ -103,7 +104,6 @@
         <module>athena-hortonworks-hive</module>
         <module>athena-db2</module>
         <module>athena-msk</module>
-        <module>athena-deltalake</module>
     </modules>
     <dependencies>
         <dependency>
