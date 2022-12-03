@@ -23,7 +23,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.Logger;
@@ -127,19 +127,28 @@ public class TestUtils
             throw new RuntimeException("Method requires values in multiples of 3 -> family, qualifier, value");
         }
 
-        List<KeyValue> result = new ArrayList<>();
+        List<Cell> result = new ArrayList<>();
         Map<String, String> valueMap = new HashMap<>();
         for (int i = 0; i < values.length; i += 3) {
-            KeyValue mockKeyValue = mock(KeyValue.class);
-            when(mockKeyValue.getFamily()).thenReturn(values[i].getBytes());
-            when(mockKeyValue.getQualifier()).thenReturn(values[i + 1].getBytes());
-            when(mockKeyValue.getValue()).thenReturn(values[i + 2].getBytes());
+            Cell mockCell = mock(Cell.class);
+            when(mockCell.getFamilyArray()).thenReturn(values[i].getBytes());
+            when(mockCell.getFamilyOffset()).thenReturn(0);
+            when(mockCell.getFamilyLength()).thenReturn((byte)values[i].getBytes().length);
+
+            when(mockCell.getQualifierArray()).thenReturn(values[i + 1].getBytes());
+            when(mockCell.getQualifierOffset()).thenReturn(0);
+            when(mockCell.getQualifierLength()).thenReturn(values[i + 1].getBytes().length);
+
+            when(mockCell.getValueArray()).thenReturn(values[i + 2].getBytes());
+            when(mockCell.getValueOffset()).thenReturn(0);
+            when(mockCell.getValueLength()).thenReturn(values[i + 2].getBytes().length);
+
             valueMap.put(values[i] + ":" + values[i + 1], values[i + 2]);
-            result.add(mockKeyValue);
+            result.add(mockCell);
         }
 
         Result mockResult = mock(Result.class);
-        when(mockResult.list()).thenReturn(result);
+        when(mockResult.listCells()).thenReturn(result);
         when(mockResult.getValue(any(byte[].class), any(byte[].class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     String family = new String(invocation.getArgumentAt(0, byte[].class));
