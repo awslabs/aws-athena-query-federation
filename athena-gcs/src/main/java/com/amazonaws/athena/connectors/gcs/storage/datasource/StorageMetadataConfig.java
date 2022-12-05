@@ -37,9 +37,16 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
 
-public class StorageDatasourceConfig
+public class StorageMetadataConfig
 {
+    /**
+     * GCP Google cloud storage application credential retrieved from the SecretsManager
+     */
     private String storageCredentialJson;
+
+    /**
+     * Properties retrieved from System environment varaibles
+     */
     private final Map<String, String> properties = new HashMap<>();
 
     public Map<String, String> properties()
@@ -58,7 +65,7 @@ public class StorageDatasourceConfig
      * @param json Google Cloud Storage auth JSON string
      * @return Return the instance of GcsDatasourceConfig upon which this setter is invoked
      */
-    public StorageDatasourceConfig credentialsJson(String json)
+    public StorageMetadataConfig credentialsJson(String json)
     {
         storageCredentialJson = json;
         return this;
@@ -70,7 +77,7 @@ public class StorageDatasourceConfig
      * @param properties Map of property/value paris from System.env (Usually from lambda environment variables)
      * @return Return the instance of GcsDatasourceConfig upon which this setter is invoked
      */
-    public StorageDatasourceConfig properties(Map<String, String> properties)
+    public StorageMetadataConfig properties(Map<String, String> properties)
     {
         this.properties.putAll(properties);
         return this;
