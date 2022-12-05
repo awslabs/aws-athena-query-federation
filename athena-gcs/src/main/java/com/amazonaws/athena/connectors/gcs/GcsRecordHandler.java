@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -58,6 +59,7 @@ import java.util.List;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
+import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
@@ -70,6 +72,9 @@ public class GcsRecordHandler
     private static final String SOURCE_TYPE = "gcs";
 
     private final StorageMetadata datasource;
+
+    // to handle back-pressure during API invocation to GCS
+    ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
 
     public GcsRecordHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
     {
@@ -109,6 +114,7 @@ public class GcsRecordHandler
     protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest,
                                       QueryStatusChecker queryStatusChecker) throws Exception
     {
+        invoker.setBlockSpiller(spiller);
         TableName tableInfo = recordsRequest.getTableName();
         LOGGER.info("Reading records from the table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Split split = recordsRequest.getSplit();
@@ -151,7 +157,7 @@ public class GcsRecordHandler
                     // We will loop on batch records and consider each records to write in spiller.
                     for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
                         // we are passing record to spiller to be written.
-                        execute(spiller, root.getFieldVectors(), rowIndex);
+                        execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex);
                     }
                 }
             }

@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import java.util.Map;
 
 public class StorageUtil
 {
@@ -104,6 +105,9 @@ public class StorageUtil
      */
     public static synchronized String getValidEntityName(String entityName)
     {
+        if (entityName.endsWith("/")) {
+            entityName = entityName.substring(0, entityName.lastIndexOf("/"));
+        }
         return ALPHA_NUM_MATCHER.retainFrom(entityName.replaceAll(INVALID_CHARS_REPLACE_REGEX, "_").toLowerCase(Locale.ROOT))
                 .replaceAll(STARTS_DIGIT_REGEX, "");
     }
@@ -127,5 +131,24 @@ public class StorageUtil
     public static String createUri(String path)
     {
         return "gs://"  + path;
+    }
+
+    /**
+     * Returns a unique name of an entity
+     * @param validName A previously obtained valid entity name
+     * @param entityObjectMap List of schema, which is a entity name and the path in the GCS bucket
+     * @return A unique entity name
+     */
+    public static String getUniqueEntityName(String validName, Map<String, String> entityObjectMap)
+    {
+        int count = 0;
+        validName += "_" + (++count);
+        while (true) {
+            if (entityObjectMap.containsKey(validName)) {
+                validName += "_" + (++count);
+                continue;
+            }
+            return validName;
+        }
     }
 }

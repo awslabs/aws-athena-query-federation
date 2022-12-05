@@ -21,17 +21,22 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.getParentPath;
 import static com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata.getLeafObjectsByPartitionPrefix;
 import static com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata.isDirectory;
+import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getUniqueEntityName;
+import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEntityName;
 
 /**
  * A tree node builder builds a tree of child nodes much like a file tree seen in the popular GUI based OS. For example,
@@ -44,6 +49,26 @@ public class StorageTreeNodeBuilder
 {
     private StorageTreeNodeBuilder()
     {
+    }
+
+    public static Optional<StorageNode<String>> buildSchemaList(TreeTraversalContext context, String breakPoint)
+    {
+        StorageNode<String> root = new StorageNode<>("", "");
+        Page<Bucket> buckets = context.getStorage().list();
+        Map<String, String> schemas = new HashMap<>();
+        for (Bucket bucket : buckets.iterateAll()) {
+            String bucketName = bucket.getName();
+            String validName = getValidEntityName(bucketName);
+            if (schemas.containsKey(validName)) {
+                validName = getUniqueEntityName(validName, schemas);
+            }
+            schemas.put(validName, bucketName);
+            if (validName.equals(breakPoint)) {
+                break;
+            }
+        }
+        schemas.forEach(root::addChild);
+        return Optional.of(root);
     }
 
     /**
