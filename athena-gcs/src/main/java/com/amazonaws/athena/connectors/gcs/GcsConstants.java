@@ -60,6 +60,13 @@ public class GcsConstants
     public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION = "GOOGLE_APPLICATION_CREDENTIALS";
 
     /**
+     * As parquet is a columnar storage we utilize cache locality of column vector during spilling
+     * This constant is to use to fill transpose records from column vector in a ArrayList and when
+     * it reaches the number of records as per this setting, record handler spills the records and clear the
+     * list to make room
+     */
+    public static final int MAX_RECORD_SIZE_TO_SPILL = 10_000;
+    /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering
      */
     private GcsConstants()
