@@ -49,12 +49,12 @@ public class CsvMetadata
     public CsvMetadata(String storageCredentialJsonString,
                        Map<String, String> properties) throws IOException
     {
-        this(new StorageDatasourceConfig()
+        this(new StorageMetadataConfig()
                 .credentialsJson(storageCredentialJsonString)
                 .properties(properties));
     }
 
-    public CsvMetadata(StorageDatasourceConfig config) throws IOException
+    public CsvMetadata(StorageMetadataConfig config) throws IOException
     {
         super(config);
     }
@@ -70,7 +70,7 @@ public class CsvMetadata
     @Override
     public boolean isSupported(String bucket, String objectName)
     {
-        return objectName.toLowerCase().endsWith(datasourceConfig.extension());
+        return objectName.toLowerCase().endsWith(metadataConfig.extension());
     }
 
     /**

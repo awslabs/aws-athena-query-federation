@@ -64,7 +64,7 @@ public class ParquetMetadata
     public ParquetMetadata(String gcsCredentialJsonString,
                            Map<String, String> properties) throws IOException
     {
-        this(new StorageDatasourceConfig()
+        this(new StorageMetadataConfig()
                 .credentialsJson(gcsCredentialJsonString)
                 .properties(properties));
     }
@@ -76,7 +76,7 @@ public class ParquetMetadata
      * @param config An instance of GcsDatasourceConfig
      * @throws IOException If any occurs
      */
-    public ParquetMetadata(StorageDatasourceConfig config) throws IOException
+    public ParquetMetadata(StorageMetadataConfig config) throws IOException
     {
         super(config);
     }

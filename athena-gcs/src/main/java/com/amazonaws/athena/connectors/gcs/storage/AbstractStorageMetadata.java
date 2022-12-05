@@ -28,7 +28,7 @@ import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceConfig;
+import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageMetadataConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.exception.UncheckedStorageDatasourceException;
 import com.google.api.gax.paging.Page;
@@ -81,8 +81,16 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStorageMetadata.class);
 
+    /**
+     * Extension for the metadata set via the environment variable
+     * For example, PARQUET or CSV
+     */
     protected final String extension;
-    protected final StorageDatasourceConfig datasourceConfig;
+
+    /**
+     * Metadata config with environment variable
+     */
+    protected final StorageMetadataConfig metadataConfig;
     protected static Storage storage;
     private final Map<String, String> dbMap = new HashMap<>();
 
@@ -93,7 +101,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     public boolean containsInvalidExtension(String objectName)
     {
         return containsExtension(objectName)
-                && !objectName.endsWith(datasourceConfig.extension());
+                && !objectName.endsWith(metadataConfig.extension());
     }
 
     /**
@@ -174,7 +182,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
                     continue;
                 }
             }
-            else if (!storageObjectName.toLowerCase().endsWith(datasourceConfig.extension())) {
+            else if (!storageObjectName.toLowerCase().endsWith(metadataConfig.extension())) {
                 LOGGER.info("Loading table for object {} is NOT with valid extension", storageObjectName);
                 continue;
             }
@@ -277,7 +285,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
                     LOGGER.info("AbstractStorageMetadata::getStoragePartitions -> List of expressions:\n{}", expressions);
                     List<StoragePartition> partitions = new ArrayList<>();
                     for (String file : files) {
-                        if (!file.toLowerCase().endsWith(datasourceConfig.extension())) {
+                        if (!file.toLowerCase().endsWith(metadataConfig.extension())) {
                             continue;
                         }
                         if (!partitionSelected(file, expressions, fieldValueList)) {
@@ -338,9 +346,9 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
      * @param config An instance of GcsDatasourceConfig that contains necessary properties for instantiating an appropriate data source
      * @throws IOException If occurs during initializing input stream with GCS credential JSON
      */
-    protected AbstractStorageMetadata(StorageDatasourceConfig config) throws IOException
+    protected AbstractStorageMetadata(StorageMetadataConfig config) throws IOException
     {
-        this.datasourceConfig = requireNonNull(config, "StorageDatastoreConfig is null");
+        this.metadataConfig = requireNonNull(config, "StorageDatastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");
         requireNonNull(config.properties(), "Environment variables were null");
         this.extension = requireNonNull(config.extension(), "File extension is null");
@@ -378,7 +386,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
             if (storageObjectName.endsWith("/")) {
                 validName = getValidEntityNameFromFile(getFolderName(storageObjectName), extension);
             }
-            else if (!storageObjectName.toLowerCase().endsWith(datasourceConfig.extension())) {
+            else if (!storageObjectName.toLowerCase().endsWith(metadataConfig.extension())) {
                 continue;
             }
             else {
