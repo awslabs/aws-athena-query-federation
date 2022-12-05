@@ -49,19 +49,16 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.MAX_RECORD_SIZE_TO_SPILL;
 import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
@@ -150,72 +147,50 @@ public class GcsRecordHandler
                 // This reader reads the dataset as a stream of record batches.
                 ArrowReader reader = scanner.scanBatches()
         ) {
-            // Looping through the field to utilize column vector
-            List<Field> fields = reader.getVectorSchemaRoot().getSchema().getFields();
-            // to store transposed records (row based) from the column vector
-            List<List<Object>> rows = new ArrayList<>();
+            // We are loading records batch by batch until we reached at the end.
             while (reader.loadNextBatch()) {
-                // column values as per the columnar format
-                List<Object> columnValues = new ArrayList<>();
-                try (VectorSchemaRoot root = reader.getVectorSchemaRoot()) {
-                    // reads each column vector
-                    for (FieldVector value : root.getFieldVectors()) {
-                        for (int i = 0; i < root.getRowCount(); i++) {
-                            columnValues.add(value.getObject(i));
-                        }
-                        // add one column values in the lsite
-                        rows.add(new ArrayList<>(columnValues));
-                        // clears for the next column vecor
-                        columnValues.clear();
+                try (
+                        // Returns the vector schema root.
+                        // This will be loaded with new values on every call to loadNextBatch on the reader.
+                        VectorSchemaRoot root = reader.getVectorSchemaRoot()
+                ) {
+                    // We will loop on batch records and consider each records to write in spiller.
+                    for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
+                        // we are passing record to spiller to be written.
+                        execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex);
                     }
-                }
-                // if the records size reaches the max number of records to spill
-                if (rows.size() >= MAX_RECORD_SIZE_TO_SPILL) {
-                    // spills the records after transposing the columnar data into row based data
-                    spill(spiller, fields, transpose(rows));
-                    // clears the list to make further room
-                    rows.clear();
-                }
-
-                // check to see if any rows left to spill that never exceed the max limit
-                if (!rows.isEmpty()) {
-                    spill(spiller, fields, transpose(rows));
-                    rows.clear();
                 }
             }
         }
     }
 
-    private void spill(BlockSpiller spiller, List<Field> fields, Object[][] rows)
+    /**
+     * We are writing data to spiller. This function received the whole batch
+     * along with row index. We will access into batch using the row index and
+     * get the record to write into spiller.
+     *
+     * @param spiller - block spiller
+     * @param gcsFieldVectors - the batch
+     * @param rowIndex - row index
+     */
+    private void execute(
+            BlockSpiller spiller,
+            List<FieldVector> gcsFieldVectors, int rowIndex)
     {
-        for (Object[] row : rows) {
-            spiller.writeRows((Block block, int rowNum) -> {
-                boolean isMatched;
-                for (int i = 0; i < row.length; i++) {
-                    isMatched = block.offerValue(fields.get(i).getName(), rowNum, row[i]);
-                    if (!isMatched) {
-                        return 0;
-                    }
+        spiller.writeRows((Block block, int rowNum) -> {
+            boolean isMatched;
+            for (FieldVector vector : gcsFieldVectors) {
+                Object value = vector.getObject(rowIndex);
+                // Writing data in spiller for each field.
+                isMatched = block.offerValue(vector.getField().getName(), rowNum, value);
+
+                // If this field is not qualified we are not trying with next field,
+                // just leaving the whole record.
+                if (!isMatched) {
+                    return 0;
                 }
-                return 1;
-            });
-        }
-    }
-
-    private Object[][] transpose(List<List<Object>> rows)
-    {
-        Object[][] matrix = rows.stream()
-                .map(l -> l.toArray(Object[]::new))
-                .toArray(Object[][]::new);
-        int fieldLength = matrix.length;
-        int rowCount = matrix[0].length;
-
-        Object[][] transposedMatrix = new Object[rowCount][fieldLength];
-        for (int i = 0; i < rowCount; i++) {
-            for (int j = 0; j < fieldLength; j++) {
-                transposedMatrix[i][j] = matrix[j][i];
             }
-        }
-        return transposedMatrix;
+            return 1;
+        });
     }
 }
