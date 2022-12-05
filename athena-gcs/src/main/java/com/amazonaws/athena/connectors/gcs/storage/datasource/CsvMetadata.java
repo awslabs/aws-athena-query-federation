@@ -58,20 +58,6 @@ public class CsvMetadata
     {
         super(config);
     }
-    @Override
-    public boolean isExtensionCheckMandatory()
-    {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isSupported(String bucket, String objectName)
-    {
-        return objectName.toLowerCase().endsWith(metadataConfig.extension());
-    }
 
     /**
      * {@inheritDoc}

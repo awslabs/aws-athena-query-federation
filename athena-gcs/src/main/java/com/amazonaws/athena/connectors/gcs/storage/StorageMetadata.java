@@ -72,24 +72,6 @@ public interface StorageMetadata
     }
 
     /**
-     * Indicates whether a file's extension check is mandatory.
-     * For example, for CSV, this check maybe mandatory to check file extension
-     * On the other hand, parquet file may not mandate to check its extension. Because, in some cases, when the file is generated
-     * from some other system (e.g, Database), the parquet file may or may not hae the .parquet extension
-     * @return true if file's extension check is mandatory, false otherwise
-     */
-    boolean isExtensionCheckMandatory();
-
-    /**
-     * Check to see if the storage object is supported format by the underlying data source. This is required when the file does not
-     * have extension
-     * @param bucket bucket The name of the bucket
-     * @param objectName objectName Name of the object (file)
-     * @return true if supported, false otherwise
-     */
-    boolean isSupported(String bucket, String objectName) throws Exception;
-
-    /**
      * Checks to see if the extension of the object is invalid for the underlying datasource. For example
      * @param objectName Name of the object
      * @return true if the object name contains a valid extension, false otherwise
