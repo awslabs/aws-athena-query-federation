@@ -75,6 +75,11 @@ public class BigQueryUtils
         if (StringUtils.isNotEmpty(endpoint)) {
             bigqueryBuilder.setHost(endpoint);
         }
+
+        if (System.getenv(BigQueryConstants.GCP_PROJECT_ID) != null) {
+            bigqueryBuilder.setProjectId(System.getenv(BigQueryConstants.GCP_PROJECT_ID));
+        }
+
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
         return bigqueryBuilder.build().getService();
     }
