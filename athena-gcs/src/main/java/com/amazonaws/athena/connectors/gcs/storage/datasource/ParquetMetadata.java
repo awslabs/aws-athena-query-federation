@@ -32,10 +32,8 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connectors.gcs.GcsSchemaUtils;
 import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
 import org.apache.arrow.dataset.file.FileFormat;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +41,6 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
-
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 
 @ThreadSafe
 public class ParquetMetadata
@@ -79,28 +74,6 @@ public class ParquetMetadata
     public ParquetMetadata(StorageMetadataConfig config) throws IOException
     {
         super(config);
-    }
-
-    @Override
-    public boolean isExtensionCheckMandatory()
-    {
-        return false;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isSupported(String bucket, String objectName) throws Exception
-    {
-        boolean isWithValidExtension = containsInvalidExtension(objectName);
-        LOGGER.debug("File {} is with valid extension? {}", objectName, isWithValidExtension);
-        if (!isWithValidExtension) {
-            String uri = createUri(objectName.startsWith(bucket + "/") ? objectName : bucket + "/" + objectName);
-            Optional<Schema> optionalSchema = GcsSchemaUtils.getSchemaFromGcsUri(uri, getFileFormat());
-            return optionalSchema.isPresent();
-        }
-        return false;
     }
 
     /**

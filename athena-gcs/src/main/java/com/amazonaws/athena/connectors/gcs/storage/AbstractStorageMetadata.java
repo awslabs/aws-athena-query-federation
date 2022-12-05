@@ -34,7 +34,6 @@ import com.amazonaws.athena.connectors.gcs.storage.datasource.exception.Unchecke
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableList;
@@ -181,7 +180,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
             String tableName;
             if (storageObjectName.endsWith("/")) {
                 LOGGER.info("Loading table for object {} is a folder", storageObjectName);
-                if (isPartitionedDirectory(getStorageFiles(bucket, storageObjectName))) {
+                if (isContainingDirectoryPartitioned(getStorageFiles(bucket, storageObjectName))) {
                     LOGGER.info("Loading table for object {} is a partitioned folder", storageObjectName);
                     partitionedTables.add(storageObjectName);
                     tableName = getValidEntityNameFromFile(getFolderName(storageObjectName), extension);
@@ -234,7 +233,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
             LOGGER.info("Object name for entity {}.{} is {}", databaseName, tableName, objectName);
             if (objectName.endsWith("/")) {
                 List<String> files = getStorageFiles(bucketName, objectName);
-                if (isPartitionedDirectory(files)) {
+                if (isContainingDirectoryPartitioned(files)) {
                     StorageTable table = StorageTable.builder()
                             .setDatabaseName(databaseName)
                             .setTableName(tableName)
@@ -324,29 +323,13 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
         return List.of();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Storage getStorage()
     {
         return storage;
-    }
-
-    public static boolean isDirectory(String bucket, String prefix)
-    {
-        BlobId blobId = BlobId.of(bucket, prefix);
-        Blob blob = storage.get(blobId);
-        if (blob == null && !prefix.endsWith("/")) { // maybe a folder without ending with a '/' character
-            blob = storage.get(BlobId.of(bucket, prefix + "/"));
-        }
-        LOGGER.debug("Blob for prefix {} under the bucket {} is: {} with size: {}", prefix, bucket, blob, blob == null ? -1 : blob.getSize());
-        return  (blob != null && blob.getSize() == 0);
-    }
-
-    public static List<String> getLeafObjectsByPartitionPrefix(String bucket, String partitionPrefix, int maxCount)
-    {
-        LOGGER.debug("Iterating recursively through a folder under the bucket to list all file object");
-        List<String> leaves = new ArrayList<>();
-        getLeafObjectsRecurse(bucket, partitionPrefix, leaves, maxCount);
-        return leaves;
     }
 
     /**
@@ -367,6 +350,12 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
         storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
     }
 
+    /**
+     * Retrieves a list of files that match the extension as per the metadata config
+     * @param bucket Name of the bucket
+     * @param prefix Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
+     * @return A list file names under the prefix
+     */
     protected List<String> getStorageFiles(String bucket, String prefix)
     {
         LOGGER.info("Listing nested files for prefix {} under the bucket {}", prefix, bucket);
@@ -382,6 +371,15 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     }
 
     // helpers
+
+    /**
+     * Retrieves a table's actual file name (object name) if it exists under the bucket.
+     * Usually table name are compatible with ANSI-SQL, so the actual
+     * table name vs. actual file name may differ. This method with resolve this and returns the correct table name if found under the bucket
+     * @param bucketName Name of the bucket
+     * @param tableName Name of the table in
+     * @return Optional table. If found the get method will return the actual file name, otherwise it'll be empty
+     */
     private Optional<String> getTableObjectName(String bucketName, String tableName)
     {
         requireNonNull(bucketName, "Bucket name was null");
@@ -412,7 +410,12 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
         return Optional.empty();
     }
 
-    private boolean isPartitionedDirectory(List<String> paths)
+    /**
+     * Checks to see if the prefix contianing a list of paths is actually a partition directlry
+     * @param paths A list of paths under the containing directory
+     * @return True if the containing directory is partitioned, false otherwise
+     */
+    private boolean isContainingDirectoryPartitioned(List<String> paths)
     {
         LOGGER.info("Checking following paths to see if any is partitioned\n{}", paths);
         for (String path : paths) {
@@ -461,30 +464,6 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
             }
         }
         return null;
-    }
-
-    private static void getLeafObjectsRecurse(String bucket, String prefix, List<String> leafObjects, int maxCount)
-    {
-        if (maxCount > 0 && leafObjects.size() >= maxCount) {
-            return;
-        }
-        LOGGER.debug("Walking through {} under bucket '{}'", prefix, bucket);
-        if (!prefix.endsWith("/")) {
-            prefix += '/';
-        }
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.currentDirectory(),
-                Storage.BlobListOption.prefix(prefix));
-        for (Blob blob : blobPage.iterateAll()) {
-            if (blob.getName().equals(prefix)) {
-                continue;
-            }
-            if (blob.getSize() > 0) { // it's a file
-                leafObjects.add(blob.getName());
-            }
-            else {
-                getLeafObjectsRecurse(bucket, blob.getName(), leafObjects, maxCount);
-            }
-        }
     }
 
     private boolean partitionSelected(String file, List<FilterExpression> expressions, Set<FieldValue> fieldValueList)
