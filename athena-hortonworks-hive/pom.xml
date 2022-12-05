@@ -9,7 +9,6 @@
     <artifactId>athena-hortonworks-hive</artifactId>
     <version>2022.47.1</version>
     <properties>
-        <slf4jVersion>1.7.30</slf4jVersion>
         <clouderaVersion>2.6.15.1018</clouderaVersion>
     </properties>
     <dependencies>
