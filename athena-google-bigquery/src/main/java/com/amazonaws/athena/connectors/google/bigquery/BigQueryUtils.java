@@ -72,13 +72,14 @@ public class BigQueryUtils
                     "https://www.googleapis.com/auth/drive"));
     }
 
-    public static BigQuery getBigQueryClient() throws IOException
+    public static BigQuery getBigQueryClient(String projectId) throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
         String endpoint = System.getenv(BigQueryConstants.BIG_QUERY_ENDPOINT);
         if (StringUtils.isNotEmpty(endpoint)) {
             bigqueryBuilder.setHost(endpoint);
         }
+        bigqueryBuilder.setProjectId(projectId);
         bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
         return bigqueryBuilder.build().getService();
     }
