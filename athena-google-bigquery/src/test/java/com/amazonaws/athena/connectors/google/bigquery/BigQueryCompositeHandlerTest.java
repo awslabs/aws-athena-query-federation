@@ -67,11 +67,8 @@ public class BigQueryCompositeHandlerTest {
     static{
         System.setProperty("aws.region", "us-east-1");
     }
-
-    @Test
+    @Test(expected = NullPointerException.class)
     public void bigQueryCompositeHandlerTest() throws IOException {
-        Exception ex = null;
-        try {
             PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
             PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
             GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(Arrays.asList("v1")).withSecretString("{\n" +
@@ -94,9 +91,5 @@ public class BigQueryCompositeHandlerTest {
             PowerMockito.when(bigQueryOptions.getService()).thenReturn(bigQuery);
 
             bigQueryCompositeHandler = new BigQueryCompositeHandler();
-        }catch (Exception e){
-            ex = e;
-        }
-        assertEquals(null,ex);
     }
 }
