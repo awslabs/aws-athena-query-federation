@@ -114,14 +114,14 @@ public class HbaseSchemaUtilsTest
     @Test
     public void inferType()
     {
-        assertEquals(Types.MinorType.BIGINT, HbaseSchemaUtils.inferType("1".getBytes()));
-        assertEquals(Types.MinorType.BIGINT, HbaseSchemaUtils.inferType("1000".getBytes()));
-        assertEquals(Types.MinorType.BIGINT, HbaseSchemaUtils.inferType("-1".getBytes()));
-        assertEquals(Types.MinorType.FLOAT8, HbaseSchemaUtils.inferType("1.0".getBytes()));
-        assertEquals(Types.MinorType.FLOAT8, HbaseSchemaUtils.inferType(".01".getBytes()));
-        assertEquals(Types.MinorType.FLOAT8, HbaseSchemaUtils.inferType("-.01".getBytes()));
-        assertEquals(Types.MinorType.VARCHAR, HbaseSchemaUtils.inferType("BDFKD".getBytes()));
-        assertEquals(Types.MinorType.VARCHAR, HbaseSchemaUtils.inferType("".getBytes()));
+        assertEquals(Types.MinorType.BIGINT, HbaseSchemaUtils.inferType("1"));
+        assertEquals(Types.MinorType.BIGINT, HbaseSchemaUtils.inferType("1000"));
+        assertEquals(Types.MinorType.BIGINT, HbaseSchemaUtils.inferType("-1"));
+        assertEquals(Types.MinorType.FLOAT8, HbaseSchemaUtils.inferType("1.0"));
+        assertEquals(Types.MinorType.FLOAT8, HbaseSchemaUtils.inferType(".01"));
+        assertEquals(Types.MinorType.FLOAT8, HbaseSchemaUtils.inferType("-.01"));
+        assertEquals(Types.MinorType.VARCHAR, HbaseSchemaUtils.inferType("BDFKD"));
+        assertEquals(Types.MinorType.VARCHAR, HbaseSchemaUtils.inferType(""));
     }
 
     @Test

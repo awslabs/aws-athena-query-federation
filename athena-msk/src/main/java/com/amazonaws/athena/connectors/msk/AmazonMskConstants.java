@@ -68,8 +68,8 @@ public class AmazonMskConstants
      * For scram authentication, we need to  fetch the credentials from secrets manager
      * and append to the property file
      */
-    public static final String SCRAM_USERNAME = "username";
-    public static final String SCRAM_PWD = "password";
+    public static final String AWS_SECRET_USERNAME = "username";
+    public static final String AWS_SECRET_PWD = "password";
 
     public static final int MAX_RECORDS_IN_SPLIT = 10_000;
 

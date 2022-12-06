@@ -149,8 +149,6 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 awsSecretsManager = mock(AWSSecretsManager.class);
                 athena = mock(AmazonAthena.class);
 
-                when(amazonS3.doesObjectExist(anyString(), anyString())).thenReturn(true);
-
                 when(amazonS3.putObject(anyObject()))
                                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                                         InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();

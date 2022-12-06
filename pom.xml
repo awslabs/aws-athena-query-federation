@@ -12,21 +12,24 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.11.900</aws-sdk.version>
-        <aws.lambda-java-core.version>1.2.0</aws.lambda-java-core.version>
+        <aws-sdk.version>1.12.353</aws-sdk.version>
+        <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
-        <slf4j-log4j.version>1.7.28</slf4j-log4j.version>
+        <aws-cdk.version>1.181.1</aws-cdk.version>
+        <jsii.version>1.71.0</jsii.version>
+        <slf4j-log4j.version>1.7.36</slf4j-log4j.version>
         <mockito.version>1.10.19</mockito.version>
         <junit.version>4.13.1</junit.version>
         <jqwik.version>1.6.3</jqwik.version>
         <assertj.version>3.22.0</assertj.version>
-        <testng.version>7.0.0</testng.version>
+        <testng.version>7.6.1</testng.version>
         <fasterxml.jackson.version>2.14.1</fasterxml.jackson.version>
-        <aws-cdk.version>1.89.0</aws-cdk.version>
         <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
         <log4j2Version>2.17.1</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
         <netty.version>4.1.81.Final</netty.version>
+        <guava.version>31.1-jre</guava.version>
+        <protobuf3.version>3.21.10</protobuf3.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -105,9 +108,29 @@
     </modules>
     <dependencies>
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-lambda-java-core</artifactId>
-            <version>${aws.lambda-java-core.version}</version>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${fasterxml.jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-cbor</artifactId>
+            <version>${fasterxml.jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${fasterxml.jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${fasterxml.jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${fasterxml.jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>net.jqwik</groupId>
@@ -157,7 +180,28 @@
         </dependency>
     </dependencies>
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.4.0</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>7.3.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -186,7 +230,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.4</version>
+                <version>0.8.8</version>
                 <executions>
                     <execution>
                         <goals>
