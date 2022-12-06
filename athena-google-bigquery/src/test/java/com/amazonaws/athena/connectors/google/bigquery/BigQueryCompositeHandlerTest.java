@@ -71,32 +71,27 @@ public class BigQueryCompositeHandlerTest {
     @Test
     public void bigQueryCompositeHandlerTest() throws IOException {
         Exception ex = null;
-        try {
-            PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
-            PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-            GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(Arrays.asList("v1")).withSecretString("{\n" +
-                    "  \"type\": \"service_account\",\n" +
-                    "  \"project_id\": \"mockProjectId\",\n" +
-                    "  \"private_key_id\": \"mockPrivateKeyId\",\n" +
-                    "  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nmockPrivateKeydsfhdskfhjdfjkdhgfdjkghfdngvfkvfnjvfdjkg\\n-----END PRIVATE KEY-----\\n\",\n" +
-                    "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
-                    "  \"client_id\": \"000000000000000000000\"\n" +
-                    "}");
-            Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
-            PowerMockito.mockStatic(ServiceAccountCredentials.class);
-            PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
+        PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
+        PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
+        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(Arrays.asList("v1")).withSecretString("{\n" +
+                "  \"type\": \"service_account\",\n" +
+                "  \"project_id\": \"mockProjectId\",\n" +
+                "  \"private_key_id\": \"mockPrivateKeyId\",\n" +
+                "  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nmockPrivateKeydsfhdskfhjdfjkdhgfdjkghfdngvfkvfnjvfdjkg\\n-----END PRIVATE KEY-----\\n\",\n" +
+                "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
+                "  \"client_id\": \"000000000000000000000\"\n" +
+                "}");
+        Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
+        PowerMockito.mockStatic(ServiceAccountCredentials.class);
+        PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
 
-            PowerMockito.mockStatic(System.class);
-            PowerMockito.when(System.getenv(anyString())).thenReturn("test");
+        PowerMockito.mockStatic(System.class);
+        PowerMockito.when(System.getenv(anyString())).thenReturn("test");
 
-            PowerMockito.mockStatic(BigQueryOptions.Builder.class);
-            PowerMockito.when(builder.build()).thenReturn(bigQueryOptions);
-            PowerMockito.when(bigQueryOptions.getService()).thenReturn(bigQuery);
+        PowerMockito.mockStatic(BigQueryOptions.Builder.class);
+        PowerMockito.when(builder.build()).thenReturn(bigQueryOptions);
+        PowerMockito.when(bigQueryOptions.getService()).thenReturn(bigQuery);
 
-            bigQueryCompositeHandler = new BigQueryCompositeHandler();
-        }catch (Exception e){
-            ex = e;
-        }
-        assertEquals(null,ex);
+        bigQueryCompositeHandler = new BigQueryCompositeHandler();
     }
 }
