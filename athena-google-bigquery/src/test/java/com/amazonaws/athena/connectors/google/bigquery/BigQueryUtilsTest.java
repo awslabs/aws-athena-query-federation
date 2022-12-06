@@ -67,11 +67,6 @@ public class BigQueryUtilsTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void EnvVarException() throws IOException {
-        bigQueryCompositeHandler = new BigQueryCompositeHandler();
-    }
-
-    @Test(expected = IllegalArgumentException.class)
     public void bigQueryUtils() {
         String newDatasetName = BigQueryUtils.fixCaseForDatasetName(BigQueryTestUtils.PROJECT_1_NAME, "testDataset", bigQuery);
         assertEquals(null, newDatasetName);

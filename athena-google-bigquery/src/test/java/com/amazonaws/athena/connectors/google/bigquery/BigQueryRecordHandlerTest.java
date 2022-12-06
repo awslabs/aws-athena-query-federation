@@ -72,6 +72,7 @@ import static org.mockito.Mockito.when;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
 })
+@PrepareForTest({BigQueryUtils.class})
 public class BigQueryRecordHandlerTest
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandlerTest.class);
@@ -109,10 +110,11 @@ public class BigQueryRecordHandlerTest
     private FederatedIdentity federatedIdentity;
 
     @Before
-    public void init()
+    public void init() throws java.io.IOException
     {
         System.setProperty("aws.region", "us-east-1");
         logger.info("Starting init.");
+        PowerMockito.stub(PowerMockito.method(BigQueryUtils.class, "getBigQueryClient")).toReturn(bigQuery);
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         //MockitoAnnotations.initMocks(this);
 
@@ -145,7 +147,7 @@ public class BigQueryRecordHandlerTest
         when(bigQuery.listTables(any(DatasetId.class))).thenReturn(tables);
 
         //The class we want to test.
-        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, bigQuery);
+        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena);
 
         logger.info("Completed init.");
     }

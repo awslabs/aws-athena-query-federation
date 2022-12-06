@@ -50,7 +50,6 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,22 +72,10 @@ public class BigQueryMetadataHandler
     extends MetadataHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryMetadataHandler.class);
-    /**
-     * The {@link BigQuery} client to interact with the BigQuery Service.
-     */
-    private final BigQuery bigQuery;
 
     BigQueryMetadataHandler()
-        throws IOException
-    {
-        this(BigQueryUtils.getBigQueryClient());
-    }
-
-    @VisibleForTesting
-    public BigQueryMetadataHandler(BigQuery bigQuery)
     {
         super(BigQueryConstants.SOURCE_TYPE);
-        this.bigQuery = bigQuery;
     }
 
     @Override
@@ -99,6 +86,7 @@ public class BigQueryMetadataHandler
 
             final List<String> schemas = new ArrayList<>();
             final String projectName = BigQueryUtils.getProjectName(listSchemasRequest);
+            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
             Page<Dataset> response = bigQuery.listDatasets(projectName, BigQuery.DatasetListOption.pageSize(100));
             if (response == null) {
                 logger.info("Dataset does not contain any models: {}");
@@ -135,6 +123,7 @@ public class BigQueryMetadataHandler
             //Get the project name, dataset name, and dataset id. Google BigQuery is case sensitive.
             String nextToken = null;
             final String projectName = BigQueryUtils.getProjectName(listTablesRequest);
+            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
             final String datasetName = fixCaseForDatasetName(projectName, listTablesRequest.getSchemaName(), bigQuery);
             final DatasetId datasetId = DatasetId.of(projectName, datasetName);
             List<TableName> tables = new ArrayList<>();
@@ -165,21 +154,15 @@ public class BigQueryMetadataHandler
     }
 
     @Override
-    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest)
+    public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest) throws java.io.IOException
     {
-        try {
-            logger.info("doGetTable called with request {}:{}", BigQueryUtils.getProjectName(getTableRequest),
-                    getTableRequest.getTableName());
+        logger.info("doGetTable called with request {}:{}", BigQueryUtils.getProjectName(getTableRequest),
+                getTableRequest.getTableName());
 
-            final Schema tableSchema = getSchema(BigQueryUtils.getProjectName(getTableRequest), getTableRequest.getTableName().getSchemaName(),
-                    getTableRequest.getTableName().getTableName());
-            return new GetTableResponse(BigQueryUtils.getProjectName(getTableRequest).toLowerCase(),
-                    getTableRequest.getTableName(), tableSchema);
-        }
-        catch (Exception e) {
-            logger.error("Error: ", e);
-        }
-        return null;
+        final Schema tableSchema = getSchema(BigQueryUtils.getProjectName(getTableRequest), getTableRequest.getTableName().getSchemaName(),
+                getTableRequest.getTableName().getTableName());
+        return new GetTableResponse(BigQueryUtils.getProjectName(getTableRequest).toLowerCase(),
+                getTableRequest.getTableName(), tableSchema);
     }
 
     /**
@@ -217,12 +200,13 @@ public class BigQueryMetadataHandler
         }
         else {
             String projectName = BigQueryUtils.getProjectName(request);
+            BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
             String dataSetName = fixCaseForDatasetName(projectName, request.getTableName().getSchemaName(), bigQuery);
             String tableName = fixCaseForTableName(projectName, dataSetName, request.getTableName().getTableName(), bigQuery);
             QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder("SELECT count(*) FROM `" + projectName + "." + dataSetName + "." + tableName + "` ").setUseLegacySql(false).build();
             // Create a job ID so that we can safely retry.
             JobId jobId = JobId.of(UUID.randomUUID().toString());
-            Job queryJob = BigQueryUtils.getBigQueryClient().create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build()).waitFor();
+            Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build()).waitFor();
             TableResult result = queryJob.getQueryResults();
 
             double numberOfRows = result.iterateAll().iterator().next().get(0).getLongValue();
@@ -258,9 +242,10 @@ public class BigQueryMetadataHandler
      * @param tableName
      * @return
      */
-    private Schema getSchema(String projectName, String datasetName, String tableName)
+    private Schema getSchema(String projectName, String datasetName, String tableName) throws java.io.IOException
     {
         Schema schema = null;
+        BigQuery bigQuery = BigQueryUtils.getBigQueryClient(projectName);
         datasetName = fixCaseForDatasetName(projectName, datasetName, bigQuery);
         tableName = fixCaseForTableName(projectName, datasetName, tableName, bigQuery);
         TableId tableId = TableId.of(projectName, datasetName, tableName);
