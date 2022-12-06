@@ -67,6 +67,7 @@ public class BigQueryCompositeHandlerTest {
     static{
         System.setProperty("aws.region", "us-east-1");
     }
+
     @Test(expected = NullPointerException.class)
     public void bigQueryCompositeHandlerTest() throws IOException {
             PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
