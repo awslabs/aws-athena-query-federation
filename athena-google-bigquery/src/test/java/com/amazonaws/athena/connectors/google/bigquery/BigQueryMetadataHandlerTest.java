@@ -46,7 +46,8 @@ import java.util.*;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -75,7 +76,7 @@ public class BigQueryMetadataHandlerTest
     public void setUp() throws InterruptedException {
         System.setProperty("aws.region", "us-east-1");
         MockitoAnnotations.initMocks(this);
-        bigQueryMetadataHandler = new BigQueryMetadataHandler(bigQuery);
+        bigQueryMetadataHandler = new BigQueryMetadataHandler();
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         job = mock(Job.class);
@@ -83,6 +84,8 @@ public class BigQueryMetadataHandlerTest
         when(bigQuery.create(any(JobInfo.class), any())).thenReturn(job);
         when(job.waitFor(any())).thenReturn(job);
         when(job.getStatus()).thenReturn(jobStatus);
+
+        PowerMockito.stub(PowerMockito.method(BigQueryUtils.class, "getBigQueryClient")).toReturn(bigQuery);
     }
 
     @After
@@ -92,12 +95,12 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNames()
+    public void testDoListSchemaNames() throws java.io.IOException
     {
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(any(String.class), any(BigQuery.DatasetListOption.class))).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(anyString(), any(BigQuery.DatasetListOption.class))).thenReturn(datasetPage);
 
         //This will test case insenstivity
         ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
@@ -109,13 +112,13 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListTables()
+    public void testDoListTables() throws java.io.IOException
     {
         //Build mocks for Datasets
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(any(String.class))).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(anyString())).thenReturn(datasetPage);
 
         //Get the first dataset name.
         String datasetName = datasetPage.iterateAll().iterator().next().getDatasetId().getDataset();
@@ -129,6 +132,7 @@ public class BigQueryMetadataHandlerTest
         ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase(),
                 datasetName, null, UNLIMITED_PAGE_SIZE_VALUE);
+
         when(bigQuery.listTables(any(DatasetId.class), any(BigQuery.TableListOption.class))).thenReturn(tablesPage);
         ListTablesResponse tableNames = bigQueryMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertNotNull(tableNames);
@@ -136,13 +140,13 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoGetTable()
+    public void testDoGetTable() throws java.io.IOException
     {
         //Build mocks for Datasets
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(any(String.class))).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(anyString())).thenReturn(datasetPage);
 
         //Get the first dataset name.
         String datasetName = datasetPage.iterateAll().iterator().next().getDatasetId().getDataset();
@@ -170,6 +174,7 @@ public class BigQueryMetadataHandlerTest
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME,
                 new TableName(datasetName, tableName));
+
         GetTableResponse response = bigQueryMetadataHandler.doGetTable(blockAllocator, getTableRequest);
 
         assertNotNull(response);
@@ -183,7 +188,6 @@ public class BigQueryMetadataHandlerTest
     {
         BlockAllocator blockAllocator = new BlockAllocatorImpl();
         PowerMockito.mockStatic(BigQueryUtils.class);
-        when(BigQueryUtils.getBigQueryClient()).thenReturn(bigQuery);
         when(BigQueryUtils.getEnvVar("concurrencyLimit")).thenReturn("10");
 
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
@@ -213,11 +217,11 @@ public class BigQueryMetadataHandlerTest
     }
 
     @Test
-    public void testDoListSchemaNamesForException() {
+    public void testDoListSchemaNamesForException() throws java.io.IOException {
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(any(String.class))).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(anyString())).thenReturn(datasetPage);
 
         ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());

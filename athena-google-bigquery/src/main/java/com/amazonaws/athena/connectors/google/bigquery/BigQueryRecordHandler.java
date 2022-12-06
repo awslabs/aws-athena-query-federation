@@ -69,26 +69,19 @@ public class BigQueryRecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
     ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
-    /**
-     * The {@link BigQuery} client to interact with the BigQuery Service.
-     */
-    private final BigQuery bigQueryClient;
 
     BigQueryRecordHandler()
             throws IOException
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                BigQueryUtils.getBigQueryClient()
-        );
+                AmazonAthenaClientBuilder.defaultClient());
     }
 
     @VisibleForTesting
-    public BigQueryRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, BigQuery bigQueryClient)
+    public BigQueryRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
     {
         super(amazonS3, secretsManager, athena, BigQueryConstants.SOURCE_TYPE);
-        this.bigQueryClient = bigQueryClient;
     }
 
     @Override
@@ -98,20 +91,16 @@ public class BigQueryRecordHandler
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         String sqlToExecute = "";
         invoker.setBlockSpiller(spiller);
-        try {
-            final String projectName = BigQueryUtils.getProjectName(recordsRequest.getCatalogName());
-            final String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
-            final String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(),
-                    bigQueryClient);
+        final String projectName = BigQueryUtils.getProjectName(recordsRequest.getCatalogName());
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(projectName);
+        final String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
+        final String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(),
+                bigQueryClient);
 
-            logger.debug("Got Request with constraints: {}", recordsRequest.getConstraints());
-            sqlToExecute = BigQuerySqlUtils.buildSqlFromSplit(new TableName(datasetName, tableName),
-                    recordsRequest.getSchema(), recordsRequest.getConstraints(), recordsRequest.getSplit(), parameterValues);
-            logger.debug("Executing SQL Query: {} for Split: {}", sqlToExecute, recordsRequest.getSplit());
-        }
-        catch (RuntimeException e) {
-            logger.error("Error: ", e);
-        }
+        logger.debug("Got Request with constraints: {}", recordsRequest.getConstraints());
+        sqlToExecute = BigQuerySqlUtils.buildSqlFromSplit(new TableName(datasetName, tableName),
+                recordsRequest.getSchema(), recordsRequest.getConstraints(), recordsRequest.getSplit(), parameterValues);
+        logger.debug("Executing SQL Query: {} for Split: {}", sqlToExecute, recordsRequest.getSplit());
         QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(sqlToExecute).setUseLegacySql(false).setPositionalParameters(parameterValues).build();
         Job queryJob;
         try {
