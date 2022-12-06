@@ -35,6 +35,7 @@ import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
@@ -65,7 +66,10 @@ public class BigQueryUtils
         GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
         getSecretValueRequest.setSecretId(getEnvBigQueryCredsSmId());
         GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes()));
+        return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes())).createScoped(
+            ImmutableSet.of(
+                    "https://www.googleapis.com/auth/bigquery",
+                    "https://www.googleapis.com/auth/drive"));
     }
 
     public static BigQuery getBigQueryClient(String projectId) throws IOException
