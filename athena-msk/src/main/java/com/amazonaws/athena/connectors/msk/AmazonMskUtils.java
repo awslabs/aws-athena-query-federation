@@ -247,7 +247,7 @@ public class AmazonMskUtils
         Map<String, Object> secretInfo = getCredentialsAsKeyValue();
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SSL");
         properties.setProperty(KAFKA_SSL_CLIENT_AUTH, "required");
-        properties.setProperty(KAFKA_SSL_KEY_PASSWORD, secretInfo.get(AmazonMskConstants.SSL_PASSWORD).toString());
+        properties.setProperty(KAFKA_SSL_KEY_PASSWORD, secretInfo.get(AmazonMskConstants.SSL_KEY_PASSWORD).toString());
         properties.setProperty(KAFKA_KEYSTORE_LOCATION, tempDir + File.separator + KEYSTORE);
         properties.setProperty(KAFKA_KEYSTORE_PASSWORD, secretInfo.get(AmazonMskConstants.KEYSTORE_PASSWORD).toString());
         properties.setProperty(KAFKA_TRUSTSTORE_LOCATION, tempDir + File.separator + TRUSTSTORE);

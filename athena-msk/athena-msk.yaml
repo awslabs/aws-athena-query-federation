@@ -33,7 +33,8 @@ Parameters:
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SecretNamePrefix:
-    Description: "The secret name within AWS Secrets Manager that contains your aws key and secret Credentials."
+    Description: "The secret name within AWS Secrets Manager that contains your aws key and secret Credentials(Not Required for IAM AUTH)"
+    Default: ""
     Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
@@ -62,6 +63,7 @@ Parameters:
     Type: 'List<AWS::EC2::Subnet::Id>'
   CertificatesS3Reference:
     Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded,applicable for TLS/SSL auth '
+    Default: ""
     Type: String
   GlueRegistryArn:
     Description: 'AWS GLUE registry ARN to be provided where topic schemas has been uploaded'
