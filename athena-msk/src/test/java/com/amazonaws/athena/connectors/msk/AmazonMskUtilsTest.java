@@ -132,14 +132,14 @@ public class AmazonMskUtilsTest {
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(awsSecretsManager);
         PowerMockito.whenNew(GetSecretValueRequest.class).withNoArguments().thenReturn(secretValueRequest);
 
-        String creds = "{\"username\":\"admin\",\"password\":\"test\",\"keystore_password\":\"keypass\",\"truststore_password\":\"trustpass\",\"ssl_password\":\"sslpass\"}";
+        String creds = "{\"username\":\"admin\",\"password\":\"test\",\"keystore_password\":\"keypass\",\"truststore_password\":\"trustpass\",\"ssl_key_password\":\"sslpass\"}";
 
         Map<String, Object> map = new HashMap<>();
         map.put("username", "admin");
         map.put("password", "test");
         map.put("keystore_password", "keypass");
         map.put("truststore_password", "trustpass");
-        map.put("ssl_password", "sslpass");
+        map.put("ssl_key_password", "sslpass");
 
         Mockito.when(secretValueResult.getSecretString()).thenReturn(creds);
         Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResult);

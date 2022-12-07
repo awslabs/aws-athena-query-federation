@@ -47,7 +47,7 @@ public class AmazonMskConstants
     /**
      *This is SSL_KEY password
      */
-    public static final String SSL_PASSWORD = "ssl_password";
+    public static final String SSL_KEY_PASSWORD = "ssl_key_password";
     /**
      * This is kafka node details
      */
