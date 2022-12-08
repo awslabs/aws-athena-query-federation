@@ -85,6 +85,7 @@ Resources:
               - "sts:AssumeRole"
 
   FunctionExecutionPolicy:
+    Condition: NotHasLambdaRole
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: FunctionExecutionPolicy
