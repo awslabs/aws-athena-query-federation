@@ -32,7 +32,7 @@ public class AmazonMskConstants
      */
     public static final String GLUE_REGISTRY_ARN = "glue_registry_arn";
     /**
-     * For TLS authentication, user need to give S3 bucket reference where the client truststore and keystore
+     * For SSL authentication, user need to give S3 bucket reference where the client truststore and keystore
      * files are uploaded.
      */
     public static final String CERTIFICATES_S3_REFERENCE = "certificates_s3_reference";
