@@ -101,7 +101,9 @@ Resources:
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
+
   FunctionRole:
+    Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
