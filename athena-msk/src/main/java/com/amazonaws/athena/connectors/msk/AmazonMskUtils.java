@@ -66,6 +66,16 @@ import java.util.stream.Collectors;
 
 public class AmazonMskUtils
 {
+    // Parameters.AuthType.AllowedValues from athena-msk.yaml
+    enum AuthType {
+      SASL_SSL_AWS_MSK_IAM,
+      SASL_SSL_SCRAM_SHA512,
+      SASL_SSL_PLAIN,
+      SASL_PLAINTEXT_PLAIN,
+      SSL,
+      NO_AUTH
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskUtils.class);
 
     private static final String KEYSTORE = "kafka.client.keystore.jks";
@@ -77,12 +87,7 @@ public class AmazonMskUtils
     static final String KAFKA_KEYSTORE_PASSWORD = "ssl.keystore.password";
     static final String KAFKA_TRUSTSTORE_LOCATION = "ssl.truststore.location";
     static final String KAFKA_TRUSTSTORE_PASSWORD = "ssl.truststore.password";
-    private static final String NO_AUTH = "NOAUTH";
-    private static final String AUTH_TLS = "TLS";
-    private static final String AUTH_SCRAM = "SCRAM";
-    private static final String AUTH_IAM = "IAM";
-    private static final String AUTH_SASL_PLAINTEXT = "SASL_PLAINTEXT";
-    private static final String AUTH_SASL_SSL = "SASL_SSL";
+
     private static final String KAFKA_SASL_JAAS_CONFIG = "sasl.jaas.config";
     private static final String KAFKA_SASL_MECHANISM = "sasl.mechanism";
     private static final String KAFKA_SASL_CLIENT_CALLBACK_HANDLER_CLASS = "sasl.client.callback.handler.class";
@@ -203,25 +208,25 @@ public class AmazonMskUtils
         properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //fetch authentication type for the kafka cluster
-        String authType = getEnvVar(AmazonMskConstants.AUTH_TYPE).toUpperCase().trim();
+        AuthType authType = AuthType.valueOf(getEnvVar(AmazonMskConstants.AUTH_TYPE).toUpperCase().trim());
 
         switch (authType) {
-            case AUTH_TLS:
-                setTLSAuthKafkaProperties(properties);
-                break;
-            case AUTH_SCRAM:
-                setScramAuthKafkaProperties(properties);
-                break;
-            case AUTH_IAM:
+            case SASL_SSL_AWS_MSK_IAM:
                 setIAMAuthKafkaProperties(properties);
                 break;
-            case NO_AUTH:
+            case SASL_SSL_SCRAM_SHA512:
+                setScramAuthKafkaProperties(properties);
                 break;
-            case AUTH_SASL_PLAINTEXT:
+            case SASL_SSL_PLAIN:
+                setSaslSslAuthKafkaProperties(properties);
+                break;
+            case SASL_PLAINTEXT_PLAIN:
                 setSaslPlainAuthKafkaProperties(properties);
                 break;
-            case AUTH_SASL_SSL:
-                setSaslSslAuthKafkaProperties(properties);
+            case SSL:
+                setSSLAuthKafkaProperties(properties);
+                break;
+            case NO_AUTH:
                 break;
             default:
                 LOGGER.error("Unsupported Authentication type {}", authType);
@@ -231,13 +236,13 @@ public class AmazonMskUtils
     }
 
     /**
-     * Creates the required TLS based settings for kafka consumer.
+     * Creates the required SSL based settings for kafka consumer.
      *
      * @param properties - common properties for kafka consumer
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties setTLSAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setSSLAuthKafkaProperties(Properties properties) throws Exception
     {
         // Download certificates for kafka connection from S3 and save to temp directory
         Path tempDir = copyCertificatesFromS3ToTempFolder();

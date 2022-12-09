@@ -164,7 +164,7 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetScramAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", "SCRAM");
+        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
         String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"admin\" password=\"test\";";
         Properties properties = getKafkaProperties();
         assertEquals("SASL_SSL", properties.get("security.protocol"));
@@ -174,7 +174,7 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetIAMAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", "IAM");
+        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
         Properties properties = getKafkaProperties();
         assertEquals("SASL_SSL", properties.get("security.protocol"));
         assertEquals("AWS_MSK_IAM", properties.get("sasl.mechanism"));
@@ -183,8 +183,8 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testGetTLSAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", "TLS");
+    public void testGetSSLAuthKafkaProperties() throws Exception {
+        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SSL.toString());
         Properties properties = getKafkaProperties();
         assertEquals("SSL", properties.get("security.protocol"));
         assertEquals("keypass", properties.get("ssl.keystore.password"));
@@ -225,7 +225,7 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetKafkaConsumerWithSchema() throws Exception {
-        environmentVariables.set("auth_type", "NOAUTH");
+        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
         Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "json");
@@ -236,7 +236,7 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetKafkaConsumer() throws Exception {
-        environmentVariables.set("auth_type", "NOAUTH");
+        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
         Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer();
         assertNotNull(consumer);
     }

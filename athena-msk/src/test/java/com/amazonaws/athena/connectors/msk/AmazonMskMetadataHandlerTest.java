@@ -93,7 +93,7 @@ public class AmazonMskMetadataHandlerTest {
         constraints = Mockito.mock(Constraints.class);
         environmentVariables.set("aws.region", "us-west-2");
         environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW");
-        environmentVariables.set("auth_type", "TLS");
+        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SSL.toString());
         environmentVariables.set("secret_manager_msk_creds_name", "testSecret");
         environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
         environmentVariables.set("certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/");
