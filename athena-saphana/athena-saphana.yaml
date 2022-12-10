@@ -48,6 +48,11 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
+  CompositeHandler:
+    Description: 'Use "SaphanaMuxCompositeHandler" to access multiple instances and "SaphanaCompositeHandler" to access single instance using DefaultConnectionString'
+    Type: String
+    Default: "SaphanaMuxCompositeHandler"
+    AllowedValues : ["SaphanaMuxCompositeHandler", "SaphanaCompositeHandler"]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -59,7 +64,7 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
-      Handler: "com.amazonaws.athena.connectors.saphana.SaphanaMuxCompositeHandler"
+      Handler: !Sub "com.amazonaws.athena.connectors.saphana.${CompositeHandler}
       CodeUri: "./target/athena-saphana-2022.47.1.jar"
       Description: "Enables Amazon Athena to communicate with Teradata using JDBC"
       Runtime: java11
