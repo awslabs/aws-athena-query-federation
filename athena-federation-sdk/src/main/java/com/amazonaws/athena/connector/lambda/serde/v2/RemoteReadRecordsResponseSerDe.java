@@ -45,7 +45,7 @@ public final class RemoteReadRecordsResponseSerDe
     private static final String REMOTE_BLOCKS_FIELD = "remoteBlocks";
     private static final String ENCRYPTION_KEY_FIELD = "encryptionKey";
 
-    private RemoteReadRecordsResponseSerDe(){}
+    private RemoteReadRecordsResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

@@ -47,6 +47,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class Db2RecordHandlerTest {
     private Db2RecordHandler db2RecordHandler;
     private Connection connection;
@@ -64,7 +66,7 @@ public class Db2RecordHandlerTest {
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new Db2QueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", Db2Constants.NAME,
                 "dbtwo://jdbc:db2://hostname/fakedatabase:${testsecret}");

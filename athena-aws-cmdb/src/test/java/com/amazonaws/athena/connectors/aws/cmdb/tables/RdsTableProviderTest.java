@@ -50,7 +50,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +62,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -109,7 +109,7 @@ public class RdsTableProviderTest
     protected void setUpRead()
     {
         final AtomicLong requestCount = new AtomicLong(0);
-        when(mockRds.describeDBInstances(any(DescribeDBInstancesRequest.class)))
+        when(mockRds.describeDBInstances(nullable(DescribeDBInstancesRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
                     DescribeDBInstancesResult mockResult = mock(DescribeDBInstancesResult.class);
                     List<DBInstance> values = new ArrayList<>();

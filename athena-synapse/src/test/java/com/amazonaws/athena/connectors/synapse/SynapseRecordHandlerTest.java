@@ -48,6 +48,9 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class SynapseRecordHandlerTest
 {
     private SynapseRecordHandler synapseRecordHandler;
@@ -67,7 +70,7 @@ public class SynapseRecordHandlerTest
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new SynapseQueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SynapseConstants.NAME,
                 "synapse://jdbc:sqlserver://hostname;databaseName=fakedatabase");
@@ -140,7 +143,7 @@ public class SynapseRecordHandlerTest
 
         Constraints constraints = Mockito.mock(Constraints.class);
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(expectedPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         this.synapseRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
         Mockito.when(split.getProperties()).thenReturn(Map.of("PARTITION_BOUNDARY_FROM", " ", "PARTITION_NUMBER", "1", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", "100000"));

@@ -36,8 +36,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -56,8 +56,8 @@ public class SchemaUtilsTest
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         MongoCollection mockCollection = mock(MongoCollection.class);
         FindIterable mockIterable = mock(FindIterable.class);
-        when(mockClient.getDatabase(anyObject())).thenReturn(mockDatabase);
-        when(mockDatabase.getCollection(anyObject())).thenReturn(mockCollection);
+        when(mockClient.getDatabase(any())).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(any())).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
@@ -119,8 +119,8 @@ public class SchemaUtilsTest
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         MongoCollection mockCollection = mock(MongoCollection.class);
         FindIterable mockIterable = mock(FindIterable.class);
-        when(mockClient.getDatabase(anyObject())).thenReturn(mockDatabase);
-        when(mockDatabase.getCollection(anyObject())).thenReturn(mockCollection);
+        when(mockClient.getDatabase(any())).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(any())).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
@@ -171,8 +171,8 @@ public class SchemaUtilsTest
         MongoDatabase mockDatabase = mock(MongoDatabase.class);
         MongoCollection mockCollection = mock(MongoCollection.class);
         FindIterable mockIterable = mock(FindIterable.class);
-        when(mockClient.getDatabase(anyObject())).thenReturn(mockDatabase);
-        when(mockDatabase.getCollection(anyObject())).thenReturn(mockCollection);
+        when(mockClient.getDatabase(any())).thenReturn(mockDatabase);
+        when(mockDatabase.getCollection(any())).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
         when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);

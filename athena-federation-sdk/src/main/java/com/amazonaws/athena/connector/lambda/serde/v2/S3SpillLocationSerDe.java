@@ -36,7 +36,7 @@ public final class S3SpillLocationSerDe
     private static final String KEY_FIELD = "key";
     private static final String DIRECTORY_FIELD = "directory";
 
-    private S3SpillLocationSerDe(){}
+    private S3SpillLocationSerDe() {}
 
     public static final class Serializer extends TypedSerializer<SpillLocation>
     {

@@ -49,7 +49,7 @@ public final class GetSplitsRequestSerDe
     private static final String CONSTRAINTS_FIELD = "constraints";
     private static final String CONTINUATION_TOKEN_FIELD = "continuationToken";
 
-    private GetSplitsRequestSerDe(){}
+    private GetSplitsRequestSerDe() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {

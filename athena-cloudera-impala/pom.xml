@@ -35,24 +35,35 @@
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
+        <!--
+          This is purposefully using a legacy version because these tests
+          rely on powermock and it will break on a later version.
+          Eventually we should fix the test code to not rely on powermock.
+        -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.legacy.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-module-junit4</artifactId>
-            <version>2.0.9</version>
+            <version>${powermock.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.powermock/powermock-api-mockito2 -->
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-api-mockito2</artifactId>
-            <version>2.0.9</version>
+            <version>${powermock.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.powermock/powermock-core -->
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-core</artifactId>
-            <version>2.0.9</version>
+            <version>${powermock.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
@@ -81,7 +92,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>${mvn.shade.plugin.version}</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
                     <filters>
@@ -96,7 +107,7 @@
                     </filters>
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
-                        <transformer implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer">
+                        <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
 </transformer>
                     </transformers>
                 </configuration>
@@ -104,7 +115,7 @@
                     <dependency>
                         <groupId>com.github.edwgiz</groupId>
                         <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
-                        <version>2.8.1</version>
+                        <version>${log4j2.cachefile.transformer.version}</version>
                     </dependency>
                 </dependencies>
                 <executions>
@@ -138,7 +149,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>${mvn.checkstyle.version}</version>
                 <configuration>
                     <configLocation>checkstyle.xml</configLocation>
                     <encoding>UTF-8</encoding>

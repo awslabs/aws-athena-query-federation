@@ -21,9 +21,8 @@ package com.amazonaws.athena.connectors.neptune;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -72,7 +71,7 @@ import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,7 +148,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 awsSecretsManager = mock(AWSSecretsManager.class);
                 athena = mock(AmazonAthena.class);
 
-                when(amazonS3.putObject(anyObject()))
+                when(amazonS3.putObject(any()))
                                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                                         InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                                         ByteHolder byteHolder = new ByteHolder();
@@ -161,7 +160,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                                         return mock(PutObjectResult.class);
                                 });
 
-                when(amazonS3.getObject(anyString(), anyString())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+                when(amazonS3.getObject(nullable(String.class), nullable(String.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
                         S3Object mockObject = mock(S3Object.class);
                         ByteHolder byteHolder;
                         synchronized (mockS3Storage) {
@@ -187,7 +186,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 Client client = mock(Client.class);
 
                 when(neptuneConnection.getNeptuneClientConnection()).thenReturn(client);
-                when(neptuneConnection.getTraversalSource(any(Client.class))).thenReturn(graphTraversalSource);
+                when(neptuneConnection.getTraversalSource(nullable(Client.class))).thenReturn(graphTraversalSource);
 
                 // Build Tinker Pop Graph
                 TinkerGraph tinkerGraph = TinkerGraph.open();

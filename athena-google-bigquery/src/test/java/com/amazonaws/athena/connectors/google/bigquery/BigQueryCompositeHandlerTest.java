@@ -39,7 +39,9 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.anyString;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 
 @RunWith(PowerMockRunner.class)
@@ -81,12 +83,12 @@ public class BigQueryCompositeHandlerTest {
                 "  \"client_email\": \"mockabc@mockprojectid.iam.gserviceaccount.com\",\n" +
                 "  \"client_id\": \"000000000000000000000\"\n" +
                 "}");
-        Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
+        Mockito.when(secretsManager.getSecretValue(any())).thenReturn(getSecretValueResult);
         PowerMockito.mockStatic(ServiceAccountCredentials.class);
-        PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
+        PowerMockito.when(ServiceAccountCredentials.fromStream(any())).thenReturn(serviceAccountCredentials);
 
         PowerMockito.mockStatic(System.class);
-        PowerMockito.when(System.getenv(anyString())).thenReturn("test");
+        PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
 
         PowerMockito.mockStatic(BigQueryOptions.Builder.class);
         PowerMockito.when(builder.build()).thenReturn(bigQueryOptions);

@@ -26,6 +26,7 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
 import org.mockito.invocation.InvocationOnMock;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -131,28 +132,28 @@ public class TestUtils
         Map<String, String> valueMap = new HashMap<>();
         for (int i = 0; i < values.length; i += 3) {
             Cell mockCell = mock(Cell.class);
-            when(mockCell.getFamilyArray()).thenReturn(values[i].getBytes());
-            when(mockCell.getFamilyOffset()).thenReturn(0);
-            when(mockCell.getFamilyLength()).thenReturn((byte)values[i].getBytes().length);
+            Mockito.lenient().when(mockCell.getFamilyArray()).thenReturn(values[i].getBytes());
+            Mockito.lenient().when(mockCell.getFamilyOffset()).thenReturn(0);
+            Mockito.lenient().when(mockCell.getFamilyLength()).thenReturn((byte)values[i].getBytes().length);
 
-            when(mockCell.getQualifierArray()).thenReturn(values[i + 1].getBytes());
-            when(mockCell.getQualifierOffset()).thenReturn(0);
-            when(mockCell.getQualifierLength()).thenReturn(values[i + 1].getBytes().length);
+            Mockito.lenient().when(mockCell.getQualifierArray()).thenReturn(values[i + 1].getBytes());
+            Mockito.lenient().when(mockCell.getQualifierOffset()).thenReturn(0);
+            Mockito.lenient().when(mockCell.getQualifierLength()).thenReturn(values[i + 1].getBytes().length);
 
-            when(mockCell.getValueArray()).thenReturn(values[i + 2].getBytes());
-            when(mockCell.getValueOffset()).thenReturn(0);
-            when(mockCell.getValueLength()).thenReturn(values[i + 2].getBytes().length);
+            Mockito.lenient().when(mockCell.getValueArray()).thenReturn(values[i + 2].getBytes());
+            Mockito.lenient().when(mockCell.getValueOffset()).thenReturn(0);
+            Mockito.lenient().when(mockCell.getValueLength()).thenReturn(values[i + 2].getBytes().length);
 
             valueMap.put(values[i] + ":" + values[i + 1], values[i + 2]);
             result.add(mockCell);
         }
 
         Result mockResult = mock(Result.class);
-        when(mockResult.listCells()).thenReturn(result);
-        when(mockResult.getValue(any(byte[].class), any(byte[].class)))
+        Mockito.lenient().when(mockResult.listCells()).thenReturn(result);
+        Mockito.lenient().when(mockResult.getValue(nullable(byte[].class), nullable(byte[].class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    String family = new String(invocation.getArgumentAt(0, byte[].class));
-                    String column = new String(invocation.getArgumentAt(1, byte[].class));
+                    String family = new String(invocation.getArgument(0, byte[].class));
+                    String column = new String(invocation.getArgument(1, byte[].class));
                     String key = family + ":" + column;
                     if (!valueMap.containsKey(key)) {
                         return null;

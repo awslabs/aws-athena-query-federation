@@ -41,7 +41,7 @@ public final class GetSplitsResponseSerDe
     private static final String SPLITS_FIELD = "splits";
     private static final String CONTINUATION_TOKEN_FIELD = "continuationToken";
 
-    private GetSplitsResponseSerDe(){}
+    private GetSplitsResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

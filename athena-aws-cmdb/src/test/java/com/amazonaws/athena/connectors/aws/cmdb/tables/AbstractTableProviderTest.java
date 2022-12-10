@@ -56,8 +56,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +72,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -127,7 +128,7 @@ public abstract class AbstractTableProviderTest
     {
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -136,7 +137,7 @@ public abstract class AbstractTableProviderTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(anyString(), anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder = mockS3Store.get(0);
@@ -151,7 +152,7 @@ public abstract class AbstractTableProviderTest
 
         provider = setUpSource();
 
-        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+        Mockito.lenient().when(queryStatusChecker.isQueryRunning()).thenReturn(true);
     }
 
     @After

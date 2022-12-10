@@ -43,7 +43,7 @@ public final class GetTableResponseSerDe
     private static final String SCHEMA_FIELD = "schema";
     private static final String PARTITION_COLUMNS_FIELD = "partitionColumns";
 
-    private GetTableResponseSerDe(){}
+    private GetTableResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

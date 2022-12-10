@@ -13,6 +13,7 @@
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
             <version>2022.47.1</version>
+            <classifier>withdep</classifier>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
@@ -39,7 +40,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
         </dependency>
@@ -153,7 +154,7 @@
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-client</artifactId>
-            <version>8.5.2</version>
+            <version>8.5.3</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.elasticsearch.client/elasticsearch-rest-high-level-client -->
         <dependency>
@@ -171,13 +172,13 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.13</version>
+            <version>${apache.httpclient.version}</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>3.3.3</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/junit/junit -->
@@ -200,7 +201,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>${mvn.shade.plugin.version}</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
                     <filters>
@@ -215,7 +216,7 @@
                     </filters>
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
-                        <transformer implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer">
+                        <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
 </transformer>
                     </transformers>
                 </configuration>
@@ -223,7 +224,7 @@
                     <dependency>
                         <groupId>com.github.edwgiz</groupId>
                         <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
-                        <version>2.8.1</version>
+                        <version>${log4j2.cachefile.transformer.version}</version>
                     </dependency>
                 </dependencies>
                 <executions>

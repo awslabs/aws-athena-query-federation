@@ -54,6 +54,8 @@ import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class HiveRecordHandlerTest
 {
@@ -75,7 +77,7 @@ public class HiveRecordHandlerTest
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new HiveQueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;UID=hive;PWD=hive");
@@ -126,7 +128,7 @@ public class HiveRecordHandlerTest
                 .put("testCol2", valueSet2)
                 .build());
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(Mockito.anyString())).thenReturn(expectedPreparedStatement);
+        Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         PreparedStatement preparedStatement = this.hiveRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
     }

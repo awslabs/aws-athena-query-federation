@@ -39,7 +39,7 @@ public final class ListSchemasRequestSerDe
     private static final String QUERY_ID_FIELD = "queryId";
     private static final String CATALOG_NAME_FIELD = "catalogName";
 
-    private ListSchemasRequestSerDe(){}
+    private ListSchemasRequestSerDe() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {

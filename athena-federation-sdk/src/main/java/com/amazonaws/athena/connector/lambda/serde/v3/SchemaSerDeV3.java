@@ -39,7 +39,7 @@ import java.nio.channels.Channels;
 
 public final class SchemaSerDeV3 implements VersionedSerDe
 {
-    SchemaSerDeV3(){}
+    SchemaSerDeV3() {}
 
     public static final class Serializer extends BaseSerializer<Schema> implements VersionedSerDe.Serializer<Schema>
     {

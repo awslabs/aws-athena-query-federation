@@ -51,7 +51,7 @@ import static java.util.Objects.requireNonNull;
 @Deprecated
 public final class ArrowRecordBatchSerDe
 {
-    private ArrowRecordBatchSerDe(){}
+    private ArrowRecordBatchSerDe() {}
 
     static final class Serializer extends BaseSerializer<ArrowRecordBatch>
     {

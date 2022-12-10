@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -42,7 +42,7 @@ public class HbaseFieldResolverTest
         Result mockResult = mock(Result.class);
         HbaseFieldResolver resolver = HbaseFieldResolver.resolver(false, family);
 
-        when(mockResult.getValue(any(byte[].class), any(byte[].class))).thenReturn(expectedValue.getBytes());
+        when(mockResult.getValue(nullable(byte[].class), nullable(byte[].class))).thenReturn(expectedValue.getBytes());
         Object result = resolver.getFieldValue(field, mockResult);
         assertEquals(expectedValue, result);
     }

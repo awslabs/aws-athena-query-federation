@@ -41,6 +41,8 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class PostGreSqlMuxJdbcMetadataHandlerTest
 {
     private Map<String, JdbcMetadataHandler> metadataHandlerMap;
@@ -57,7 +59,7 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
     {
         //this.allocator = Mockito.mock(BlockAllocator.class);
         this.allocator = new BlockAllocatorImpl();
-        //Mockito.when(this.allocator.createBlock(Mockito.any(Schema.class))).thenReturn(Mockito.mock(Block.class));
+        //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
         this.postGreSqlMetadataHandler = Mockito.mock(PostGreSqlMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("postgres", this.postGreSqlMetadataHandler);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
@@ -131,7 +133,7 @@ public class PostGreSqlMuxJdbcMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("postgres");
         this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest, queryStatusChecker);
-        Mockito.verify(this.postGreSqlMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
+        Mockito.verify(this.postGreSqlMetadataHandler, Mockito.times(1)).getPartitions(nullable(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test

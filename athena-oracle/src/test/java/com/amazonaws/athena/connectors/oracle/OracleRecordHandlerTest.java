@@ -50,6 +50,7 @@ import java.sql.SQLException;
 import java.util.Collections;
 
 import static com.amazonaws.athena.connectors.oracle.OracleConstants.ORACLE_NAME;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class OracleRecordHandlerTest
 {
@@ -71,7 +72,7 @@ public class OracleRecordHandlerTest
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new OracleQueryStringBuilder(ORACLE_QUOTE_CHARACTER);
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ORACLE_NAME,
                 "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl");

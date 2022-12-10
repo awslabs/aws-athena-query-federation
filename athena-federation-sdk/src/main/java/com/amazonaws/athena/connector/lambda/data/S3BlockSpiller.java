@@ -315,7 +315,7 @@ public class S3BlockSpiller
         }
         try {
             ObjectMapper mapper = new ObjectMapper();
-            TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>(){};
+            TypeReference<Map<String, String>> typeRef = new TypeReference<Map<String, String>>() {};
             Map<String, String> headers = mapper.readValue(headersFromEnvStr, typeRef);
             for (Map.Entry<String, String> entry : headers.entrySet()) {
                 String oldValue = request.putCustomRequestHeader(entry.getKey(), entry.getValue());

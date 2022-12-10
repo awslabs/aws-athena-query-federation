@@ -43,6 +43,8 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class OracleMuxJdbcMetadataHandlerTest
 {
     private Map<String, JdbcMetadataHandler> metadataHandlerMap;
@@ -59,7 +61,7 @@ public class OracleMuxJdbcMetadataHandlerTest
     {
         //this.allocator = Mockito.mock(BlockAllocator.class);
         this.allocator = new BlockAllocatorImpl();
-        //Mockito.when(this.allocator.createBlock(Mockito.any(Schema.class))).thenReturn(Mockito.mock(Block.class));
+        //Mockito.when(this.allocator.createBlock(nullable(Schema.class))).thenReturn(Mockito.mock(Block.class));
         this.oracleMetadataHandler = Mockito.mock(OracleMetadataHandler.class);
         this.metadataHandlerMap = Collections.singletonMap("fakedatabase", this.oracleMetadataHandler);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
@@ -133,7 +135,7 @@ public class OracleMuxJdbcMetadataHandlerTest
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
         this.jdbcMetadataHandler.getPartitions(Mockito.mock(BlockWriter.class), getTableLayoutRequest, queryStatusChecker);
-        Mockito.verify(this.oracleMetadataHandler, Mockito.times(1)).getPartitions(Mockito.any(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
+        Mockito.verify(this.oracleMetadataHandler, Mockito.times(1)).getPartitions(nullable(BlockWriter.class), Mockito.eq(getTableLayoutRequest), Mockito.eq(queryStatusChecker));
     }
 
     @Test

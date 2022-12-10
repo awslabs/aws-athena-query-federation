@@ -64,9 +64,12 @@ import java.io.InputStream;
 import java.util.*;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
@@ -142,9 +145,9 @@ public class BigQueryRecordHandlerTest
 
         //Mock the BigQuery Client to return Datasets, and Table Schema information.
         BigQueryPage<Dataset> datasets = new BigQueryPage<Dataset>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, 2));
-        when(bigQuery.listDatasets(any(String.class))).thenReturn(datasets);
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasets);
         BigQueryPage<Table> tables = new BigQueryPage<Table>(BigQueryTestUtils.getTableList(BigQueryTestUtils.PROJECT_1_NAME, "dataset1", 2));
-        when(bigQuery.listTables(any(DatasetId.class))).thenReturn(tables);
+        when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tables);
 
         //The class we want to test.
         bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena);
@@ -175,7 +178,7 @@ public class BigQueryRecordHandlerTest
                 0)) {   //This is ignored when directly calling readWithConstraints.
             //Always return try for the evaluator to keep all rows.
             ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-            when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer(
+            when(evaluator.apply(nullable(String.class), any())).thenAnswer(
                     (InvocationOnMock invocationOnMock) -> {
                         return true;
                     }
@@ -201,7 +204,7 @@ public class BigQueryRecordHandlerTest
             Job mockBigQueryJob = mock(Job.class);
             when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
             when(mockBigQueryJob.getQueryResults()).thenReturn(result);
-            when(bigQuery.create(any(JobInfo.class))).thenReturn(mockBigQueryJob);
+            when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
 
             QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
             when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -209,7 +212,7 @@ public class BigQueryRecordHandlerTest
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
             PowerMockito.mockStatic(System.class);
-            PowerMockito.when(System.getenv(anyString())).thenReturn("test");
+            PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
             logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName()));
 
             //Ensure that there was a spill so that we can read the spilled block.
@@ -246,7 +249,7 @@ public class BigQueryRecordHandlerTest
                 0)) {   //This is ignored when directly calling readWithConstraints.
             //Always return try for the evaluator to keep all rows.
             ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-            when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer(
+            when(evaluator.apply(nullable(String.class), any())).thenAnswer(
                     (InvocationOnMock invocationOnMock) -> {
                         return true;
                     }
@@ -272,7 +275,7 @@ public class BigQueryRecordHandlerTest
             Job mockBigQueryJob = mock(Job.class);
             when(mockBigQueryJob.isDone()).thenReturn(false).thenReturn(true);
             when(mockBigQueryJob.getQueryResults()).thenReturn(result);
-            when(bigQuery.create(any(JobInfo.class))).thenReturn(mockBigQueryJob);
+            when(bigQuery.create(nullable(JobInfo.class))).thenReturn(mockBigQueryJob);
 
             QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
             when(queryStatusChecker.isQueryRunning()).thenReturn(true);
@@ -280,7 +283,7 @@ public class BigQueryRecordHandlerTest
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
             PowerMockito.mockStatic(System.class);
-            PowerMockito.when(System.getenv(anyString())).thenReturn("test");
+            PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
             logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName()));
 
         }
@@ -288,7 +291,7 @@ public class BigQueryRecordHandlerTest
     //Mocks the S3 client by storing any putObjects() and returning the object when getObject() is called.
     private void mockS3Client()
     {
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -297,7 +300,7 @@ public class BigQueryRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(anyString(), anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder = mockS3Storage.get(0);

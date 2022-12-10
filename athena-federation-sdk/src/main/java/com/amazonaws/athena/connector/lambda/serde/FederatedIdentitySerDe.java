@@ -45,7 +45,7 @@ public final class FederatedIdentitySerDe
     private static final String GROUPS_FIELD = "groups";
     // new fields should only be appended to the end for forwards compatibility
 
-    private FederatedIdentitySerDe(){}
+    private FederatedIdentitySerDe() {}
 
     public static final class Serializer extends BaseSerializer<FederatedIdentity>
     {

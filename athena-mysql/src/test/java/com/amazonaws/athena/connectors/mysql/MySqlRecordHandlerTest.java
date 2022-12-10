@@ -50,6 +50,7 @@ import java.sql.SQLException;
 import java.util.Collections;
 
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class MySqlRecordHandlerTest
 {
@@ -70,7 +71,7 @@ public class MySqlRecordHandlerTest
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new MySqlQueryStringBuilder("`");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", MYSQL_NAME,
                 "mysql://jdbc:mysql://hostname/user=A&password=B");

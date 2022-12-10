@@ -54,7 +54,7 @@ import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,10 +72,10 @@ import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.REDIS_S
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.VALUE_TYPE_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.ZSET_KEYS_TABLE_PROP;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -118,15 +118,15 @@ public class RedisMetadataHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean(), anyString())).thenReturn(mockConnection);
+        when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean(), nullable(String.class))).thenReturn(mockConnection);
         when(mockConnection.sync()).thenReturn(mockSyncCommands);
 
         handler = new RedisMetadataHandler(mockGlue, new LocalKeyFactory(), mockSecretsManager, mockAthena, mockFactory, "bucket", "prefix");
         allocator = new BlockAllocatorImpl();
 
-        when(mockSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+        when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    GetSecretValueRequest request = invocation.getArgumentAt(0, GetSecretValueRequest.class);
+                    GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
                     if ("endpoint".equalsIgnoreCase(request.getSecretId())) {
                         return new GetSecretValueResult().withSecretString(decodedEndpoint);
                     }
@@ -175,7 +175,7 @@ public class RedisMetadataHandlerTest
         String prefixes = "prefix1-*,prefix2-*, prefix3-*";
 
         //4 zsets per prefix
-        when(mockSyncCommands.scan(any(ScanCursor.class), any(ScanArgs.class))).then((InvocationOnMock invocationOnMock) -> {
+        when(mockSyncCommands.scan(nullable(ScanCursor.class), nullable(ScanArgs.class))).then((InvocationOnMock invocationOnMock) -> {
             ScanCursor cursor = (ScanCursor) invocationOnMock.getArguments()[0];
             if (cursor == null || cursor.getCursor().equals("0")) {
                 List<String> result = new ArrayList<>();
@@ -199,7 +199,7 @@ public class RedisMetadataHandlerTest
         });
 
         //100 keys per zset
-        when(mockSyncCommands.zcount(anyString(), any(Range.class))).thenReturn(200L);
+        when(mockSyncCommands.zcount(nullable(String.class), nullable(Range.class))).thenReturn(200L);
 
         List<String> partitionCols = new ArrayList<>();
 
@@ -250,7 +250,7 @@ public class RedisMetadataHandlerTest
         assertEquals("Continuation criteria violated", 120, response.getSplits().size());
         assertTrue("Continuation criteria violated", response.getContinuationToken() == null);
 
-        verify(mockSyncCommands, times(6)).scan(any(ScanCursor.class), any(ScanArgs.class));
+        verify(mockSyncCommands, times(6)).scan(nullable(ScanCursor.class), nullable(ScanArgs.class));
     }
 
     @Test

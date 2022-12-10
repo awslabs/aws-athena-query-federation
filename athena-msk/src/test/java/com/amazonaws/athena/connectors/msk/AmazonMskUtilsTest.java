@@ -56,7 +56,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import uk.org.webcompere.systemstubs.rules.EnvironmentVariablesRule;
+import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
@@ -66,6 +66,8 @@ import java.util.*;
 import static com.amazonaws.athena.connectors.msk.AmazonMskUtils.*;
 import static org.junit.Assert.*;
 import static java.util.Arrays.asList;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
@@ -81,7 +83,7 @@ public class AmazonMskUtilsTest {
     ObjectMapper objectMapper;
 
     @Rule
-    public EnvironmentVariablesRule environmentVariables = new EnvironmentVariablesRule();
+    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     @Mock
     AWSSecretsManager awsSecretsManager;
@@ -126,7 +128,7 @@ public class AmazonMskUtilsTest {
         environmentVariables.set("secrets_manager_secret", "AmazonMSK_afq");
         PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
         String json = "{}";
-        Mockito.when(objectMapper.writeValueAsString(Mockito.any(Map.class))).thenReturn(json);
+        Mockito.when(objectMapper.writeValueAsString(nullable(Map.class))).thenReturn(json);
         PowerMockito.whenNew(FileWriter.class).withAnyArguments().thenReturn(fileWriter);
         PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(awsSecretsManager);
@@ -144,19 +146,19 @@ public class AmazonMskUtilsTest {
         Mockito.when(secretValueResult.getSecretString()).thenReturn(creds);
         Mockito.when(awsSecretsManager.getSecretValue(Mockito.isA(GetSecretValueRequest.class))).thenReturn(secretValueResult);
 
-        Mockito.doReturn(map).when(objectMapper).readValue(Mockito.eq(creds), Mockito.any(TypeReference.class));
+        Mockito.doReturn(map).when(objectMapper).readValue(Mockito.eq(creds), nullable(TypeReference.class));
         PowerMockito.whenNew(DefaultAWSCredentialsProviderChain.class).withNoArguments().thenReturn(chain);
         Mockito.when(chain.getCredentials()).thenReturn(credentials);
 
         PowerMockito.mockStatic(AmazonS3ClientBuilder.class);
         PowerMockito.when(AmazonS3ClientBuilder.standard()).thenReturn(clientBuilder);
         PowerMockito.whenNew(AWSStaticCredentialsProvider.class).withArguments(credentials).thenReturn(credentialsProvider);
-        Mockito.doReturn(clientBuilder).when(clientBuilder).withCredentials(Mockito.any());
+        Mockito.doReturn(clientBuilder).when(clientBuilder).withCredentials(any());
         Mockito.when(clientBuilder.build()).thenReturn(amazonS3Client);
-        Mockito.when(amazonS3Client.listObjects(Mockito.any(), Mockito.any())).thenReturn(oList);
+        Mockito.when(amazonS3Client.listObjects(any(), any())).thenReturn(oList);
         S3Object s3Obj = new S3Object();
         s3Obj.setObjectContent(new ByteArrayInputStream("largeContentFile".getBytes()));
-        Mockito.when(amazonS3Client.getObject(Mockito.any())).thenReturn(s3Obj);
+        Mockito.when(amazonS3Client.getObject(any())).thenReturn(s3Obj);
         S3ObjectSummary s3 = new S3ObjectSummary();
         s3.setKey("test/key");
         Mockito.when(oList.getObjectSummaries()).thenReturn(List.of(s3));
@@ -202,7 +204,7 @@ public class AmazonMskUtilsTest {
         listSchemasResult.setSchemas(schemaListItems);
         PowerMockito.mockStatic(AWSGlueClientBuilder.class);
         PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        PowerMockito.when(awsGlue.listSchemas(Mockito.any())).thenReturn(listSchemasResult);
+        PowerMockito.when(awsGlue.listSchemas(any())).thenReturn(listSchemasResult);
         List<String> topicList = AmazonMskUtils.getTopicListFromGlueRegistry();
         assertEquals("testtable", topicList.get(0));
     }
@@ -262,7 +264,7 @@ public class AmazonMskUtilsTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetKafkaPropertiesForIllegalArgumentException() throws Exception {
-        environmentVariables = new EnvironmentVariablesRule();
+        environmentVariables = new EnvironmentVariables();
         getKafkaProperties();
     }
 }

@@ -59,6 +59,7 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static com.amazonaws.athena.connectors.redshift.RedshiftConstants.REDSHIFT_NAME;
+import static org.mockito.ArgumentMatchers.nullable;
 
 public class RedshiftRecordHandlerTest
         extends TestBase
@@ -82,7 +83,7 @@ public class RedshiftRecordHandlerTest
         this.athena = Mockito.mock(AmazonAthena.class);
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.mock(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"");
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
                 "redshift://jdbc:redshift://hostname/user=A&password=B");

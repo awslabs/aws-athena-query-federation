@@ -62,7 +62,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -82,9 +81,8 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -277,7 +275,7 @@ public class ElasticsearchRecordHandlerTest
 
         allocator = new BlockAllocatorImpl();
 
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -289,7 +287,7 @@ public class ElasticsearchRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(amazonS3.getObject(Matchers.anyString(), Matchers.anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
@@ -310,7 +308,7 @@ public class ElasticsearchRecordHandlerTest
                 .add("movies", "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com")
                 .build();
 
-        when(clientFactory.getOrCreateClient(anyString())).thenReturn(mockClient);
+        when(clientFactory.getOrCreateClient(nullable(String.class))).thenReturn(mockClient);
         when(mockClient.getDocument(any())).thenReturn(document1, document2);
         when(mockClient.search(any(), any())).thenReturn(mockResponse);
         when(mockScrollResponse.getHits()).thenReturn(null);

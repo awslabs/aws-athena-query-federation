@@ -57,7 +57,8 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,9 +69,10 @@ import java.util.List;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -107,7 +109,7 @@ public class DocDBMetadataHandlerTest
     {
         logger.info("{}: enter", testName.getMethodName());
 
-        when(connectionFactory.getOrCreateConn(anyString())).thenReturn(mockClient);
+        when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
         handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix");
         allocator = new BlockAllocatorImpl();
@@ -200,7 +202,7 @@ public class DocDBMetadataHandlerTest
         when(mockDatabase.getCollection(eq(TEST_TABLE))).thenReturn(mockCollection);
         when(mockCollection.find()).thenReturn(mockIterable);
         when(mockIterable.limit(anyInt())).thenReturn(mockIterable);
-        when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
+        Mockito.lenient().when(mockIterable.maxScan(anyInt())).thenReturn(mockIterable);
         when(mockIterable.batchSize(anyInt())).thenReturn(mockIterable);
         when(mockIterable.iterator()).thenReturn(new StubbingCursor(documents.iterator()));
 

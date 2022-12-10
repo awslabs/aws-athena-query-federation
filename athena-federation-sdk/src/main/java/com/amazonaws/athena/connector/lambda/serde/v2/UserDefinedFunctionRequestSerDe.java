@@ -46,7 +46,7 @@ public final class UserDefinedFunctionRequestSerDe
     private static final String METHOD_NAME_FIELD = "methodName";
     private static final String FUNCTION_TYPE_FIELD = "functionType";
 
-    private UserDefinedFunctionRequestSerDe(){}
+    private UserDefinedFunctionRequestSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationRequest>
     {

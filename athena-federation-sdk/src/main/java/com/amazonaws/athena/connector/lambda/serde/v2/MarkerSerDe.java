@@ -39,7 +39,7 @@ public final class MarkerSerDe
     private static final String BOUND_FIELD = "bound";
     private static final String NULL_VALUE_FIELD = "nullValue";
 
-    private MarkerSerDe(){}
+    private MarkerSerDe() {}
 
     public static final class Serializer extends BaseSerializer<Marker>
     {

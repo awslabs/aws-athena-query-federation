@@ -39,7 +39,7 @@ public final class ReadRecordsResponseSerDe
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String RECORDS_FIELD = "records";
 
-    private ReadRecordsResponseSerDe(){}
+    private ReadRecordsResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

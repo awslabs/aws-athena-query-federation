@@ -69,6 +69,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class Db2MetadataHandlerTest extends TestBase {
     private static final Logger logger = LoggerFactory.getLogger(Db2MetadataHandlerTest.class);
     private static final Schema PARTITION_SCHEMA = SchemaBuilder.newBuilder().addField("PARTITION_NUMBER", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build();
@@ -88,7 +91,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         logger.info(" this.connection.."+ this.connection);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
@@ -226,7 +229,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Assert.assertEquals("testCatalog", getTableResponse.getCatalogName());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableCaseSensitivity()
             throws Exception
     {
@@ -244,12 +247,12 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(schemaName, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableCaseSensitivity2()
             throws Exception {
         String schemaName = "testschema";
@@ -266,12 +269,12 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tablePstmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(schemaName, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableCaseSensitivity3()
             throws Exception {
         String schemaName = "TESTSCHEMA";
@@ -288,12 +291,12 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(schemaName, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test(expected = SQLException.class)
     public void doGetTableCaseSensitivity4()
             throws Exception {
         String schemaName = "TESTSCHEMA";
@@ -310,7 +313,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         Mockito.when(tableStmt.executeQuery()).thenReturn(tableResultSet);
 
         TableName inputTableName = new TableName(schemaName, tableName);
-        Mockito.when(this.connection.getMetaData().getColumns(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(this.connection.getMetaData().getColumns(nullable(String.class), nullable(String.class), nullable(String.class), nullable(String.class)))
                 .thenThrow(new SQLException());
         this.db2MetadataHandler.doGetTable(this.blockAllocator, new GetTableRequest(this.federatedIdentity, "testQueryId", "testCatalog", inputTableName));
     }

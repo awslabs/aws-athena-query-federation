@@ -48,7 +48,7 @@ public final class GetTableLayoutRequestSerDe
     private static final String SCHEMA_FIELD = "schema";
     private static final String PARTITION_COLS_FIELD = "partitionColumns";
 
-    private GetTableLayoutRequestSerDe(){}
+    private GetTableLayoutRequestSerDe() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {

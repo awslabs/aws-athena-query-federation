@@ -63,8 +63,9 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +86,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -173,7 +174,7 @@ public class GlueMetadataHandlerTest
         allocator = new BlockAllocatorImpl();
 
         // doListTables pagination.
-        when(mockGlue.getTables(any(GetTablesRequest.class)))
+        when(mockGlue.getTables(nullable(GetTablesRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
@@ -223,7 +224,7 @@ public class GlueMetadataHandlerTest
         databases.add(new Database().withName("db1"));
         databases.add(new Database().withName("db2"));
 
-        when(mockGlue.getDatabases(any(GetDatabasesRequest.class)))
+        when(mockGlue.getDatabases(nullable(GetDatabasesRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     GetDatabasesRequest request = (GetDatabasesRequest) invocationOnMock.getArguments()[0];
@@ -249,7 +250,7 @@ public class GlueMetadataHandlerTest
         assertEquals(databases.stream().map(next -> next.getName()).collect(Collectors.toList()),
                 new ArrayList<>(res.getSchemas()));
 
-        verify(mockGlue, times(2)).getDatabases(any(GetDatabasesRequest.class));
+        verify(mockGlue, times(2)).getDatabases(nullable(GetDatabasesRequest.class));
     }
 
     @Test
@@ -334,12 +335,12 @@ public class GlueMetadataHandlerTest
         Table mockTable = mock(Table.class);
         StorageDescriptor mockSd = mock(StorageDescriptor.class);
 
-        when(mockTable.getName()).thenReturn(table);
+        Mockito.lenient().when(mockTable.getName()).thenReturn(table);
         when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
         when(mockTable.getParameters()).thenReturn(expectedParams);
         when(mockSd.getColumns()).thenReturn(columns);
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     com.amazonaws.services.glue.model.GetTableRequest request =
@@ -417,12 +418,12 @@ public class GlueMetadataHandlerTest
         Table mockTable = mock(Table.class);
         StorageDescriptor mockSd = mock(StorageDescriptor.class);
 
-        when(mockTable.getName()).thenReturn(table);
+        Mockito.lenient().when(mockTable.getName()).thenReturn(table);
         when(mockTable.getStorageDescriptor()).thenReturn(mockSd);
         when(mockTable.getParameters()).thenReturn(expectedParams);
         when(mockSd.getColumns()).thenReturn(columns);
 
-        when(mockGlue.getTable(any(com.amazonaws.services.glue.model.GetTableRequest.class)))
+        when(mockGlue.getTable(nullable(com.amazonaws.services.glue.model.GetTableRequest.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     com.amazonaws.services.glue.model.GetTableRequest request =

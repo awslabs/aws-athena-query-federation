@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class VersionedObjectMapperFactory
 {
-    private VersionedObjectMapperFactory(){}
+    private VersionedObjectMapperFactory() {}
 
     /**
      * Creates an {@link ObjectMapper} using the current SDK SerDe version.
