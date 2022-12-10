@@ -34,7 +34,7 @@ public final class TableNameSerDe
     private static final String SCHEMA_NAME_FIELD = "schemaName";
     private static final String TABLE_NAME_FIELD = "tableName";
 
-    private TableNameSerDe(){}
+    private TableNameSerDe() {}
 
     public static final class Serializer extends BaseSerializer<TableName>
     {

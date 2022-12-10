@@ -44,7 +44,7 @@ public class LambdaFunctionExceptionSerDe
     private static final String CAUSE_FIELD = "cause";
     private static final String STACK_TRACE_FIELD = "stackTrace";
 
-    private LambdaFunctionExceptionSerDe(){}
+    private LambdaFunctionExceptionSerDe() {}
 
     public static final class Deserializer extends BaseDeserializer<LambdaFunctionException>
     {

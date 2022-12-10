@@ -51,7 +51,7 @@ public final class ReadRecordsRequestSerDe
     private static final String MAX_BLOCK_SIZE_FIELD = "maxBlockSize";
     private static final String MAX_INLINE_BLOCK_SIZE_FIELD = "maxInlineBlockSize";
 
-    private ReadRecordsRequestSerDe(){}
+    private ReadRecordsRequestSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationRequest>
     {

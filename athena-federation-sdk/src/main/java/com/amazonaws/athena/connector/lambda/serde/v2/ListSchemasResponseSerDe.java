@@ -36,7 +36,7 @@ public final class ListSchemasResponseSerDe
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String SCHEMAS_FIELD = "schemas";
 
-    private ListSchemasResponseSerDe(){}
+    private ListSchemasResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

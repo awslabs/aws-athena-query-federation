@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -90,7 +90,7 @@ public class S3ObjectsTableProviderTest
     protected void setUpRead()
     {
         AtomicLong count = new AtomicLong(0);
-        when(mockS3.listObjectsV2(any(ListObjectsV2Request.class))).thenAnswer((InvocationOnMock invocation) -> {
+        when(mockS3.listObjectsV2(nullable(ListObjectsV2Request.class))).thenAnswer((InvocationOnMock invocation) -> {
             ListObjectsV2Request request = (ListObjectsV2Request) invocation.getArguments()[0];
             assertEquals(getIdValue(), request.getBucketName());
 

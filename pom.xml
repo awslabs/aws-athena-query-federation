@@ -11,25 +11,39 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.353</aws-sdk.version>
+        <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
+        <aws-sdk.version>1.12.362</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
-        <aws-cdk.version>1.181.1</aws-cdk.version>
+        <aws-cdk.version>1.182.0</aws-cdk.version>
         <jsii.version>1.72.0</jsii.version>
-        <slf4j-log4j.version>1.7.36</slf4j-log4j.version>
-        <mockito.version>1.10.19</mockito.version>
-        <junit.version>4.13.1</junit.version>
-        <jqwik.version>1.6.3</jqwik.version>
-        <assertj.version>3.22.0</assertj.version>
-        <testng.version>7.6.1</testng.version>
+        <slf4j-log4j.version>2.0.5</slf4j-log4j.version>
+        <mockito.legacy.version>3.3.3</mockito.legacy.version>
+        <mockito.version>4.9.0</mockito.version>
+        <powermock.version>2.0.9</powermock.version>
+        <junit.version>4.13.2</junit.version>
+        <jqwik.version>1.7.1</jqwik.version>
+        <assertj.version>3.23.1</assertj.version>
+        <testng.version>7.7.0</testng.version>
         <fasterxml.jackson.version>2.14.1</fasterxml.jackson.version>
         <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
-        <log4j2Version>2.17.1</log4j2Version>
+        <log4j2Version>2.19.0</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
-        <netty.version>4.1.81.Final</netty.version>
+        <netty.version>4.1.85.Final</netty.version>
         <guava.version>31.1-jre</guava.version>
-        <protobuf3.version>3.21.10</protobuf3.version>
+        <protobuf3.version>3.21.11</protobuf3.version>
+        <antlr.st4.version>4.3.4</antlr.st4.version>
+        <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
+        <apache.httpclient.version>4.5.14</apache.httpclient.version>
+        <mssql.jdbc.version>11.2.1.jre11</mssql.jdbc.version>
+        <commons.cli.version>1.5.0</commons.cli.version>
+        <test.system.rules.version>1.19.0</test.system.rules.version>
+        <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
+        <mvn.checkstyle.version>3.2.0</mvn.checkstyle.version>
+        <mvn.shade.plugin.version>3.4.1</mvn.shade.plugin.version>
+        <mvn.source.plugin.version>3.2.1</mvn.source.plugin.version>
+        <mvn.javadoc.plugin.version>3.4.1</mvn.javadoc.plugin.version>
+        <mvn.jar.plugin.version>3.3.0</mvn.jar.plugin.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -167,7 +181,7 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
+            <artifactId>mockito-core</artifactId>
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
@@ -193,7 +207,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>7.3.2</version>
+                <version>7.4.1</version>
                 <executions>
                     <execution>
                         <goals>
@@ -205,7 +219,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>${mvn.shade.plugin.version}</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -250,7 +264,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>${mvn.checkstyle.version}</version>
                 <configuration>
                     <configLocation>checkstyle.xml</configLocation>
                     <encoding>UTF-8</encoding>
@@ -329,7 +343,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>${mvn.javadoc.plugin.version}</version>
                 <configuration>
                     <failOnError>false</failOnError>
                     <notimestamp>true</notimestamp>
@@ -355,7 +369,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.1.1</version>
+                        <version>${mvn.javadoc.plugin.version}</version>
                         <configuration>
                             <failOnError>false</failOnError>
                             <notimestamp>true</notimestamp>
@@ -372,7 +386,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-source-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>${mvn.source.plugin.version}</version>
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
@@ -385,7 +399,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
+                        <version>3.0.1</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -406,7 +420,7 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.8</version>
+                        <version>1.6.13</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>ossrh</serverId>

@@ -60,7 +60,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
@@ -147,7 +149,7 @@ public class AmazonMskRecordHandlerTest {
         PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
-        when(evaluator.apply(any(String.class), any(Object.class))).thenAnswer(
+        when(evaluator.apply(nullable(String.class), any())).thenAnswer(
                 (InvocationOnMock invocationOnMock) -> {
                     return true;
                 }

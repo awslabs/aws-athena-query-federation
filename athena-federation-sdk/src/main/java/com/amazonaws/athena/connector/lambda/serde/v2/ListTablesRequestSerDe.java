@@ -44,7 +44,7 @@ public final class ListTablesRequestSerDe
     private static final String PAGE_SIZE_FIELD = "pageSize";
     private static final String NEXT_TOKEN_FIELD = "nextToken";
 
-    private ListTablesRequestSerDe(){}
+    private ListTablesRequestSerDe() {}
 
     public static final class Serializer extends MetadataRequestSerializer
     {

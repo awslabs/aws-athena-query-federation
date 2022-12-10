@@ -46,7 +46,7 @@ import java.nio.channels.Channels;
 @Deprecated
 public final class SchemaSerDe
 {
-    private SchemaSerDe(){}
+    private SchemaSerDe() {}
 
     public static class Serializer extends BaseSerializer<Schema>
     {

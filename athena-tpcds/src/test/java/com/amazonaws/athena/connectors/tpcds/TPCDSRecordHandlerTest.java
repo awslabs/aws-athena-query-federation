@@ -60,7 +60,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,8 +77,8 @@ import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_N
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_TOTAL_NUMBER_FIELD;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -126,7 +126,7 @@ public class TPCDSRecordHandlerTest
         handler = new TPCDSRecordHandler(mockS3, mockSecretsManager, mockAthena);
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
-        when(mockS3.putObject(anyObject()))
+        when(mockS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     synchronized (mockS3Storage) {
@@ -138,7 +138,7 @@ public class TPCDSRecordHandlerTest
                     }
                 });
 
-        when(mockS3.getObject(anyString(), anyString()))
+        when(mockS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) ->
                 {
                     synchronized (mockS3Storage) {

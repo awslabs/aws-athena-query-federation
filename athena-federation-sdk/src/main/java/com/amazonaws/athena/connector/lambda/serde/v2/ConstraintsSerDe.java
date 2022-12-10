@@ -39,7 +39,7 @@ public final class ConstraintsSerDe
 {
     private static final String SUMMARY_FIELD = "summary";
 
-    private ConstraintsSerDe(){}
+    private ConstraintsSerDe() {}
 
     public static final class Serializer extends BaseSerializer<Constraints>
     {

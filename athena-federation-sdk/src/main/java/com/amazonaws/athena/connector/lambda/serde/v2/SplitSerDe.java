@@ -42,7 +42,7 @@ public final class SplitSerDe
     private static final String ENCRYPTION_KEY_FIELD = "encryptionKey";
     private static final String PROPERTIES_FIELD = "properties";
 
-    private SplitSerDe(){}
+    private SplitSerDe() {}
 
     public static final class Serializer extends BaseSerializer<Split>
     {

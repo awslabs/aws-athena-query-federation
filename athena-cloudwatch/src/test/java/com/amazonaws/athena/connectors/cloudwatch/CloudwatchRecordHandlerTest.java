@@ -60,7 +60,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,9 +74,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -116,7 +115,7 @@ public class CloudwatchRecordHandlerTest
         handler = new CloudwatchRecordHandler(mockS3, mockSecretsManager, mockAthena, mockAwsLogs);
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
-        when(mockS3.putObject(anyObject()))
+        when(mockS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -128,7 +127,7 @@ public class CloudwatchRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(mockS3.getObject(anyString(), anyString()))
+        when(mockS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
@@ -143,7 +142,7 @@ public class CloudwatchRecordHandlerTest
                     return mockObject;
                 });
 
-        when(mockAwsLogs.getLogEvents(any(GetLogEventsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockAwsLogs.getLogEvents(nullable(GetLogEventsRequest.class))).thenAnswer((InvocationOnMock invocationOnMock) -> {
             GetLogEventsRequest request = (GetLogEventsRequest) invocationOnMock.getArguments()[0];
 
             //Check that predicate pushdown was propagated to cloudwatch

@@ -78,8 +78,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -148,7 +148,7 @@ public class ExampleRecordHandlerTest
         awsSecretsManager = mock(AWSSecretsManager.class);
         athena = mock(AmazonAthena.class);
 
-        when(amazonS3.putObject(anyObject()))
+        when(amazonS3.putObject(any()))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override
@@ -163,7 +163,7 @@ public class ExampleRecordHandlerTest
                     }
                 });
 
-        when(amazonS3.getObject(anyString(), anyString()))
+        when(amazonS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer(new Answer<Object>()
                 {
                     @Override

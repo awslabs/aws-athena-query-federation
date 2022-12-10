@@ -99,7 +99,7 @@ public class ObjectMapperFactoryV3
         SERIALIZER_FACTORY = new StrictSerializerFactory(config);
     }
 
-    private ObjectMapperFactoryV3(){}
+    private ObjectMapperFactoryV3() {}
 
     /**
      * Custom SerializerFactory that *only* uses the custom serializers that we inject into the {@link ObjectMapper}.

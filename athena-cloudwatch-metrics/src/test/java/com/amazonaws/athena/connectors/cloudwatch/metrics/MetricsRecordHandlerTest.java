@@ -60,8 +60,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,9 +87,8 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ST
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -131,7 +131,7 @@ public class MetricsRecordHandlerTest
         handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics);
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
-        when(mockS3.putObject(anyObject()))
+        Mockito.lenient().when(mockS3.putObject(any()))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     InputStream inputStream = ((PutObjectRequest) invocationOnMock.getArguments()[0]).getInputStream();
                     ByteHolder byteHolder = new ByteHolder();
@@ -143,7 +143,7 @@ public class MetricsRecordHandlerTest
                     return mock(PutObjectResult.class);
                 });
 
-        when(mockS3.getObject(anyString(), anyString()))
+        Mockito.lenient().when(mockS3.getObject(nullable(String.class), nullable(String.class)))
                 .thenAnswer((InvocationOnMock invocationOnMock) -> {
                     S3Object mockObject = mock(S3Object.class);
                     ByteHolder byteHolder;
@@ -178,8 +178,8 @@ public class MetricsRecordHandlerTest
 
         int numMetrics = 100;
         AtomicLong numCalls = new AtomicLong(0);
-        when(mockMetrics.listMetrics(any(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            ListMetricsRequest request = invocation.getArgumentAt(0, ListMetricsRequest.class);
+        when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
             numCalls.incrementAndGet();
             //assert that the namespace filter was indeed pushed down
             assertEquals(namespace, request.getNamespace());
@@ -250,7 +250,7 @@ public class MetricsRecordHandlerTest
         int numMetrics = 10;
         int numSamples = 10;
         AtomicLong numCalls = new AtomicLong(0);
-        when(mockMetrics.getMetricData(any(GetMetricDataRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+        when(mockMetrics.getMetricData(nullable(GetMetricDataRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             numCalls.incrementAndGet();
             return mockMetricData(invocation, numMetrics, numSamples);
         });
@@ -311,7 +311,7 @@ public class MetricsRecordHandlerTest
 
     private GetMetricDataResult mockMetricData(InvocationOnMock invocation, int numMetrics, int numSamples)
     {
-        GetMetricDataRequest request = invocation.getArgumentAt(0, GetMetricDataRequest.class);
+        GetMetricDataRequest request = invocation.getArgument(0, GetMetricDataRequest.class);
 
         /**
          * Confirm that all available criteria were pushed down into Cloudwatch Metrics

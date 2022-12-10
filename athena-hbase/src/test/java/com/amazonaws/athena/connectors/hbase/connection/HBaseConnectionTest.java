@@ -42,9 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -144,14 +143,14 @@ public class HBaseConnectionTest
     {
         logger.info("listTableNamesByNamespace: enter");
         when(mockConnection.getAdmin()).thenReturn(mockAdmin);
-        when(mockAdmin.listTableNamesByNamespace(anyString())).thenReturn(new TableName[] {});
+        when(mockAdmin.listTableNamesByNamespace(nullable(String.class))).thenReturn(new TableName[] {});
 
         TableName[] result = connection.listTableNamesByNamespace("schemaName");
         assertNotNull(result);
         assertTrue(connection.isHealthy());
         assertEquals(0, connection.getRetries());
         verify(mockConnection, atLeastOnce()).getAdmin();
-        verify(mockAdmin, atLeastOnce()).listTableNamesByNamespace(anyObject());
+        verify(mockAdmin, atLeastOnce()).listTableNamesByNamespace(any());
         logger.info("listTableNamesByNamespace: exit");
     }
 
@@ -174,14 +173,14 @@ public class HBaseConnectionTest
                 return mockAdmin;
             }
         });
-        when(mockAdmin.listTableNamesByNamespace(anyString())).thenReturn(new TableName[] {});
+        when(mockAdmin.listTableNamesByNamespace(nullable(String.class))).thenReturn(new TableName[] {});
 
         TableName[] result = connection.listTableNamesByNamespace("schemaName");
         assertNotNull(result);
         assertTrue(connection.isHealthy());
         assertEquals(1, connection.getRetries());
         verify(mockConnection, atLeastOnce()).getAdmin();
-        verify(mockAdmin, atLeastOnce()).listTableNamesByNamespace(anyObject());
+        verify(mockAdmin, atLeastOnce()).listTableNamesByNamespace(any());
         logger.info("listTableNamesByNamespaceWithRetry: exit");
     }
 
@@ -209,14 +208,14 @@ public class HBaseConnectionTest
     {
         logger.info("getTableRegions: enter");
         when(mockConnection.getAdmin()).thenReturn(mockAdmin);
-        when(mockAdmin.getTableRegions(anyObject())).thenReturn(new ArrayList<>());
+        when(mockAdmin.getTableRegions(any())).thenReturn(new ArrayList<>());
 
         List<HRegionInfo> result = connection.getTableRegions(null);
         assertNotNull(result);
         assertTrue(connection.isHealthy());
         assertEquals(0, connection.getRetries());
         verify(mockConnection, atLeastOnce()).getAdmin();
-        verify(mockAdmin, atLeastOnce()).getTableRegions(anyObject());
+        verify(mockAdmin, atLeastOnce()).getTableRegions(any());
         logger.info("getTableRegions: exit");
     }
 
@@ -239,14 +238,14 @@ public class HBaseConnectionTest
                 return mockAdmin;
             }
         });
-        when(mockAdmin.getTableRegions(anyObject())).thenReturn(new ArrayList<>());
+        when(mockAdmin.getTableRegions(any())).thenReturn(new ArrayList<>());
 
         List<HRegionInfo> result = connection.getTableRegions(null);
         assertNotNull(result);
         assertTrue(connection.isHealthy());
         assertEquals(1, connection.getRetries());
         verify(mockConnection, atLeastOnce()).getAdmin();
-        verify(mockAdmin, atLeastOnce()).getTableRegions(anyObject());
+        verify(mockAdmin, atLeastOnce()).getTableRegions(any());
         logger.info("getTableRegionsWithRetry: exit");
     }
 
@@ -273,8 +272,8 @@ public class HBaseConnectionTest
             throws IOException
     {
         logger.info("scanTable: enter");
-        when(mockConnection.getTable(any(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
-        when(mockTable.getScanner(any(Scan.class))).thenReturn(mockScanner);
+        when(mockConnection.getTable(nullable(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
+        when(mockTable.getScanner(nullable(Scan.class))).thenReturn(mockScanner);
 
         TableName tableName = org.apache.hadoop.hbase.TableName.valueOf("schema1", "table1");
         boolean result = connection.scanTable(tableName, mock(Scan.class), (ResultScanner scanner) -> scanner != null);
@@ -282,8 +281,8 @@ public class HBaseConnectionTest
         assertTrue(result);
         assertTrue(connection.isHealthy());
         assertEquals(0, connection.getRetries());
-        verify(mockConnection, atLeastOnce()).getTable(anyObject());
-        verify(mockTable, atLeastOnce()).getScanner(any(Scan.class));
+        verify(mockConnection, atLeastOnce()).getTable(any());
+        verify(mockTable, atLeastOnce()).getScanner(nullable(Scan.class));
         logger.info("scanTable: exit");
     }
 
@@ -292,8 +291,8 @@ public class HBaseConnectionTest
             throws IOException
     {
         logger.info("scanTableWithRetry: enter");
-        when(mockConnection.getTable(any(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
-        when(mockTable.getScanner(any(Scan.class))).thenAnswer(new Answer()
+        when(mockConnection.getTable(nullable(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
+        when(mockTable.getScanner(nullable(Scan.class))).thenAnswer(new Answer()
         {
             private int count = 0;
 
@@ -314,8 +313,8 @@ public class HBaseConnectionTest
         assertTrue(result);
         assertTrue(connection.isHealthy());
         assertEquals(1, connection.getRetries());
-        verify(mockConnection, atLeastOnce()).getTable(anyObject());
-        verify(mockTable, atLeastOnce()).getScanner(any(Scan.class));
+        verify(mockConnection, atLeastOnce()).getTable(any());
+        verify(mockTable, atLeastOnce()).getScanner(nullable(Scan.class));
         logger.info("scanTableWithRetry: exit");
     }
 
@@ -324,8 +323,8 @@ public class HBaseConnectionTest
             throws IOException
     {
         logger.info("scanTableRetriesExhausted: enter");
-        when(mockConnection.getTable(any(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
-        when(mockTable.getScanner(any(Scan.class))).thenThrow(new RuntimeException("Retryable"));
+        when(mockConnection.getTable(nullable(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
+        when(mockTable.getScanner(nullable(Scan.class))).thenThrow(new RuntimeException("Retryable"));
         TableName tableName = org.apache.hadoop.hbase.TableName.valueOf("schema1", "table1");
 
         try {
@@ -337,8 +336,8 @@ public class HBaseConnectionTest
 
         assertFalse(connection.isHealthy());
         assertEquals(3, connection.getRetries());
-        verify(mockConnection, atLeastOnce()).getTable(anyObject());
-        verify(mockTable, atLeastOnce()).getScanner(any(Scan.class));
+        verify(mockConnection, atLeastOnce()).getTable(any());
+        verify(mockTable, atLeastOnce()).getScanner(nullable(Scan.class));
         logger.info("scanTableRetriesExhausted: exit");
     }
 
@@ -347,8 +346,8 @@ public class HBaseConnectionTest
             throws IOException
     {
         logger.info("scanTable: enter");
-        when(mockConnection.getTable(any(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
-        when(mockTable.getScanner(any(Scan.class))).thenReturn(mockScanner);
+        when(mockConnection.getTable(nullable(org.apache.hadoop.hbase.TableName.class))).thenReturn(mockTable);
+        when(mockTable.getScanner(nullable(Scan.class))).thenReturn(mockScanner);
 
         TableName tableName = org.apache.hadoop.hbase.TableName.valueOf("schema1", "table1");
         try {
@@ -363,8 +362,8 @@ public class HBaseConnectionTest
 
         assertTrue(connection.isHealthy());
         assertEquals(0, connection.getRetries());
-        verify(mockConnection, atLeastOnce()).getTable(anyObject());
-        verify(mockTable, atLeastOnce()).getScanner(any(Scan.class));
+        verify(mockConnection, atLeastOnce()).getTable(any());
+        verify(mockTable, atLeastOnce()).getScanner(nullable(Scan.class));
         logger.info("scanTable: exit");
     }
 

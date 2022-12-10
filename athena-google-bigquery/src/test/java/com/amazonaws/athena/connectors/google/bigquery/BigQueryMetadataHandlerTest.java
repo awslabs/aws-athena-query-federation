@@ -47,7 +47,7 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +66,6 @@ public class BigQueryMetadataHandlerTest
     BigQuery bigQuery;
 
     private BigQueryMetadataHandler bigQueryMetadataHandler;
-    private int UNLIMITED_PAGE_SIZE_VALUE = 50;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
     private Job job;
@@ -81,7 +80,7 @@ public class BigQueryMetadataHandlerTest
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         job = mock(Job.class);
         jobStatus = mock(JobStatus.class);
-        when(bigQuery.create(any(JobInfo.class), any())).thenReturn(job);
+        when(bigQuery.create(nullable(JobInfo.class), any())).thenReturn(job);
         when(job.waitFor(any())).thenReturn(job);
         when(job.getStatus()).thenReturn(jobStatus);
 
@@ -100,7 +99,7 @@ public class BigQueryMetadataHandlerTest
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(anyString(), any(BigQuery.DatasetListOption.class))).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(nullable(String.class), nullable(BigQuery.DatasetListOption.class))).thenReturn(datasetPage);
 
         //This will test case insenstivity
         ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
@@ -118,7 +117,7 @@ public class BigQueryMetadataHandlerTest
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(anyString())).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasetPage);
 
         //Get the first dataset name.
         String datasetName = datasetPage.iterateAll().iterator().next().getDatasetId().getDataset();
@@ -133,7 +132,11 @@ public class BigQueryMetadataHandlerTest
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase(),
                 datasetName, null, UNLIMITED_PAGE_SIZE_VALUE);
 
-        when(bigQuery.listTables(any(DatasetId.class), any(BigQuery.TableListOption.class))).thenReturn(tablesPage);
+        // This commented out line was used when the wrong UNLIMITED_PAGE_SIZE_VALUE was set, which
+        // triggered a method invocation to the same name but different signature.
+        //when(bigQuery.listTables(nullable(DatasetId.class), nullable(BigQuery.TableListOption.class))).thenReturn(tablesPage);
+
+        when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tablesPage);
         ListTablesResponse tableNames = bigQueryMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertNotNull(tableNames);
         assertEquals("Schema count does not match!", numTables, tableNames.getTables().size());
@@ -146,7 +149,7 @@ public class BigQueryMetadataHandlerTest
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(anyString())).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasetPage);
 
         //Get the first dataset name.
         String datasetName = datasetPage.iterateAll().iterator().next().getDatasetId().getDataset();
@@ -159,7 +162,7 @@ public class BigQueryMetadataHandlerTest
 
         String tableName = tablesPage.iterateAll().iterator().next().getTableId().getTable();
 
-        when(bigQuery.listTables(any(DatasetId.class))).thenReturn(tablesPage);
+        when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tablesPage);
 
         Schema tableSchema = BigQueryTestUtils.getTestSchema();
         StandardTableDefinition tableDefinition = StandardTableDefinition.newBuilder()
@@ -168,7 +171,7 @@ public class BigQueryMetadataHandlerTest
         Table table = mock(Table.class);
         when(table.getTableId()).thenReturn(TableId.of(BigQueryTestUtils.PROJECT_1_NAME, datasetName, tableName));
         when(table.getDefinition()).thenReturn(tableDefinition);
-        when(bigQuery.getTable(any(TableId.class))).thenReturn(table);
+        when(bigQuery.getTable(nullable(TableId.class))).thenReturn(table);
 
         //Make the call
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity,
@@ -221,7 +224,7 @@ public class BigQueryMetadataHandlerTest
         final int numDatasets = 5;
         BigQueryPage<Dataset> datasetPage =
                 new BigQueryPage<>(BigQueryTestUtils.getDatasetList(BigQueryTestUtils.PROJECT_1_NAME, numDatasets));
-        when(bigQuery.listDatasets(anyString())).thenReturn(datasetPage);
+        when(bigQuery.listDatasets(nullable(String.class))).thenReturn(datasetPage);
 
         ListSchemasRequest request = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, BigQueryTestUtils.PROJECT_1_NAME.toLowerCase());

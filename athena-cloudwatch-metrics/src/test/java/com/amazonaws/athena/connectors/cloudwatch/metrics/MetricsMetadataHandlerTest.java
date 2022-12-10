@@ -57,7 +57,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +75,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ST
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -267,8 +267,8 @@ public class MetricsMetadataHandlerTest
         String statistic = "p90";
         int numMetrics = 10;
 
-        when(mockMetrics.listMetrics(any(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
-            ListMetricsRequest request = invocation.getArgumentAt(0, ListMetricsRequest.class);
+        when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+            ListMetricsRequest request = invocation.getArgument(0, ListMetricsRequest.class);
 
             //assert that the namespace filter was indeed pushed down
             assertEquals(namespaceFilter, request.getNamespace());
@@ -345,7 +345,7 @@ public class MetricsMetadataHandlerTest
         String invalidNamespaceFilter = "InvalidNameSpace";
         int numMetrics = 10;
 
-        when(mockMetrics.listMetrics(any(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
+        when(mockMetrics.listMetrics(nullable(ListMetricsRequest.class))).thenAnswer((InvocationOnMock invocation) -> {
             List<Metric> metrics = new ArrayList<>();
             for (int i = 0; i < numMetrics; i++) {
                 metrics.add(new Metric().withNamespace(namespace).withMetricName("metric-" + i));

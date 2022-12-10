@@ -67,6 +67,9 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
+
 public class SynapseMetadataHandlerTest
         extends TestBase
 {
@@ -88,7 +91,7 @@ public class SynapseMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class, Mockito.RETURNS_DEEP_STUBS);
         this.connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         logger.info(" this.connection.."+ this.connection);
-        Mockito.when(this.jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(this.connection);
+        Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
@@ -123,7 +126,7 @@ public class SynapseMetadataHandlerTest
 
         Statement st = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(st);
-        Mockito.when(st.executeQuery(Mockito.anyString())).thenReturn(resultSet);
+        Mockito.when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -156,7 +159,7 @@ public class SynapseMetadataHandlerTest
 
         Statement st = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(st);
-        Mockito.when(st.executeQuery(Mockito.anyString())).thenReturn(resultSet);
+        Mockito.when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -188,7 +191,7 @@ public class SynapseMetadataHandlerTest
 
         Connection connection = Mockito.mock(Connection.class, Mockito.RETURNS_DEEP_STUBS);
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
-        Mockito.when(jdbcConnectionFactory.getConnection(Mockito.any(JdbcCredentialProvider.class))).thenReturn(connection);
+        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
         SynapseMetadataHandler synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
 
@@ -211,7 +214,7 @@ public class SynapseMetadataHandlerTest
 
         Statement st = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(st);
-        Mockito.when(st.executeQuery(Mockito.anyString())).thenReturn(resultSet);
+        Mockito.when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
 
         Schema partitionSchema = this.synapseMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -263,7 +266,7 @@ public class SynapseMetadataHandlerTest
 
         Statement st = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(st);
-        Mockito.when(st.executeQuery(Mockito.anyString())).thenReturn(resultSet);
+        Mockito.when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
 
         Schema partitionSchema = this.synapseMetadataHandler.getPartitionSchema("testCatalogName");
         Set<String> partitionCols = partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet());
@@ -301,7 +304,7 @@ public class SynapseMetadataHandlerTest
 
         Statement st = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(st);
-        Mockito.when(st.executeQuery(Mockito.anyString())).thenReturn(resultSet);
+        Mockito.when(st.executeQuery(nullable(String.class))).thenReturn(resultSet);
 
         GetTableLayoutResponse getTableLayoutResponse = this.synapseMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
@@ -352,7 +355,7 @@ public class SynapseMetadataHandlerTest
         Schema expected = expectedSchemaBuilder.build();
 
         PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
-        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        Mockito.when(connection.prepareStatement(nullable(String.class))).thenReturn(stmt);
         Mockito.when(stmt.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname;databaseName=fakedatabase");
@@ -386,7 +389,7 @@ public class SynapseMetadataHandlerTest
         ResultSet resultSet2 = mockResultSet(columns, types2, values2, new AtomicInteger(-1));
 
         PreparedStatement stmt = Mockito.mock(PreparedStatement.class);
-        Mockito.when(connection.prepareStatement(Mockito.anyString())).thenReturn(stmt);
+        Mockito.when(connection.prepareStatement(nullable(String.class))).thenReturn(stmt);
         Mockito.when(stmt.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(connection.getMetaData().getURL()).thenReturn("jdbc:sqlserver://hostname-ondemand;databaseName=fakedatabase");

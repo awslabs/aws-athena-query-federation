@@ -41,7 +41,7 @@ public final class GetTableLayoutResponseSerDe
     private static final String TABLE_NAME_FIELD = "tableName";
     private static final String PARTITIONS_FIELD = "partitions";
 
-    private GetTableLayoutResponseSerDe(){}
+    private GetTableLayoutResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

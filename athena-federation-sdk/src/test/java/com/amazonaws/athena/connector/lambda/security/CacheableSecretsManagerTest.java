@@ -29,7 +29,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -64,9 +64,9 @@ public class CacheableSecretsManagerTest
         verifyNoMoreInteractions(mockSecretsManager);
         reset(mockSecretsManager);
 
-        when(mockSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+        when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    GetSecretValueRequest request = invocation.getArgumentAt(0, GetSecretValueRequest.class);
+                    GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
                     if (request.getSecretId().equalsIgnoreCase("test")) {
                         return new GetSecretValueResult().withSecretString("value2");
                     }
@@ -83,24 +83,24 @@ public class CacheableSecretsManagerTest
         for (int i = 0; i < CachableSecretsManager.MAX_CACHE_SIZE; i++) {
             cachableSecretsManager.addCacheEntry("test" + i, "value" + i, System.currentTimeMillis());
         }
-        when(mockSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+        when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    GetSecretValueRequest request = invocation.getArgumentAt(0, GetSecretValueRequest.class);
+                    GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
                     return new GetSecretValueResult().withSecretString(request.getSecretId() + "_value");
                 });
 
         assertEquals("test_value", cachableSecretsManager.getSecret("test"));
         assertEquals("test0_value", cachableSecretsManager.getSecret("test0"));
 
-        verify(mockSecretsManager, times(2)).getSecretValue(any(GetSecretValueRequest.class));
+        verify(mockSecretsManager, times(2)).getSecretValue(nullable(GetSecretValueRequest.class));
     }
 
     @Test
     public void resolveSecrets()
     {
-        when(mockSecretsManager.getSecretValue(any(GetSecretValueRequest.class)))
+        when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))
                 .thenAnswer((InvocationOnMock invocation) -> {
-                    GetSecretValueRequest request = invocation.getArgumentAt(0, GetSecretValueRequest.class);
+                    GetSecretValueRequest request = invocation.getArgument(0, GetSecretValueRequest.class);
                     String result = request.getSecretId();
                     if (result.equalsIgnoreCase("unknown")) {
                         throw new RuntimeException("Unknown secret!");

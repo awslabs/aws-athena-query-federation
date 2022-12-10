@@ -47,8 +47,8 @@ import static com.amazonaws.athena.connectors.hbase.TestUtils.makeResult;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -67,7 +67,7 @@ public class HbaseSchemaUtilsTest
         HBaseConnection mockConnection = mock(HBaseConnection.class);
         ResultScanner mockScanner = mock(ResultScanner.class);
         when(mockScanner.iterator()).thenReturn(results.iterator());
-        when(mockConnection.scanTable(anyObject(), any(Scan.class), anyObject())).thenAnswer((InvocationOnMock invocationOnMock) -> {
+        when(mockConnection.scanTable(any(), nullable(Scan.class), any())).thenAnswer((InvocationOnMock invocationOnMock) -> {
             ResultProcessor processor = (ResultProcessor) invocationOnMock.getArguments()[2];
             return processor.scan(mockScanner);
         });
@@ -87,7 +87,7 @@ public class HbaseSchemaUtilsTest
         }
         assertEquals(expectedFields.size(), actualFields.size());
 
-        verify(mockConnection, times(1)).scanTable(anyObject(), any(Scan.class), any(ResultProcessor.class));
+        verify(mockConnection, times(1)).scanTable(any(), nullable(Scan.class), nullable(ResultProcessor.class));
         verify(mockScanner, times(1)).iterator();
     }
 

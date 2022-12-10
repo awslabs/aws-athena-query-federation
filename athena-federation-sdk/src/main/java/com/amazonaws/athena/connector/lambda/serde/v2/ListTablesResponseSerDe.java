@@ -41,7 +41,7 @@ public final class ListTablesResponseSerDe
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String NEXT_TOKEN_FIELD = "nextToken";
 
-    private ListTablesResponseSerDe(){}
+    private ListTablesResponseSerDe() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse>
     {

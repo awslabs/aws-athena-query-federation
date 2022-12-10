@@ -32,9 +32,9 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import uk.org.webcompere.systemstubs.rules.EnvironmentVariablesRule;
+import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 @RunWith(PowerMockRunner.class)
@@ -49,7 +49,7 @@ public class AmazonMskCompositeHandlerTest {
     }
 
     @Rule
-    public EnvironmentVariablesRule environmentVariables = new EnvironmentVariablesRule();
+    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     @Mock
     KafkaConsumer<String, String> kafkaConsumer;
@@ -69,7 +69,7 @@ public class AmazonMskCompositeHandlerTest {
         mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
         mockStatic(System.class);
-        PowerMockito.when(System.getenv(anyString())).thenReturn("test");
+        PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
         mockStatic(AmazonMskUtils.class);
         PowerMockito.when(AmazonMskUtils.getKafkaConsumer()).thenReturn(kafkaConsumer);
         amazonMskCompositeHandler = new AmazonMskCompositeHandler();

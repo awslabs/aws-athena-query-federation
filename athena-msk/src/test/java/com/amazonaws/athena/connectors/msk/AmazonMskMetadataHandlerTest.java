@@ -49,7 +49,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import uk.org.webcompere.systemstubs.rules.EnvironmentVariablesRule;
+import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +58,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -76,7 +77,7 @@ public class AmazonMskMetadataHandlerTest {
     private Constraints constraints;
 
     @Rule
-    public EnvironmentVariablesRule environmentVariables = new EnvironmentVariablesRule();
+    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     @Mock
     AWSGlue awsGlue;
@@ -163,8 +164,8 @@ public class AmazonMskMetadataHandlerTest {
                 "}");
         PowerMockito.mockStatic(AWSGlueClientBuilder.class);
         PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        PowerMockito.when(awsGlue.getSchema(Mockito.any())).thenReturn(getSchemaResult);
-        PowerMockito.when(awsGlue.getSchemaVersion(Mockito.any())).thenReturn(getSchemaVersionResult);
+        PowerMockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
+        PowerMockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "kafka", new TableName("default", "testtable"));
         GetTableResponse getTableResponse = amazonMskMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         assertEquals(1, getTableResponse.getSchema().getFields().size());

@@ -40,7 +40,7 @@ public final class EquatableValueSetSerDe
     private static final String WHITELIST_FIELD = "whiteList";
     private static final String NULL_ALLOWED_FIELD = "nullAllowed";
 
-    private EquatableValueSetSerDe(){}
+    private EquatableValueSetSerDe() {}
 
     public static final class Serializer extends TypedSerializer<ValueSet>
     {

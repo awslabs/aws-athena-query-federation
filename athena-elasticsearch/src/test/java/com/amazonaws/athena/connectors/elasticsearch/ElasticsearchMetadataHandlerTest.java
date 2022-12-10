@@ -54,7 +54,7 @@ import java.util.*;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.when;
 
 /**
@@ -94,7 +94,7 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("setUpBefore - enter");
 
         allocator = new BlockAllocatorImpl();
-        when(clientFactory.getOrCreateClient(anyString())).thenReturn(mockClient);
+        when(clientFactory.getOrCreateClient(nullable(String.class))).thenReturn(mockClient);
 
         logger.info("setUpBefore - exit");
     }
@@ -350,7 +350,7 @@ public class ElasticsearchMetadataHandlerTest
         LinkedHashMap<String, Object> index = (LinkedHashMap<String, Object>) mapping.get("mishmash");
         LinkedHashMap<String, Object> mappings = (LinkedHashMap<String, Object>) index.get("mappings");
 
-        when(mockClient.getMapping(anyString())).thenReturn(mappings);
+        when(mockClient.getMapping(nullable(String.class))).thenReturn(mappings);
 
         // Get real mapping.
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
@@ -405,7 +405,7 @@ public class ElasticsearchMetadataHandlerTest
         String endpoint = "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com";
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of(domain, endpoint));
 
-        when(mockClient.getShardIds(anyString(), anyLong())).thenReturn(ImmutableSet
+        when(mockClient.getShardIds(nullable(String.class), anyLong())).thenReturn(ImmutableSet
                 .of(new Integer(0), new Integer(1), new Integer(2)));
 
         // Instantiate handler
