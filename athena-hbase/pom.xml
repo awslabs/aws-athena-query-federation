@@ -80,7 +80,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport</artifactId>
-            <version>4.1.85.Final</version>
+            <version>4.1.86.Final</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
