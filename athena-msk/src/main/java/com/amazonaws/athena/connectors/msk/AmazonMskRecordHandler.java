@@ -99,10 +99,19 @@ public class AmazonMskRecordHandler
             if (endOffsets.get(partition) == 0) {
                 LOGGER.debug("[kafka] topic does not have data, closing consumer {}", splitParameters);
                 kafkaConsumer.close();
+
+                // For debug insight
+                splitParameters.info = "endOffset is 0 i.e partition does not have data";
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug(splitParameters.debug());
+                }
                 return;
             }
             // Consume topic data
             consume(spiller, recordsRequest, queryStatusChecker, splitParameters, kafkaConsumer);
+        }
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(splitParameters.debug());
         }
     }
 
@@ -128,6 +137,7 @@ public class AmazonMskRecordHandler
             while (true) {
                 if (!queryStatusChecker.isQueryRunning()) {
                     LOGGER.debug("[kafka]{}  Stopping and closing consumer due to query execution terminated by athena", splitParameters);
+                    splitParameters.info = "query status is false i.e no need to work";
                     return;
                 }
 
@@ -135,6 +145,9 @@ public class AmazonMskRecordHandler
                 // poll returns data as batch which can be configured.
                 ConsumerRecords<String, TopicResultSet> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
                 LOGGER.debug("[kafka] {} polled records size {}", splitParameters, records.count());
+
+                // For debug insight
+                splitParameters.pulled += records.count();
 
                 // Keep track for how many times we are getting empty result for the polling call.
                 if (records.count() == 0) {
@@ -146,18 +159,29 @@ public class AmazonMskRecordHandler
                 // stop the polling.
                 if (emptyResultFoundCount >= MAX_EMPTY_RESULT_FOUND_COUNT) {
                     LOGGER.debug("[kafka] {} Closing consumer due to getting empty result from broker", splitParameters);
+                    splitParameters.info = "always getting empty data i.e leaving from work";
                     return;
                 }
 
                 for (ConsumerRecord<String, TopicResultSet> record : records) {
                     // Pass batch data one by one to be processed to execute. execute method is
                     // a kind of abstraction to keep data filtering and writing on spiller separate.
-                    execute(spiller, recordsRequest, queryStatusChecker, splitParameters, record);
+                    boolean isExecuted = execute(spiller, recordsRequest, queryStatusChecker, splitParameters, record);
+                    if (!isExecuted) {
+                        LOGGER.debug("[FailedToSpill] {} Failed to split record, offset: {}", splitParameters, record.offset());
+                    }
 
                     // If we have reached at the end offset of the partition. we will not continue
                     // to call the polling.
-                    if (record.offset() >= splitParameters.endOffset - 1) {
+                    if (record.offset() >= splitParameters.endOffset) {
                         LOGGER.debug("[kafka] {} Closing consumer due to reach at end offset (current record offset is {})", splitParameters, record.offset());
+
+                        // For debug insight
+                        splitParameters.info = String.format(
+                                "reached at the end offset i.e no need to work: condition [if(record.offset() >= splitParameters.endOffset) i.e if(%s >= %s)]",
+                                record.offset(),
+                                splitParameters.endOffset
+                        );
                         return;
                     }
                 }
@@ -176,23 +200,28 @@ public class AmazonMskRecordHandler
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
      * @param splitParameters - instance of {@link SplitParameters}
      * @param record - instance of {@link ConsumerRecord}
+     * @return boolean - true if all the values are spilled else false
      */
-    private void execute(
+    private boolean execute(
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest,
             QueryStatusChecker queryStatusChecker,
             SplitParameters splitParameters,
             ConsumerRecord<String, TopicResultSet> record)
     {
+        final boolean[] isExecuted = {false};
         spiller.writeRows((Block block, int rowNum) -> {
-            boolean isMatched;
             for (MSKField field : record.value().getFields()) {
-                isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
+                boolean isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
                 if (!isMatched) {
                     return 0;
                 }
             }
+            // For debug insight
+            splitParameters.spilled += 1;
+            isExecuted[0] = true;
             return 1;
         });
+        return isExecuted[0];
     }
 }

@@ -173,13 +173,23 @@ public class AmazonMskMetadataHandler extends MetadataHandler
                 .map(it -> new TopicPartition(it.topic(), it.partition()))
                 .collect(Collectors.toList());
 
-        LOGGER.debug("[kafka][split] total partitions {} found for topic: {}", topicPartitions.size(), topic);
+        LOGGER.debug("[KafkaPartition] total partitions {} found for topic: {}", topicPartitions.size(), topic);
+
+        // Get start offset of each topic partitions from kafka server.
+        Map<TopicPartition, Long> startOffsets = kafkaConsumer.beginningOffsets(topicPartitions);
+        if (LOGGER.isDebugEnabled()) {
+            startOffsets.forEach((k, v) -> {
+                LOGGER.debug("[KafkaPartitionOffset] start offset info [topic: {}, partition: {}, start-offset: {}]",
+                        k.topic(), k.partition(), v
+                );
+            });
+        }
 
         // Get end offset of each topic partitions from kafka server.
         Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(topicPartitions);
         if (LOGGER.isDebugEnabled()) {
             endOffsets.forEach((k, v) -> {
-                LOGGER.debug("[kafka][split] offset info [topic: {}, partition: {}, end-offset: {}]",
+                LOGGER.debug("[KafkaPartitionOffset] end offset info [topic: {}, partition: {}, end-offset: {}]",
                         k.topic(), k.partition(), v
                 );
             });
@@ -189,10 +199,17 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         SpillLocation spillLocation = makeSpillLocation(request);
         for (TopicPartition partition : topicPartitions) {
             // Calculate how many pieces we can divide a topic partition.
-            List<TopicPartitionPiece>  topicPartitionPieces = pieceTopicPartition(endOffsets.get(partition));
-            LOGGER.info("[kafka] Total pieces created {} for partition {} in topic {}",
+            List<TopicPartitionPiece>  topicPartitionPieces = pieceTopicPartition(startOffsets.get(partition), endOffsets.get(partition));
+            LOGGER.info("[TopicPartitionPiece] Total pieces created {} for partition {} in topic {}",
                     topicPartitionPieces.size(), partition.partition(), partition.topic()
             );
+            if (LOGGER.isDebugEnabled()) {
+                topicPartitionPieces.forEach(it -> {
+                    LOGGER.debug("TopicPartitionPiece,{},{},{}",
+                            partition.partition(), it.startOffset, it.endOffset
+                    );
+                });
+            }
 
             // And for each piece we will create new split
             for (TopicPartitionPiece topicPartitionPiece : topicPartitionPieces) {
@@ -256,39 +273,43 @@ public class AmazonMskMetadataHandler extends MetadataHandler
      * Splits topic partition into smaller piece and calculates
      * the start and end offsets of each piece.
      *
+     * @param startOffset - the first offset of topic partition
      * @param endOffset - the last offset of topic partition
      * @return {@link List<TopicPartitionPiece>}
      */
-    public  List<TopicPartitionPiece> pieceTopicPartition(long endOffset)
+    public  List<TopicPartitionPiece> pieceTopicPartition(long startOffset, long endOffset)
     {
         List<TopicPartitionPiece> topicPartitionPieces = new ArrayList<>();
 
         // If endOffset + 1 is smaller or equal to MAX_RECORDS_IN_SPLIT then we do not
         // need to piece the topic partition.
-        if (endOffset + 1 <= MAX_RECORDS_IN_SPLIT) {
-            topicPartitionPieces.add(new TopicPartitionPiece(0, endOffset));
+        if (endOffset + 1 <= startOffset + MAX_RECORDS_IN_SPLIT) {
+            topicPartitionPieces.add(new TopicPartitionPiece(startOffset, endOffset));
             return topicPartitionPieces;
         }
 
+        // Get how many offsets are there
+        long totalOffset = endOffset - startOffset;
+
         // We need to piece the partition basing its end offset.
-        // Calculate the number of pieces can be created for the topic partition.
-        int pieces = (int) Math.ceil((float) endOffset / (float) MAX_RECORDS_IN_SPLIT);
+        // Calculate the number of pieces for the topic partition.
+        int pieces = (int) Math.ceil((float) totalOffset / (float) MAX_RECORDS_IN_SPLIT);
 
         // Set the start and end offset for the first piece
-        long xOffset = 0;
-        long yOffset = MAX_RECORDS_IN_SPLIT;
+        long xOffset = startOffset;
+        long yOffset = startOffset + MAX_RECORDS_IN_SPLIT;
 
-        // Now we will traverse loop for the calculated pieces and
-        // keep recalculating the start and end offsets for each piece
+        // Now we will traverse on loop for the calculated pieces and
+        // keep calculating the start and end offsets for each piece
         // until we reach to the end of loop.
         for (int i = 0; i < pieces; i++) {
             topicPartitionPieces.add(new TopicPartitionPiece(xOffset, yOffset));
             xOffset = yOffset + 1;
-            yOffset += MAX_RECORDS_IN_SPLIT;
+            yOffset = xOffset + MAX_RECORDS_IN_SPLIT;
 
-            // The last endOffset of the last piece must not be greater than the endOffset
-            // of topic partition, it will be equal to endOffset of the topic partition.
-            if (endOffset < yOffset) {
+            // The last yOffset of the last piece must not be greater than the endOffset
+            // of the topic partition, it will be at least equal to endOffset of the topic partition.
+            if (yOffset > endOffset) {
                 yOffset = endOffset;
             }
         }
