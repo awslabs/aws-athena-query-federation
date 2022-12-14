@@ -309,9 +309,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
 
             // The last yOffset of the last piece must not be greater than the endOffset
             // of the topic partition, it will be at least equal to endOffset of the topic partition.
-            if (yOffset > endOffset) {
-                yOffset = endOffset;
-            }
+            yOffset = Math.min(yOffset, endOffset);
         }
 
         return topicPartitionPieces;

@@ -166,10 +166,7 @@ public class AmazonMskRecordHandler
                 for (ConsumerRecord<String, TopicResultSet> record : records) {
                     // Pass batch data one by one to be processed to execute. execute method is
                     // a kind of abstraction to keep data filtering and writing on spiller separate.
-                    boolean isExecuted = execute(spiller, recordsRequest, queryStatusChecker, splitParameters, record);
-                    if (!isExecuted) {
-                        LOGGER.debug("[FailedToSpill] {} Failed to split record, offset: {}", splitParameters, record.offset());
-                    }
+                    execute(spiller, recordsRequest, queryStatusChecker, splitParameters, record);
 
                     // If we have reached at the end offset of the partition. we will not continue
                     // to call the polling.
@@ -200,9 +197,8 @@ public class AmazonMskRecordHandler
      * @param queryStatusChecker - instance of {@link QueryStatusChecker}
      * @param splitParameters - instance of {@link SplitParameters}
      * @param record - instance of {@link ConsumerRecord}
-     * @return boolean - true if all the values are spilled else false
      */
-    private boolean execute(
+    private void execute(
             BlockSpiller spiller,
             ReadRecordsRequest recordsRequest,
             QueryStatusChecker queryStatusChecker,
@@ -214,14 +210,13 @@ public class AmazonMskRecordHandler
             for (MSKField field : record.value().getFields()) {
                 boolean isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
                 if (!isMatched) {
+                    LOGGER.debug("[FailedToSpill] {} Failed to split record, offset: {}", splitParameters, record.offset());
                     return 0;
                 }
             }
             // For debug insight
             splitParameters.spilled += 1;
-            isExecuted[0] = true;
             return 1;
         });
-        return isExecuted[0];
     }
 }
