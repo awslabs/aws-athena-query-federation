@@ -101,15 +101,20 @@ public class AmazonMskMetadataHandlerTest {
         environmentVariables.set("secrets_manager_secret", "AmazonMSK_afq");
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        Map<TopicPartition, Long> partitions = Map.of(
+        Map<TopicPartition, Long> partitionsStart = Map.of(
+                new TopicPartition("testTopic", 0), 0L,
+                new TopicPartition("testTopic", 1), 0L
+        );
+        Map<TopicPartition, Long> partitionsEnd = Map.of(
                 new TopicPartition("testTopic", 0), 20100L,
                 new TopicPartition("testTopic", 1), 7850L
         );
-        List<PartitionInfo> partitionInfoList = new ArrayList<>(partitions.keySet())
+        List<PartitionInfo> partitionInfoList = new ArrayList<>(partitionsStart.keySet())
                 .stream()
                 .map(it -> new PartitionInfo(it.topic(), it.partition(), null, null, null))
                 .collect(Collectors.toList());
-        consumer.updateEndOffsets(partitions);
+        consumer.updateBeginningOffsets(partitionsStart);
+        consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
         amazonMskMetadataHandler = new AmazonMskMetadataHandler(consumer);
