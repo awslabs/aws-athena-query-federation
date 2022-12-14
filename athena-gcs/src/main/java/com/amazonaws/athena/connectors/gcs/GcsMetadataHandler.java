@@ -26,7 +26,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -44,6 +44,9 @@ import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.athena.connectors.gcs.storage.TableListResult;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
@@ -72,7 +75,7 @@ import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE
 import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
 
 public class GcsMetadataHandler
-        extends MetadataHandler
+        extends GlueMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsMetadataHandler.class);
 
@@ -82,12 +85,24 @@ public class GcsMetadataHandler
      */
     private static final String SOURCE_TYPE = "gcs";
     private final StorageMetadata datasource;
+    // Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
+    // metadata and instead rely solely on the connector's schema inference capabilities.
+    private static final String GLUE_ENV = "disable_glue";
+    private final AWSGlue glueClient;
+    private static final CharSequence GCS_FLAG = "gcs";
+    private static final String DEFAULT_SCHEMA = "default";
+    private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
+    // used to filter out Glue tables which lack indications of being used for DDB.
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(System.getenv("file_extension"))
+            || (table.getParameters() != null && GCS_FLAG.equals(table.getParameters().get("classification")))
+            || (table.getStorageDescriptor().getParameters() != null && System.getenv("file_extension").equals(table.getStorageDescriptor().getParameters().get("classification")));
 
     public GcsMetadataHandler() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
-        super(SOURCE_TYPE);
+        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
         this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
+        this.glueClient = getAwsGlue();
     }
 
     @VisibleForTesting
@@ -97,11 +112,12 @@ public class GcsMetadataHandler
                                  AmazonAthena athena,
                                  String spillBucket,
                                  String spillPrefix,
-                                 AmazonS3 amazonS3) throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+                                 AmazonS3 amazonS3, AWSGlue glueClient) throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
-        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
         this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
+        this.glueClient = getAwsGlue();
         System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
     }
 
