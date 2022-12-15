@@ -17,16 +17,16 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.gcs.storage.datasource.exception;
+package com.amazonaws.athena.connectors.gcs;
 
-public class UncheckedStorageDatasourceException extends RuntimeException
+public class UncheckedGcsConnectorException extends RuntimeException
 {
     /**
      * Instantiate the unchecked exception with a message
      *
      * @param message Message of the exception
      */
-    public UncheckedStorageDatasourceException(String message)
+    public UncheckedGcsConnectorException(String message)
     {
         super(message);
     }
@@ -37,7 +37,7 @@ public class UncheckedStorageDatasourceException extends RuntimeException
      * @param message   Message of the exception
      * @param throwable Base exception for tracing
      */
-    public UncheckedStorageDatasourceException(String message, Throwable throwable)
+    public UncheckedGcsConnectorException(String message, Throwable throwable)
     {
         super(message, throwable);
     }
@@ -47,7 +47,7 @@ public class UncheckedStorageDatasourceException extends RuntimeException
      *
      * @param exception Base exception for tracing
      */
-    public UncheckedStorageDatasourceException(Exception exception)
+    public UncheckedGcsConnectorException(Exception exception)
     {
         super(exception);
     }

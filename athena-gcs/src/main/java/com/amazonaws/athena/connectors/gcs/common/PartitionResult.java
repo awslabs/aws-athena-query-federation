@@ -1,15 +1,15 @@
 /*-
  * #%L
- * athena-storage-api
+ * athena-gcs
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,19 +17,28 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.gcs.storage.datasource.exception;
+package com.amazonaws.athena.connectors.gcs.common;
 
-import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
+import java.util.List;
 
-public class DatabaseNotFoundException extends UncheckedGcsConnectorException
+public class PartitionResult
 {
-    /**
-     * Instantiate the exception with a message
-     *
-     * @param message Message of the exception
-     */
-    public DatabaseNotFoundException(String message)
+    private List<StoragePartition> partitions;
+    private String tableType;
+
+    public PartitionResult(String tableType, List<StoragePartition> partitions)
     {
-        super(message);
+        this.tableType = tableType;
+        this.partitions = partitions;
+    }
+
+    public List<StoragePartition> getPartitions()
+    {
+        return partitions;
+    }
+
+    public String getTableType()
+    {
+        return tableType;
     }
 }

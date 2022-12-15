@@ -19,9 +19,9 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
+import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.exception.UncheckedStorageDatasourceException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
@@ -54,7 +54,7 @@ public class StorageDatasourceFactory
         fileFormat = requireNonNull(fileFormat, "File extension was not specified, please specify any of parquet, or csv (cae insensitive");
         FileFormat.SupportedFileFormat supportedFileFormat = FileFormatSupport.getSupportedFormat(fileFormat);
         if (supportedFileFormat == null) {
-            throw new UncheckedStorageDatasourceException("File extension " + fileFormat
+            throw new UncheckedGcsConnectorException("File extension " + fileFormat
                     + " not yet supported. Please specify any of parquet, or csv (case insensitive)");
         }
         return supportedFileFormat.createDatasource(credentialJsonString, properties);

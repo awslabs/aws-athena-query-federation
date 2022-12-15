@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
+import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
@@ -34,23 +35,6 @@ public interface StorageMetadata
     List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException;
 
     /**
-     * Returns a list of all buckets from a cloud storage as databases
-     *
-     * @return List of database names
-     */
-    List<String> getAllDatabases();
-
-    /**
-     * List all tables in a database
-     *
-     * @param databaseName Name of the database
-     * @param nextToken    Token for the next page token, may be null
-     * @param pageSie      Size of the page (number of tables per table)
-     * @return List of all tables under the database
-     */
-    TableListResult getAllTables(String databaseName, String nextToken, int pageSie) throws Exception;
-
-    /**
      * Returns a storage object (file) as a DB table with field names and associated file type
      *
      * @param databaseName Name of the database
@@ -60,11 +44,13 @@ public interface StorageMetadata
     Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws Exception;
 
     /**
-     * Checks to see if the extension of the object is invalid for the underlying datasource. For example
-     * @param objectName Name of the object
-     * @return true if the object name contains a valid extension, false otherwise
+     * Retrieves a list of StorageSplit that essentially contain the list of all files for a given table type in a storage location
+     *
+     * @param tableType Type of the table (e.g., PARQUET or CSV)
+     * @param partitions List of {@link StoragePartition} instances
+     * @return A list of {@link StorageSplit} instances
      */
-    boolean containsInvalidExtension(String objectName);
+    List<StorageSplit> getStorageSplits(String tableType, StoragePartition partitions);
 
     /**
      * Returns the Datasource specific file format to be used to read a file (for retrieving schema or fetching data)
