@@ -88,6 +88,14 @@ Resources:
             - Action:
                 - athena:GetQueryExecution
                 - s3:ListAllMyBuckets
+                - glue:GetTableVersions
+                - glue:GetPartitions
+                - glue:GetTables
+                - glue:GetTableVersion
+                - glue:GetDatabases
+                - glue:GetTable
+                - glue:GetPartition
+                - glue:GetDatabase
               Effect: Allow
               Resource: '*'
           Version: '2012-10-17'

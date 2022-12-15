@@ -35,7 +35,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
@@ -47,6 +49,7 @@ import static java.util.Objects.requireNonNull;
 public class GcsUtil
 {
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    static List<String> supportedTypeList = Arrays.asList("parquet", "csv");
 
     private GcsUtil()
     {
@@ -121,5 +124,10 @@ public class GcsUtil
             out.write(gcsCredentialsJsonString.getBytes(StandardCharsets.UTF_8));
             out.flush();
         }
+    }
+
+    public static boolean isSupportedFileType(String classification)
+    {
+        return supportedTypeList.stream().anyMatch(str -> str.trim().equalsIgnoreCase(classification));
     }
 }
