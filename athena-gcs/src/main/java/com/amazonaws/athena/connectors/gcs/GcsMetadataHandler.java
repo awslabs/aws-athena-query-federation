@@ -57,12 +57,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
@@ -92,9 +89,10 @@ public class GcsMetadataHandler
     private static final CharSequence GCS_FLAG = "gcs";
     private static final String DEFAULT_SCHEMA = "default";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
+    public static final String TABLE_FILTER_IDENTIFIER = "gs://";
     // used to filter out Glue tables which lack indications of being used for DDB.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(System.getenv("file_extension"))
-            || (table.getParameters() != null && GCS_FLAG.equals(table.getParameters().get("classification")))
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
+            || (table.getParameters() != null && System.getenv("file_extension").equalsIgnoreCase(table.getParameters().get("classification")))
             || (table.getStorageDescriptor().getParameters() != null && System.getenv("file_extension").equals(table.getStorageDescriptor().getParameters().get("classification")));
 
     public GcsMetadataHandler() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
@@ -130,11 +128,18 @@ public class GcsMetadataHandler
      * corresponding the Athena catalog that was queried.
      */
     @Override
-    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request)
+    public ListSchemasResponse doListSchemaNames(BlockAllocator allocator, ListSchemasRequest request) throws Exception
     {
-        LOGGER.debug("doListSchemaNames: {}", request.getCatalogName());
-        List<String> schemas = datasource.getAllDatabases();
-        return new ListSchemasResponse(request.getCatalogName(), schemas);
+        Set<String> schema = new LinkedHashSet<>();
+        if (glueClient != null) {
+            try {
+                schema.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemas());
+            }
+            catch (RuntimeException e) {
+                LOGGER.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
+            }
+        }
+        return new ListSchemasResponse(request.getCatalogName(), schema);
     }
 
     /**
@@ -148,18 +153,20 @@ public class GcsMetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws Exception
     {
-        List<TableName> tables = new ArrayList<>();
-        String nextToken;
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=Fetching list of tables with page size {} and token {} for scheme {}",
-                request.getPageSize(), request.getNextToken(), request.getSchemaName());
-        TableListResult result = datasource.getAllTables(request.getSchemaName(), request.getNextToken(),
-                request.getPageSize());
-        nextToken = result.getNextToken();
-        List<StorageObject> tableNames = result.getTables();
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doListTables|Message=tables under schema {} are: {}",
-                request.getSchemaName(), tableNames);
-        tableNames.forEach(storageObject -> tables.add(new TableName(request.getSchemaName(), storageObject.getTableName())));
-        return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
+        Set<TableName> tables = new LinkedHashSet<>();
+        if (glueClient != null) {
+            try {
+                // does not validate that the tables are actually DDB tables
+                tables.addAll(super.doListTables(allocator,
+                        new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
+                                request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
+                        TABLE_FILTER).getTables());
+            }
+            catch (RuntimeException e) {
+                LOGGER.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
+            }
+        }
+        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(tables), null);
     }
 
     /**
@@ -177,12 +184,18 @@ public class GcsMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
     {
         TableName tableInfo = request.getTableName();
-        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetTable|Message=queryId {}",
-                request.getQueryId());
-        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetTable|Message=Schema name {}, table name {}",
-                tableInfo.getSchemaName(), tableInfo.getTableName());
-        LOGGER.debug(MessageFormat.format("Running doGetTable for table {0}, in schema {1} ",
-                tableInfo.getTableName(), tableInfo.getSchemaName()));
+        if (glueClient != null) {
+            try {
+                // does not validate that the table is actually a DDB table
+                return super.doGetTable(blockAllocator, request);
+            }
+            catch (RuntimeException e) {
+                LOGGER.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
+                                "Falling back to schema inference. If inferred schema is incorrect, create " +
+                                "a matching table in Glue to define schema (see README)",
+                        request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
+            }
+        }
         Schema schema = buildTableSchema(this.datasource,
                 tableInfo.getSchemaName(),
                 tableInfo.getTableName());
