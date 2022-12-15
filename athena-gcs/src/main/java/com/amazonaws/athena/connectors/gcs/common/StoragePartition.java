@@ -19,17 +19,12 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import java.util.List;
-
 import static java.util.Objects.requireNonNull;
 
 public class StoragePartition
 {
-    private List<String> objectName;
     private String bucketName;
     private String location;
-    private long recordCount;
-    private List<StoragePartition> children;
 
     // Jackson uses this constructor
     @SuppressWarnings("unused")
@@ -37,53 +32,10 @@ public class StoragePartition
     {
     }
 
-    public StoragePartition(List<String> objectNames, String location, String bucketName, Long recordCount, List<StoragePartition> children)
+    public StoragePartition(String bucketName, String location)
     {
-        this.objectName = requireNonNull(objectNames, "objectNames was null");
-        this.location = requireNonNull(location, "location was null");
-        this.bucketName = requireNonNull(bucketName, "bucketName was null");
-        this.recordCount = requireNonNull(recordCount, "recordCount was null");
-        this.children = requireNonNull(children, "children was null. However, could be empty list");
-    }
-
-    public List<String> getObjectName()
-    {
-        return objectName;
-    }
-
-    public void setObjectName(List<String> objectName)
-    {
-        this.objectName = objectName;
-    }
-
-    public String getLocation()
-    {
-        return location;
-    }
-
-    public void setLocation(String location)
-    {
-        this.location = location;
-    }
-
-    public long getRecordCount()
-    {
-        return recordCount;
-    }
-
-    public void setRecordCount(long recordCount)
-    {
-        this.recordCount = recordCount;
-    }
-
-    public List<StoragePartition> getChildren()
-    {
-        return children;
-    }
-
-    public void setChildren(List<StoragePartition> children)
-    {
-        this.children = children;
+        this.bucketName = requireNonNull(bucketName, "Bucket name can't be null");
+        this.location = requireNonNull(location, "Location can't be null");
     }
 
     public String getBucketName()
@@ -96,16 +48,14 @@ public class StoragePartition
         this.bucketName = bucketName;
     }
 
-    @Override
-    public String toString()
+    public String getLocation()
     {
-        return "StoragePartition{" +
-                "objectName=" + objectName +
-                ", bucketName='" + bucketName + '\'' +
-                ", location='" + location + '\'' +
-                ", recordCount=" + recordCount +
-                ", children=" + children +
-                '}';
+        return location;
+    }
+
+    public void setLocation(String location)
+    {
+        this.location = location;
     }
 
     public static Builder builder()
@@ -113,29 +63,23 @@ public class StoragePartition
         return new Builder();
     }
 
+    @Override
+    public String toString()
+    {
+        return "StoragePartition{" +
+                "bucketName='" + bucketName + '\'' +
+                ", location='" + location + '\'' +
+                '}';
+    }
+
     // Builder
     public static class Builder
     {
-        private List<String> objectNames;
-        private String location;
         private String bucketName;
-        private long recordCount;
-        private List<StoragePartition> children = List.of();
+        private String location;
 
         private Builder()
         {
-        }
-
-        public Builder objectNames(List<String> objectName)
-        {
-            this.objectNames = requireNonNull(objectName, "objectName can't be null");
-            return this;
-        }
-
-        public Builder location(String location)
-        {
-            this.location = requireNonNull(location, "location can't be null");
-            return this;
         }
 
         public Builder bucketName(String bucketName)
@@ -144,21 +88,15 @@ public class StoragePartition
             return this;
         }
 
-        public Builder recordCount(Long recordCount)
+        public Builder location(String location)
         {
-            this.recordCount = requireNonNull(recordCount, "recordCount can't be null");
-            return this;
-        }
-
-        public Builder children(List<StoragePartition> children)
-        {
-            this.children = children;
+            this.location = location;
             return this;
         }
 
         public StoragePartition build()
         {
-            return new StoragePartition(this.objectNames, this.location, this.bucketName, this.recordCount, this.children);
+            return new StoragePartition(this.bucketName, this.location);
         }
     }
 }

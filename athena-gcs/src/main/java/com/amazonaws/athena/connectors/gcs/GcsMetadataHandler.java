@@ -39,6 +39,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.StorageObject;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
+import com.amazonaws.athena.connectors.gcs.glue.HivePartitionResolver;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.athena.connectors.gcs.storage.TableListResult;
@@ -238,7 +239,7 @@ public class GcsMetadataHandler
         int partitionContd = decodeContinuationToken(request);
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
                 partitionContd);
-        List<StoragePartition> storagePartitions = datasource.getStoragePartitions(request.getSchema(), request.getTableName(), request.getConstraints(), bucketName, objectName);
+        List<StoragePartition> storagePartitions = new HivePartitionResolver().getPartitions(null, request.getTableName(), request.getConstraints());
         for (int curPartition = 0; curPartition < storagePartitions.size(); curPartition++) {
             SpillLocation spillLocation = makeSpillLocation(request);
             StoragePartition partition = storagePartitions.get(curPartition);
