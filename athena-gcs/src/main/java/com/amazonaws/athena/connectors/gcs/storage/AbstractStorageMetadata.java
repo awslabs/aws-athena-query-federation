@@ -19,15 +19,11 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
 import com.amazonaws.athena.connectors.gcs.common.StorageObject;
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
-import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageMetadataConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.exception.UncheckedStorageDatasourceException;
@@ -261,66 +257,6 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
             }
         }
         throw new UncheckedStorageDatasourceException("No object found for the table name '" + tableName + "' under bucket " + bucketName);
-    }
-
-    /**
-     * Retrieves all the partitions from a given object. When the object is a:
-     * <ol>
-     *     <li>single file, it contains only a single partition</li>
-     *     <li>director and partitioned, that is, it contains sub-folder in form of FIELD_NAME=FIELD_VALUE, it may contains one or more partitions</li>
-     *     <li>director and not partitioned, this method ignores the directory</li>
-     * </ol>
-     * @param schema An instance of {@link Schema}
-     * @param tableInfo An instance of {@link TableName} that contains schema name and table name
-     * @param constraints An instance of {@link Constraints} that contains predicate information
-     * @param bucketName Name of the bucket
-     * @param objectName Name of the object
-     * @return A list of {@link StoragePartition} instances
-     */
-    @Override
-    public List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
-                                                       String bucketName, String objectName)
-    {
-        LOGGER.info("Getting partitions for object {} in bucket {}", objectName, bucketName);
-        if (objectName.endsWith("/")) { // a folder
-            List<String> files = getStorageFiles(bucketName, objectName);
-            if (!files.isEmpty()) { // We fot a list of FieldValue for partition folder
-                Schema fileSchema = getFileSchema(bucketName, files.get(0));
-                Set<FieldValue> fieldValueList = getPartitionedFieldValue(files);
-                if (!fieldValueList.isEmpty()) {
-                    LOGGER.info("AbstractStorageMetadata::getStoragePartitions ->  field values for partition folder(s)\n{}", fieldValueList);
-                    List<FilterExpression> expressions = new FilterExpressionBuilder(fileSchema).getExpressions(constraints, Map.of());
-                    LOGGER.info("AbstractStorageMetadata::getStoragePartitions -> List of expressions:\n{}", expressions);
-                    List<StoragePartition> partitions = new ArrayList<>();
-                    for (String file : files) {
-                        if (!file.toLowerCase().endsWith(metadataConfig.extension())) {
-                            continue;
-                        }
-                        if (!partitionSelected(file, expressions, fieldValueList)) {
-                            continue;
-                        }
-                        partitions.add(StoragePartition.builder()
-                                .objectNames(List.of())
-                                .location(file)
-                                .bucketName(bucketName)
-                                .recordCount(0L)
-                                .children(List.of())
-                                .build());
-                    }
-                    return partitions;
-                }
-            }
-        }
-        else {
-            return List.of(StoragePartition.builder()
-                    .objectNames(List.of())
-                    .location(objectName)
-                    .bucketName(bucketName)
-                    .recordCount(0L)
-                    .children(List.of())
-                    .build());
-        }
-        return List.of();
     }
 
     /**

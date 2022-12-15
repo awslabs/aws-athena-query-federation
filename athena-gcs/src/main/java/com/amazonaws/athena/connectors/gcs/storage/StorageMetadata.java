@@ -19,15 +19,11 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.dataset.file.FileFormat;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.IOException;
 import java.util.List;
@@ -62,14 +58,6 @@ public interface StorageMetadata
      * @return An instance of {@link StorageTable} with column metadata
      */
     Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws Exception;
-
-    default List<StoragePartition> getStoragePartitions(Schema schema, TableName tableInfo, Constraints constraints,
-                                                        String bucketName, String objectName)
-    {
-        throw new RuntimeException(new UnsupportedOperationException("Method List<StoragePartition> " +
-                "getStoragePartitions(Constraints, TableName, Split, String, String) not implemented in class "
-                + getClass().getSimpleName()));
-    }
 
     /**
      * Checks to see if the extension of the object is invalid for the underlying datasource. For example
