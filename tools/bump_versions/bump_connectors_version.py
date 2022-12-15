@@ -22,6 +22,8 @@ if __name__ == "__main__":
     root_dir = Path(__file__).parent.parent.parent
     os.chdir(root_dir)
 
+    new_version = common.get_new_version()
+
     connector_dirs = list(filter(lambda x: x not in EXCLUDE_DIRS, glob.glob("athena*")))
 
     connector_artifact_ids = common.get_projects_artifact_ids_map(connector_dirs)
@@ -32,18 +34,18 @@ if __name__ == "__main__":
             soup = BeautifulSoup(f, 'xml')
 
             # First update the project's version
-            (existing_version, new_version) = common.update_project_version(soup)
+            common.update_project_version(soup, new_version)
 
             # Then update any dependencies on other connectors to the new version as well
             for connector_artifact_id in connector_artifact_ids.values():
                 # This is ourselves. We can't depend on ourselves so skip this.
                 if connector_artifact_id == connector_artifact_ids[connector]:
                     continue
-                common.update_dependency_version(soup, connector_artifact_id)
+                common.update_dependency_version(soup, connector_artifact_id, new_version)
 
         # Output the xml
         common.output_xml(soup, f"{connector}/pom.xml")
 
         # Bump the versions in the yaml files
         yaml_files = glob.glob(f"{connector}/*.yaml") + glob.glob(f"{connector}/*.yml")
-        common.update_yaml(yaml_files, existing_version, new_version)
+        common.update_yaml(yaml_files, new_version)

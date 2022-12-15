@@ -24,12 +24,14 @@ if __name__ == "__main__":
     root_dir = Path(__file__).parent.parent.parent
     os.chdir(root_dir)
 
+    new_version = common.get_new_version()
+
     # Update the sdk project versions
     for sdk_dir in SDK_DIRS:
         with open(f"{sdk_dir}/pom.xml") as f:
             soup = BeautifulSoup(f, 'xml')
             # Update each project's version
-            (existing_version, new_version) = common.update_project_version(soup)
+            common.update_project_version(soup, new_version)
         common.output_xml(soup, f"{sdk_dir}/pom.xml")
 
     # This incluldes the root project
@@ -45,15 +47,14 @@ if __name__ == "__main__":
                 # This is ourselves, so don't bump again
                 if sdk_project_artifact_id == sdk_project_artifact_ids.get(project):
                     continue
-                common.update_dependency_version(soup, sdk_project_artifact_id)
+                common.update_dependency_version(soup, sdk_project_artifact_id, new_version)
         common.output_xml(soup, f"{project}/pom.xml")
 
     # athena-federation-sdk/athena-federation-sdk.yaml
     # Bump the versions in the yaml files
     yaml_files = glob.glob(f"athena-federation-sdk/*.yaml") + glob.glob(f"athena-federation-sdk/*.yml")
-    common.update_yaml(yaml_files, existing_version, new_version)
+    common.update_yaml(yaml_files, new_version)
 
     # Bump misc files
-    MISC = ["athena-federation-integ-test/README.md", "tools/validate_connector.sh"]
-    for m in MISC:
-        subprocess.run(["sed", "-i", f"s/{existing_version}/{new_version}/", m])
+    subprocess.run(["sed", "-i", f"s/^\(VERSION=\).*/\\1{new_version}/", "tools/validate_connector.sh"])
+    subprocess.run(["sed", "-i", f"s/\(.*Current version of the SDK (e.g. \).*)/\\1{new_version})/", "athena-federation-integ-test/README.md"])
