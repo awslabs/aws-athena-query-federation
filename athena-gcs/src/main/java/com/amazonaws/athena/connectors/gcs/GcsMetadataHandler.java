@@ -37,12 +37,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.gcs.common.StorageObject;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.glue.HivePartitionResolver;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
-import com.amazonaws.athena.connectors.gcs.storage.TableListResult;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -57,8 +55,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.text.MessageFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
@@ -93,8 +95,8 @@ public class GcsMetadataHandler
     public static final String TABLE_FILTER_IDENTIFIER = "gs://";
     // used to filter out Glue tables which lack indications of being used for DDB.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
-            || (table.getParameters() != null && System.getenv("file_extension").equalsIgnoreCase(table.getParameters().get("classification")))
-            || (table.getStorageDescriptor().getParameters() != null && System.getenv("file_extension").equals(table.getStorageDescriptor().getParameters().get("classification")));
+            || (table.getParameters() != null && GcsUtil.isSupportedFileType(table.getParameters().get("classification")))
+            || (table.getStorageDescriptor().getParameters() != null && GcsUtil.isSupportedFileType(table.getStorageDescriptor().getParameters().get("classification")));
 
     public GcsMetadataHandler() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
     {
@@ -157,7 +159,6 @@ public class GcsMetadataHandler
         Set<TableName> tables = new LinkedHashSet<>();
         if (glueClient != null) {
             try {
-                // does not validate that the tables are actually DDB tables
                 tables.addAll(super.doListTables(allocator,
                         new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
                                 request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
@@ -187,7 +188,6 @@ public class GcsMetadataHandler
         TableName tableInfo = request.getTableName();
         if (glueClient != null) {
             try {
-                // does not validate that the table is actually a DDB table
                 return super.doGetTable(blockAllocator, request);
             }
             catch (RuntimeException e) {
