@@ -37,11 +37,11 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.glue.HivePartitionResolver;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Database;
@@ -59,19 +59,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.connectors.gcs.GcsSchemaUtils.buildTableSchema;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.IS_TABLE_PARTITIONED;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_BUCKET_NAME;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME;
 import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
 
 public class GcsMetadataHandler
@@ -231,40 +228,30 @@ public class GcsMetadataHandler
     @Override
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws Exception
     {
-        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
-        String bucketName = "";
-        String objectName = "";
-        boolean partitioned = false;
+        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         TableName tableInfo = request.getTableName();
-        LOGGER.debug("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Schema name{}, table name {}",
-                tableInfo.getSchemaName(), tableInfo.getTableName());
-        Optional<StorageTable> optionalTable = datasource.getStorageTable(tableInfo.getSchemaName(),
-                tableInfo.getTableName());
-        if (optionalTable.isPresent()) {
-            StorageTable table = optionalTable.get();
-            bucketName = table.getParameters().get(TABLE_PARAM_BUCKET_NAME);
-            objectName = table.getParameters().get(TABLE_PARAM_OBJECT_NAME);
-            partitioned = Boolean.parseBoolean(table.getParameters().get(IS_TABLE_PARTITIONED));
-        }
-        LOGGER.debug("Object {} under bucket {} is partitioned? {}", objectName, bucketName, partitioned);
-        LOGGER.debug("Block partition @ doGetSplits \n{}", partitioned);
         Set<Split> splits = new HashSet<>();
         int partitionContd = decodeContinuationToken(request);
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
                 partitionContd);
-        List<StoragePartition> storagePartitions = new HivePartitionResolver().getPartitions(null, request.getTableName(), request.getConstraints());
+        PartitionResult partitionResult = new HivePartitionResolver().getPartitions(request, request.getSchema(), request.getTableName(), request.getConstraints(), glueClient);
+        String tableType = partitionResult.getTableType();
+        List<StoragePartition> storagePartitions = partitionResult.getPartitions();
         for (int curPartition = 0; curPartition < storagePartitions.size(); curPartition++) {
-            SpillLocation spillLocation = makeSpillLocation(request);
             StoragePartition partition = storagePartitions.get(curPartition);
-            StorageSplit storageSplit = StorageSplit.builder()
-                    .fileName(bucketName + "/" + partition.getLocation())
-                    .build();
-            String storageSplitJson = splitAsJson(storageSplit);
-            LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
-                    storageSplitJson);
-            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(STORAGE_SPLIT_JSON, storageSplitJson);
-            splits.add(splitBuilder.build());
+            LOGGER.info("Partition for {}.{} at position {} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), curPartition + 1, partition);
+            List<StorageSplit> storageSplits = datasource.getStorageSplits(tableType, partition);
+            SpillLocation spillLocation = makeSpillLocation(request);
+            LOGGER.info("Split list for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageSplits);
+            for (StorageSplit split : storageSplits) {
+                String storageSplitJson = splitAsJson(split);
+                LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
+                        storageSplitJson);
+                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                        .add(CLASSIFICATION_GLUE_TABLE_PARAM, tableType)
+                        .add(STORAGE_SPLIT_JSON, storageSplitJson);
+                splits.add(splitBuilder.build());
+            }
             if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
                 return new GetSplitsResponse(request.getCatalogName(), splits, String.valueOf(curPartition + 1));
