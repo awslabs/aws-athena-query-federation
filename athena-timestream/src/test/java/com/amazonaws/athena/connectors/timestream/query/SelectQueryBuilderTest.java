@@ -36,6 +36,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -93,7 +94,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), -1))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
@@ -128,7 +129,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), -1))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);

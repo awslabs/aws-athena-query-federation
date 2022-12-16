@@ -50,6 +50,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.VarCharFi
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -70,6 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,7 +105,7 @@ public class GeneratedRowWriter
 
     public static RowWriterBuilder newBuilder()
     {
-        return new RowWriterBuilder(new Constraints(ImmutableMap.of()));
+        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1));
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)

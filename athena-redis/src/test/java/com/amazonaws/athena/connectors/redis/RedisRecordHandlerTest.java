@@ -73,6 +73,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -247,7 +248,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -346,7 +347,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -460,7 +461,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

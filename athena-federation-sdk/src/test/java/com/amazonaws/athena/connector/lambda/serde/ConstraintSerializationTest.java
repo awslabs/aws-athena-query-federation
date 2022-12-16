@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.google.common.collect.ImmutableList;
@@ -37,6 +38,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -84,7 +86,7 @@ public class ConstraintSerializationTest
                         "queryId",
                         "default",
                         new TableName("schema1", "table1"),
-                        new Constraints(constraintsMap),
+                        new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                         SchemaBuilder.newBuilder().build(),
                         new HashSet<>())
         ) {

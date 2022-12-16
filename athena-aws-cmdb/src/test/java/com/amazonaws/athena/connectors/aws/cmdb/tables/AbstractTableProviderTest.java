@@ -187,7 +187,7 @@ public abstract class AbstractTableProviderTest
                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
                         .add(idValue).build());
 
-        Constraints constraints = new Constraints(constraintsMap);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), -1);
 
         ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, response.getSchema(), constraints);
 

@@ -54,13 +54,13 @@ public final class GetTableLayoutRequestSerDe
     {
         private final FederatedIdentitySerDe.Serializer identitySerializer;
         private final TableNameSerDe.Serializer tableNameSerializer;
-        private final ConstraintsSerDe.Serializer constraintsSerializer;
+        private final VersionedSerDe.Serializer<Constraints> constraintsSerializer;
         private final VersionedSerDe.Serializer<Schema> schemaSerializer;
 
         public Serializer(
                 FederatedIdentitySerDe.Serializer identitySerializer,
                 TableNameSerDe.Serializer tableNameSerializer,
-                ConstraintsSerDe.Serializer constraintsSerializer,
+                VersionedSerDe.Serializer<Constraints> constraintsSerializer,
                 VersionedSerDe.Serializer<Schema> schemaSerializer)
         {
             super(GetTableLayoutRequest.class, identitySerializer);
@@ -93,13 +93,13 @@ public final class GetTableLayoutRequestSerDe
     {
         private final FederatedIdentitySerDe.Deserializer identityDeserializer;
         private final TableNameSerDe.Deserializer tableNameDeserializer;
-        private final ConstraintsSerDe.Deserializer constraintsDeserializer;
+        private final VersionedSerDe.Deserializer<Constraints> constraintsDeserializer;
         private final VersionedSerDe.Deserializer<Schema> schemaDeserializer;
 
         public Deserializer(
                 FederatedIdentitySerDe.Deserializer identityDeserializer,
                 TableNameSerDe.Deserializer tableNameDeserializer,
-                ConstraintsSerDe.Deserializer constraintsDeserializer,
+                VersionedSerDe.Deserializer<Constraints> constraintsDeserializer,
                 VersionedSerDe.Deserializer<Schema> schemaDeserializer)
         {
             super(GetTableLayoutRequest.class, identityDeserializer);

@@ -21,6 +21,10 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
@@ -29,11 +33,8 @@ import com.amazonaws.athena.connector.lambda.serde.PingResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.AllOrNoneValueSetSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.ArrowTypeSerDe;
-import com.amazonaws.athena.connector.lambda.serde.v2.ConstraintsSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.EncryptionKeySerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.EquatableValueSetSerDe;
-import com.amazonaws.athena.connector.lambda.serde.v2.FederationRequestSerDe;
-import com.amazonaws.athena.connector.lambda.serde.v2.FederationResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.GetSplitsResponseSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.GetTableLayoutRequestSerDe;
@@ -197,7 +198,7 @@ public class ObjectMapperFactoryV3
         return new StrictObjectMapper(allocator);
     }
 
-    private static FederationRequestSerDe.Serializer createRequestSerializer()
+    private static FederationRequestSerDeV3.Serializer createRequestSerializer()
     {
         FederatedIdentitySerDe.Serializer identity = new FederatedIdentitySerDe.Serializer();
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
@@ -210,7 +211,14 @@ public class ObjectMapperFactoryV3
         SortedRangeSetSerDe.Serializer sortedRangeSet = new SortedRangeSetSerDe.Serializer(arrowType, range);
         AllOrNoneValueSetSerDe.Serializer allOrNoneValueSet = new AllOrNoneValueSetSerDe.Serializer(arrowType);
         ValueSetSerDe.Serializer valueSet = new ValueSetSerDe.Serializer(equatableValueSet, sortedRangeSet, allOrNoneValueSet);
-        ConstraintsSerDe.Serializer constraints = new ConstraintsSerDe.Serializer(valueSet);
+        VersionedSerDe.Serializer<FunctionName> functionName = new FunctionNameSerDeV3.Serializer();
+        ConstantExpressionSerDeV3.Serializer constantExpression = new ConstantExpressionSerDeV3.Serializer(block, arrowType);
+        FunctionCallExpressionSerDeV3.Serializer functionCallExpression = new FunctionCallExpressionSerDeV3.Serializer(functionName, arrowType);
+        VariableExpressionSerDeV3.Serializer variableExpression = new VariableExpressionSerDeV3.Serializer(arrowType);
+        VersionedSerDe.Serializer<FederationExpression> federationExpression = new FederationExpressionSerDeV3.Serializer(constantExpression, functionCallExpression, variableExpression);
+        functionCallExpression.setFederationExpressionSerializer(federationExpression);
+        VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV3.Serializer(federationExpression);
+        VersionedSerDe.Serializer<Constraints> constraints = new ConstraintsSerDeV3.Serializer(valueSet, federationExpression, aggregateFunctionClause);
         S3SpillLocationSerDe.Serializer s3SpillLocation = new S3SpillLocationSerDe.Serializer();
         SpillLocationSerDe.Serializer spillLocation = new SpillLocationSerDe.Serializer(s3SpillLocation);
         EncryptionKeySerDe.Serializer encryptionKey = new EncryptionKeySerDe.Serializer();
@@ -223,7 +231,8 @@ public class ObjectMapperFactoryV3
         GetSplitsRequestSerDe.Serializer getSplits = new GetSplitsRequestSerDe.Serializer(identity, tableName, block, constraints);
         ReadRecordsRequestSerDe.Serializer readRecords = new ReadRecordsRequestSerDe.Serializer(identity, tableName, constraints, schema, split);
         UserDefinedFunctionRequestSerDe.Serializer userDefinedFunction = new UserDefinedFunctionRequestSerDe.Serializer(identity, block, schema);
-        return new FederationRequestSerDe.Serializer(
+        GetDataSourceCapabilitiesRequestSerDeV3.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV3.Serializer(identity);
+        return new FederationRequestSerDeV3.Serializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -231,10 +240,11 @@ public class ObjectMapperFactoryV3
                 getTableLayout,
                 getSplits,
                 readRecords,
-                userDefinedFunction);
+                userDefinedFunction,
+                getDataSourceCapabilities);
     }
 
-    private static FederationRequestSerDe.Deserializer createRequestDeserializer(BlockAllocator allocator)
+    private static FederationRequestSerDeV3.Deserializer createRequestDeserializer(BlockAllocator allocator)
     {
         FederatedIdentitySerDe.Deserializer identity = new FederatedIdentitySerDe.Deserializer();
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
@@ -247,7 +257,16 @@ public class ObjectMapperFactoryV3
         SortedRangeSetSerDe.Deserializer sortedRangeSet = new SortedRangeSetSerDe.Deserializer(arrowType, range);
         AllOrNoneValueSetSerDe.Deserializer allOrNoneValueSet = new AllOrNoneValueSetSerDe.Deserializer(arrowType);
         ValueSetSerDe.Deserializer valueSet = new ValueSetSerDe.Deserializer(equatableValueSet, sortedRangeSet, allOrNoneValueSet);
-        ConstraintsSerDe.Deserializer constraints = new ConstraintsSerDe.Deserializer(valueSet);
+
+        VersionedSerDe.Deserializer<FunctionName> functionName = new FunctionNameSerDeV3.Deserializer();
+        ConstantExpressionSerDeV3.Deserializer constantExpression = new ConstantExpressionSerDeV3.Deserializer(block, arrowType);
+        FunctionCallExpressionSerDeV3.Deserializer functionCallExpression = new FunctionCallExpressionSerDeV3.Deserializer(functionName, arrowType);
+        VariableExpressionSerDeV3.Deserializer variableExpression = new VariableExpressionSerDeV3.Deserializer(arrowType);
+        VersionedSerDe.Deserializer<FederationExpression> federationExpression = new FederationExpressionSerDeV3.Deserializer(constantExpression, functionCallExpression, variableExpression);
+        functionCallExpression.setFederationExpressionSerializer(federationExpression);
+        VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV3.Deserializer(federationExpression);
+        VersionedSerDe.Deserializer<Constraints> constraints = new ConstraintsSerDeV3.Deserializer(valueSet, federationExpression, aggregateFunctionClause);
+
         S3SpillLocationSerDe.Deserializer s3SpillLocation = new S3SpillLocationSerDe.Deserializer();
         SpillLocationSerDe.Deserializer spillLocation = new SpillLocationSerDe.Deserializer(s3SpillLocation);
         EncryptionKeySerDe.Deserializer encryptionKey = new EncryptionKeySerDe.Deserializer();
@@ -261,8 +280,9 @@ public class ObjectMapperFactoryV3
         GetSplitsRequestSerDe.Deserializer getSplits = new GetSplitsRequestSerDe.Deserializer(identity, tableName, block, constraints);
         ReadRecordsRequestSerDe.Deserializer readRecords = new ReadRecordsRequestSerDe.Deserializer(identity, tableName, constraints, schema, split);
         UserDefinedFunctionRequestSerDe.Deserializer userDefinedFunction = new UserDefinedFunctionRequestSerDe.Deserializer(identity, block, schema);
+        GetDataSourceCapabilitiesRequestSerDeV3.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV3.Deserializer(identity);
 
-        return new FederationRequestSerDe.Deserializer(
+        return new FederationRequestSerDeV3.Deserializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -270,10 +290,11 @@ public class ObjectMapperFactoryV3
                 getTableLayout,
                 getSplits,
                 readRecords,
-                userDefinedFunction);
+                userDefinedFunction,
+                getDataSourceCapabilities);
     }
 
-    private static FederationResponseSerDe.Serializer createResponseSerializer()
+    private static FederationResponseSerDeV3.Serializer createResponseSerializer()
     {
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
         VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV3.Serializer();
@@ -292,8 +313,9 @@ public class ObjectMapperFactoryV3
         ReadRecordsResponseSerDe.Serializer readRecords = new ReadRecordsResponseSerDe.Serializer(block);
         RemoteReadRecordsResponseSerDe.Serializer remoteReadRecords = new RemoteReadRecordsResponseSerDe.Serializer(schema, spillLocation, encryptionKey);
         UserDefinedFunctionResponseSerDe.Serializer userDefinedFunction = new UserDefinedFunctionResponseSerDe.Serializer(block);
+        GetDataSourceCapabilitiesResponseSerDeV3.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Serializer();
 
-        return new FederationResponseSerDe.Serializer(
+        return new FederationResponseSerDeV3.Serializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -302,10 +324,11 @@ public class ObjectMapperFactoryV3
                 getSplits,
                 readRecords,
                 remoteReadRecords,
-                userDefinedFunction);
+                userDefinedFunction,
+                getDataSourceCapabilities);
     }
 
-    private static FederationResponseSerDe.Deserializer createResponseDeserializer(BlockAllocator allocator)
+    private static FederationResponseSerDeV3.Deserializer createResponseDeserializer(BlockAllocator allocator)
     {
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
         VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV3.Deserializer();
@@ -324,8 +347,9 @@ public class ObjectMapperFactoryV3
         ReadRecordsResponseSerDe.Deserializer readRecords = new ReadRecordsResponseSerDe.Deserializer(block);
         RemoteReadRecordsResponseSerDe.Deserializer remoteReadRecords = new RemoteReadRecordsResponseSerDe.Deserializer(schema, spillLocation, encryptionKey);
         UserDefinedFunctionResponseSerDe.Deserializer userDefinedFunction = new UserDefinedFunctionResponseSerDe.Deserializer(block);
+        GetDataSourceCapabilitiesResponseSerDeV3.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Deserializer();
 
-        return new FederationResponseSerDe.Deserializer(
+        return new FederationResponseSerDeV3.Deserializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -334,6 +358,7 @@ public class ObjectMapperFactoryV3
                 getSplits,
                 readRecords,
                 remoteReadRecords,
-                userDefinedFunction);
+                userDefinedFunction,
+                getDataSourceCapabilities);
     }
 }

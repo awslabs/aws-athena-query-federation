@@ -141,6 +141,24 @@ public abstract class BaseDeserializer<T> extends StdDeserializer<T> implements 
     }
 
     /**
+     * Helper used to extract named long fields from the json parser in a streaming fashion.
+     *
+     * @param jparser The parser to use for extraction.
+     * @param expectedFieldName The expected name of the next field in the stream.
+     * @return The integer representation of the requested field.
+     * @throws IOException If there is an error parsing the field.
+     */
+    protected long getNextLongField(JsonParser jparser, String expectedFieldName)
+            throws IOException
+    {
+        assertFieldName(jparser, expectedFieldName);
+
+        //move to the value token
+        jparser.nextToken();
+        return jparser.getValueAsLong();
+    }
+
+    /**
      * Helper used to help serialize a list of strings.
      *
      * @param jgen The json generator to use.

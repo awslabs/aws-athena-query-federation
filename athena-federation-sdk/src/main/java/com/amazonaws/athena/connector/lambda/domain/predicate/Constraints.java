@@ -20,10 +20,13 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -41,11 +44,20 @@ public class Constraints
         implements AutoCloseable
 {
     private Map<String, ValueSet> summary;
+    private List<FederationExpression> expression;
+    private final List<AggregateFunctionClause> aggregateFunctionClause;
+    private long limit;
 
     @JsonCreator
-    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary)
+    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
+                       @JsonProperty("expression") List<FederationExpression> expression,
+                       @JsonProperty("aggregateFunctionClause") List<AggregateFunctionClause> aggregateFunctionClause,
+                       @JsonProperty("limit") long limit)
     {
         this.summary = summary;
+        this.expression = expression;
+        this.aggregateFunctionClause = aggregateFunctionClause;
+        this.limit = limit;
     }
 
     /**
@@ -56,6 +68,21 @@ public class Constraints
     public Map<String, ValueSet> getSummary()
     {
         return summary;
+    }
+
+    public List<FederationExpression> getExpression()
+    {
+        return expression;
+    }
+
+    public long getLimit()
+    {
+        return limit;
+    }
+
+    public List<AggregateFunctionClause> getAggregateFunctionClause()
+    {
+        return aggregateFunctionClause;
     }
 
     @Override
@@ -70,7 +97,10 @@ public class Constraints
 
         Constraints that = (Constraints) o;
 
-        return Objects.equal(this.summary, that.summary);
+        return Objects.equal(this.summary, that.summary) &&
+                Objects.equal(this.expression, that.expression) &&
+                Objects.equal(this.aggregateFunctionClause, that.aggregateFunctionClause) &&
+                Objects.equal(this.limit, that.limit);
     }
 
     @Override
@@ -78,13 +108,16 @@ public class Constraints
     {
         return "Constraints{" +
                 "summary=" + summary +
+                "expression=" + expression +
+                "aggregateFunctionClause=" + aggregateFunctionClause +
+                "limit=" + limit +
                 '}';
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(summary);
+        return Objects.hashCode(summary, expression, aggregateFunctionClause, limit);
     }
 
     @Override

@@ -1,0 +1,9 @@
+{
+  "@type" : "GetDataSourceCapabilitiesResponse",
+  "catalogName" : "test-catalog",
+  "capabilities" : {
+    "supports_filter_pushdown" : [ "none" ],
+    "supports_aggregate_functions" : [ "supports_avg_pushdown", "supports_max_pushdown" ],
+    "supports_limit_pushdown" : [ "none" ]
+  }
+}
