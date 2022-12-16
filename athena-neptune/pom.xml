@@ -3,11 +3,11 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2022.50.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-neptune</artifactId>
-    <version>2022.47.1</version>
+    <version>2022.50.2</version>
     <properties>
         <gremlinDriverVersion>3.6.1</gremlinDriverVersion>
         <neptune.sigv4.signer.version>2.4.0</neptune.sigv4.signer.version>
@@ -16,7 +16,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.47.1</version>
+            <version>2022.50.2</version>
             <classifier>withdep</classifier>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
