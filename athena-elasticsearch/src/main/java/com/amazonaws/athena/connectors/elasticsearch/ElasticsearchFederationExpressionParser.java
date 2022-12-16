@@ -1,6 +1,6 @@
 /*-
  * #%L
- * Amazon Athena Query Federation SDK
+ * athena-elasticsearch
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -17,24 +17,20 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connectors.elasticsearch;
 
-public enum FilterPushdownSubType
-        implements PushdownSubTypes
+import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+
+import java.util.List;
+
+public class ElasticsearchFederationExpressionParser extends FederationExpressionParser
 {
-    NONE("none"),
-    ALL("all");
-
-    private String subType;
-
     @Override
-    public String getSubType()
+    public String mapFunctionToDataSourceSyntax(FunctionName functionName, ArrowType type, List<String> arguments)
     {
-        return subType;
-    }
-
-    FilterPushdownSubType(String subType)
-    {
-        this.subType = subType;
+        // TODO Auto-generated method stub
+        return null;
     }
 }

@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -47,6 +48,12 @@ public class Constraints
     private List<FederationExpression> expression;
     private final List<AggregateFunctionClause> aggregateFunctionClause;
     private long limit;
+
+    @Deprecated
+    public Constraints(Map<String, ValueSet> summary) 
+    {
+        this(summary, Collections.emptyList(), Collections.emptyList(), -1);
+    }
 
     @JsonCreator
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,

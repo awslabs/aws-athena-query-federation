@@ -35,20 +35,20 @@ public class FunctionName
     private final String functionName;
 
     /**
-     * Constructs a fully qualified TableName.
+     * Constructs a fully qualified FunctionName.
      *
-     * @param functionName The name of the schema that the table belongs to.
+     * @param functionName The name of the function.
      */
     @JsonCreator
     public FunctionName(@JsonProperty("functionName") String functionName)
     {
-        this.functionName = requireNonNull(functionName, "tableName is null");
+        this.functionName = requireNonNull(functionName, "functionName is null");
     }
 
     /**
-     * Gets the name of the table.
+     * Gets the name of the function.
      *
-     * @return A String containing the name of the table.
+     * @return A String containing the name of the function.
      */
     @JsonProperty
     public String getFunctionName()

@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
 
@@ -34,9 +35,9 @@ import java.util.List;
 public class MySqlQueryStringBuilder
         extends JdbcSplitQueryBuilder
 {
-    public MySqlQueryStringBuilder(final String quoteCharacters)
+    public MySqlQueryStringBuilder(final String quoteCharacters, final FederationExpressionParser federationExpressionParser)
     {
-        super(quoteCharacters);
+        super(quoteCharacters, federationExpressionParser);
     }
 
     @Override

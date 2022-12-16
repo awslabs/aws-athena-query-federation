@@ -354,7 +354,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -420,7 +420,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 10_000L, //10KB Expect this to spill
                 0L
         );

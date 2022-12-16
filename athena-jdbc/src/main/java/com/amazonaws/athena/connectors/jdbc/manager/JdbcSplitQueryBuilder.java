@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -63,12 +64,23 @@ public abstract class JdbcSplitQueryBuilder
     private final String quoteCharacters;
     private final String emptyString = "";
 
+    private final FederationExpressionParser jdbcFederationExpressionParser;
+
     /**
-     * @param quoteCharacters database quote character for enclosing identifiers.
+     * Meant for connectors which do not yet support complex expressions.
      */
     public JdbcSplitQueryBuilder(String quoteCharacters)
     {
+        this(quoteCharacters, new DefaultJdbcFederationExpressionParser());
+    }
+
+    /**
+     * @param quoteCharacters database quote character for enclosing identifiers.
+     */
+    public JdbcSplitQueryBuilder(String quoteCharacters, FederationExpressionParser federationExpressionParser)
+    {
         this.quoteCharacters = quoteCharacters;
+        this.jdbcFederationExpressionParser = federationExpressionParser;
     }
 
     /**
@@ -118,7 +130,12 @@ public abstract class JdbcSplitQueryBuilder
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
-        sql.append(appendLimitOffset(split)); // limits and offset support
+        if (constraints.getLimit() > 0) {
+            sql.append(appendLimitOffset(split, constraints));
+        }
+        else {
+            sql.append(appendLimitOffset(split)); // legacy method to preserve functionality of existing connector impls
+        }
         LOGGER.debug("Generated SQL : {}", sql.toString());
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
@@ -194,6 +211,7 @@ public abstract class JdbcSplitQueryBuilder
                 }
             }
         }
+        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints, quoteCharacters)); // not part of loop bc not per-column
         return conjuncts;
     }
 
@@ -317,8 +335,15 @@ public abstract class JdbcSplitQueryBuilder
                     '}';
         }
     }
+
     protected String appendLimitOffset(Split split)
     {
+        // keeping this method for connectors that still override this (SAP Hana + Snowflake)
         return emptyString;
+    }
+
+    protected String appendLimitOffset(Split split, Constraints constraints)
+    {
+        return " LIMIT " + constraints.getLimit();
     }
 }

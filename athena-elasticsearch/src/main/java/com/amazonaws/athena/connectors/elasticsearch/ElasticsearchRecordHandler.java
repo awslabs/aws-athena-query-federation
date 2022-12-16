@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
+import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -83,6 +84,7 @@ public class ElasticsearchRecordHandler
 
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
+    private final FederationExpressionParser federationExpressionParser;
 
     public ElasticsearchRecordHandler(java.util.Map<String, String> configOptions)
     {
@@ -93,6 +95,7 @@ public class ElasticsearchRecordHandler
         this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
         this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, ""));
         this.scrollTimeout = Long.parseLong(configOptions.getOrDefault(SCROLL_TIMEOUT, "60"));
+        this.federationExpressionParser = new ElasticsearchFederationExpressionParser();
     }
 
     @VisibleForTesting
@@ -111,6 +114,7 @@ public class ElasticsearchRecordHandler
         this.clientFactory = clientFactory;
         this.queryTimeout = queryTimeout;
         this.scrollTimeout = scrollTimeout;
+        this.federationExpressionParser = new ElasticsearchFederationExpressionParser();
     }
 
     /**
@@ -154,7 +158,7 @@ public class ElasticsearchRecordHandler
                         .size(QUERY_BATCH_SIZE)
                         .timeout(new TimeValue(queryTimeout, TimeUnit.SECONDS))
                         .fetchSource(ElasticsearchQueryUtils.getProjection(recordsRequest.getSchema()))
-                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints().getSummary()));
+                        .query(ElasticsearchQueryUtils.getQuery(recordsRequest.getConstraints(), this.federationExpressionParser));
 
                 //init scroll
                 Scroll scroll = new Scroll(TimeValue.timeValueSeconds(this.scrollTimeout));

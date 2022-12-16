@@ -17,24 +17,10 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions;
 
-public enum FilterPushdownSubType
-        implements PushdownSubTypes
-{
-    NONE("none"),
-    ALL("all");
-
-    private String subType;
-
-    @Override
-    public String getSubType()
-    {
-        return subType;
-    }
-
-    FilterPushdownSubType(String subType)
-    {
-        this.subType = subType;
-    }
+public enum OperatorType {
+    UNARY,
+    BINARY,
+    VARARG
 }

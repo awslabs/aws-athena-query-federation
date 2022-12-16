@@ -94,7 +94,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), -1))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
@@ -129,7 +129,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), -1))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);

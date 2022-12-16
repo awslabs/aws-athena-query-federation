@@ -36,6 +36,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Federat
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -60,9 +61,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions.ADD_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME;
-import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions.SUM_FUNCTION_NAME;
 import static org.junit.Assert.assertEquals;
 
 public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequest>
@@ -97,10 +95,10 @@ public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequ
 
         FederationExpression federationExpression = new FunctionCallExpression(
                 ArrowType.Bool.INSTANCE,
-                GREATER_THAN_OPERATOR_FUNCTION_NAME,
+                StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
                 List.of(new FunctionCallExpression(
                         Types.MinorType.FLOAT8.getType(),
-                        ADD_FUNCTION_NAME,
+                        StandardFunctions.ADD_FUNCTION_NAME.getFunctionName(),
                         List.of(new VariableExpression("col3", Types.MinorType.FLOAT8.getType()),
                                 new ConstantExpression(
                                         BlockUtils.newBlock(allocator, "col1", new ArrowType.Int(32, true), List.of(10)),
@@ -108,7 +106,7 @@ public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequ
                         new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
 
         FunctionCallExpression functionCallExpression = new FunctionCallExpression(Types.MinorType.FLOAT8.getType(),
-                SUM_FUNCTION_NAME,
+                StandardFunctions.SUM_FUNCTION_NAME.getFunctionName(),
                 List.of(new VariableExpression("col1", Types.MinorType.FLOAT8.getType())));
         AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(List.of(functionCallExpression), List.of("col1"), List.of(List.of("col2")));
 

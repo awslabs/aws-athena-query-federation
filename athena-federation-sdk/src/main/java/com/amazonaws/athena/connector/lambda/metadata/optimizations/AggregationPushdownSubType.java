@@ -24,7 +24,9 @@ public enum AggregationPushdownSubType
 {
     SUPPORTS_MAX_PUSHDOWN("supports_max_pushdown"),
     SUPPORTS_AVG_PUSHDOWN("supports_avg_pushdown"),
-    SUPPORTS_MIN_PUSHDOWN("supports_min_pushdown");
+    SUPPORTS_MIN_PUSHDOWN("supports_min_pushdown"),
+    SUPPORTS_SUM_PUSHDOWN("supports_sum_pushdown"),
+    SUPPORTS_COUNT_PUSHDOWN("supports_count_pushdown");
 
     private String subType;
 

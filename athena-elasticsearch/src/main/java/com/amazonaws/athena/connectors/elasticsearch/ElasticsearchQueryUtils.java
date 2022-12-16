@@ -19,7 +19,9 @@
  */
 package com.amazonaws.athena.connectors.elasticsearch;
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -97,8 +99,9 @@ class ElasticsearchQueryUtils
      * @param constraintSummary is a map containing the constraints used to form the predicate for predicate push-down.
      * @return the query builder that will be injected into the query.
      */
-    protected static QueryBuilder getQuery(Map<String, ValueSet> constraintSummary)
+    protected static QueryBuilder getQuery(Constraints constraints, FederationExpressionParser compleExpressionParser)
     {
+        Map<String, ValueSet> constraintSummary = constraints.getSummary();
         List<String> predicates = new ArrayList<>();
 
         constraintSummary.forEach((fieldName, constraint) -> {
