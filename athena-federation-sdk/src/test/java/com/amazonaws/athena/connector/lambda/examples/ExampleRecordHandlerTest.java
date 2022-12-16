@@ -72,6 +72,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -210,7 +211,7 @@ public class ExampleRecordHandlerTest
                     new TableName("schema", "table"),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), -1),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );
@@ -251,7 +252,7 @@ public class ExampleRecordHandlerTest
                     new TableName("schema", "table"),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), -1),
                     1_600_000L, //~1.5MB so we should see some spill
                     1000L
             );

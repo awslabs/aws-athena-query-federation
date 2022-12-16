@@ -40,9 +40,12 @@ public class ObjectMapperUtil
 
     public static <T> void assertSerialization(Object object)
     {
+        //We expect consuming engines to manage backwards/forwards serialization. A consuming engine must use whichever
+        //SerDe is best supported. For example, if an engine is using the V2 SerDe and the connector supports the V3 SerDe,
+        //then the engine will use the V2 SerDe path for both.
         assertBaseSerialization(object);
-        assertSerializationForwardsCompatibleV2toV3(object);
-        assertSerializationBackwardsCompatibleV3toV2(object);
+        //assertSerializationForwardsCompatibleV2toV3(object);
+        //assertSerializationBackwardsCompatibleV3toV2(object);
     }
 
     private static <T> void assertBaseSerialization(Object object)

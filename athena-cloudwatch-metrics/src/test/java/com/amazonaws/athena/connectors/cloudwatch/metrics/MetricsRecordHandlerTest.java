@@ -215,7 +215,7 @@ public class MetricsRecordHandlerTest
                 METRICS_TABLE_NAME,
                 METRIC_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -291,7 +291,7 @@ public class MetricsRecordHandlerTest
                 METRIC_SAMPLES_TABLE_NAME,
                 METRIC_DATA_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );

@@ -52,6 +52,7 @@ public abstract class TypedSerDeTest<T>
         mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
         mapperV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
+        mapperV3.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
     @After

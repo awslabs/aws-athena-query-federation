@@ -211,7 +211,7 @@ public class CloudwatchRecordHandlerTest
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -251,7 +251,7 @@ public class CloudwatchRecordHandlerTest
                                 .withIsDirectory(true)
                                 .build(),
                         keyFactory.create()).add(CloudwatchMetadataHandler.LOG_STREAM_FIELD, "table").build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );

@@ -48,5 +48,10 @@ public enum MetadataRequestType
     /**
      * For fetching splits.
      */
-    GET_SPLITS;
+    GET_SPLITS,
+
+    /**
+     * For fetching a list of supported connector capabilities
+     */
+    GET_DATASOURCE_CAPABILITIES;
 }
