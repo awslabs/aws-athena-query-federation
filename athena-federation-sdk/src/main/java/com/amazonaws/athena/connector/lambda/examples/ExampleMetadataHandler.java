@@ -30,6 +30,8 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.exceptions.FederationThrottleException;
 import com.amazonaws.athena.connector.lambda.handlers.MetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -39,6 +41,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.AggregationPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
@@ -60,8 +66,10 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -427,6 +435,17 @@ public class ExampleMetadataHandler
         }
 
         return new GetSplitsResponse(request.getCatalogName(), splits, null);
+    }
+
+    @Override
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        Map<String, List<String>> capabilities = new HashMap<>();
+        capabilities.putAll(DataSourceOptimizations.SUPPORTS_AGGREGATE_FUNCTIONS.withSupportedSubTypes(AggregationPushdownSubType.SUPPORTS_AVG_PUSHDOWN, AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN));
+        capabilities.putAll(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(FilterPushdownSubType.NONE));
+        capabilities.putAll(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(LimitPushdownSubType.NONE));
+
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);
     }
 
     /**

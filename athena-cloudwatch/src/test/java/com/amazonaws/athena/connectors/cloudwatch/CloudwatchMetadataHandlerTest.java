@@ -333,7 +333,7 @@ public class CloudwatchMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName("schema-1", "all_log_streams"),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 schema,
                 Collections.singleton("log_stream"));
 
@@ -378,7 +378,7 @@ public class CloudwatchMetadataHandlerTest
                 new TableName("schema", "all_log_streams"),
                 partitions,
                 Collections.singletonList(CloudwatchMetadataHandler.LOG_STREAM_FIELD),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 continuationToken);
         int numContinuations = 0;
         do {

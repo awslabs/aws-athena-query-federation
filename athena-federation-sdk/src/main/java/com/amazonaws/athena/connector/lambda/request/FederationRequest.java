@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.request;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
@@ -45,7 +46,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = GetSplitsRequest.class, name = "GetSplitsRequest"),
         @JsonSubTypes.Type(value = ReadRecordsRequest.class, name = "ReadRecordsRequest"),
         @JsonSubTypes.Type(value = UserDefinedFunctionRequest.class, name = "UserDefinedFunctionRequest"),
-        @JsonSubTypes.Type(value = PingRequest.class, name = "PingRequest")
+        @JsonSubTypes.Type(value = PingRequest.class, name = "PingRequest"),
+        @JsonSubTypes.Type(value = GetDataSourceCapabilitiesRequest.class, name = "GetDataSourceCapabilitiesRequest")
 })
 public abstract class FederationRequest
         implements AutoCloseable

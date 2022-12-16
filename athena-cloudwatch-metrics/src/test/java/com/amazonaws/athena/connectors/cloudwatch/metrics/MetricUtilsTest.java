@@ -97,7 +97,7 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_NAME_FIELD, makeStringEquals(allocator, "match4"));
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
-        ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap));
+        ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, new Constraints(constraintsMap, Collections.emptyList(), -1));
 
         Metric metric = new Metric()
                 .withNamespace("match1")
@@ -139,7 +139,7 @@ public class MetricUtilsTest
         constraintsMap.put(DIMENSION_VALUE_FIELD, makeStringEquals(allocator, "match5"));
 
         ListMetricsRequest request = new ListMetricsRequest();
-        MetricUtils.pushDownPredicate(new Constraints(constraintsMap), request);
+        MetricUtils.pushDownPredicate(new Constraints(constraintsMap, Collections.emptyList(), -1), request);
 
         assertEquals("match1", request.getNamespace());
         assertEquals("match2", request.getMetricName());
@@ -191,7 +191,7 @@ public class MetricUtilsTest
                 new TableName(schema, table),
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

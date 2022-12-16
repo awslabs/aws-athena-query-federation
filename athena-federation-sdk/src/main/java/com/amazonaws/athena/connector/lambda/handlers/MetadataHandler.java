@@ -34,6 +34,8 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -276,6 +278,13 @@ public abstract class MetadataHandler
                     objectMapper.writeValue(outputStream, response);
                 }
                 return;
+            case GET_DATASOURCE_CAPABILITIES:
+                try (GetDataSourceCapabilitiesResponse response = doGetDataSourceCapabilities(allocator, (GetDataSourceCapabilitiesRequest) req)) {
+                    logger.info("doHandleRequest: response[{}]", response);
+                    assertNotNull(response);
+                    objectMapper.writeValue(outputStream, response);
+                }
+
             default:
                 throw new IllegalArgumentException("Unknown request type " + type);
         }
@@ -429,6 +438,20 @@ public abstract class MetadataHandler
      */
     public abstract GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
             throws Exception;
+
+    /**
+     * Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+     * portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+     * predicate will be pushed down.
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details about the catalog being used.
+     * @return A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+     * the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.
+     */
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), null);
+    }
 
     /**
      * Used to warm up your function as well as to discovery its capabilities (e.g. SDK capabilities)

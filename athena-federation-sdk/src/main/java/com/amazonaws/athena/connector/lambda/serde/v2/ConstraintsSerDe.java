@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
@@ -38,6 +39,9 @@ import static java.util.Objects.requireNonNull;
 public final class ConstraintsSerDe
 {
     private static final String SUMMARY_FIELD = "summary";
+    private static final String EXPRESSION_FIELD = "expression";
+    private static final String LIMIT_FIELD = "limit";
+    private static final long NO_LIMIT_VALUE = -1;
 
     private ConstraintsSerDe() {}
 
@@ -86,7 +90,7 @@ public final class ConstraintsSerDe
                 summaryMap.put(column, valueSetDeserializer.deserialize(jparser, ctxt));
             }
 
-            return new Constraints(summaryMap.build());
+            return new Constraints(summaryMap.build(), Collections.emptyList(), NO_LIMIT_VALUE);
         }
     }
 }

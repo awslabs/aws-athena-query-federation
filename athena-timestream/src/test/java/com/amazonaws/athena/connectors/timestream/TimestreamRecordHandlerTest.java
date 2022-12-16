@@ -223,7 +223,7 @@ public class TimestreamRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -278,7 +278,7 @@ public class TimestreamRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForRead,
                 splitBuilder.build(),
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 1_500_000L, //~1.5MB so we should see some spill
                 0L
         );
@@ -352,7 +352,7 @@ public class TimestreamRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_VIEW),
                 schemaForReadView,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -420,7 +420,7 @@ public class TimestreamRecordHandlerTest
                 new TableName(DEFAULT_SCHEMA, TEST_TABLE),
                 schemaForReadView,
                 split,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

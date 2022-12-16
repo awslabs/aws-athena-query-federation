@@ -249,7 +249,7 @@ public class DocDBMetadataHandlerTest
                 QUERY_ID,
                 DEFAULT_CATALOG,
                 TABLE_NAME,
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -278,7 +278,7 @@ public class DocDBMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

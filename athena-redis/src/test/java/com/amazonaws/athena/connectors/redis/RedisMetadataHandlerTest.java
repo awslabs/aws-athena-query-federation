@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -150,7 +151,7 @@ public class RedisMetadataHandlerTest
 
         GetTableLayoutRequest req = new GetTableLayoutRequest(IDENTITY, QUERY_ID, DEFAULT_CATALOG,
                 TABLE_NAME,
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 schema,
                 new HashSet<>());
 
@@ -231,7 +232,7 @@ public class RedisMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);
@@ -284,7 +285,7 @@ public class RedisMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 new ArrayList<>(),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

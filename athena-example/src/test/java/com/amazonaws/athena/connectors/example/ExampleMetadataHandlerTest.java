@@ -240,7 +240,7 @@ public class ExampleMetadataHandlerTest
 
             req = new GetTableLayoutRequest(fakeIdentity(), "queryId", "default",
                     new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap),
+                    new Constraints(constraintsMap, Collections.emptyList(), -1),
                     tableSchema,
                     partitionCols);
 
@@ -316,7 +316,7 @@ public class ExampleMetadataHandlerTest
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
-                new Constraints(constraintsMap),
+                new Constraints(constraintsMap, Collections.emptyList(), -1),
                 continuationToken);
         int numContinuations = 0;
         do {

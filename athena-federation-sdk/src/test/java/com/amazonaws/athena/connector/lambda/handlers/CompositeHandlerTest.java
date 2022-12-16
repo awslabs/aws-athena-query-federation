@@ -154,7 +154,7 @@ public class CompositeHandlerTest
                         .withSplitId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), null).build(),
-                new Constraints(new HashMap<>()),
+                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
