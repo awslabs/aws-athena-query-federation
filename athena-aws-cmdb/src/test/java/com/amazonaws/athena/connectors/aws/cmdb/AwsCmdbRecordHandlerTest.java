@@ -114,7 +114,7 @@ public class AwsCmdbRecordHandlerTest
                         .withQueryId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), -1),
+                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), -1),
                 100_000,
                 100_000);
 

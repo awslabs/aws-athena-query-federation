@@ -22,6 +22,8 @@ package com.amazonaws.athena.connectors.postgresql;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,6 +39,15 @@ public class PostGreSqlQueryStringBuilder
     public PostGreSqlQueryStringBuilder(final String quoteCharacters)
     {
         super(quoteCharacters);
+    }
+
+    /**
+     * This class is used by both postgres and redshift BTW - be careful with cast.
+     */
+    @Override
+    public String writeCastClause(ArrowType type, List<String> arguments)
+    {
+        throw new NotImplementedException("Not yet supported.");
     }
 
     @Override

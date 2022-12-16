@@ -66,6 +66,16 @@ public enum DataSourceOptimizations
             return Map.of(SUPPORTS_FILTER_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(PushdownSubTypes::getSubType).collect(Collectors.toList()));
         }
     },
+    SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN("supports_complex_expression_pushdown")
+    {
+        public Map<String, List<String>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        {
+            if (!Arrays.stream(subTypesList).allMatch(pushdownsubTypes -> pushdownsubTypes instanceof ComplexExpressionPushdownSubType)) {
+                throw new IllegalArgumentException("Complex Expression Pushdown Optimization must contain valid pushdown subtypes.");
+            }
+            return Map.of(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(PushdownSubTypes::getSubType).collect(Collectors.toList()));
+        }
+    },
     SUPPORTS_PROJECTION_PUSHDOWN("supports_projection_pushdown")
     {
         public Map<String, List<String>> withSupportedSubTypes(PushdownSubTypes... subTypesList)

@@ -22,6 +22,8 @@ package com.amazonaws.athena.connectors.mysql;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Strings;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,6 +39,15 @@ public class MySqlQueryStringBuilder
     public MySqlQueryStringBuilder(final String quoteCharacters)
     {
         super(quoteCharacters);
+    }
+
+    /**
+     * MySQL version 8 cast documentation https://dev.mysql.com/doc/refman/8.0/en/cast-functions.html#function_cast
+     */
+    @Override
+    public String writeCastClause(ArrowType type, List<String> arguments)
+    {
+        throw new NotImplementedException("Not yet supported.");
     }
 
     @Override

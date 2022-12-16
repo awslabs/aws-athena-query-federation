@@ -19,87 +19,122 @@ package com.amazonaws.athena.connector.lambda.domain.predicate.expression.functi
  * limitations under the License.
  * #L%
  */
-public final class StandardFunctions
+public enum StandardFunctions
 {
-    private StandardFunctions() {}
-
-    /**
+/**
      * $and is a vararg function accepting boolean arguments
      */
-    public static final FunctionName AND_FUNCTION_NAME = new FunctionName("$and");
+    AND_FUNCTION_NAME(new FunctionName("$and"), OperatorType.BINARY),
 
     /**
      * $or is a vararg function accepting boolean arguments
      */
-    public static final FunctionName OR_FUNCTION_NAME = new FunctionName("$or");
+    OR_FUNCTION_NAME(new FunctionName("$or"), OperatorType.BINARY),
 
     /**
      * $not is a function accepting boolean argument
      */
-    public static final FunctionName NOT_FUNCTION_NAME = new FunctionName("$not");
+    NOT_FUNCTION_NAME(new FunctionName("$not"), OperatorType.UNARY),
 
-    public static final FunctionName IS_NULL_FUNCTION_NAME = new FunctionName("$is_null");
+    IS_NULL_FUNCTION_NAME(new FunctionName("$is_null"), OperatorType.UNARY),
     /**
      * $nullif is a function accepting two arguments. Returns null if both values are the same, otherwise returns the first value.
      */
-    public static final FunctionName NULLIF_FUNCTION_NAME = new FunctionName("$nullif");
+    NULLIF_FUNCTION_NAME(new FunctionName("$nullif"), OperatorType.BINARY),
 
     /**
      * $cast function result type is determined by the {@link Call#getType()}
      */
-    public static final FunctionName CAST_FUNCTION_NAME = new FunctionName("$cast");
+    CAST_FUNCTION_NAME(new FunctionName("$cast"), OperatorType.UNARY),
 
-    public static final FunctionName EQUAL_OPERATOR_FUNCTION_NAME = new FunctionName("$equal");
-    public static final FunctionName NOT_EQUAL_OPERATOR_FUNCTION_NAME = new FunctionName("$not_equal");
-    public static final FunctionName LESS_THAN_OPERATOR_FUNCTION_NAME = new FunctionName("$less_than");
-    public static final FunctionName LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME = new FunctionName("$less_than_or_equal");
-    public static final FunctionName GREATER_THAN_OPERATOR_FUNCTION_NAME = new FunctionName("$greater_than");
-    public static final FunctionName GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME = new FunctionName("$greater_than_or_equal");
-    public static final FunctionName IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME = new FunctionName("$is_distinct_from");
+    EQUAL_OPERATOR_FUNCTION_NAME(new FunctionName("$equal"), OperatorType.BINARY),
+    NOT_EQUAL_OPERATOR_FUNCTION_NAME(new FunctionName("$not_equal"), OperatorType.BINARY),
+    LESS_THAN_OPERATOR_FUNCTION_NAME(new FunctionName("$less_than"), OperatorType.BINARY),
+    LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME(new FunctionName("$less_than_or_equal"), OperatorType.BINARY),
+    GREATER_THAN_OPERATOR_FUNCTION_NAME(new FunctionName("$greater_than"), OperatorType.BINARY),
+    GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME(new FunctionName("$greater_than_or_equal"), OperatorType.BINARY),
+    IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME(new FunctionName("$is_distinct_from"), OperatorType.BINARY),
 
     /**
      * Arithmetic addition.
      */
-    public static final FunctionName ADD_FUNCTION_NAME = new FunctionName("$add");
+    ADD_FUNCTION_NAME(new FunctionName("$add"), OperatorType.BINARY),
 
     /**
      * Arithmetic subtraction.
      */
-    public static final FunctionName SUBTRACT_FUNCTION_NAME = new FunctionName("$subtract");
+    SUBTRACT_FUNCTION_NAME(new FunctionName("$subtract"), OperatorType.BINARY),
 
     /**
      * Arithmetic multiplication.
      */
-    public static final FunctionName MULTIPLY_FUNCTION_NAME = new FunctionName("$multiply");
+    MULTIPLY_FUNCTION_NAME(new FunctionName("$multiply"), OperatorType.BINARY),
 
     /**
      * Arithmetic division.
      */
-    public static final FunctionName DIVIDE_FUNCTION_NAME = new FunctionName("$divide");
+    DIVIDE_FUNCTION_NAME(new FunctionName("$divide"), OperatorType.BINARY),
 
     /**
      * Arithmetic modulus.
      */
-    public static final FunctionName MODULUS_FUNCTION_NAME = new FunctionName("$modulus");
+    MODULUS_FUNCTION_NAME(new FunctionName("$modulus"), OperatorType.BINARY),
 
     /**
      * Arithmetic unary minus.
      */
-    public static final FunctionName NEGATE_FUNCTION_NAME = new FunctionName("$negate");
+    NEGATE_FUNCTION_NAME(new FunctionName("$negate"), OperatorType.UNARY),
 
-    public static final FunctionName LIKE_PATTERN_FUNCTION_NAME = new FunctionName("$like_pattern");
+    LIKE_PATTERN_FUNCTION_NAME(new FunctionName("$like_pattern"), OperatorType.BINARY),
 
     /**
      * {@code $in(value, array)} returns {@code true} when value is equal to an element of the array,
      * otherwise returns {@code NULL} when comparing value to an element of the array returns an
      * indeterminate result, otherwise returns {@code false}
      */
-    public static final FunctionName IN_PREDICATE_FUNCTION_NAME = new FunctionName("$in");
+    IN_PREDICATE_FUNCTION_NAME(new FunctionName("$in"), OperatorType.BINARY),
+
+    
+
+    SUM_FUNCTION_NAME(new FunctionName("$sum")),
 
     /**
      * $array creates instance of {@link Array Type}
      */
-    public static final FunctionName ARRAY_CONSTRUCTOR_FUNCTION_NAME = new FunctionName("$array");
+    ARRAY_CONSTRUCTOR_FUNCTION_NAME(new FunctionName("$array"));
 
-    public static final FunctionName SUM_FUNCTION_NAME = new FunctionName("$sum");
+    final FunctionName functionName;
+    final OperatorType operatorType;
+
+    private StandardFunctions(FunctionName functionName)
+    {
+        this.functionName = functionName;
+        this.operatorType = OperatorType.VARARG;
+    }
+
+    private StandardFunctions(FunctionName functionName, OperatorType operatorType)
+    {
+        this.functionName = functionName;
+        this.operatorType = operatorType;
+    }
+
+    public FunctionName getFunctionName()
+    {
+        return this.functionName;
+    }
+    
+    public OperatorType getOperatorType()
+    {
+        return this.operatorType;
+    }
+
+    public static StandardFunctions fromFunctionName(FunctionName functionName)
+    {
+        for (StandardFunctions function : StandardFunctions.values()) {
+            if (function.getFunctionName().equals(functionName)) {
+                return function;
+            }
+        }
+        return null;
+    }
 }

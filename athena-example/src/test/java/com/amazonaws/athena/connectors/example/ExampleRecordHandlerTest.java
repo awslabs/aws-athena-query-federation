@@ -155,7 +155,7 @@ public class ExampleRecordHandlerTest
                             .add("month", "11")
                             .add("day", "1")
                             .build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );

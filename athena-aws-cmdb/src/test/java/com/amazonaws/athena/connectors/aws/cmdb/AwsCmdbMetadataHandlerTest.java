@@ -199,7 +199,7 @@ public class AwsCmdbMetadataHandlerTest
                 new TableName("schema1", "table1"),
                 mockBlock,
                 Collections.emptyList(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), -1),
                 null);
 
         GetSplitsResponse response = handler.doGetSplits(blockAllocator, request);

@@ -57,7 +57,8 @@ public class MySqlRecordHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlRecordHandler.class);
 
-    private static final String MYSQL_QUOTE_CHARACTER = "`";
+    @VisibleForTesting
+    protected static final String MYSQL_QUOTE_CHARACTER = "`";
 
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
 

@@ -19,11 +19,13 @@
  */
 package com.amazonaws.athena.connector.lambda.metadata.optimizations;
 
-public enum FilterPushdownSubType
+public enum ComplexExpressionPushdownSubType
         implements PushdownSubTypes
 {
     NONE("none"),
-    ALL("all");
+    SUPPORTS_CONSTANT_EXPRESSION_PUSHDOWN("supports_constant_expression_pushdown"),
+    SUPPROTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN("supports_function_call_expression_pushdown"),
+    SUPPOROTS_VARIABLE_EXPRESSIONS_PUSHDOWN("supports_variable_expression_pushdown");
 
     private String subType;
 
@@ -33,7 +35,7 @@ public enum FilterPushdownSubType
         return subType;
     }
 
-    FilterPushdownSubType(String subType)
+    ComplexExpressionPushdownSubType(String subType)
     {
         this.subType = subType;
     }
