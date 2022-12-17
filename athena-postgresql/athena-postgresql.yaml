@@ -53,6 +53,10 @@ Parameters:
     Type: String
     Default: "PostGreSqlMuxCompositeHandler"
     AllowedValues : ["PostGreSqlMuxCompositeHandler", "PostGreSqlCompositeHandler"]
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'

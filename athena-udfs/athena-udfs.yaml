@@ -28,6 +28,10 @@ Parameters:
   SecretNameOrPrefix:
     Description: 'The name or prefix of a set of names within Secrets Manager that this function should have access to. (e.g. database-*).'
     Type: String
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'

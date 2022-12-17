@@ -69,6 +69,10 @@ Parameters:
     Description: 'If set to ''false'' the connector does a case sensitive match for keys'
     Default: true
     Type: String
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 
 Resources:
   ConnectorConfig:

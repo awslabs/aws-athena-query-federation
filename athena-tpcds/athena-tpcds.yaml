@@ -36,6 +36,10 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: 'false'
     Type: String
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'

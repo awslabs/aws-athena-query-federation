@@ -55,6 +55,10 @@ Parameters:
     Description: 'Partition Count Limit'
     Type: Number
     Default: 500
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'

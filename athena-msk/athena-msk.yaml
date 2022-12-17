@@ -72,6 +72,10 @@ Parameters:
     Description: "(Must for auth type IAM) A custom role to be used by the Connector lambda"
     Default: ""
     Type: String
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]

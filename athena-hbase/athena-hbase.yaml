@@ -48,6 +48,10 @@ Parameters:
   HBaseConnectionString:
     Description: 'The HBase connection details to use by default in the format: master_hostname:hbase_port:zookeeper_port and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
+  PermissionsBoundary:
+    Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
+    Default: ''
+    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
