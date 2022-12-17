@@ -52,6 +52,7 @@ Parameters:
 Conditions:
   HasKMSKeyId: !Not [!Equals [!Ref KMSKeyId, ""]]
   NotHasLambdaRole: !Equals [!Ref LambdaRole, ""]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundary, "" ] ]
 
 Resources:
   ConnectorConfig:

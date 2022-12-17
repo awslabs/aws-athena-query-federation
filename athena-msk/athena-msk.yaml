@@ -79,6 +79,7 @@ Parameters:
 
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundary, "" ] ]
 
 Resources:
   JdbcConnectorConfig:

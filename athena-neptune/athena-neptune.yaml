@@ -74,6 +74,9 @@ Parameters:
     Default: ''
     Type: String
 
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundary, "" ] ]
+
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -98,6 +101,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:

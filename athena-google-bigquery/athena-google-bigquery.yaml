@@ -63,11 +63,13 @@ Parameters:
     Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
     Default: ''
     Type: String
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundary, "" ] ]
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Environment:
+      Environment: 
         Variables:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
@@ -83,6 +85,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:
