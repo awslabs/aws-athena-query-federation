@@ -54,6 +54,8 @@ Parameters:
     Description: "(Optional) A custom IAM Permissions Boundary to attach to the created Lambda function's execution role"
     Default: ''
     Type: String
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundary, "" ] ]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -71,6 +73,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:
@@ -104,11 +107,6 @@ Resources:
             BucketName: !Ref SpillBucket
         #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
         - VPCAccessPolicy: {}
-      PermissionsBoundary: 
-        !If 
-          - !Not [ !Equals [!Ref PermissionsBoundary, ''] ]
-          - !Ref PermissionsBoundary, 
-          - !Ref "AWS::NoValue"
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
