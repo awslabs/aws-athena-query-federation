@@ -111,6 +111,7 @@ Resources:
     Condition: NotHasLambdaRole
     Type: AWS::IAM::Role
     Properties:
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundary, !Ref "AWS::NoValue" ]
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
       AssumeRolePolicyDocument:
