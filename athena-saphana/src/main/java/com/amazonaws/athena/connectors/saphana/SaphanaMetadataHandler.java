@@ -284,18 +284,18 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                 String dataType = hashMap.get(columnName.toLowerCase());
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
-
-                InferredColumnType inferredColumnType = InferredColumnType.fromType(dataType);
-                columnType = inferredColumnType.columnType;
-                isSpatialDataType = inferredColumnType.isSpatialType;
-
                 /**
-                 * converting into VARCHAR not supported by Framework.
+                 * Converting ST_POINT/ST_GEOMETRY data type into VARCHAR
                  */
-                if (columnType == null) {
+                if (dataType != null
+                        && (dataType.contains("ST_POINT") || dataType.contains("ST_GEOMETRY"))) {
                     columnType = Types.MinorType.VARCHAR.getType();
+                    isSpatialDataType = true;
                 }
-                if (columnType != null && !SupportedTypes.isSupported(columnType)) {
+                /*
+                 * converting into VARCHAR for Unsupported data types.
+                 */
+                if ((columnType == null) || !SupportedTypes.isSupported(columnType)) {
                     columnType = Types.MinorType.VARCHAR.getType();
                 }
 
@@ -442,59 +442,6 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
         }
         else {
             return new TableName(table.getSchemaName().toUpperCase(), tableName.toUpperCase());
-        }
-    }
-
-    private static class InferredColumnType
-    {
-        private final ArrowType columnType;
-        private final boolean isSpatialType;
-        public InferredColumnType(ArrowType columnType, boolean isSpatialType)
-        {
-            this.columnType = columnType;
-            this.isSpatialType = isSpatialType;
-        }
-
-        private static InferredColumnType nullType()
-        {
-            return new InferredColumnType(null, false);
-        }
-
-        public static InferredColumnType fromType(String dataType)
-        {
-            if (dataType != null && (dataType.contains("DECIMAL"))) {
-                return new InferredColumnType(Types.MinorType.BIGINT.getType(), false);
-            }
-            if (dataType != null && (dataType.contains("INTEGER"))) {
-                return new InferredColumnType(Types.MinorType.INT.getType(), false);
-            }
-            if (dataType != null && (dataType.contains("date") || dataType.contains("DATE"))) {
-                return new InferredColumnType(Types.MinorType.DATEMILLI.getType(), false);
-            }
-            /**
-             * Converting TIMESTAMP data type into TIMESTAMPMILLI
-             */
-            if (dataType != null && (dataType.contains("TIMESTAMP"))
-            ) {
-                return new InferredColumnType(Types.MinorType.DATEMILLI.getType(), false);
-            }
-            /**
-             * Converting ST_POINT data type into VARBINARY
-             */
-            if (dataType != null
-                    && (dataType.contains("ST_POINT") || dataType.contains("ST_GEOMETRY"))
-            ) {
-                return new InferredColumnType(Types.MinorType.VARCHAR.getType(), true);
-            }
-            /**
-             * Converting DAYDATE data type into DATEDAY
-             */
-            if (dataType != null
-                    && (dataType.contains("DAYDATE") || dataType.contains("DATE"))
-            ) {
-                return new InferredColumnType(Types.MinorType.DATEDAY.getType(), true);
-            }
-            return nullType();
         }
     }
 
