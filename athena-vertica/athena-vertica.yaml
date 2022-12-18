@@ -56,6 +56,13 @@ Parameters:
     Description: 'The Vertica connection details to use by default if not catalog specific connection is defined and optionally using SecretsManager (e.g. ${secret_name}).'
     Type: String
     Default: "jdbc:vertica://<host_name>:<port>/<database>?user=${vertica-username}&password=${vertica-password}"
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 
 Resources:
   LambdaSecurityGroup:
@@ -81,6 +88,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:

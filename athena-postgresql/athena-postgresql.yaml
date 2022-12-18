@@ -53,6 +53,12 @@ Parameters:
     Type: String
     Default: "PostGreSqlMuxCompositeHandler"
     AllowedValues : ["PostGreSqlMuxCompositeHandler", "PostGreSqlCompositeHandler"]
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -70,6 +76,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:

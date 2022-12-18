@@ -78,9 +78,14 @@ Parameters:
     Description: '**If IsVPCAccess is True**. Provide one or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: CommaDelimitedList
     Default: ""
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
 
 Conditions:
   IsVPCAccessSelected: !Equals [!Ref IsVPCAccess, true]
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
 
 Resources:
   ConnectorConfig:
@@ -103,6 +108,7 @@ Resources:
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:
