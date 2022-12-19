@@ -41,7 +41,7 @@ public final class ConstantExpressionSerDeV3
     private static final String VALUE_BLOCK_FIELD = "valueBlock";
     private static final String TYPE_FIELD = "type";
 
-    private ConstantExpressionSerDeV3(){}
+    private ConstantExpressionSerDeV3() {}
 
     public static final class Serializer extends TypedSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {

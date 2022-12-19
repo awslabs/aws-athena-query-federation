@@ -44,7 +44,7 @@ public final class FunctionCallExpressionSerDeV3
     private static final String TYPE_FIELD = "type";
     private static final String ARGUMENTS_FIELD = "arguments";
 
-    private FunctionCallExpressionSerDeV3(){}
+    private FunctionCallExpressionSerDeV3() {}
 
     public static final class Serializer extends TypedSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {

@@ -45,7 +45,7 @@ public final class ConstraintsSerDeV3
     private static final String EXPRESSION_FIELD = "expression";
     private static final String LIMIT_FIELD = "limit";
 
-    private ConstraintsSerDeV3(){}
+    private ConstraintsSerDeV3() {}
 
     public static final class Serializer extends BaseSerializer<Constraints> implements VersionedSerDe.Serializer<Constraints>
     {

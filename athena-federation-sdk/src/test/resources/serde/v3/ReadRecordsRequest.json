@@ -119,6 +119,13 @@
             "isSigned" : true
           }
         } ]
+      }, {
+        "@type" : "VariableExpression",
+        "columnName" : "col2",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        }
       } ]
     } ],
     "limit" : -1
