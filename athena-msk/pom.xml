@@ -18,6 +18,13 @@
         <maven.compiler.target>11</maven.compiler.target>
     </properties>
     <dependencies>
+         <dependency>
+            <!-- Only use the simple logger for testing so that we can see the output -->
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j-log4j.version}</version>
+            <scope>test</scope>
+         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>

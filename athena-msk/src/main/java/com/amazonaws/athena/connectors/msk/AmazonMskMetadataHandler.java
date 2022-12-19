@@ -39,6 +39,10 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicPartitionPiece;
 import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
+import com.amazonaws.services.glue.AWSGlueClientBuilder;
+import com.amazonaws.services.glue.model.GetRegistryRequest;
+import com.amazonaws.services.glue.model.ListRegistriesRequest;
+import com.amazonaws.services.glue.model.RegistryId;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -55,11 +59,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.msk.AmazonMskConstants.MAX_RECORDS_IN_SPLIT;
 
 public class AmazonMskMetadataHandler extends MetadataHandler
 {
+    private static final long MAX_RESULTS = 100_000;
+    private static final String REGISTRY_MARKER = "{AthenaFederationMSK}";
     private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskMetadataHandler.class);
     private final Consumer<String, String> kafkaConsumer;
 
@@ -86,15 +94,40 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     public ListSchemasResponse doListSchemaNames(BlockAllocator blockAllocator, ListSchemasRequest listSchemasRequest)
     {
         LOGGER.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
-        final List<String> schemas = new ArrayList<>();
-        // for now, there is only one default schema
-        schemas.add(AmazonMskConstants.KAFKA_SCHEMA);
-        LOGGER.info("Found {} schemas!", schemas.size());
-        return new ListSchemasResponse(listSchemasRequest.getCatalogName(), schemas);
+        var glue = AWSGlueClientBuilder.defaultClient();
+        var listRequest = new ListRegistriesRequest().withMaxResults(100);
+        var start = glue.listRegistries(listRequest);
+        List<String> registries = Stream.iterate(
+            start,
+            r -> r == start || r.getNextToken() != null,
+            r -> glue.listRegistries(listRequest.withNextToken(r.getNextToken())))
+                .flatMap(r -> r.getRegistries().stream())
+                .filter(r -> r.getDescription() != null && r.getDescription().contains(REGISTRY_MARKER))
+                .map(r -> r.getRegistryName())
+                .collect(Collectors.toList());
+        var result = new ListSchemasResponse(listSchemasRequest.getCatalogName(), registries);
+        LOGGER.debug("doListSchemaNames result: {}", result);
+        return result;
+    }
+
+    private String resolveGlueRegistryName(String glueRegistryName)
+    {
+        try {
+            var glue = AWSGlueClientBuilder.defaultClient();
+            var getRegistryResult = glue.getRegistry(new GetRegistryRequest().withRegistryId(new RegistryId().withRegistryName(glueRegistryName)));
+            if (!(getRegistryResult.getDescription() != null && getRegistryResult.getDescription().contains(REGISTRY_MARKER))) {
+                throw new Exception(String.format("Found a registry with a matching name [%s] but not marked for AthenaFederationMSK", glueRegistryName));
+            }
+            return getRegistryResult.getRegistryName();
+        }
+        catch (Exception ex) {
+            LOGGER.info("resolveGlueRegistryName falling back to case insensitive search for: {}. Exception: {}", glueRegistryName, ex);
+            return findGlueRegistryNameIgnoringCasing(glueRegistryName);
+        }
     }
 
     /**
-     * List all the tables. It pulls all the topic names from Glue registry.
+     * List all the tables. It pulls all the schema names from a Glue registry.
      *
      * @param blockAllocator - instance of {@link BlockAllocator}
      * @param listTablesRequest - instance of {@link ListTablesRequest}
@@ -103,10 +136,90 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
     {
-        LOGGER.info("{}: List table names for Catalog {}, Schema {}", listTablesRequest.getQueryId(), listTablesRequest.getCatalogName(), listTablesRequest.getSchemaName());
-        List<String> topicList = AmazonMskUtils.getTopicListFromGlueRegistry();
-        List<TableName> tableNames  = topicList.stream().map(topic -> new TableName(listTablesRequest.getSchemaName(), topic)).collect(Collectors.toList());
-        return new ListTablesResponse(listTablesRequest.getCatalogName(), tableNames, null);
+        LOGGER.info("doListTables: {}", listTablesRequest);
+        String glueRegistryNameResolved = resolveGlueRegistryName(listTablesRequest.getSchemaName());
+        LOGGER.info("Resolved Glue registry name to: {}", glueRegistryNameResolved);
+        var glue = AWSGlueClientBuilder.defaultClient();
+        // In this situation we want to loop through all the pages to return up to the MAX_RESULTS size
+        if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+            LOGGER.info("Request page size is UNLIMITED_PAGE_SIZE_VALUE");
+            var listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
+                .withRegistryId(new RegistryId().withRegistryName(glueRegistryNameResolved))
+                .withMaxResults(100);
+            var start = glue.listSchemas(listRequest);
+            List<TableName> tableNames = Stream.iterate(
+                start,
+                r -> r == start || r.getNextToken() != null,
+                r -> glue.listSchemas(listRequest.withNextToken(r.getNextToken())))
+                    .flatMap(r -> r.getSchemas().stream())
+                    .limit(MAX_RESULTS + 1)
+                    .map(schemaListItem -> schemaListItem.getSchemaName())
+                    .map(glueSchemaName -> new TableName(glueRegistryNameResolved, glueSchemaName))
+                    .collect(Collectors.toList());
+            if (tableNames.size() > MAX_RESULTS) {
+                throw new RuntimeException(
+                    String.format("Exceeded maximum result size. Current doListTables result size: %d", tableNames.size()));
+            }
+            var result = new ListTablesResponse(listTablesRequest.getCatalogName(), tableNames, null);
+            LOGGER.debug("doListTables result: {}", result);
+            return result;
+        }
+
+        // Otherwise don't retrieve all pages, just pass through the page token.
+        var pageSize = Math.min(listTablesRequest.getPageSize(), 100); // 100 is the maximum Glue allows
+        var listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
+            .withRegistryId(new RegistryId().withRegistryName(glueRegistryNameResolved))
+            .withMaxResults(pageSize);
+        var listSchemasResult = glue.listSchemas(listRequest);
+        var tableNames = listSchemasResult.getSchemas()
+            .stream()
+            .map(schemaListItem -> schemaListItem.getSchemaName())
+            .map(glueSchemaName -> new TableName(glueRegistryNameResolved, glueSchemaName))
+            .collect(Collectors.toList());
+        var result = new ListTablesResponse(listTablesRequest.getCatalogName(), tableNames, listSchemasResult.getNextToken());
+        LOGGER.debug("doListTables [paginated] result: {}", result);
+        return result;
+    }
+
+    private String findGlueRegistryNameIgnoringCasing(String glueRegistryNameIn)
+    {
+        LOGGER.debug("findGlueRegistryNameIgnoringCasing {}", glueRegistryNameIn);
+        var glue = AWSGlueClientBuilder.defaultClient();
+        var listRequest = new ListRegistriesRequest().withMaxResults(100);
+        var start = glue.listRegistries(listRequest);
+        var result = Stream.iterate(
+            start,
+            r -> (r == start) || (r.getNextToken() != null),
+            r -> glue.listRegistries(listRequest.withNextToken(r.getNextToken())))
+                .flatMap(r -> r.getRegistries().stream())
+                .filter(r -> r.getDescription() != null && r.getDescription().contains(REGISTRY_MARKER))
+                .map(r -> r.getRegistryName())
+                .filter(r ->  r.equalsIgnoreCase(glueRegistryNameIn))
+                .findAny().get();
+        LOGGER.debug("findGlueRegistryNameIgnoringCasing result: {}", result);
+        return result;
+    }
+
+    // Assumes that glueRegistryNameIn is already resolved to the right name
+    private String findGlueSchemaNameIgnoringCasing(String glueRegistryNameIn, String glueSchemaNameIn)
+    {
+        LOGGER.debug("findGlueSchemaNameIgnoringCasing {} {}", glueRegistryNameIn, glueSchemaNameIn);
+        // List all schemas under the input registry
+        var glue = AWSGlueClientBuilder.defaultClient();
+        var listSchemasRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
+            .withRegistryId(new RegistryId().withRegistryName(glueRegistryNameIn))
+            .withMaxResults(100);
+        var start = glue.listSchemas(listSchemasRequest);
+        var result = Stream.iterate(
+            start,
+            r -> (r == start) || (r.getNextToken() != null),
+            r -> glue.listSchemas(listSchemasRequest.withNextToken(r.getNextToken())))
+                .flatMap(r -> r.getSchemas().stream())
+                .map(schemaListItem -> schemaListItem.getSchemaName())
+                .filter(glueSchemaName -> glueSchemaName.equalsIgnoreCase(glueSchemaNameIn))
+                .findAny().get();
+        LOGGER.debug("findGlueSchemaNameIgnoringCasing result: {}", result);
+        return result;
     }
 
     /**
@@ -120,9 +233,25 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest) throws Exception
     {
-        Schema tableSchema = getSchema(getTableRequest.getTableName().getTableName());
-        TableName tableName = new TableName(getTableRequest.getTableName().getSchemaName(), tableSchema.getCustomMetadata().get("topicName"));
-        return new GetTableResponse(getTableRequest.getCatalogName(), tableName, tableSchema);
+        LOGGER.info("doGetTable request: {}", getTableRequest);
+        Schema tableSchema = null;
+        try {
+            tableSchema = getSchema(getTableRequest.getTableName().getSchemaName(), getTableRequest.getTableName().getTableName());
+        }
+        catch (Exception ex) {
+            LOGGER.info("doGetTable falling back on case insensitive resolution. Got exception: {}", ex);
+            String glueRegistryNameResolved = findGlueRegistryNameIgnoringCasing(getTableRequest.getTableName().getSchemaName());
+            String glueSchemaNameResolved = findGlueSchemaNameIgnoringCasing(glueRegistryNameResolved, getTableRequest.getTableName().getTableName());
+            tableSchema = getSchema(glueRegistryNameResolved, glueSchemaNameResolved);
+        }
+        var result = new GetTableResponse(
+            getTableRequest.getCatalogName(),
+            new TableName(
+                tableSchema.getCustomMetadata().get("glueRegistryName"),
+                tableSchema.getCustomMetadata().get("glueSchemaName")),
+            tableSchema);
+        LOGGER.info("doGetTable result: {}", result);
+        return result;
     }
 
     /**
@@ -162,10 +291,21 @@ public class AmazonMskMetadataHandler extends MetadataHandler
      * @return {@link GetSplitsResponse}
      */
     @Override
-    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request)
+    public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws Exception
     {
-        LOGGER.info("{}: Catalog {}, table {}", request.getQueryId(), request.getTableName().getSchemaName(), request.getTableName().getTableName());
-        String topic = request.getTableName().getTableName();
+        LOGGER.info("doGetSplits: {}", request);
+
+        // NOTE: Ideally we could have passed through the metadata using
+        // enhancePartitionSchema, but that ends up breaking the logic
+        // in doGetTableLayout() that checks to see if the metadata is empty before
+        // returning a single partition.
+        String glueRegistryName = request.getTableName().getSchemaName();
+        String glueSchemaName = request.getTableName().getTableName();
+        GlueRegistryReader registryReader = new GlueRegistryReader();
+        TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);
+        String topic =  topicSchema.getTopicName();
+
+        LOGGER.info("Retrieved topicName: {}", topic);
 
         // Get the available partitions of the topic from kafka server.
         Collection<TopicPartition> topicPartitions = kafkaConsumer.partitionsFor(topic)
@@ -233,16 +373,18 @@ public class AmazonMskMetadataHandler extends MetadataHandler
      * Create the arrow schema for a specific topic. In the metadata
      * we keep the additional information of topic schema and fields.
      *
-     * @param tableName - name of the kafka topic as table name
+     * @param glueRegistryName - the name of the registry in the glue schema registry.
+     * @param glueSchemaName - name of the schema inside the registry above.
      * @return {@link Schema}
      * @throws Exception - {@link Exception}
      */
-    private Schema getSchema(String tableName) throws Exception
+    private Schema getSchema(String glueRegistryName, String glueSchemaName) throws Exception
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
 
         // Get topic schema json from GLue registry as translated to TopicSchema pojo
-        TopicSchema topicSchema = AmazonMskUtils.getTopicSchemaFromGlueRegistry(tableName);
+        GlueRegistryReader registryReader = new GlueRegistryReader();
+        TopicSchema topicSchema = registryReader.getGlueSchema(glueRegistryName, glueSchemaName, TopicSchema.class);
 
         // Creating ArrowType for each fields in the topic schema.
         // Also putting the additional column level information
@@ -264,7 +406,11 @@ public class AmazonMskMetadataHandler extends MetadataHandler
 
         // Putting the additional schema level information into the metadata in ArrowType schema.
         schemaBuilder.addMetadata("dataFormat", topicSchema.getMessage().getDataFormat());
-        schemaBuilder.addMetadata("topicName", topicSchema.getTopicName());
+
+        // NOTE: these values are being shoved in here for usage later in the calling context
+        // of doGetTable() since Java doesn't have tuples.
+        schemaBuilder.addMetadata("glueRegistryName", glueRegistryName);
+        schemaBuilder.addMetadata("glueSchemaName", glueSchemaName);
 
         return schemaBuilder.build();
     }

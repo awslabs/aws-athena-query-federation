@@ -63,8 +63,6 @@ public class MskCsvDeserializerTest extends MskAbstractDeserializerTest
     private TopicSchema createCsvTopicSchema() throws JsonProcessingException
     {
         String csv = "{" +
-                "\"tableName\":\"test\"," +
-                "\"schemaName\":\"default\"," +
                 "\"topicName\":\"test\"," +
                 "\"message\":{" +
                 "\"dataFormat\":\"csv\"," +

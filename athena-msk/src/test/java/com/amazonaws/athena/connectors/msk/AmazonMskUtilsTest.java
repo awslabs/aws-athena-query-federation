@@ -195,21 +195,6 @@ public class AmazonMskUtilsTest {
     }
 
     @Test
-    public void testGetTopicListFromGlueRegistry() throws Exception {
-        List<SchemaListItem> schemaListItems = new ArrayList<>();
-        ListSchemasResult listSchemasResult = new ListSchemasResult();
-        SchemaListItem schemaListItem = new SchemaListItem();
-        schemaListItem.setSchemaName("testtable");
-        schemaListItems.add(schemaListItem);
-        listSchemasResult.setSchemas(schemaListItems);
-        PowerMockito.mockStatic(AWSGlueClientBuilder.class);
-        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        PowerMockito.when(awsGlue.listSchemas(any())).thenReturn(listSchemasResult);
-        List<String> topicList = AmazonMskUtils.getTopicListFromGlueRegistry();
-        assertEquals("testtable", topicList.get(0));
-    }
-
-    @Test
     public void testToArrowType(){
         assertEquals(new ArrowType.Bool(), toArrowType("BOOLEAN"));
         assertEquals(Types.MinorType.TINYINT.getType(), toArrowType("TINYINT"));

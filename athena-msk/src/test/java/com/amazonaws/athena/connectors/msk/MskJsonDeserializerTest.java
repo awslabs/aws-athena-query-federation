@@ -62,8 +62,6 @@ public class MskJsonDeserializerTest extends MskAbstractDeserializerTest
     private TopicSchema createJsonTopicSchema() throws JsonProcessingException
     {
         String json = "{" +
-                "\"tableName\":\"test\"," +
-                "\"schemaName\":\"default\"," +
                 "\"topicName\":\"test\"," +
                 "\"message\":{" +
                 "\"dataFormat\":\"json\"," +
