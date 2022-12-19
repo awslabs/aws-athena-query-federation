@@ -19,12 +19,16 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
+import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
+import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageMetadataConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
+import com.amazonaws.services.glue.AWSGlue;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
@@ -152,14 +156,15 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
      * {@inheritDoc}
      */
     @Override
-    public List<StorageSplit> getStorageSplits(String tableType, StoragePartition partition)
+    public List<StorageSplit> getStorageSplits(String tableType, PartitionLocation partition)
     {
         String extension = "." + tableType.toLowerCase();
         List<StorageSplit> splits = new ArrayList<>();
-        Page<Blob> blobs = storage.list(partition.getBucketName(), Storage.BlobListOption.prefix(partition.getLocation()));
+        String bucketName = partition.getBucketName();
+        Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(partition.getLocation()));
         for (Blob blob : blobs.iterateAll()) {
             if (blob.getName().toLowerCase().endsWith(extension)) {
-                splits.add(StorageSplit.builder().fileName(blob.getName()).build());
+                splits.add(StorageSplit.builder().fileName(bucketName + "/" + blob.getName()).build());
             }
         }
         return splits;
@@ -190,6 +195,12 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
                 = GoogleCredentials.fromStream(new ByteArrayInputStream(config.credentialsJson().getBytes(StandardCharsets.UTF_8)))
                 .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
         storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService();
+    }
+
+    @Override
+    public List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient)
+    {
+        return List.of();
     }
 
     /**

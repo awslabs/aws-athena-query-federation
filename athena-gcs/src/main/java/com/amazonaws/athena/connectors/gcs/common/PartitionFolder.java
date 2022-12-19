@@ -19,20 +19,40 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import org.junit.Test;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-public class StorageLocationTest
+public class PartitionFolder
 {
-    @Test
-    public void testFromUri()
-    {
-        StorageLocation location = StorageLocation.fromUri("gs://mydatalake1test/birthday/");
-        assertEquals(location.getBucketName(), "mydatalake1test");
-        assertEquals(location.getLocation(), "birthday/");
-        assertTrue(location.toString().contains("location="), "StorageLocation.toString() does not contain 'location' attribute");
+    private String folderPath;
+    private List<StoragePartition> partitions;
 
+    public PartitionFolder()
+    {
+    }
+
+    public PartitionFolder(String folderPath, List<StoragePartition> partitions)
+    {
+        this.folderPath = folderPath;
+        this.partitions = partitions;
+    }
+
+    public String getFolderPath()
+    {
+        return folderPath;
+    }
+
+    public void setFolderPath(String folderPath)
+    {
+        this.folderPath = folderPath;
+    }
+
+    public List<StoragePartition> getPartitions()
+    {
+        return partitions;
+    }
+
+    public void setPartitions(List<StoragePartition> partitions)
+    {
+        this.partitions = partitions;
     }
 }

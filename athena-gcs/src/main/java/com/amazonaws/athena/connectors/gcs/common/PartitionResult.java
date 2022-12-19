@@ -23,16 +23,16 @@ import java.util.List;
 
 public class PartitionResult
 {
-    private List<StoragePartition> partitions;
+    private List<PartitionLocation> partitions;
     private String tableType;
 
-    public PartitionResult(String tableType, List<StoragePartition> partitions)
+    public PartitionResult(String tableType, List<PartitionLocation> partitions)
     {
         this.tableType = tableType;
         this.partitions = partitions;
     }
 
-    public List<StoragePartition> getPartitions()
+    public List<PartitionLocation> getPartitions()
     {
         return partitions;
     }

@@ -123,7 +123,7 @@ public class GcsRecordHandler
                 .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         StorageSplit.class);
         String uri = createUri(storageSplit.getFileName());
-        LOGGER.debug("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
+        LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
         ScanOptions options = new ScanOptions(32768);
         try (
                 // Taking an allocator for using direct memory for Arrow Vectors/Arrays.

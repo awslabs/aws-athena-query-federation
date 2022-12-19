@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.SDKGlobalConfiguration;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -37,8 +38,11 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
+import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
+import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
 import com.amazonaws.athena.connectors.gcs.glue.HivePartitionResolver;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
@@ -210,7 +214,25 @@ public class GcsMetadataHandler
     @Override
     public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
     {
-        // no partition for non-jdbc connector
+        TableName tableInfo = request.getTableName();
+        LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
+        Table table = GlueUtil.getGlueTable(request, tableInfo, glueClient);
+
+        List<PartitionFolder> partitionFolders = datasource.getPartitionFolders(request, tableInfo, glueClient);
+        LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
+        if (!partitionFolders.isEmpty()) {
+            for (PartitionFolder folder : partitionFolders) {
+                blockWriter.writeRows((Block block, int rowNum) ->
+                {
+                    for (StoragePartition partition : folder.getPartitions()) {
+                        block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
+                    }
+                    //we wrote 1 row so we return 1
+                    return 1;
+                });
+            }
+        }
+        LOGGER.info("Wrote partition?: {}", !partitionFolders.isEmpty());
     }
 
     /**
@@ -236,9 +258,9 @@ public class GcsMetadataHandler
                 partitionContd);
         PartitionResult partitionResult = new HivePartitionResolver().getPartitions(request, request.getSchema(), request.getTableName(), request.getConstraints(), glueClient);
         String tableType = partitionResult.getTableType();
-        List<StoragePartition> storagePartitions = partitionResult.getPartitions();
-        for (int curPartition = 0; curPartition < storagePartitions.size(); curPartition++) {
-            StoragePartition partition = storagePartitions.get(curPartition);
+        List<PartitionLocation> partitionLocations = partitionResult.getPartitions();
+        for (int curPartition = 0; curPartition < partitionLocations.size(); curPartition++) {
+            PartitionLocation partition = partitionLocations.get(curPartition);
             LOGGER.info("Partition for {}.{} at position {} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), curPartition + 1, partition);
             List<StorageSplit> storageSplits = datasource.getStorageSplits(tableType, partition);
             SpillLocation spillLocation = makeSpillLocation(request);

@@ -22,9 +22,9 @@ package com.amazonaws.athena.connectors.gcs.glue;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.services.glue.AWSGlue;
@@ -51,20 +51,21 @@ public class HivePartitionResolver implements PartitionResolver
         LOGGER.info("Retrieving partitions for table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
         String locationUri = table.getStorageDescriptor().getLocation();
+        LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
         LOGGER.info("Storage location for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageLocation);
         List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints, Map.of());
         LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
         if (expressions.isEmpty()) {
             // Returning a single partition
-            return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), List.of(StoragePartition.builder()
-                    .bucketName(storageLocation.getBucketName())
-                    .location(locationUri)
-                    .build()));
         }
         else {
             // list all prefix based on expression and constitute a list of partitions
         }
-        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), List.of());
+        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), List.of(PartitionLocation.builder()
+                .bucketName(storageLocation.getBucketName())
+                .location(storageLocation.getLocation())
+                .build()));
+//        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), List.of());
     }
 }

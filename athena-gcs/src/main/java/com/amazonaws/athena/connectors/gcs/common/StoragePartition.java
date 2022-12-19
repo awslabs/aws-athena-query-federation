@@ -1,15 +1,15 @@
 /*-
  * #%L
- * athena-storage-api
+ * athena-gcs
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,84 +19,50 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import static java.util.Objects.requireNonNull;
-
 public class StoragePartition
 {
-    private String bucketName;
-    private String location;
+    private String columnName;
+    private String columnType;
+    private Object columnValue;
 
-    // Jackson uses this constructor
-    @SuppressWarnings("unused")
     public StoragePartition()
     {
     }
 
-    public StoragePartition(String bucketName, String location)
+    public StoragePartition(String columnName, String columnType, Object columnValue)
     {
-        this.bucketName = requireNonNull(bucketName, "Bucket name can't be null");
-        this.location = requireNonNull(location, "Location can't be null");
+        this.columnName = columnName;
+        this.columnType = columnType;
+        this.columnValue = columnValue;
     }
 
-    public String getBucketName()
+    public String getColumnName()
     {
-        return bucketName;
+        return columnName;
     }
 
-    public void setBucketName(String bucketName)
+    public void setColumnName(String columnName)
     {
-        this.bucketName = bucketName;
+        this.columnName = columnName;
     }
 
-    public String getLocation()
+    public String getColumnType()
     {
-        return location;
+        return columnType;
     }
 
-    public void setLocation(String location)
+    public void setColumnType(String columnType)
     {
-        this.location = location;
+        this.columnType = columnType;
     }
 
-    public static Builder builder()
+    public Object getColumnValue()
     {
-        return new Builder();
+        return columnValue;
     }
 
-    @Override
-    public String toString()
+    public void setColumnValue(Object columnValue)
     {
-        return "StoragePartition{" +
-                "bucketName='" + bucketName + '\'' +
-                ", location='" + location + '\'' +
-                '}';
-    }
-
-    // Builder
-    public static class Builder
-    {
-        private String bucketName;
-        private String location;
-
-        private Builder()
-        {
-        }
-
-        public Builder bucketName(String bucketName)
-        {
-            this.bucketName = bucketName;
-            return this;
-        }
-
-        public Builder location(String location)
-        {
-            this.location = location;
-            return this;
-        }
-
-        public StoragePartition build()
-        {
-            return new StoragePartition(this.bucketName, this.location);
-        }
+        this.columnValue = columnValue;
     }
 }
