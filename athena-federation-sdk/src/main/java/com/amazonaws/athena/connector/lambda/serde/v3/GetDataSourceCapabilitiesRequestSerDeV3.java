@@ -38,7 +38,7 @@ import static java.util.Objects.requireNonNull;
 
 public class GetDataSourceCapabilitiesRequestSerDeV3
 {
-    private GetDataSourceCapabilitiesRequestSerDeV3(){}
+    private GetDataSourceCapabilitiesRequestSerDeV3() {}
 
     public static final class Serializer extends MetadataRequestSerializer implements VersionedSerDe.Serializer<FederationRequest>
     {

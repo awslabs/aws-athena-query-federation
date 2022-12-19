@@ -101,7 +101,8 @@ public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequ
                         List.of(new VariableExpression("col3", Types.MinorType.FLOAT8.getType()),
                                 new ConstantExpression(
                                         BlockUtils.newBlock(allocator, "col1", new ArrowType.Int(32, true), List.of(10)),
-                                        new ArrowType.Int(32, true))))));
+                                        new ArrowType.Int(32, true)))),
+                        new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
 
         Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), -1);
 

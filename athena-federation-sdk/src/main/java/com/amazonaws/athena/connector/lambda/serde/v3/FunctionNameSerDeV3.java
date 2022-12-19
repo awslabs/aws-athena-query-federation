@@ -34,7 +34,7 @@ public final class FunctionNameSerDeV3
 {
     private static final String FUNCTION_NAME_FIELD = "functionName";
 
-    private FunctionNameSerDeV3(){}
+    private FunctionNameSerDeV3() {}
 
     public static final class Serializer extends BaseSerializer<FunctionName> implements VersionedSerDe.Serializer<FunctionName>
     {

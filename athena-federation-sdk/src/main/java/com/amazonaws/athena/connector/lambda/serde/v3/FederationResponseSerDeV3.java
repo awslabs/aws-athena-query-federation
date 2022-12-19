@@ -38,7 +38,7 @@ import com.google.common.collect.ImmutableSet;
 
 public class FederationResponseSerDeV3
 {
-    private FederationResponseSerDeV3(){}
+    private FederationResponseSerDeV3() {}
 
     public static final class Serializer extends DelegatingSerializer<FederationResponse> implements VersionedSerDe.Serializer<FederationResponse>
     {

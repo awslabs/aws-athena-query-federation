@@ -41,7 +41,7 @@ public class GetDataSourceCapabilitiesResponseSerDeV3
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String CAPABILITIES_NAME_FIELD = "capabilities";
 
-    private GetDataSourceCapabilitiesResponseSerDeV3(){}
+    private GetDataSourceCapabilitiesResponseSerDeV3() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse> implements VersionedSerDe.Serializer<FederationResponse>
     {

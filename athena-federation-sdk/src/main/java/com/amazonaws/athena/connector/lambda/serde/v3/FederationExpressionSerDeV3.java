@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableSet;
 
 public class FederationExpressionSerDeV3
 {
-    private FederationExpressionSerDeV3(){}
+    private FederationExpressionSerDeV3() {}
 
     public static final class Serializer extends DelegatingSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {

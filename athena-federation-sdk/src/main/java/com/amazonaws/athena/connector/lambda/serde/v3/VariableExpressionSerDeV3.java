@@ -40,7 +40,7 @@ public final class VariableExpressionSerDeV3
     private static final String COLUMN_NAME_FIELD = "columnName";
     private static final String TYPE_FIELD = "type";
 
-    private VariableExpressionSerDeV3(){}
+    private VariableExpressionSerDeV3() {}
 
     public static final class Serializer extends TypedSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {
