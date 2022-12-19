@@ -59,11 +59,14 @@ public class GcsConstants
      */
     public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION = "GOOGLE_APPLICATION_CREDENTIALS";
 
+    public static final String BLOCK_PARTITION_COLUMN_NAME = "part_name";
     public static final String FUNCTION_ARN_REGEX = "arn:aws[a-zA-Z-]*?:lambda:[a-zA-Z0-9-]+:(\\d{12}):function:[a-zA-Z0-9-_]+";
 
     public static final String CATALOG_NAME_ENV_OVERRIDE = "glue_catalog";
 
     public static final String CLASSIFICATION_GLUE_TABLE_PARAM = "classification";
+
+    public static final String PARTITION_PATTERN_PATTERN = "partition.pattern";
 
     /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering

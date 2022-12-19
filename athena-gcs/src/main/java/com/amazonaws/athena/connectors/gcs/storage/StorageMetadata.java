@@ -19,8 +19,12 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
+import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
+import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
+import com.amazonaws.services.glue.AWSGlue;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.dataset.file.FileFormat;
@@ -47,10 +51,10 @@ public interface StorageMetadata
      * Retrieves a list of StorageSplit that essentially contain the list of all files for a given table type in a storage location
      *
      * @param tableType Type of the table (e.g., PARQUET or CSV)
-     * @param partitions List of {@link StoragePartition} instances
+     * @param partitions List of {@link PartitionLocation} instances
      * @return A list of {@link StorageSplit} instances
      */
-    List<StorageSplit> getStorageSplits(String tableType, StoragePartition partitions);
+    List<StorageSplit> getStorageSplits(String tableType, PartitionLocation partitions);
 
     /**
      * Returns the Datasource specific file format to be used to read a file (for retrieving schema or fetching data)
@@ -69,4 +73,6 @@ public interface StorageMetadata
      */
     @VisibleForTesting
     Storage getStorage();
+
+    List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient);
 }

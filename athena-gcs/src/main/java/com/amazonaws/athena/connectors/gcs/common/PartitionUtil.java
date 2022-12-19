@@ -19,17 +19,25 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
+import com.amazonaws.services.glue.model.Column;
+import com.amazonaws.services.glue.model.Table;
+import com.google.cloud.storage.Storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.getFolderName;
 
 public class PartitionUtil
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PartitionUtil.class);
+
+    private static final Pattern PARTITION_PATTERN = Pattern.compile("(.*?)=(\\{.*?\\})");
 
     private PartitionUtil()
     {
@@ -87,4 +95,26 @@ public class PartitionUtil
             return FIELD_EQUAL_VALUE_PATTERN_DOUBLE_NO_QUOTED_PATTERN.matcher(maybeFieldValue).matches();
         }
     }
+
+    public static Optional<String> getRegExExpression(Table table, Storage storage)
+    {
+        List<Column> partitions = table.getPartitionKeys();
+        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
+        if (partitionPattern == null || partitionPattern.isBlank()) {
+            return Optional.empty();
+        }
+        Matcher partitinoMatcher = PARTITION_PATTERN.matcher(partitionPattern);
+        String folderMatchingPattern;
+        if (partitinoMatcher.matches()) {
+            // implement it
+        }
+        String prefix = table.getStorageDescriptor().getLocation();
+        return Optional.empty();
+    }
+
+    // helpers
+//    private static String substitutePartitionVariables(String pattern, List<Column>)
+//    {
+//        if ()
+//    }
 }
