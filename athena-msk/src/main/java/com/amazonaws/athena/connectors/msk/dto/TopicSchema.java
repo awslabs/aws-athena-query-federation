@@ -21,30 +21,11 @@ package com.amazonaws.athena.connectors.msk.dto;
 
 public class TopicSchema
 {
-    String tableName;
-    String schemaName;
+    // This should be the Kafka topic name
     String topicName;
+
+    // This is the schema
     Message message = new Message();
-
-    public String getTableName()
-    {
-        return tableName;
-    }
-
-    public void setTableName(String tableName)
-    {
-        this.tableName = tableName;
-    }
-
-    public String getSchemaName()
-    {
-        return schemaName;
-    }
-
-    public void setSchemaName(String schemaName)
-    {
-        this.schemaName = schemaName;
-    }
 
     public String getTopicName()
     {

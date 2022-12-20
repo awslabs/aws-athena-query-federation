@@ -22,13 +22,11 @@ package com.amazonaws.athena.connectors.msk;
 import com.amazonaws.athena.connectors.msk.dto.Message;
 import com.amazonaws.athena.connectors.msk.dto.SplitParameters;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
-import com.amazonaws.athena.connectors.msk.dto.TopicSchema;
 import com.amazonaws.athena.connectors.msk.serde.MskCsvDeserializer;
 import com.amazonaws.athena.connectors.msk.serde.MskJsonDeserializer;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.services.glue.model.SchemaListItem;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.GetObjectRequest;
@@ -58,11 +56,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 public class AmazonMskUtils
 {
@@ -102,11 +98,9 @@ public class AmazonMskUtils
     private static final String KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG = "value.deserializer";
 
     private static GlueRegistryReader glueRegistryReader;
-    private static ObjectMapper objectMapper;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private AmazonMskUtils()
-    {
-    }
+    private AmazonMskUtils() {}
 
     /**
      * Creates Kafka consumer instance.
@@ -156,35 +150,6 @@ public class AmazonMskUtils
                 new StringDeserializer(),
                 valueDeserializer
         );
-    }
-
-    /**
-     * Creates GlueRegistryReader instance.
-     * This instance is used to interact with Glue registry.
-     *
-     * @return {@link GlueRegistryReader}
-     */
-    public static GlueRegistryReader getGlueRegistryReader()
-    {
-        if (glueRegistryReader != null) {
-            return glueRegistryReader;
-        }
-        glueRegistryReader = new GlueRegistryReader();
-        return glueRegistryReader;
-    }
-
-    /**
-     * Creates ObjectMapper instance.
-     *
-     * @return {@link Properties}
-     */
-    public static ObjectMapper getObjectMapper()
-    {
-        if (objectMapper != null) {
-            return objectMapper;
-        }
-        objectMapper = new ObjectMapper();
-        return objectMapper;
     }
 
     /**
@@ -389,7 +354,7 @@ public class AmazonMskUtils
         GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
         getSecretValueRequest.setSecretId(getEnvVar(AmazonMskConstants.SECRET_MANAGER_MSK_CREDS_NAME));
         GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
-        return new ObjectMapper().readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
+        return objectMapper.readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
         {
         });
     }
@@ -407,36 +372,6 @@ public class AmazonMskUtils
             throw new IllegalArgumentException("Lambda Environment Variable " + envVar + " has not been populated! ");
         }
         return envVariable;
-    }
-
-    /**
-     * Fetches all the available topics from Glue registry by registry arn.
-     *
-     * @return {@link List<String>}
-     * @throws Exception - {@link Exception}
-     */
-    public static List<String> getTopicListFromGlueRegistry()
-    {
-        String schemaRegistryARN = getEnvVar(AmazonMskConstants.GLUE_REGISTRY_ARN);
-        return getGlueRegistryReader()
-                .getSchemaListItemsWithSchemaRegistryARN(schemaRegistryARN)
-                .stream()
-                .map(SchemaListItem::getSchemaName)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Fetches specific schema from Glue registry by schema arn name.
-     * The schema is then translated to pojo.
-     *
-     * @param topic - the topic name
-     * @return {@link TopicSchema}
-     * @throws Exception - {@link Exception}
-     */
-    public static TopicSchema getTopicSchemaFromGlueRegistry(String topic) throws Exception
-    {
-        String schemaArn = getEnvVar(AmazonMskConstants.GLUE_REGISTRY_ARN).replace(":registry/", ":schema/") + "/" + topic;
-        return getGlueRegistryReader().getGlueSchema(schemaArn, TopicSchema.class);
     }
 
     /**

@@ -65,9 +65,6 @@ Parameters:
     Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded. Applicable for SSL auth'
     Default: ""
     Type: String
-  GlueRegistryArn:
-    Description: 'AWS GLUE registry ARN to be provided where topic schemas has been uploaded'
-    Type: String
   LambdaRoleARN:
     Description: "(Must for auth type IAM) A custom role to be used by the Connector lambda"
     Default: ""

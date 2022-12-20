@@ -31,6 +31,8 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
 import com.amazonaws.services.glue.model.GetSchemaResult;
 import com.amazonaws.services.glue.model.GetSchemaVersionResult;
+import com.amazonaws.services.glue.model.ListRegistriesResult;
+import com.amazonaws.services.glue.model.RegistryListItem;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.MockConsumer;
@@ -59,6 +61,7 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +69,7 @@ import static org.mockito.Mockito.when;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*", "javax.security.*"
 })
-@PrepareForTest({AWSSecretsManagerClientBuilder.class, AWSGlueClientBuilder.class})
+@PrepareForTest({AWSSecretsManagerClientBuilder.class, AWSGlueClientBuilder.class, GlueRegistryReader.class})
 public class AmazonMskMetadataHandlerTest {
     private static final String QUERY_ID = "queryId";
     private AmazonMskMetadataHandler amazonMskMetadataHandler;
@@ -127,11 +130,16 @@ public class AmazonMskMetadataHandlerTest {
 
     @Test
     public void testDoListSchemaNames() {
-        List<String> schemaNames = new ArrayList<>();
-        schemaNames.add("default");
+        PowerMockito.mockStatic(AWSGlueClientBuilder.class);
+        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
+        PowerMockito.when(awsGlue.listRegistries(any())).thenAnswer(x -> (new ListRegistriesResult()).withRegistries(
+          (new RegistryListItem()).withRegistryName("Asdf").withDescription("something something {AthenaFederationMSK} something"))
+        );
+
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, "default");
         ListSchemasResponse listSchemasResponse = amazonMskMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
-        assertEquals(schemaNames, new ArrayList<>(listSchemasResponse.getSchemas()));
+
+        assertEquals(new ArrayList(List.of("Asdf")), new ArrayList(listSchemasResponse.getSchemas()));
     }
 
     @Test(expected = RuntimeException.class)
@@ -155,8 +163,6 @@ public class AmazonMskMetadataHandlerTest {
         getSchemaVersionResult.setSchemaArn(arn);
         getSchemaVersionResult.setSchemaVersionId(schemaVersionId);
         getSchemaVersionResult.setSchemaDefinition("{\n" +
-                "\t\"tableName\": \"testtable\",\n" +
-                "\t\"schemaName\": \"default\",\n" +
                 "\t\"topicName\": \"testtable\",\n" +
                 "\t\"message\": {\n" +
                 "\t\t\"dataFormat\": \"json\",\n" +
@@ -177,7 +183,33 @@ public class AmazonMskMetadataHandlerTest {
     }
 
     @Test
-    public void testDoGetSplits() {
+    public void testDoGetSplits() throws Exception
+    {
+        String arn = "defaultarn", schemaName = "defaultschemaname", schemaVersionId = "defaultversionid";
+        Long latestSchemaVersion = 123L;
+        GetSchemaResult getSchemaResult = new GetSchemaResult();
+        GetSchemaVersionResult getSchemaVersionResult = new GetSchemaVersionResult();
+        getSchemaResult.setSchemaArn(arn);
+        getSchemaResult.setSchemaName(schemaName);
+        getSchemaResult.setLatestSchemaVersion(latestSchemaVersion);
+        getSchemaVersionResult.setSchemaArn(arn);
+        getSchemaVersionResult.setSchemaVersionId(schemaVersionId);
+        getSchemaVersionResult.setSchemaDefinition("{\n" +
+                "\t\"topicName\": \"testTopic\",\n" +
+                "\t\"message\": {\n" +
+                "\t\t\"dataFormat\": \"json\",\n" +
+                "\t\t\"fields\": [{\n" +
+                "\t\t\t\"name\": \"intcol\",\n" +
+                "\t\t\t\"mapping\": \"intcol\",\n" +
+                "\t\t\t\"type\": \"INTEGER\"\n" +
+                "\t\t}]\n" +
+                "\t}\n" +
+                "}");
+        PowerMockito.mockStatic(AWSGlueClientBuilder.class);
+        PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
+        PowerMockito.when(awsGlue.getSchema(any())).thenReturn(getSchemaResult);
+        PowerMockito.when(awsGlue.getSchemaVersion(any())).thenReturn(getSchemaVersionResult);
+
         GetSplitsRequest request = new GetSplitsRequest(
                 federatedIdentity,
                 QUERY_ID,
@@ -188,6 +220,7 @@ public class AmazonMskMetadataHandlerTest {
                 Mockito.mock(Constraints.class),
                 "continuationToken"
         );
+
         GetSplitsResponse response = amazonMskMetadataHandler.doGetSplits(blockAllocator, request);
         assertEquals(4, response.getSplits().size());
     }

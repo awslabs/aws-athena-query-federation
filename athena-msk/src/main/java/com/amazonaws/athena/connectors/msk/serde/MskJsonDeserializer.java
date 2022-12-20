@@ -19,11 +19,11 @@
  */
 package com.amazonaws.athena.connectors.msk.serde;
 
-import com.amazonaws.athena.connectors.msk.AmazonMskUtils;
 import com.amazonaws.athena.connectors.msk.dto.MSKField;
 import com.amazonaws.athena.connectors.msk.dto.Message;
 import com.amazonaws.athena.connectors.msk.dto.TopicResultSet;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +33,9 @@ import java.nio.charset.StandardCharsets;
 public class MskJsonDeserializer extends MskDeserializer
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(MskJsonDeserializer.class);
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     public MskJsonDeserializer(Schema schema)
     {
         super(schema);
@@ -52,9 +55,7 @@ public class MskJsonDeserializer extends MskDeserializer
 
         try {
             // Transforming the topic raw (json) data to JsonNode using ObjectMapper.
-            JsonNode json = AmazonMskUtils
-                    .getObjectMapper()
-                    .readValue(new String(data, StandardCharsets.UTF_8), JsonNode.class);
+            JsonNode json = objectMapper.readValue(new String(data, StandardCharsets.UTF_8), JsonNode.class);
 
             // Creating Field object for each fields in raw data.
             // Also putting additional information in fields from fields metadata.

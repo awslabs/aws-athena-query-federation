@@ -23,15 +23,6 @@ public class AmazonMskConstants
 {
     public static final String KAFKA_SOURCE = "kafka";
     /**
-     * schema is set to default
-     */
-    public static final String KAFKA_SCHEMA = "default";
-    /**
-     * This is the glue registry ARN that user need to provide while deploying lambda.
-     * This glue registry will contain the mapping schemas
-     */
-    public static final String GLUE_REGISTRY_ARN = "glue_registry_arn";
-    /**
      * For SSL authentication, user need to give S3 bucket reference where the client truststore and keystore
      * files are uploaded.
      */
