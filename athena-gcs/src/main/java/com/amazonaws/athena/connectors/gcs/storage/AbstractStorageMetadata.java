@@ -222,6 +222,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     public List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
             throws ParseException
     {
+<<<<<<< HEAD
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         List<PartitionFolder> partitionFolders = new ArrayList<>();
         Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
@@ -266,6 +267,9 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
             LOGGER.info("Table {}.{} not found", tableInfo.getSchemaName(), tableInfo.getTableName());
         }
         return partitionFolders;
+=======
+        return List.of(new PartitionFolder("gs://mydatalake4/full_data/", List.of(new StoragePartition("ss_sold_date_sk", "integer", 2451051L))));
+>>>>>>> 8913f0f9 (GcsMetadataHandler changes for doGetSplits)
     }
 
     /**

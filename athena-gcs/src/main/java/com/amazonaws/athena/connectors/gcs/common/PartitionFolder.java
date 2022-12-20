@@ -56,6 +56,7 @@ public class PartitionFolder
         this.partitions = partitions;
     }
 
+<<<<<<< HEAD
     @Override
     public String toString()
     {
@@ -64,4 +65,6 @@ public class PartitionFolder
                 ", partitions=" + partitions +
                 '}';
     }
+=======
+>>>>>>> 8913f0f9 (GcsMetadataHandler changes for doGetSplits)
 }

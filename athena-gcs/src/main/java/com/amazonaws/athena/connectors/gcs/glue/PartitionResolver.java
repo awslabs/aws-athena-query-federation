@@ -21,11 +21,12 @@ package com.amazonaws.athena.connectors.gcs.glue;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
-import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClient;
-import org.apache.arrow.vector.types.pojo.Schema;
+import com.amazonaws.services.glue.model.Table;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+
+import java.util.Map;
 
 public interface PartitionResolver
 {
@@ -36,5 +37,5 @@ public interface PartitionResolver
      * @param constraints An instance of {@link Constraints}
      * @return A list of partitions
      */
-    PartitionResult getPartitions(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue);
+    PartitionResult getPartitions(Table table, Map<String, FieldReader> fieldReadersMap);
 }
