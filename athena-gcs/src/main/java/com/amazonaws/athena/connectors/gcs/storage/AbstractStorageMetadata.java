@@ -25,6 +25,7 @@ import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
+import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageMetadataConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
@@ -200,7 +201,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     @Override
     public List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient)
     {
-        return List.of();
+        return List.of(new PartitionFolder("gs://mydatalake4/full_data/", List.of(new StoragePartition("ss_sold_date_sk", "integer", 2451051L))));
     }
 
     /**

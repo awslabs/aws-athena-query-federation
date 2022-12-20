@@ -19,22 +19,20 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import java.util.List;
-
 public class PartitionResult
 {
-    private List<PartitionLocation> partitions;
+    private PartitionLocation partition;
     private String tableType;
 
-    public PartitionResult(String tableType, List<PartitionLocation> partitions)
+    public PartitionResult(String tableType, PartitionLocation partition)
     {
         this.tableType = tableType;
-        this.partitions = partitions;
+        this.partition = partition;
     }
 
-    public List<PartitionLocation> getPartitions()
+    public PartitionLocation getPartition()
     {
-        return partitions;
+        return partition;
     }
 
     public String getTableType()

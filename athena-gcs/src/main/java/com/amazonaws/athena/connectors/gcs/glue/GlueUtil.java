@@ -43,7 +43,7 @@ public class GlueUtil
     public static Table getGlueTable(MetadataRequest request, TableName tableName, AWSGlue glueClient)
     {
         com.amazonaws.services.glue.model.GetTableRequest getTableRequest = new com.amazonaws.services.glue.model.GetTableRequest();
-        getTableRequest.setCatalogId(getCatalog(request));
+        //getTableRequest.setCatalogId(getCatalog(request));
         getTableRequest.setDatabaseName(tableName.getSchemaName());
         getTableRequest.setName(tableName.getTableName());
 
