@@ -91,7 +91,6 @@ Resources:
           certificates_s3_reference: !Ref CertificatesS3Reference
           kafka_endpoint: !Ref KafkaEndpoint
           auth_type: !Ref AuthType
-          glue_registry_arn:  !Ref GlueRegistryArn
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.msk.AmazonMskCompositeHandler"
       CodeUri: "./target/athena-msk-2022.47.1.jar"
