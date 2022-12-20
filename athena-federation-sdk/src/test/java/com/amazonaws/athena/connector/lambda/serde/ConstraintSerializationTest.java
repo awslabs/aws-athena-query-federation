@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.google.common.collect.ImmutableList;
@@ -85,7 +86,7 @@ public class ConstraintSerializationTest
                         "queryId",
                         "default",
                         new TableName("schema1", "table1"),
-                        new Constraints(constraintsMap, Collections.emptyList(), -1),
+                        new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                         SchemaBuilder.newBuilder().build(),
                         new HashSet<>())
         ) {

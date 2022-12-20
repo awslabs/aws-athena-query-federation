@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
@@ -216,7 +217,8 @@ public class ObjectMapperFactoryV3
         VariableExpressionSerDeV3.Serializer variableExpression = new VariableExpressionSerDeV3.Serializer(arrowType);
         VersionedSerDe.Serializer<FederationExpression> federationExpression = new FederationExpressionSerDeV3.Serializer(constantExpression, functionCallExpression, variableExpression);
         functionCallExpression.setFederationExpressionSerializer(federationExpression);
-        VersionedSerDe.Serializer<Constraints> constraints = new ConstraintsSerDeV3.Serializer(valueSet, federationExpression);
+        VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV3.Serializer(federationExpression);
+        VersionedSerDe.Serializer<Constraints> constraints = new ConstraintsSerDeV3.Serializer(valueSet, federationExpression, aggregateFunctionClause);
         S3SpillLocationSerDe.Serializer s3SpillLocation = new S3SpillLocationSerDe.Serializer();
         SpillLocationSerDe.Serializer spillLocation = new SpillLocationSerDe.Serializer(s3SpillLocation);
         EncryptionKeySerDe.Serializer encryptionKey = new EncryptionKeySerDe.Serializer();
@@ -262,7 +264,8 @@ public class ObjectMapperFactoryV3
         VariableExpressionSerDeV3.Deserializer variableExpression = new VariableExpressionSerDeV3.Deserializer(arrowType);
         VersionedSerDe.Deserializer<FederationExpression> federationExpression = new FederationExpressionSerDeV3.Deserializer(constantExpression, functionCallExpression, variableExpression);
         functionCallExpression.setFederationExpressionSerializer(federationExpression);
-        VersionedSerDe.Deserializer<Constraints> constraints = new ConstraintsSerDeV3.Deserializer(valueSet, federationExpression);
+        VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV3.Deserializer(federationExpression);
+        VersionedSerDe.Deserializer<Constraints> constraints = new ConstraintsSerDeV3.Deserializer(valueSet, federationExpression, aggregateFunctionClause);
 
         S3SpillLocationSerDe.Deserializer s3SpillLocation = new S3SpillLocationSerDe.Deserializer();
         SpillLocationSerDe.Deserializer spillLocation = new SpillLocationSerDe.Deserializer(s3SpillLocation);

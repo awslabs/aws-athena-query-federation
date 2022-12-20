@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
@@ -43,6 +44,7 @@ public final class ConstraintsSerDeV3
 {
     private static final String SUMMARY_FIELD = "summary";
     private static final String EXPRESSION_FIELD = "expression";
+    private static final String AGGREGATE_FUNCTION_CLAUSE = "aggregateFunctionClause";
     private static final String LIMIT_FIELD = "limit";
 
     private ConstraintsSerDeV3() {}
@@ -51,13 +53,16 @@ public final class ConstraintsSerDeV3
     {
         private final ValueSetSerDe.Serializer valueSetSerializer;
         private final VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer;
+        private final VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClauseSerializer;
 
         public Serializer(ValueSetSerDe.Serializer valueSetSerializer,
-                          VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer)
+                          VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer,
+                          VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClauseSerializer)
         {
             super(Constraints.class);
             this.valueSetSerializer = requireNonNull(valueSetSerializer, "valueSetSerDe is null");
             this.federationExpressionSerializer = requireNonNull(federationExpressionSerializer, "federationExpressionSerDe is null");
+            this.aggregateFunctionClauseSerializer = requireNonNull(aggregateFunctionClauseSerializer, "aggregateFunctionClauseSerDe is null");
         }
 
         @Override
@@ -77,6 +82,12 @@ public final class ConstraintsSerDeV3
             }
             jgen.writeEndArray();
 
+            jgen.writeArrayFieldStart(AGGREGATE_FUNCTION_CLAUSE);
+            for (AggregateFunctionClause aggregateFunctionClause : constraints.getAggregateFunctionClause()) {
+                aggregateFunctionClauseSerializer.serialize(aggregateFunctionClause, jgen, provider);
+            }
+            jgen.writeEndArray();
+
             jgen.writeNumberField(LIMIT_FIELD, constraints.getLimit());
         }
     }
@@ -85,13 +96,16 @@ public final class ConstraintsSerDeV3
     {
         private final ValueSetSerDe.Deserializer valueSetDeserializer;
         private final VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer;
+        VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClauseDeserializer;
 
         public Deserializer(ValueSetSerDe.Deserializer valueSetDeserializer,
-                            VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer)
+                            VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer,
+                            VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClauseDeserializer)
         {
             super(Constraints.class);
             this.valueSetDeserializer = requireNonNull(valueSetDeserializer, "valueSetSerDe is null");
             this.federationExpressionDeserializer = requireNonNull(federationExpressionDeserializer, "federationExpressionSerDe is null");
+            this.aggregateFunctionClauseDeserializer = requireNonNull(aggregateFunctionClauseDeserializer, "aggregateFunctionClauseSerDe is null");
         }
 
         @Override
@@ -115,9 +129,18 @@ public final class ConstraintsSerDeV3
                 validateObjectEnd(jparser);
             }
 
+            assertFieldName(jparser, AGGREGATE_FUNCTION_CLAUSE);
+            validateArrayStart(jparser);
+            ImmutableList.Builder<AggregateFunctionClause> aggregateFunctionClauseBuilder = ImmutableList.builder();
+            while (jparser.nextToken() != JsonToken.END_ARRAY) {
+                validateObjectStart(jparser.getCurrentToken());
+                aggregateFunctionClauseBuilder.add(aggregateFunctionClauseDeserializer.doDeserialize(jparser, ctxt));
+                validateObjectEnd(jparser);
+            }
+
             long limit = getNextLongField(jparser, LIMIT_FIELD);
 
-            return new Constraints(summaryMap.build(), federationExpression.build(), limit);
+            return new Constraints(summaryMap.build(), federationExpression.build(), aggregateFunctionClauseBuilder.build(), limit);
         }
     }
 }

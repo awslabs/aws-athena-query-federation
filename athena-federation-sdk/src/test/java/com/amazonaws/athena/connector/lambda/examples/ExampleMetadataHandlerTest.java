@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -237,7 +238,7 @@ public class ExampleMetadataHandlerTest
 
             req = new GetTableLayoutRequest(IdentityUtil.fakeIdentity(), "queryId", "default",
                     new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap, Collections.emptyList(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                     tableSchema,
                     partitionCols);
             ObjectMapperUtil.assertSerialization(req);
@@ -316,7 +317,7 @@ public class ExampleMetadataHandlerTest
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
-                new Constraints(constraintsMap, Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                 continuationToken);
         int numContinuations = 0;
         do {

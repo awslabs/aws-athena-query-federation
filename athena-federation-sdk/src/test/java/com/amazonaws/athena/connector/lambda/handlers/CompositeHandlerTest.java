@@ -27,6 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
@@ -154,7 +155,7 @@ public class CompositeHandlerTest
                         .withSplitId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), null).build(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), -1),
+                new Constraints(new HashMap<>(), Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

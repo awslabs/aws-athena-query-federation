@@ -100,4 +100,6 @@ public final class StandardFunctions
      * $array creates instance of {@link Array Type}
      */
     public static final FunctionName ARRAY_CONSTRUCTOR_FUNCTION_NAME = new FunctionName("$array");
+
+    public static final FunctionName SUM_FUNCTION_NAME = new FunctionName("$sum");
 }

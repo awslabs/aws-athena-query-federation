@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -82,7 +83,7 @@ public class ConstraintEvaluator
      */
     public static ConstraintEvaluator emptyEvaluator()
     {
-        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), -1));
+        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1));
     }
 
     /**

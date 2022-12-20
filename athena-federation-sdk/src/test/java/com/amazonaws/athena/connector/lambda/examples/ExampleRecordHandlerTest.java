@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -211,7 +212,7 @@ public class ExampleRecordHandlerTest
                     new TableName("schema", "table"),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );
@@ -252,7 +253,7 @@ public class ExampleRecordHandlerTest
                     new TableName("schema", "table"),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
                     1_600_000L, //~1.5MB so we should see some spill
                     1000L
             );

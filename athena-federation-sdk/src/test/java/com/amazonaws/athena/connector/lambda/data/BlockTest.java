@@ -24,6 +24,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.arrow.vector.BigIntVector;
@@ -116,7 +117,7 @@ public class BlockTest
 
         ValueSet col1Constraint = EquatableValueSet.newBuilder(allocator, Types.MinorType.INT.getType(), true, false)
                 .add(10).build();
-        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), -1);
+        Constraints constraints = new Constraints(Collections.singletonMap("col1", col1Constraint), Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1);
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator, schema, constraints)) {
             block.constrain(constraintEvaluator);
             assertTrue(block.setValue("col1", 0, 10));

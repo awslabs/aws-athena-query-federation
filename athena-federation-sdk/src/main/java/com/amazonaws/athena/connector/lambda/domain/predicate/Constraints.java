@@ -20,6 +20,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -44,15 +45,18 @@ public class Constraints
 {
     private Map<String, ValueSet> summary;
     private List<FederationExpression> expression;
+    private final List<AggregateFunctionClause> aggregateFunctionClause;
     private long limit;
 
     @JsonCreator
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
                        @JsonProperty("expression") List<FederationExpression> expression,
+                       @JsonProperty("aggregateFunctionClause") List<AggregateFunctionClause> aggregateFunctionClause,
                        @JsonProperty("limit") long limit)
     {
         this.summary = summary;
         this.expression = expression;
+        this.aggregateFunctionClause = aggregateFunctionClause;
         this.limit = limit;
     }
 
@@ -76,6 +80,11 @@ public class Constraints
         return limit;
     }
 
+    public List<AggregateFunctionClause> getAggregateFunctionClause()
+    {
+        return aggregateFunctionClause;
+    }
+
     @Override
     public boolean equals(Object o)
     {
@@ -90,6 +99,7 @@ public class Constraints
 
         return Objects.equal(this.summary, that.summary) &&
                 Objects.equal(this.expression, that.expression) &&
+                Objects.equal(this.aggregateFunctionClause, that.aggregateFunctionClause) &&
                 Objects.equal(this.limit, that.limit);
     }
 
@@ -99,6 +109,7 @@ public class Constraints
         return "Constraints{" +
                 "summary=" + summary +
                 "expression=" + expression +
+                "aggregateFunctionClause=" + aggregateFunctionClause +
                 "limit=" + limit +
                 '}';
     }
@@ -106,7 +117,7 @@ public class Constraints
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(summary, expression, limit);
+        return Objects.hashCode(summary, expression, aggregateFunctionClause, limit);
     }
 
     @Override

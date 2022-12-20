@@ -107,7 +107,7 @@ public final class FunctionCallExpressionSerDeV3
         }
 
         @Override
-        protected FederationExpression doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
+        protected FunctionCallExpression doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             assertFieldName(jparser, TYPE_FIELD);

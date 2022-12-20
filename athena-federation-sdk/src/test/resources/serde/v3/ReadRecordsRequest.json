@@ -128,6 +128,28 @@
         }
       } ]
     } ],
+    "aggregateFunctionClause" : [ {
+      "aggregateFunctions" : [ {
+        "@type" : "FunctionCallExpression",
+        "type" : {
+          "@type" : "FloatingPoint",
+          "precision" : "DOUBLE"
+        },
+        "functionName" : {
+          "functionName" : "$sum"
+        },
+        "arguments" : [ {
+          "@type" : "VariableExpression",
+          "columnName" : "col1",
+          "type" : {
+            "@type" : "FloatingPoint",
+            "precision" : "DOUBLE"
+          }
+        } ]
+      } ],
+      "columnNames" : [ "col1" ],
+      "groupingSets" : [ [ "col2" ] ]
+    } ],
     "limit" : -1
   },
   "maxBlockSize" : "100000000000",

@@ -30,10 +30,12 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -60,6 +62,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions.ADD_FUNCTION_NAME;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions.SUM_FUNCTION_NAME;
 import static org.junit.Assert.assertEquals;
 
 public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequest>
@@ -104,7 +107,12 @@ public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequ
                                         new ArrowType.Int(32, true)))),
                         new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
 
-        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), -1);
+        FunctionCallExpression functionCallExpression = new FunctionCallExpression(Types.MinorType.FLOAT8.getType(),
+                SUM_FUNCTION_NAME,
+                List.of(new VariableExpression("col1", Types.MinorType.FLOAT8.getType())));
+        AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(List.of(functionCallExpression), List.of("col1"), List.of(List.of("col2")));
+
+        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), List.of(aggregateFunctionClause), -1);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

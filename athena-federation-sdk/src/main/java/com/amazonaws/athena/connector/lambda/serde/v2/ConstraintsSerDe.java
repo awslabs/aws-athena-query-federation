@@ -90,7 +90,10 @@ public final class ConstraintsSerDe
                 summaryMap.put(column, valueSetDeserializer.deserialize(jparser, ctxt));
             }
 
-            return new Constraints(summaryMap.build(), Collections.emptyList(), NO_LIMIT_VALUE);
+            return new Constraints(summaryMap.build(),
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    NO_LIMIT_VALUE);
         }
     }
 }
