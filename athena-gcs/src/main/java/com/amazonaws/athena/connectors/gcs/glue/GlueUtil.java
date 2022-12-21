@@ -40,14 +40,14 @@ public class GlueUtil
 
     private GlueUtil(){}
 
-    public static Table getGlueTable(MetadataRequest request, TableName tableName, AWSGlue glueClient)
+    public static Table getGlueTable(MetadataRequest request, TableName tableName, AWSGlue awsGlue)
     {
         com.amazonaws.services.glue.model.GetTableRequest getTableRequest = new com.amazonaws.services.glue.model.GetTableRequest();
         getTableRequest.setCatalogId(getCatalog(request));
         getTableRequest.setDatabaseName(tableName.getSchemaName());
         getTableRequest.setName(tableName.getTableName());
 
-        GetTableResult result = glueClient.getTable(getTableRequest);
+        GetTableResult result = awsGlue.getTable(getTableRequest);
         return result.getTable();
     }
 

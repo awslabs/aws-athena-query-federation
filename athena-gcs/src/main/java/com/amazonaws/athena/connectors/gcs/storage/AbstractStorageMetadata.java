@@ -24,11 +24,15 @@ import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
+import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
+import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
+import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageMetadataConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Table;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.storage.Blob;
@@ -54,6 +58,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.isPartitionFolder;
 import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.getFolderName;
@@ -66,6 +71,7 @@ import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getUniqueEntityName;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEntityNameFromFile;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.tableNameFromFile;
+import static java.util.Objects.isNull;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractStorageMetadata implements StorageMetadata
@@ -198,8 +204,28 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     }
 
     @Override
-    public List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient)
+    public List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableInfo, AWSGlue awsGlue)
     {
+        Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
+        if (table != null) {
+            Optional<String> optionalFolderRegEx = PartitionUtil.getRegExExpression(table);
+            if (optionalFolderRegEx.isPresent()) {
+                String locationUri = table.getStorageDescriptor().getLocation();
+                LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
+                StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
+                Page<Blob> blobPage = storage.list(storageLocation.getBucketName(),
+                        Storage.BlobListOption.prefix(storageLocation.getLocation()));
+                String folderRegEx = optionalFolderRegEx.get();
+                Pattern folderRegExPattern = Pattern.compile(folderRegEx);
+                for (Blob blob : blobPage.iterateAll()) {
+                    String blobName = blob.getName();
+                    LOGGER.info("Examining folder {} against regex {}", blobName, folderRegEx);
+                    if (folderRegExPattern.matcher(blobName).matches()) {
+                        LOGGER.info("Examining folder {} against regex {} matches", blobName, folderRegEx);
+                    }
+                }
+            }
+        }
         return List.of();
     }
 
