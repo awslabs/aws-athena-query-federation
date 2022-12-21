@@ -190,7 +190,6 @@ public class GcsMetadataHandler
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
     {
         GetTableResponse response = null;
-        TableName tableInfo = request.getTableName();
         if (glueClient != null) {
             try {
                 response = super.doGetTable(blockAllocator, request);
@@ -205,12 +204,10 @@ public class GcsMetadataHandler
                         request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
             }
         }
-        //TODO need to simplify schema builder
-        Schema schema = buildTableSchema(this.datasource,
-                tableInfo.getSchemaName(),
-                tableInfo.getTableName());
 
         Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
+
+        Schema schema = buildTableSchema(this.datasource, table);
         Map<String, String> columnNameMapping = getColumnNameMapping(table);
         Set<String> partitionCols = new HashSet<>();
         if (table.getPartitionKeys() != null) {
@@ -240,11 +237,12 @@ public class GcsMetadataHandler
             for (PartitionFolder folder : partitionFolders) {
                 blockWriter.writeRows((Block block, int rowNum) ->
                 {
+                    boolean matched = true;
                     for (StoragePartition partition : folder.getPartitions()) {
-                        block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
+                        matched &= block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
                     }
                     //we wrote 1 row so we return 1
-                    return 1;
+                    return matched ? 1 : 0;
                 });
             }
         }

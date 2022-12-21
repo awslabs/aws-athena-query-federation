@@ -65,23 +65,16 @@ public class HivePartitionResolver implements PartitionResolver
         for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
             partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
         }
-        //LOGGER.info("Retrieving partitions for table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
-        String locationUri = table.getStorageDescriptor().getLocation() + partitionPattern;
-        //LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
+        String tableLocation = table.getStorageDescriptor().getLocation();
+
+        String locationUri = (tableLocation.endsWith("/")
+                ? tableLocation : tableLocation + "/") + partitionPattern;
+
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
-        //LOGGER.info("Storage location for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageLocation);
-        //List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints, Map.of());
-        //LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
-//        if (expressions.isEmpty()) {
-//            // Returning a single partition
-//        }
-//        else {
-//            // list all prefix based on expression and constitute a list of partitions
-//        }
+
         return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), PartitionLocation.builder()
                 .bucketName(storageLocation.getBucketName())
                 .location(storageLocation.getLocation())
                 .build());
-//        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), List.of());
     }
 }

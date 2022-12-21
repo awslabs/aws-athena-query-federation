@@ -58,9 +58,6 @@ Parameters:
     Description: 'GCS credential secret key that contains the GCS credentials JSON value (key in key/value).'
     Type: String
     Default: "gcs_credential_keys"
-  FileExtension:
-    Description: File extension to filter file names in a specific storage bucket. It can be any of PARQUET, and CSV.
-    Type: String
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -72,7 +69,6 @@ Resources:
           spill_prefix: !Ref SpillPrefix
           gcs_secret_name: !Ref GcsSecretName
           gcs_credential_key: !Ref GcsCredentialKey
-          file_extension: !Ref FileExtension
           SSL_CERT_FILE: '/tmp/cacert.pem'
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
 
