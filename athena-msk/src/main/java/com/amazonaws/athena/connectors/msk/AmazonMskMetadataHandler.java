@@ -99,8 +99,8 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         var start = glue.listRegistries(listRequest);
         List<String> registries = Stream.iterate(
             start,
-            r -> r == start || r.getNextToken() != null,
-            r -> glue.listRegistries(listRequest.withNextToken(r.getNextToken())))
+            r -> r != null,
+            r -> (r.getNextToken() == null) ? null : glue.listRegistries(listRequest.withNextToken(r.getNextToken())))
                 .flatMap(r -> r.getRegistries().stream())
                 .filter(r -> r.getDescription() != null && r.getDescription().contains(REGISTRY_MARKER))
                 .map(r -> r.getRegistryName())
@@ -149,8 +149,8 @@ public class AmazonMskMetadataHandler extends MetadataHandler
             var start = glue.listSchemas(listRequest);
             List<TableName> tableNames = Stream.iterate(
                 start,
-                r -> r == start || r.getNextToken() != null,
-                r -> glue.listSchemas(listRequest.withNextToken(r.getNextToken())))
+                r -> r != null,
+                r -> (r.getNextToken() == null) ? null : glue.listSchemas(listRequest.withNextToken(r.getNextToken())))
                     .flatMap(r -> r.getSchemas().stream())
                     .limit(MAX_RESULTS + 1)
                     .map(schemaListItem -> schemaListItem.getSchemaName())
@@ -189,8 +189,8 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         var start = glue.listRegistries(listRequest);
         var result = Stream.iterate(
             start,
-            r -> (r == start) || (r.getNextToken() != null),
-            r -> glue.listRegistries(listRequest.withNextToken(r.getNextToken())))
+            r -> r != null,
+            r -> (r.getNextToken() == null) ? null : glue.listRegistries(listRequest.withNextToken(r.getNextToken())))
                 .flatMap(r -> r.getRegistries().stream())
                 .filter(r -> r.getDescription() != null && r.getDescription().contains(REGISTRY_MARKER))
                 .map(r -> r.getRegistryName())
@@ -212,8 +212,8 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         var start = glue.listSchemas(listSchemasRequest);
         var result = Stream.iterate(
             start,
-            r -> (r == start) || (r.getNextToken() != null),
-            r -> glue.listSchemas(listSchemasRequest.withNextToken(r.getNextToken())))
+            r -> r != null,
+            r -> (r.getNextToken() == null) ? null : glue.listSchemas(listSchemasRequest.withNextToken(r.getNextToken())))
                 .flatMap(r -> r.getSchemas().stream())
                 .map(schemaListItem -> schemaListItem.getSchemaName())
                 .filter(glueSchemaName -> glueSchemaName.equalsIgnoreCase(glueSchemaNameIn))
