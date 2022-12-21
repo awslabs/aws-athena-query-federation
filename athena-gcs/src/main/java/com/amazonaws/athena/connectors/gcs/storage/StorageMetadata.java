@@ -39,7 +39,7 @@ import java.util.Optional;
 
 public interface StorageMetadata
 {
-    List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException;
+    List<Field> getTableFields(String bucketName, List<String> objectNames, FileFormat format) throws IOException;
 
     /**
      * Returns a storage object (file) as a DB table with field names and associated file type
@@ -48,7 +48,7 @@ public interface StorageMetadata
      * @param tableName    Name of the table
      * @return An instance of {@link StorageTable} with column metadata
      */
-    Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws Exception;
+    Optional<StorageTable> getStorageTable(String databaseName, String tableName, String fileFormat) throws Exception;
 
     /**
      * Retrieves a list of StorageSplit that essentially contain the list of all files for a given table type in a storage location
@@ -64,7 +64,7 @@ public interface StorageMetadata
      *
      * @return An instance of FileFormat
      */
-    FileFormat getFileFormat();
+    FileFormat getFileFormat(String format);
 
     /**
      *  Used to test with test classes integrated directly with GCS bucket
@@ -77,5 +77,10 @@ public interface StorageMetadata
     @VisibleForTesting
     Storage getStorage();
 
+<<<<<<< HEAD
     List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableName, Constraints constraints, AWSGlue glueClient) throws ParseException;
+=======
+    List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient);
+
+>>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
 }

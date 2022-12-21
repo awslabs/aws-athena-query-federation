@@ -69,10 +69,13 @@ public class HivePartitionResolver implements PartitionResolver
         for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
             partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
         }
-        //LOGGER.info("Retrieving partitions for table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
-        String locationUri = table.getStorageDescriptor().getLocation() + partitionPattern;
-        //LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
+        String tableLocation = table.getStorageDescriptor().getLocation();
+
+        String locationUri = (tableLocation.endsWith("/")
+                ? tableLocation : tableLocation + "/") + partitionPattern;
+
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
+<<<<<<< HEAD
 <<<<<<< HEAD
         LOGGER.info("Storage location for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageLocation);
         List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
@@ -94,11 +97,13 @@ public class HivePartitionResolver implements PartitionResolver
 //        else {
 //            // list all prefix based on expression and constitute a list of partitions
 //        }
+=======
+
+>>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
         return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), PartitionLocation.builder()
 >>>>>>> 8913f0f9 (GcsMetadataHandler changes for doGetSplits)
                 .bucketName(storageLocation.getBucketName())
                 .location(storageLocation.getLocation())
                 .build());
-//        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), List.of());
     }
 }
