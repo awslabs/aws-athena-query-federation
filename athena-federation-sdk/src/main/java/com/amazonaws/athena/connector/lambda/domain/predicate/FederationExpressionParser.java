@@ -82,20 +82,18 @@ public abstract class FederationExpressionParser
     protected String parseFunctionCallExpressionHelper(FunctionCallExpression functionCallExpression, String quoteChar)
     {
         FunctionName functionName = functionCallExpression.getFunctionName();
-        
         List<FederationExpression> functionArguments = functionCallExpression.getArguments();
-
         List<String> arguments = new ArrayList<>();
+
         for (FederationExpression argument : functionArguments) {
-            
-            if (argument instanceof FunctionCallExpression) {
+            if (argument instanceof FunctionCallExpression) { // recursive case
                 arguments.add(parseFunctionCallExpressionHelper((FunctionCallExpression) argument, quoteChar));
             } 
-            else if (argument instanceof ConstantExpression) {
+            else if (argument instanceof ConstantExpression) { // base case
                 ConstantExpression constantExpression = (ConstantExpression) argument;
                 arguments.add(parseConstantExpression(constantExpression, quoteChar));
             }
-            else if (argument instanceof VariableExpression) {
+            else if (argument instanceof VariableExpression) { // base case
                 VariableExpression variableExpression = (VariableExpression) argument;
                 arguments.add(parseVariableExpression(variableExpression));
             } 
@@ -119,7 +117,6 @@ public abstract class FederationExpressionParser
         for (int i = 0; i < values.getRowCount(); i++) {
             fieldReader.setPosition(i);
             String strVal = BlockUtils.fieldToString(fieldReader);
-            LOGGER.error("Parsing constant expression at index {}, got str val {}", i, strVal);
             constants.add(strVal);
         }
 

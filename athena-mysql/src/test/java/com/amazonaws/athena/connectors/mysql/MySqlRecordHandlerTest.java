@@ -129,8 +129,9 @@ public class MySqlRecordHandlerTest
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
                 .build());
+        Mockito.when(constraints.getLimit()).thenReturn(100L);
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?)";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) LIMIT 100";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 

@@ -315,7 +315,6 @@ public abstract class JdbcSplitQueryBuilder extends FederationExpressionParser
         if (clause == null) {
           return emptyString;
         }
-        LOGGER.info("Built clause " + clause);
         return "(" + clause + ")";
     }
 
@@ -448,6 +447,6 @@ public abstract class JdbcSplitQueryBuilder extends FederationExpressionParser
 
     protected String appendLimitOffset(Split split, Constraints constraints)
     {
-        return "LIMIT " + constraints.getLimit();
+        return " LIMIT " + constraints.getLimit();
     }
 }
