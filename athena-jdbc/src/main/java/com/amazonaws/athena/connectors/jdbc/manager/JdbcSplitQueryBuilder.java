@@ -25,9 +25,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressi
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.OperatorType;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
@@ -36,7 +33,6 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +55,7 @@ import java.util.stream.Collectors;
 /**
  * Query builder for database table split.
  */
-public abstract class JdbcSplitQueryBuilder extends FederationExpressionParser
+public abstract class JdbcSplitQueryBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcSplitQueryBuilder.class);
 
@@ -68,12 +64,23 @@ public abstract class JdbcSplitQueryBuilder extends FederationExpressionParser
     private final String quoteCharacters;
     private final String emptyString = "";
 
+    private final FederationExpressionParser jdbcFederationExpressionParser;
+
     /**
-     * @param quoteCharacters database quote character for enclosing identifiers.
+     * Meant for connectors which do not yet support complex expressions.
      */
     public JdbcSplitQueryBuilder(String quoteCharacters)
     {
+        this(quoteCharacters, new DefaultJdbcFederationExpressionParser());
+    }
+
+    /**
+     * @param quoteCharacters database quote character for enclosing identifiers.
+     */
+    public JdbcSplitQueryBuilder(String quoteCharacters, FederationExpressionParser federationExpressionParser)
+    {
         this.quoteCharacters = quoteCharacters;
+        this.jdbcFederationExpressionParser = federationExpressionParser;
     }
 
     /**
@@ -204,118 +211,8 @@ public abstract class JdbcSplitQueryBuilder extends FederationExpressionParser
                 }
             }
         }
-        conjuncts.addAll(parseComplexExpressions(columns, constraints, quoteCharacters)); // not part of loop bc not per-column
+        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints, quoteCharacters)); // not part of loop bc not per-column
         return conjuncts;
-    }
-
-    // this method is not abstract so as to not break other subclasses that don't support complex expressions at this time.
-    public String writeCastClause(ArrowType type, List<String> arguments)
-    {
-        throw new NotImplementedException("CAST operation not implemented. Implement this method in the subclass extending this class to use CAST.");
-    }
-
-    @Override
-    public String mapFunctionToDataSourceSyntax(FunctionName functionName, ArrowType type, List<String> arguments)
-    {
-        StandardFunctions functionEnum = StandardFunctions.fromFunctionName(functionName);
-        OperatorType operatorType = functionEnum.getOperatorType();
-
-        if (arguments == null || arguments.size() == 0) {
-            throw new IllegalArgumentException("Arguments cannot be null or empty.");
-        }
-        switch (operatorType) {
-            case UNARY:
-                if (arguments.size() != 1) {
-                    throw new IllegalArgumentException("Unary function type " + functionName.getFunctionName() + " was provided with " + arguments.size() + " arguments.");
-                }
-                break;
-            case BINARY:
-                if (arguments.size() != 2) {
-                    throw new IllegalArgumentException("Binary function type " + functionName.getFunctionName() + " was provided with " + arguments.size() + " arguments.");
-                }
-                break;
-            case VARARG:
-                break;
-            default:
-                throw new RuntimeException("A new operator type was introduced without adding support for it.");
-        }
-
-        String clause = "";
-        switch (functionEnum) {
-            case ADD_FUNCTION_NAME:
-                clause = Joiner.on(" + ").join(arguments);
-                break;
-            case AND_FUNCTION_NAME:
-                clause = Joiner.on(" AND ").join(arguments);
-                break;
-            case ARRAY_CONSTRUCTOR_FUNCTION_NAME:
-                throw new NotImplementedException("ARRAY CONSTRUCTOR FUNCTION NOT YET SUPPORTED");
-            case CAST_FUNCTION_NAME:
-                clause = writeCastClause(type, arguments);
-                break;
-            case DIVIDE_FUNCTION_NAME:
-                clause = Joiner.on(" / ").join(arguments);
-                break;
-            case EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = Joiner.on(" = ").join(arguments);
-                break;
-            case GREATER_THAN_OPERATOR_FUNCTION_NAME:
-                clause = Joiner.on(" > ").join(arguments);
-                break;
-            case GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = Joiner.on(" >= ").join(arguments);
-                break;
-            case IN_PREDICATE_FUNCTION_NAME:
-                clause = arguments.get(0) + " IN (" + arguments.get(1) + ")";
-                break;
-            case IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME:
-                String argZero = arguments.get(0);
-                String argOne = arguments.get(1);
-                clause = argZero + " IS DISTINCT FROM " + argOne;
-                break;
-            case IS_NULL_FUNCTION_NAME:
-                clause = arguments.get(0) + " IS NULL";
-                break;
-            case LESS_THAN_OPERATOR_FUNCTION_NAME:
-                clause = Joiner.on(" < ").join(arguments);
-                break;
-            case LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = Joiner.on(" <= ").join(arguments);
-                break;
-            case LIKE_PATTERN_FUNCTION_NAME:
-                clause = arguments.get(0) + " LIKE " + quoteCharacters + arguments.get(1) + quoteCharacters;
-                break;
-            case MODULUS_FUNCTION_NAME:
-                clause = Joiner.on(" % ").join(arguments);
-                break;
-            case MULTIPLY_FUNCTION_NAME:
-                clause = Joiner.on(" * ").join(arguments);
-                break;
-            case NEGATE_FUNCTION_NAME:
-                clause = "-" + arguments.get(0);
-                break;
-            case NOT_EQUAL_OPERATOR_FUNCTION_NAME:
-                clause = Joiner.on(" <> ").join(arguments);
-                break;
-            case NOT_FUNCTION_NAME:
-                clause = Joiner.on(" IS NOT ").join(arguments);
-                break;
-            case NULLIF_FUNCTION_NAME:
-                clause = "NULLIF(" + arguments.get(0) + ", " + arguments.get(1) + ")";
-                break;
-            case OR_FUNCTION_NAME:
-                clause = Joiner.on(" OR ").join(arguments);
-                break;
-            case SUBTRACT_FUNCTION_NAME:
-                clause = Joiner.on(" - ").join(arguments);
-                break;
-            default:
-                throw new NotImplementedException("The function " + functionName.getFunctionName() + " does not have an implementation");
-        }
-        if (clause == null) {
-          return emptyString;
-        }
-        return "(" + clause + ")";
     }
 
     private String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)

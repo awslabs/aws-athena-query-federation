@@ -35,6 +35,7 @@ import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
+import com.amazonaws.athena.connectors.postgresql.PostgreSqlFederationExpressionParser;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -84,7 +85,7 @@ public class RedshiftRecordHandlerTest
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"");
+        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
                 "redshift://jdbc:redshift://hostname/user=A&password=B");
 

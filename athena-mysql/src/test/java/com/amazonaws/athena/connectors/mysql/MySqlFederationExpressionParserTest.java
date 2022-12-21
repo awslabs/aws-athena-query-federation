@@ -27,13 +27,13 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
-import com.amazonaws.athena.connectors.jdbc.manager.JdbcSplitQueryBuilder;
 import com.google.common.base.Joiner;
 
 import java.util.Collection;
@@ -46,23 +46,20 @@ import org.junit.Before;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test is realy a JDBC package test. But the JdbcSplitQueryBuilder class is abstract and we can only instantiate it, and therefore test it, from a subclass's
- * implementation. And to avoid a circular dependency (like importing MySQL classes into the JDBC module), we just let this live in the mysql module.
- */
-public class MySqlQueryStringBuilderTest {
+// TODO in the future - create a base FederationExpressionParser test class.
+public class MySqlFederationExpressionParserTest {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MySqlQueryStringBuilderTest.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MySqlFederationExpressionParserTest.class);
     private static final String QUOTE_CHAR = MySqlRecordHandler.MYSQL_QUOTE_CHARACTER;
 
     BlockAllocator blockAllocator;
     ArrowType intType = new ArrowType.Int(32, true);
-    JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
+    FederationExpressionParser federationExpressionParser;
 
     @Before
     public void setup() {
         blockAllocator = new BlockAllocatorImpl();
-        jdbcSplitQueryBuilder = new MySqlQueryStringBuilder("`");
+        federationExpressionParser = new MySqlFederationExpressionParser("`");
     }
 
     private ConstantExpression buildIntConstantExpression()
@@ -76,7 +73,7 @@ public class MySqlQueryStringBuilderTest {
     public void testParseConstantExpression()
     {
         ConstantExpression ten = buildIntConstantExpression();
-        assertEquals(jdbcSplitQueryBuilder.parseConstantExpression(ten, QUOTE_CHAR), "10");
+        assertEquals(federationExpressionParser.parseConstantExpression(ten, QUOTE_CHAR), "10");
     }
 
 
@@ -87,7 +84,7 @@ public class MySqlQueryStringBuilderTest {
             BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Int(32, true),
             List.of(25, 10, 5, 1)), new ArrowType.Int(32, true)
         );
-        assertEquals(jdbcSplitQueryBuilder.parseConstantExpression(listOfNums, QUOTE_CHAR), "25,10,5,1");
+        assertEquals(federationExpressionParser.parseConstantExpression(listOfNums, QUOTE_CHAR), "25,10,5,1");
     }
 
     @Test
@@ -101,7 +98,7 @@ public class MySqlQueryStringBuilderTest {
 
         List<String> quotedStrings = rawStrings.stream().map(str -> QUOTE_CHAR + str + QUOTE_CHAR).collect(Collectors.toList());
         String expected = Joiner.on(",").join(quotedStrings);
-        String actual = jdbcSplitQueryBuilder.parseConstantExpression(listOfStrings, QUOTE_CHAR);
+        String actual = federationExpressionParser.parseConstantExpression(listOfStrings, QUOTE_CHAR);
         LOGGER.error("Formed expected string {}", expected);
         LOGGER.error("Found actual string {}", actual);
         
@@ -113,21 +110,21 @@ public class MySqlQueryStringBuilderTest {
     public void testParseVariableExpression()
     {
         VariableExpression colThree = new VariableExpression("colThree", intType);
-        assertEquals(jdbcSplitQueryBuilder.parseVariableExpression(colThree), "colThree");
+        assertEquals(federationExpressionParser.parseVariableExpression(colThree), "colThree");
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testCreateSqlForComplexExpressionContent_InvalidUnaryInput()
     {
         FunctionName functionName = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
-        jdbcSplitQueryBuilder.mapFunctionToDataSourceSyntax(functionName, intType, List.of("1", "2"));
+        federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, List.of("1", "2"));
     }
 
     @Test
     public void testCreateSqlForComplexExpressionContent_UnaryFunction()
     {
         FunctionName negateFunction = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
-        String negateClause = jdbcSplitQueryBuilder.mapFunctionToDataSourceSyntax(negateFunction, intType, List.of("110"));
+        String negateClause = federationExpressionParser.mapFunctionToDataSourceSyntax(negateFunction, intType, List.of("110"));
         assertEquals(negateClause, "(-110)");
     }
 
@@ -135,14 +132,14 @@ public class MySqlQueryStringBuilderTest {
     public void testCreateSqlForComplexExpressionContent_InvalidBinaryInput()
     {
         FunctionName functionName = StandardFunctions.ADD_FUNCTION_NAME.getFunctionName();
-        jdbcSplitQueryBuilder.mapFunctionToDataSourceSyntax(functionName, intType, List.of("1"));
+        federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, List.of("1"));
     }
 
     @Test
     public void testCreateSqlForComplexExpressionContent_BinaryFunction()
     {
         FunctionName subFunction = StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName();
-        String subClause = jdbcSplitQueryBuilder.mapFunctionToDataSourceSyntax(subFunction, intType, List.of("col1", "10"));
+        String subClause = federationExpressionParser.mapFunctionToDataSourceSyntax(subFunction, intType, List.of("col1", "10"));
         assertEquals(subClause, "(col1 - 10)");
     }
 
@@ -150,7 +147,7 @@ public class MySqlQueryStringBuilderTest {
     public void testCreateSqlForComplexExpressionContent_VarargFunction()
     {
         FunctionName inFunction = StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName();
-        String inClause = jdbcSplitQueryBuilder.mapFunctionToDataSourceSyntax(inFunction, intType, List.of("coinValueColumn", "25,10,5,1"));
+        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, List.of("coinValueColumn", "25,10,5,1"));
         assertEquals(inClause, "(coinValueColumn IN (25,10,5,1))");
     }
     
@@ -174,7 +171,7 @@ public class MySqlQueryStringBuilderTest {
             StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
             ltArguments);
 
-        assertEquals("((colOne + colThree) < 10)", jdbcSplitQueryBuilder.parseFunctionCallExpression((FunctionCallExpression) fullExpression, QUOTE_CHAR));
+        assertEquals("((colOne + colThree) < 10)", federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression, QUOTE_CHAR));
     }
 
     // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
@@ -236,7 +233,7 @@ public class MySqlQueryStringBuilderTest {
             List.of(andFunction, notFunction)
         );
 
-        String fullClause = jdbcSplitQueryBuilder.parseFunctionCallExpression((FunctionCallExpression) orFunction, QUOTE_CHAR);
+        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction, QUOTE_CHAR);
         // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana))) OR (colFour <> fruit))
         String expected = "((((colOne + colTwo) > colThree) AND (colFour IN (" + QUOTE_CHAR + "banana" + QUOTE_CHAR + "," + QUOTE_CHAR + "dragonfruit" + QUOTE_CHAR + "))) OR (colFour <> "+ QUOTE_CHAR + "fruit" + QUOTE_CHAR + "))";
         assertEquals(expected, fullClause);

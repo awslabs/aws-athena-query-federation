@@ -29,6 +29,7 @@ import com.amazonaws.athena.connectors.postgresql.PostGreSqlMetadataHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlMuxCompositeHandler;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlQueryStringBuilder;
 import com.amazonaws.athena.connectors.postgresql.PostGreSqlRecordHandler;
+import com.amazonaws.athena.connectors.postgresql.PostgreSqlFederationExpressionParser;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -62,7 +63,7 @@ public class RedshiftRecordHandler
     public RedshiftRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         super(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                new GenericJdbcConnectionFactory(databaseConnectionConfig, PostGreSqlMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT)), new PostGreSqlQueryStringBuilder(POSTGRES_QUOTE_CHARACTER), configOptions);
+                new GenericJdbcConnectionFactory(databaseConnectionConfig, PostGreSqlMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT)), new PostGreSqlQueryStringBuilder(POSTGRES_QUOTE_CHARACTER), new PostgreSqlFederationExpressionParser(POSTGRES_QUOTE_CHARACTER), configOptions);
     }
 
     @VisibleForTesting

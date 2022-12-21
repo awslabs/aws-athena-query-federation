@@ -57,14 +57,8 @@ public abstract class FederationExpressionParser
 
         List<FederationExpression> federationExpressions = constraints.getExpression();
         for (FederationExpression federationExpression : federationExpressions) {
-            try {
-                FunctionCallExpression functionCallExpression = (FunctionCallExpression) federationExpression;
-                complexExpressionConjuncts.add(parseFunctionCallExpression(functionCallExpression, quoteChar));
-            }
-            catch (ClassCastException e) {
-                LOGGER.error("Failed to cast top-level federation expression to a FunctionCallExpression. Error: {}", e);
-                throw e;
-            }
+            FunctionCallExpression functionCallExpression = (FunctionCallExpression) federationExpression;
+            complexExpressionConjuncts.add(parseFunctionCallExpression(functionCallExpression, quoteChar));
         }
         return complexExpressionConjuncts;
     }

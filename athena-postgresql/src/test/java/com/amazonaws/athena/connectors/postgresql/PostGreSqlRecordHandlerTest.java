@@ -82,7 +82,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         this.connection = Mockito.mock(Connection.class);
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(this.jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(this.connection);
-        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"");
+        jdbcSplitQueryBuilder = new PostGreSqlQueryStringBuilder("\"", new PostgreSqlFederationExpressionParser("\""));
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", POSTGRES_NAME,
                 "postgres://jdbc:postgresql://hostname/user=A&password=B");
 
