@@ -59,8 +59,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+<<<<<<< HEAD
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
+=======
+>>>>>>> c93cd00e (GcsMetadataHandler changes for doGetTable)
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -94,7 +97,6 @@ public class GcsMetadataHandler
     // metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
     private static final CharSequence GCS_FLAG = "gcs";
-    private static final String DEFAULT_SCHEMA = "default";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for DDB.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
@@ -103,7 +105,7 @@ public class GcsMetadataHandler
     private final StorageMetadata datasource;
     private final AWSGlue glueClient;
 
-    public GcsMetadataHandler() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public GcsMetadataHandler() throws IOException
     {
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
@@ -118,7 +120,7 @@ public class GcsMetadataHandler
                                  AmazonAthena athena,
                                  String spillBucket,
                                  String spillPrefix,
-                                 AmazonS3 amazonS3, AWSGlue glueClient) throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+                                 AmazonS3 amazonS3, AWSGlue glueClient) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
@@ -142,8 +144,7 @@ public class GcsMetadataHandler
         if (glueClient != null) {
             try {
                 schema.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemas());
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
             }
         }
@@ -168,8 +169,7 @@ public class GcsMetadataHandler
                         new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
                                 request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
                         TABLE_FILTER).getTables());
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
             }
         }
@@ -194,18 +194,17 @@ public class GcsMetadataHandler
         if (glueClient != null) {
             try {
                 response = super.doGetTable(blockAllocator, request);
-                if (null == response && null == response.getSchema()) {
+                if (null == response || null == response.getSchema()) {
                     throw new GcsConnectorException("doGetTable: Unable to retrieve schema from AWSGlue in database/schema. " + request.getTableName().getTableName());
                 }
-            }
-            catch (RuntimeException e) {
+                return response;
+            } catch (RuntimeException e) {
                 LOGGER.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
                                 "Falling back to schema inference. If inferred schema is incorrect, create " +
                                 "a matching table in Glue to define schema (see README)",
                         request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
             }
         }
-
         Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
 
         Schema schema = buildTableSchema(this.datasource, table);
@@ -281,16 +280,17 @@ public class GcsMetadataHandler
                 fieldReadersMap.get(col.getName()).setPosition(curPartition);
             }
             PartitionResult partitionResult = new HivePartitionResolver().getPartitions(table, fieldReadersMap);
+            LOGGER.info("Partition location {} for type {}", partitionResult.getPartition(), partitionResult.getTableType());
             List<StorageSplit> storageSplits = datasource.getStorageSplits(partitionResult.getTableType(), partitionResult.getPartition());
             SpillLocation spillLocation = makeSpillLocation(request);
             LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), storageSplits);
             for (StorageSplit split : storageSplits) {
                 String storageSplitJson = splitAsJson(split);
                 LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
-                            storageSplitJson);
+                        storageSplitJson);
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                            .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get("classification"))
-                            .add(STORAGE_SPLIT_JSON, storageSplitJson);
+                        .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get("classification"))
+                        .add(STORAGE_SPLIT_JSON, storageSplitJson);
                 splits.add(splitBuilder.build());
             }
             if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
