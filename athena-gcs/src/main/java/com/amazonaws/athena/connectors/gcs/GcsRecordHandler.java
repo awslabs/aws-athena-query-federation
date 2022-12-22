@@ -56,6 +56,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
@@ -183,7 +184,7 @@ public class GcsRecordHandler
             for (FieldVector vector : gcsFieldVectors) {
                 Object value = vector.getObject(rowIndex);
                 // Writing data in spiller for each field.
-                isMatched = block.offerValue(vector.getField().getName(), rowNum, value);
+                isMatched = block.offerValue(vector.getField().getName().toLowerCase(Locale.ROOT), rowNum, value);
 
                 // If this field is not qualified we are not trying with next field,
                 // just leaving the whole record.
