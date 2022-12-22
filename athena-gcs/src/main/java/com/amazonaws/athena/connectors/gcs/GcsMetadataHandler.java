@@ -39,7 +39,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
-import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
@@ -48,11 +47,13 @@ import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,10 +62,13 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
@@ -79,28 +83,26 @@ import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageData
 public class GcsMetadataHandler
         extends GlueMetadataHandler
 {
+    public static final String TABLE_FILTER_IDENTIFIER = "gs://";
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsMetadataHandler.class);
-
     /**
      * used to aid in debugging. Athena will use this name in conjunction with your catalog id
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "gcs";
-    private final StorageMetadata datasource;
     // Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
     // metadata and instead rely solely on the connector's schema inference capabilities.
     private static final String GLUE_ENV = "disable_glue";
-    private final AWSGlue glueClient;
     private static final CharSequence GCS_FLAG = "gcs";
-    private static final String DEFAULT_SCHEMA = "default";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
-    public static final String TABLE_FILTER_IDENTIFIER = "gs://";
     // used to filter out Glue tables which lack indications of being used for DDB.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
             || (table.getParameters() != null && GcsUtil.isSupportedFileType(table.getParameters().get("classification")))
             || (table.getStorageDescriptor().getParameters() != null && GcsUtil.isSupportedFileType(table.getStorageDescriptor().getParameters().get("classification")));
+    private final StorageMetadata datasource;
+    private final AWSGlue glueClient;
 
-    public GcsMetadataHandler() throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+    public GcsMetadataHandler() throws IOException
     {
         super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
@@ -115,7 +117,7 @@ public class GcsMetadataHandler
                                  AmazonAthena athena,
                                  String spillBucket,
                                  String spillPrefix,
-                                 AmazonS3 amazonS3, AWSGlue glueClient) throws IOException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException
+                                 AmazonS3 amazonS3, AWSGlue glueClient) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
@@ -139,8 +141,7 @@ public class GcsMetadataHandler
         if (glueClient != null) {
             try {
                 schema.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemas());
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
             }
         }
@@ -165,8 +166,7 @@ public class GcsMetadataHandler
                         new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
                                 request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
                         TABLE_FILTER).getTables());
-            }
-            catch (RuntimeException e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
             }
         }
@@ -177,7 +177,7 @@ public class GcsMetadataHandler
      * Used to get definition (field names, types, descriptions, etc...) of a Table.
      *
      * @param blockAllocator Tool for creating and managing Apache Arrow Blocks.
-     * @param request   Provides details on who made the request and which Athena catalog, database, and table they are querying.
+     * @param request        Provides details on who made the request and which Athena catalog, database, and table they are querying.
      * @return A GetTableResponse which primarily contains:
      * 1. An Apache Arrow Schema object describing the table's columns, types, and descriptions.
      * 2. A Set<String> of partition column names (or empty if the table isn't partitioned).
@@ -187,22 +187,32 @@ public class GcsMetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
     {
-        TableName tableInfo = request.getTableName();
+        GetTableResponse response = null;
         if (glueClient != null) {
             try {
-                return super.doGetTable(blockAllocator, request);
-            }
-            catch (RuntimeException e) {
+                response = super.doGetTable(blockAllocator, request);
+                if (null == response || null == response.getSchema()) {
+                    throw new GcsConnectorException("doGetTable: Unable to retrieve schema from AWSGlue in database/schema. " + request.getTableName().getTableName());
+                }
+                return response;
+            } catch (RuntimeException e) {
                 LOGGER.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
                                 "Falling back to schema inference. If inferred schema is incorrect, create " +
                                 "a matching table in Glue to define schema (see README)",
                         request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
             }
         }
-        Schema schema = buildTableSchema(this.datasource,
-                tableInfo.getSchemaName(),
-                tableInfo.getTableName());
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
+
+        Schema schema = buildTableSchema(this.datasource, table);
+        Map<String, String> columnNameMapping = getColumnNameMapping(table);
+        Set<String> partitionCols = new HashSet<>();
+        if (table.getPartitionKeys() != null) {
+            partitionCols = table.getPartitionKeys()
+                    .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
+        }
+
+        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
     }
 
     /**
@@ -252,26 +262,31 @@ public class GcsMetadataHandler
     public GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) throws Exception
     {
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
-        TableName tableInfo = request.getTableName();
-        Set<Split> splits = new HashSet<>();
         int partitionContd = decodeContinuationToken(request);
-        LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=Start splitting from position {}",
-                partitionContd);
-        PartitionResult partitionResult = new HivePartitionResolver().getPartitions(request, request.getSchema(), request.getTableName(), request.getConstraints(), glueClient);
-        String tableType = partitionResult.getTableType();
-        List<PartitionLocation> partitionLocations = partitionResult.getPartitions();
-        for (int curPartition = 0; curPartition < partitionLocations.size(); curPartition++) {
-            PartitionLocation partition = partitionLocations.get(curPartition);
-            LOGGER.info("Partition for {}.{} at position {} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), curPartition + 1, partition);
-            List<StorageSplit> storageSplits = datasource.getStorageSplits(tableType, partition);
+
+        Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
+        String catalogName = request.getCatalogName();
+        Set<Split> splits = new HashSet<>();
+        Map<String, FieldReader> fieldReadersMap = new HashMap<>();
+        Block partitions = request.getPartitions();
+        for (Column col : table.getPartitionKeys()) {
+            fieldReadersMap.put(col.getName(), partitions.getFieldReader(col.getName()));
+        }
+        for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+            for (Column col : table.getPartitionKeys()) {
+                fieldReadersMap.get(col.getName()).setPosition(curPartition);
+            }
+            PartitionResult partitionResult = new HivePartitionResolver().getPartitions(table, fieldReadersMap);
+            LOGGER.info("Partition location {} for type {}", partitionResult.getPartition(), partitionResult.getTableType());
+            List<StorageSplit> storageSplits = datasource.getStorageSplits(partitionResult.getTableType(), partitionResult.getPartition());
             SpillLocation spillLocation = makeSpillLocation(request);
-            LOGGER.info("Split list for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageSplits);
+            LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), storageSplits);
             for (StorageSplit split : storageSplits) {
                 String storageSplitJson = splitAsJson(split);
                 LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
                         storageSplitJson);
                 Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(CLASSIFICATION_GLUE_TABLE_PARAM, tableType)
+                        .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get("classification"))
                         .add(STORAGE_SPLIT_JSON, storageSplitJson);
                 splits.add(splitBuilder.build());
             }
@@ -281,7 +296,8 @@ public class GcsMetadataHandler
             }
             LOGGER.info("Splits created {}", splits);
         }
-        return new GetSplitsResponse(request.getCatalogName(), splits, null);
+        LOGGER.info("doGetSplits: exit - " + splits.size());
+        return new GetSplitsResponse(catalogName, splits);
     }
 
     private int decodeContinuationToken(GetSplitsRequest request)

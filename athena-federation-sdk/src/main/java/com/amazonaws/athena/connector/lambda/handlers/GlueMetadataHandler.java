@@ -373,7 +373,7 @@ public abstract class GlueMetadataHandler
      * @return A GetTableResponse mostly containing the columns, their types, and any table properties for the requested table.
      * @note This method throws a RuntimeException if not table matching the requested criteria (and filter) is found.
      */
-    protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request, TableFilter filter)
+    protected GetTableResponse  doGetTable(BlockAllocator blockAllocator, GetTableRequest request, TableFilter filter)
             throws Exception
     {
         TableName tableName = request.getTableName();

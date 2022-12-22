@@ -39,16 +39,17 @@ import java.util.Optional;
 
 public interface StorageMetadata
 {
-    List<Field> getTableFields(String bucketName, List<String> objectNames) throws IOException;
+    List<Field> getTableFields(String bucketName, List<String> objectNames, FileFormat format) throws IOException;
 
     /**
      * Returns a storage object (file) as a DB table with field names and associated file type
      *
      * @param databaseName Name of the database
      * @param tableName    Name of the table
+     * @param fileFormat   classification param form table
      * @return An instance of {@link StorageTable} with column metadata
      */
-    Optional<StorageTable> getStorageTable(String databaseName, String tableName) throws Exception;
+    Optional<StorageTable> getStorageTable(String databaseName, String tableName, String fileFormat) throws Exception;
 
     /**
      * Retrieves a list of StorageSplit that essentially contain the list of all files for a given table type in a storage location
@@ -58,13 +59,6 @@ public interface StorageMetadata
      * @return A list of {@link StorageSplit} instances
      */
     List<StorageSplit> getStorageSplits(String tableType, PartitionLocation partitions);
-
-    /**
-     * Returns the Datasource specific file format to be used to read a file (for retrieving schema or fetching data)
-     *
-     * @return An instance of FileFormat
-     */
-    FileFormat getFileFormat();
 
     /**
      *  Used to test with test classes integrated directly with GCS bucket

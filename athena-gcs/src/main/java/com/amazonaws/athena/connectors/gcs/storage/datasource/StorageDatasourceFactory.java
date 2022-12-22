@@ -19,15 +19,11 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 
-import java.lang.reflect.InvocationTargetException;
+import java.io.IOException;
 import java.util.Map;
-
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
-import static java.util.Objects.requireNonNull;
 
 public class StorageDatasourceFactory
 {
@@ -47,16 +43,8 @@ public class StorageDatasourceFactory
      * @see StorageMetadata
      */
     public static StorageMetadata createDatasource(String credentialJsonString,
-                                                   Map<String, String> properties) throws InvocationTargetException,
-            NoSuchMethodException, InstantiationException, IllegalAccessException
+                                                   Map<String, String> properties) throws IOException
     {
-        String fileFormat = properties.get(FILE_EXTENSION_ENV_VAR);
-        fileFormat = requireNonNull(fileFormat, "File extension was not specified, please specify any of parquet, or csv (cae insensitive");
-        FileFormat.SupportedFileFormat supportedFileFormat = FileFormatSupport.getSupportedFormat(fileFormat);
-        if (supportedFileFormat == null) {
-            throw new UncheckedGcsConnectorException("File extension " + fileFormat
-                    + " not yet supported. Please specify any of parquet, or csv (case insensitive)");
-        }
-        return supportedFileFormat.createDatasource(credentialJsonString, properties);
+        return new AbstractStorageMetadata(credentialJsonString, properties);
     }
 }
