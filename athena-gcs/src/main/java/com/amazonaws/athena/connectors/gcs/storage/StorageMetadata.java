@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.gcs.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
@@ -29,8 +30,10 @@ import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.dataset.file.FileFormat;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.List;
 import java.util.Optional;
 
@@ -74,5 +77,5 @@ public interface StorageMetadata
     @VisibleForTesting
     Storage getStorage();
 
-    List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient);
+    List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableName, Constraints constraints, AWSGlue glueClient) throws ParseException;
 }

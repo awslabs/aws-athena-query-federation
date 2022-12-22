@@ -117,7 +117,8 @@ public abstract class AbstractFilterExpression<T> implements FilterExpression
     public String toString()
     {
         return "{" +
-                "'column':'" + columnIndex + "', " +
+                "'columnIndex':'" + columnIndex + "', " +
+                "'columnName':'" + columnName + "', " +
                 "'expression': '" + expression + "', " +
                 "'type':'" + getClass().getSimpleName()
                 + "'}";

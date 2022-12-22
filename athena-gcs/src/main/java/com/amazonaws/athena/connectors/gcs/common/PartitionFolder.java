@@ -55,4 +55,13 @@ public class PartitionFolder
     {
         this.partitions = partitions;
     }
+
+    @Override
+    public String toString()
+    {
+        return "PartitionFolder{" +
+                "folderPath='" + folderPath + '\'' +
+                ", partitions=" + partitions +
+                '}';
+    }
 }

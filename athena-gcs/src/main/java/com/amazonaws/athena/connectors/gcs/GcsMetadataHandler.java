@@ -59,6 +59,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -212,13 +213,13 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws ParseException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GlueUtil.getGlueTable(request, tableInfo, glueClient);
 
-        List<PartitionFolder> partitionFolders = datasource.getPartitionFolders(request, tableInfo, glueClient);
+        List<PartitionFolder> partitionFolders = datasource.getPartitionFolders(request, request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {
             for (PartitionFolder folder : partitionFolders) {

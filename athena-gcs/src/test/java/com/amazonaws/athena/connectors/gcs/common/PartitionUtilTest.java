@@ -1,3 +1,22 @@
+/*-
+ * #%L
+ * athena-gcs
+ * %%
+ * Copyright (C) 2019 - 2022 Amazon Web Services
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
 package com.amazonaws.athena.connectors.gcs.common;
 
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
@@ -7,14 +26,17 @@ import com.amazonaws.services.glue.model.Table;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.text.ParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -83,7 +105,7 @@ public class PartitionUtilTest
     }
 
     @Test
-    public void dynamicFolderExpressionWithDefaultsDates() // failed
+    public void dynamicFolderExpressionWithDefaultsDates()
     {
         // Odd index matches, otherwise doesn't
         List<String> partitionFolders = List.of(
@@ -177,6 +199,63 @@ public class PartitionUtilTest
             }
             else { // Even shouldn't
                 assertFalse("Folder " + folder + " should NOT match with the pattern", folderMatchPattern.matcher(folder).matches());
+            }
+        }
+    }
+
+//    @Test
+//    public void testColumnPrefixFromRegExAndModelFolder()
+//    {
+//        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/"));
+//        Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
+//        assertTrue(optionalRegEx.isPresent());
+//        List<ColumnPrefix> columnPrefixes = PartitionUtil.getColumnPrefixes("year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
+//        assertFalse("List of column prefix is empty", columnPrefixes.isEmpty());
+//    }
+
+    @Test
+    public void testGetStoragePartitions() throws ParseException
+    {
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/"));
+        Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
+        assertTrue(optionalRegEx.isPresent());
+        List<StoragePartition> partitions = PartitionUtil.getStoragePartitions("year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
+        assertFalse("List of column prefix is empty", partitions.isEmpty());
+        assertEquals("Partition size is more than 2", 2, partitions.size());
+    }
+
+    @Test
+    public void testGetPartitionFolders() throws ParseException
+    {
+        // re-mock
+        List<Column> columns = List.of(
+                createColumn("year", "bigint"),
+                createColumn("month", "int"),
+                createColumn("day", "int")
+        );
+        when(table.getPartitionKeys()).thenReturn(columns);
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/{day}"));
+
+        // list of folders in a bucket
+        List<String> bucketFolders = List.of(
+                "year=2000/birth_month09/12/",
+                "year=2000/birth_month09/abc",
+                "year=2001/birth_month12/20/",
+                "year=2001/",
+                "year=2000/birth_month09/",
+                "year=2000/birth_month/12",
+                "stateName=2001/birthMonth11/15/"
+        );
+
+        // tests
+        Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
+        assertTrue("No regular expression found for the partition pattern", optionalRegEx.isPresent());
+        Pattern folderMatchingPattern = Pattern.compile(optionalRegEx.get());
+        for (String folder : bucketFolders) {
+            if (folderMatchingPattern.matcher(folder).matches()) {
+                List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(folder, optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
+                assertFalse("List of storage partitions is empty", partitions.isEmpty());
+                assertEquals("Partition size is more than 3", 3, partitions.size());
             }
         }
     }
