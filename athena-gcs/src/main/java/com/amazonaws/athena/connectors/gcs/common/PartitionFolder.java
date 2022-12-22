@@ -50,12 +50,6 @@ public class PartitionFolder
     {
         return partitions;
     }
-
-    public void setPartitions(List<StoragePartition> partitions)
-    {
-        this.partitions = partitions;
-    }
-
     @Override
     public String toString()
     {

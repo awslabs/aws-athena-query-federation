@@ -71,5 +71,20 @@ public interface StorageMetadata
     @VisibleForTesting
     Storage getStorage();
 
-    List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableName, Constraints constraints, AWSGlue glueClient) throws ParseException;
+    /**
+     * Retrieves a list of partition folders from the GCS bucket based on partition.pattern Table parameter and partition keys set forth in Glue table. If the summary from the
+     * constraints is empty (no where clauses or unsupported clauses), it will essentially return all the partition folders from the GCS bucket. If there is any constraints to
+     * apply, it will apply constraints to filter selected partition folder, to narrow down the data load
+     *
+     * TODO: Date expression evaluation needs to be taken care
+     *
+     * @param request An instance of {@link MetadataRequest}, may be {@link com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest} or any subclass
+     * @param schema An instance of {@link Schema} that describes underlying Table's schema
+     * @param tableName Name of the table
+     * @param constraints An instance of {@link Constraints}, captured from where clauses
+     * @param awsGlue An instance of {@link AWSGlue}
+     * @return A list of {@link PartitionFolder} instances
+     * @throws ParseException Throws if any occurs during parsing regular expression
+     */
+    List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableName, Constraints constraints, AWSGlue awsGlue) throws ParseException;
 }

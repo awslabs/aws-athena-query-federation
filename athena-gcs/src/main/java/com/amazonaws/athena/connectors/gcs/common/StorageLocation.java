@@ -25,7 +25,7 @@ import static java.util.Objects.requireNonNull;
 
 public class StorageLocation
 {
-    private String bucketName;
+    private final String bucketName;
     private String location;
 
     public StorageLocation(String bucketName, String location)
@@ -42,19 +42,9 @@ public class StorageLocation
         return bucketName;
     }
 
-    public void setBucketName(String bucketName)
-    {
-        this.bucketName = bucketName;
-    }
-
     public String getLocation()
     {
         return location;
-    }
-
-    public void setLocation(String location)
-    {
-        this.location = location;
     }
 
     @Override

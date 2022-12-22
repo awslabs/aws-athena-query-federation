@@ -42,7 +42,7 @@ import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
-import com.amazonaws.athena.connectors.gcs.glue.HivePartitionResolver;
+import com.amazonaws.athena.connectors.gcs.glue.GenericPartitionResolver;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -59,7 +59,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -141,7 +140,8 @@ public class GcsMetadataHandler
         if (glueClient != null) {
             try {
                 schema.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemas());
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 LOGGER.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
             }
         }
@@ -166,7 +166,8 @@ public class GcsMetadataHandler
                         new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
                                 request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
                         TABLE_FILTER).getTables());
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 LOGGER.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
             }
         }
@@ -195,7 +196,8 @@ public class GcsMetadataHandler
                     throw new GcsConnectorException("doGetTable: Unable to retrieve schema from AWSGlue in database/schema. " + request.getTableName().getTableName());
                 }
                 return response;
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 LOGGER.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
                                 "Falling back to schema inference. If inferred schema is incorrect, create " +
                                 "a matching table in Glue to define schema (see README)",
@@ -276,7 +278,7 @@ public class GcsMetadataHandler
             for (Column col : table.getPartitionKeys()) {
                 fieldReadersMap.get(col.getName()).setPosition(curPartition);
             }
-            PartitionResult partitionResult = new HivePartitionResolver().getPartitions(table, fieldReadersMap);
+            PartitionResult partitionResult = new GenericPartitionResolver().getPartitions(table, fieldReadersMap);
             LOGGER.info("Partition location {} for type {}", partitionResult.getPartition(), partitionResult.getTableType());
             List<StorageSplit> storageSplits = datasource.getStorageSplits(partitionResult.getTableType(), partitionResult.getPartition());
             SpillLocation spillLocation = makeSpillLocation(request);

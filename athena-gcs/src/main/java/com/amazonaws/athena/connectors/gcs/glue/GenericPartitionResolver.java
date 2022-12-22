@@ -32,9 +32,9 @@ import java.util.Map;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 
-public class HivePartitionResolver implements PartitionResolver
+public class GenericPartitionResolver implements PartitionResolver
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(HivePartitionResolver.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GenericPartitionResolver.class);
 
     /**
      * {@inheritDoc}
@@ -47,12 +47,11 @@ public class HivePartitionResolver implements PartitionResolver
             partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
         }
         String tableLocation = table.getStorageDescriptor().getLocation();
-
         String locationUri = (tableLocation.endsWith("/")
-                ? tableLocation : tableLocation + "/") + partitionPattern;
-
+                ? tableLocation
+                : tableLocation + "/") + partitionPattern;
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
-
+        LOGGER.info("Retrieved partition for table {} is {}", table.getName(), storageLocation);
         return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), PartitionLocation.builder()
                 .bucketName(storageLocation.getBucketName())
                 .location(storageLocation.getLocation())
