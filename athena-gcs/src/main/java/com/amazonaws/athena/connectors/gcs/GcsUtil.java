@@ -25,6 +25,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.arrow.dataset.file.FileFormat;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -129,5 +130,21 @@ public class GcsUtil
     public static boolean isSupportedFileType(String classification)
     {
         return supportedTypeList.stream().anyMatch(str -> str.trim().equalsIgnoreCase(classification));
+    }
+
+    /**
+     * Returns the Datasource specific file format to be used to read a file (for retrieving schema or fetching data)
+     * @param format is classification from table param
+     * @return An instance of FileFormat
+     */
+    public static FileFormat getFileFormat(String format)
+    {
+        switch (format.toLowerCase()) {
+            case "parquet":
+                return FileFormat.PARQUET;
+            case "csv":
+                return FileFormat.CSV;
+        }
+        return null;
     }
 }

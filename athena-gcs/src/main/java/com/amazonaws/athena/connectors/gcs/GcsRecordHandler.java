@@ -134,7 +134,7 @@ public class GcsRecordHandler
                 // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                 // Thus, we can peek the schema for data sources and decide on a unified schema.
                 DatasetFactory datasetFactory = new FileSystemDatasetFactory(
-                        allocator, NativeMemoryPool.getDefault(), datasource.getFileFormat(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)), uri
+                        allocator, NativeMemoryPool.getDefault(), GcsUtil.getFileFormat(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)), uri
                 );
 
                 // Creates a Dataset with auto-inferred schema
