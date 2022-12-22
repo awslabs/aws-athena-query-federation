@@ -20,14 +20,19 @@
 package com.amazonaws.athena.connectors.gcs.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
+import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.common.StorageNode;
+import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
+import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
+import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageMetadataConfig;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
@@ -52,6 +57,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -71,7 +77,7 @@ import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getUniqueEntityName;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEntityNameFromFile;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.tableNameFromFile;
-import static java.util.Objects.isNull;
+import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractStorageMetadata implements StorageMetadata
@@ -176,7 +182,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
         String extension = "." + tableType.toLowerCase();
         List<StorageSplit> splits = new ArrayList<>();
         String bucketName = partition.getBucketName();
-        Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(partition.getLocation()));
+        Page<Blob> blobs = storage.list(bucketName, prefix(partition.getLocation()));
         for (Blob blob : blobs.iterateAll()) {
             if (blob.getName().toLowerCase().endsWith(extension)) {
                 splits.add(StorageSplit.builder().fileName(bucketName + "/" + blob.getName()).build());
@@ -213,8 +219,11 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     }
 
     @Override
-    public List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableInfo, AWSGlue awsGlue)
+    public List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
+            throws ParseException
     {
+        LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
+        List<PartitionFolder> partitionFolders = new ArrayList<>();
         Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
         if (table != null) {
             Optional<String> optionalFolderRegEx = PartitionUtil.getRegExExpression(table);
@@ -222,20 +231,41 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
                 String locationUri = table.getStorageDescriptor().getLocation();
                 LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
                 StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
-                Page<Blob> blobPage = storage.list(storageLocation.getBucketName(),
-                        Storage.BlobListOption.prefix(storageLocation.getLocation()));
+                LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getLocation(), storageLocation.getBucketName());
+                Page<Blob> blobPage = storage.list(storageLocation.getBucketName(), prefix(storageLocation.getLocation()));
                 String folderRegEx = optionalFolderRegEx.get();
                 Pattern folderRegExPattern = Pattern.compile(folderRegEx);
+                List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
+                LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
                 for (Blob blob : blobPage.iterateAll()) {
                     String blobName = blob.getName();
-                    LOGGER.info("Examining folder {} against regex {}", blobName, folderRegEx);
-                    if (folderRegExPattern.matcher(blobName).matches()) {
-                        LOGGER.info("Examining folder {} against regex {} matches", blobName, folderRegEx);
+                    String folderPath = blobName.startsWith(storageLocation.getLocation())
+                            ? blobName.replace(storageLocation.getLocation(), "")
+                            : blobName;
+                    LOGGER.info("Examining folder {} against regex {}", folderPath, folderRegEx);
+                    if (folderRegExPattern.matcher(folderPath).matches()) {
+                        LOGGER.info("Examining folder {} against regex {} matches", folderPath, folderRegEx);
+                        if (!canIncludePath(folderPath, expressions)) {
+                            LOGGER.info("Folder " + folderPath + " has NOT been selected against the expression");
+                            continue;
+                        }
+                        LOGGER.info("Folder " + folderPath + " has been selected against the expression");
+                        List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(folderPath, folderRegEx,
+                                table.getPartitionKeys(), table.getParameters());
+                        if (!partitions.isEmpty()) {
+                            partitionFolders.add(new PartitionFolder(folderPath, partitions));
+                        }
+                        else {
+                            LOGGER.info("No partitions found for the folder {}", blob.getName());
+                        }
                     }
                 }
             }
         }
-        return List.of();
+        else {
+            LOGGER.info("Table {}.{} not found", tableInfo.getSchemaName(), tableInfo.getTableName());
+        }
+        return partitionFolders;
     }
 
     /**
@@ -248,7 +278,7 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
     {
         LOGGER.info("Listing nested files for prefix {} under the bucket {}", prefix, bucket);
         List<String> fileNames = new ArrayList<>();
-        Page<Blob> blobPage = storage.list(bucket, Storage.BlobListOption.prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, prefix(prefix));
         for (Blob blob : blobPage.iterateAll()) {
             if (blob.getName().toLowerCase(Locale.ROOT).endsWith(extension.toLowerCase(Locale.ROOT))) {
                 fileNames.add(blob.getName());
@@ -348,5 +378,34 @@ public abstract class AbstractStorageMetadata implements StorageMetadata
                 NativeMemoryPool.getDefault(), getFileFormat(), uri);
         // inspect schema
         return factory.inspect();
+    }
+
+    private boolean canIncludePath(String folderPath, List<FilterExpression> expressions)
+    {
+        if (expressions.isEmpty()) {
+            return true;
+        }
+        String[] folderPaths = folderPath.split("/");
+        for (String path : folderPaths) {
+            Optional<FieldValue> optionalFieldValue = FieldValue.from(path);
+            if (optionalFieldValue.isEmpty()) {
+                continue;
+            }
+            FieldValue fieldValue = optionalFieldValue.get();
+            Optional<FilterExpression> optionalExpression = expressions.stream()
+                    .filter(expr -> expr.columnName().equalsIgnoreCase(fieldValue.getField()))
+                    .findFirst();
+            if (optionalExpression.isPresent()) {
+                LOGGER.info("Evaluating field value {} against the expression {}", fieldValue, expressions);
+                FilterExpression expression = optionalExpression.get();
+                if (!expression.apply(fieldValue.getValue())) {
+                    return false;
+                }
+            }
+            else {
+                LOGGER.info("No expression found for field {}", fieldValue.getField());
+            }
+        }
+        return true;
     }
 }

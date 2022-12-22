@@ -85,18 +85,13 @@ public class FilterExpressionBuilder
      * Prepares the expressions based on the provided arguments.
      *
      * @param constraints            An instance of {@link Constraints} that is a summary of where clauses (if any)
-     * @param partitionFieldValueMap A key-value that holds partition column if any
      * @return A list of {@link FilterExpression}
      */
-    public List<FilterExpression> getExpressions(Constraints constraints,
-                                                 Map<String, String> partitionFieldValueMap)
+    public List<FilterExpression> getExpressions(Constraints constraints)
     {
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
         List<FilterExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
-            if (partitionFieldValueMap.containsKey(column.getName())) {
-                continue;
-            }
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());

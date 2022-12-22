@@ -41,9 +41,10 @@ public class StoragePartition
         return columnName;
     }
 
-    public void setColumnName(String columnName)
+    public StoragePartition columnName(String columnName)
     {
         this.columnName = columnName;
+        return this;
     }
 
     public String getColumnType()
@@ -51,9 +52,10 @@ public class StoragePartition
         return columnType;
     }
 
-    public void setColumnType(String columnType)
+    public StoragePartition columnType(String columnType)
     {
         this.columnType = columnType;
+        return this;
     }
 
     public Object getColumnValue()
@@ -61,8 +63,19 @@ public class StoragePartition
         return columnValue;
     }
 
-    public void setColumnValue(Object columnValue)
+    public StoragePartition columnValue(Object columnValue)
     {
         this.columnValue = columnValue;
+        return this;
+    }
+
+    @Override
+    public String toString()
+    {
+        return "StoragePartition{" +
+                "columnName='" + columnName + '\'' +
+                ", columnType='" + columnType + '\'' +
+                ", columnValue=" + columnValue +
+                '}';
     }
 }

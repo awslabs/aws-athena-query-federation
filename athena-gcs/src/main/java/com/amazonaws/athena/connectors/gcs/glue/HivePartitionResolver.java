@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 
@@ -54,7 +53,7 @@ public class HivePartitionResolver implements PartitionResolver
         LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
         LOGGER.info("Storage location for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageLocation);
-        List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints, Map.of());
+        List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
         LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
         if (expressions.isEmpty()) {
             // Returning a single partition
