@@ -55,9 +55,9 @@ import java.util.Map;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 
-public class HivePartitionResolver implements PartitionResolver
+public class GenericPartitionResolver implements PartitionResolver
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(HivePartitionResolver.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(GenericPartitionResolver.class);
 
     /**
      * {@inheritDoc}
@@ -70,11 +70,11 @@ public class HivePartitionResolver implements PartitionResolver
             partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
         }
         String tableLocation = table.getStorageDescriptor().getLocation();
-
         String locationUri = (tableLocation.endsWith("/")
-                ? tableLocation : tableLocation + "/") + partitionPattern;
-
+                ? tableLocation
+                : tableLocation + "/") + partitionPattern;
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
+<<<<<<< HEAD:athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/glue/HivePartitionResolver.java
 <<<<<<< HEAD
 <<<<<<< HEAD
         LOGGER.info("Storage location for {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), storageLocation);
@@ -100,6 +100,9 @@ public class HivePartitionResolver implements PartitionResolver
 =======
 
 >>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
+=======
+        LOGGER.info("Retrieved partition for table {} is {}", table.getName(), storageLocation);
+>>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver):athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/glue/GenericPartitionResolver.java
         return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), PartitionLocation.builder()
 >>>>>>> 8913f0f9 (GcsMetadataHandler changes for doGetSplits)
                 .bucketName(storageLocation.getBucketName())

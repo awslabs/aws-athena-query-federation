@@ -29,9 +29,7 @@ import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
-import com.amazonaws.athena.connectors.gcs.common.StorageNode;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
-import com.amazonaws.athena.connectors.gcs.common.TreeTraversalContext;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
@@ -61,39 +59,38 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static com.amazonaws.athena.connectors.gcs.common.PartitionUtil.isPartitionFolder;
-import static com.amazonaws.athena.connectors.gcs.common.StorageTreeNodeBuilder.buildSchemaList;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
+<<<<<<< HEAD:athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/storage/AbstractStorageMetadata.java
 <<<<<<< HEAD
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getUniqueEntityName;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEntityNameFromFile;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.tableNameFromFile;
+=======
+>>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver):athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/storage/StorageMetadataImpl.java
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 =======
 >>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
 import static java.util.Objects.requireNonNull;
 
-public class AbstractStorageMetadata implements StorageMetadata
+public class StorageMetadataImpl implements StorageMetadata
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractStorageMetadata.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(StorageMetadataImpl.class);
     protected static Storage storage;
 
     /**
      * Metadata config with environment variable
      */
     protected final StorageMetadataConfig metadataConfig;
-    private final Map<String, String> dbMap = new HashMap<>();
 
-    public AbstractStorageMetadata(String gcsCredentialJsonString,
-                           Map<String, String> properties) throws IOException
+    public StorageMetadataImpl(String gcsCredentialJsonString,
+                               Map<String, String> properties) throws IOException
     {
         this(new StorageMetadataConfig()
                 .credentialsJson(gcsCredentialJsonString)
@@ -105,7 +102,7 @@ public class AbstractStorageMetadata implements StorageMetadata
      * @param config An instance of GcsDatasourceConfig that contains necessary properties for instantiating an appropriate data source
      * @throws IOException If occurs during initializing input stream with GCS credential JSON
      */
-    public AbstractStorageMetadata(StorageMetadataConfig config) throws IOException
+    public StorageMetadataImpl(StorageMetadataConfig config) throws IOException
     {
         this.metadataConfig = requireNonNull(config, "StorageDatastoreConfig is null");
         requireNonNull(config.credentialsJson(), "GCS credential JSON is null");
@@ -197,6 +194,9 @@ public class AbstractStorageMetadata implements StorageMetadata
         return storage;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
             throws ParseException
@@ -281,86 +281,6 @@ public class AbstractStorageMetadata implements StorageMetadata
     }
 
     // helpers
-
-//    /**
-//     * Retrieves a table's actual file name (object name) if it exists under the bucket.
-//     * Usually table name are compatible with ANSI-SQL, so the actual
-//     * table name vs. actual file name may differ. This method with resolve this and returns the correct table name if found under the bucket
-//     *
-//     * @param bucketName Name of the bucket
-//     * @param tableName  Name of the table in
-//     * @return Optional table. If found the get method will return the actual file name, otherwise it'll be empty
-//     */
-//    private Optional<String> getTableObjectName(String bucketName, String tableName)
-//    {
-//        requireNonNull(bucketName, "Bucket name was null");
-//        Map<String, String> tableObjectMap = new HashMap<>();
-//        Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.currentDirectory());
-//        for (Blob blob : blobs.iterateAll()) {
-//            String storageObjectName = blob.getName();
-//            LOGGER.info("AbstractStorageMetadata::getTableObjectName - Searching table {} with object {} under the bucket {}", tableObjectMap,
-//                    storageObjectName, bucketName);
-//            String validName;
-//            if (storageObjectName.endsWith("/")) {
-//                validName = getValidEntityNameFromFile(getFolderName(storageObjectName), extension);
-//            }
-//            else if (!storageObjectName.toLowerCase().endsWith(metadataConfig.extension())) {
-//                continue;
-//            }
-//            else {
-//                validName = getValidEntityNameFromFile(tableNameFromFile(storageObjectName, extension), extension);
-//            }
-//            if (tableObjectMap.containsKey(validName)) {
-//                validName = getUniqueEntityName(validName, tableObjectMap);
-//            }
-//            if (validName.equals(tableName)) {
-//                return Optional.of(storageObjectName);
-//            }
-//            tableObjectMap.put(validName, tableName);
-//        }
-//        return Optional.empty();
-//    }
-
-    /**
-     * Checks to see if the prefix containing a list of paths is actually a partition directory
-     *
-     * @param paths A list of paths under the containing directory
-     * @return True if the containing directory is partitioned, false otherwise
-     */
-    private boolean isContainingDirectoryPartitioned(List<String> paths)
-    {
-        LOGGER.info("Checking following paths to see if any is partitioned\n{}", paths);
-        for (String path : paths) {
-            String[] folders = path.split("/");
-            for (String folder : folders) {
-                if (isPartitionFolder(folder)) {
-                    return true;
-                }
-            }
-        }
-        LOGGER.warn("None of the {} is a partitioned folder", paths);
-        return false;
-    }
-
-    private String getBucketByDatabase(String databaseName)
-    {
-        if (dbMap.containsKey(databaseName)) {
-            return dbMap.get(databaseName);
-        }
-        TreeTraversalContext traversalContext = TreeTraversalContext.builder()
-                .storage(storage)
-                .build();
-        Optional<StorageNode<String>> optionalRoot = buildSchemaList(traversalContext, databaseName);
-        if (optionalRoot.isPresent()) {
-            Optional<StorageNode<String>> optionalSchema = optionalRoot.get().findChildByData(databaseName);
-            if (optionalSchema.isPresent()) {
-                LOGGER.info("AbstractStorageMetadata::getBucketByDatabase node for database {} is {}", databaseName, optionalSchema.get());
-                return optionalSchema.get().getPath();
-            }
-        }
-        return null;
-    }
-
     public Schema getFileSchema(String bucketName, String fileName, FileFormat format)
     {
         requireNonNull(bucketName, "bucketName was null");

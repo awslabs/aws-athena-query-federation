@@ -50,6 +50,7 @@ public class PartitionFolder
     {
         return partitions;
     }
+<<<<<<< HEAD
 
     public void setPartitions(List<StoragePartition> partitions)
     {
@@ -57,6 +58,8 @@ public class PartitionFolder
     }
 
 <<<<<<< HEAD
+=======
+>>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver)
     @Override
     public String toString()
     {

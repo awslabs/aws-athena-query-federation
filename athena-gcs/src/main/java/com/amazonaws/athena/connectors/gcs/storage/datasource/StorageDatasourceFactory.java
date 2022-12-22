@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadataImpl;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 
 import java.io.IOException;
@@ -34,7 +34,7 @@ public class StorageDatasourceFactory
     /**
      * Creates a data source based on properties. It highly depends on an environment variable named file_extension
      * Currently, file_extension only supports either PARQUET or CSV. Based on this value, this factory method will
-     * create either ParquetDataSource or CsvDatasource which is a subclass of {@link AbstractStorageMetadata},
+     * create either ParquetDataSource or CsvDatasource which is a subclass of {@link StorageMetadataImpl},
      * which in turn an implementation of {@link StorageMetadata}
      *
      * @param credentialJsonString Credential JSON to access target storage service for example Google's GCS (Google Cloud Storage)
@@ -45,6 +45,6 @@ public class StorageDatasourceFactory
     public static StorageMetadata createDatasource(String credentialJsonString,
                                                    Map<String, String> properties) throws IOException
     {
-        return new AbstractStorageMetadata(credentialJsonString, properties);
+        return new StorageMetadataImpl(credentialJsonString, properties);
     }
 }

@@ -43,19 +43,9 @@ public class PartitionLocation
         return bucketName;
     }
 
-    public void setBucketName(String bucketName)
-    {
-        this.bucketName = bucketName;
-    }
-
     public String getLocation()
     {
         return location;
-    }
-
-    public void setLocation(String location)
-    {
-        this.location = location;
     }
 
     public static Builder builder()
