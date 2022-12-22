@@ -4,21 +4,22 @@ from bs4 import BeautifulSoup
 
 
 def get_new_version():
-    # Fetch tags first
-    origin = "git@github.com:awslabs/aws-athena-query-federation.git"
-    subprocess.run(["git", "fetch", "--tag", origin])
-    # Then get the latest tag for this week
-    new_version_without_iteration = datetime.datetime.now().strftime(f"%Y.%U")
-    latest_tag_for_this_week = subprocess.check_output(
-        [f'git tag --sort="version:refname" | grep "^v{new_version_without_iteration}" | tail -1'], shell=True)
-    existing_version_without_iteration = None
-    # Bump the iteration if there's already a tag for this week
-    iteration = 1
-    if latest_tag_for_this_week:
-        existing_split = latest_tag_for_this_week[1:].decode("utf-8").split(".")
-        existing_version_without_iteration = ".".join(existing_split[0:2])
-        iteration = int(existing_split[-1]) + 1
-    return f"{new_version_without_iteration}.{iteration}"
+    # Get latest release version
+    previous_release_version = subprocess.check_output(['''
+        curl -s https://api.github.com/repos/awslabs/aws-athena-query-federation/releases/latest |
+        grep "tag_name" | sed 's/.*"v\(.*\)".*/\\1/g'
+    '''], shell=True).decode("utf-8")
+
+    # Generate the version without iteration for this week
+    new_version_without_iteration = datetime.datetime.now().strftime("%Y.%U")
+
+    # If the latest previous release version happened in the same week, bump the iteration
+    if previous_release_version.startswith(new_version_without_iteration):
+        version = previous_release_version.split(".")
+        return f"{version[0]}.{version[1]}.{int(version[2]) + 1}"
+
+    # Otherwise just return the version for this week at iteration 1
+    return f"{new_version_without_iteration}.1"
 
 
 def output_xml(soup, filename):
