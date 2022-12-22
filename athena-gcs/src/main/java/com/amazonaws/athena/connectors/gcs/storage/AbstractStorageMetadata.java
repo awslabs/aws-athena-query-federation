@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.gcs.storage;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
@@ -120,6 +121,7 @@ public class AbstractStorageMetadata implements StorageMetadata
      *
      * @param bucketName  Name of the bucket
      * @param objectNames Name of the file in the specified bucket
+     * @param format   file type
      * @return List of field instances
      */
     @Override
@@ -145,6 +147,7 @@ public class AbstractStorageMetadata implements StorageMetadata
      *
      * @param databaseName Name of the database
      * @param tableName    Name of the table
+     * @param format   classification param form table
      * @return An instance of {@link StorageTable} with column metadata
      */
     @Override
@@ -159,7 +162,7 @@ public class AbstractStorageMetadata implements StorageMetadata
                     .setTableName(tableName)
                     .partitioned(true)
                     .setParameter(TABLE_PARAM_OBJECT_NAME_LIST, String.join(",", files))
-                    .setFieldList(getTableFields(databaseName, files, getFileFormat(format)))
+                    .setFieldList(getTableFields(databaseName, files, GcsUtil.getFileFormat(format)))
                     .build();
             return Optional.of(table);
         }
@@ -183,18 +186,6 @@ public class AbstractStorageMetadata implements StorageMetadata
             }
         }
         return splits;
-    }
-
-    @Override
-    public FileFormat getFileFormat(String format)
-    {
-        switch (format.toLowerCase()) {
-            case "parquet":
-                return FileFormat.PARQUET;
-            case "csv":
-                return FileFormat.CSV;
-        }
-        return null;
     }
 
     /**
@@ -291,15 +282,15 @@ public class AbstractStorageMetadata implements StorageMetadata
 
     // helpers
 
-    /**
-     * Retrieves a table's actual file name (object name) if it exists under the bucket.
-     * Usually table name are compatible with ANSI-SQL, so the actual
-     * table name vs. actual file name may differ. This method with resolve this and returns the correct table name if found under the bucket
-     *
-     * @param bucketName Name of the bucket
-     * @param tableName  Name of the table in
-     * @return Optional table. If found the get method will return the actual file name, otherwise it'll be empty
-     */
+//    /**
+//     * Retrieves a table's actual file name (object name) if it exists under the bucket.
+//     * Usually table name are compatible with ANSI-SQL, so the actual
+//     * table name vs. actual file name may differ. This method with resolve this and returns the correct table name if found under the bucket
+//     *
+//     * @param bucketName Name of the bucket
+//     * @param tableName  Name of the table in
+//     * @return Optional table. If found the get method will return the actual file name, otherwise it'll be empty
+//     */
 //    private Optional<String> getTableObjectName(String bucketName, String tableName)
 //    {
 //        requireNonNull(bucketName, "Bucket name was null");
