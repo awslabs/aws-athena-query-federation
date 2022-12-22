@@ -19,8 +19,8 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage.datasource;
 
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadataImpl;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadataImpl;
 
 import java.io.IOException;
 import java.util.Map;

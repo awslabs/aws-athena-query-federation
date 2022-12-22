@@ -75,6 +75,9 @@ public class GcsSchemaUtils
                 if (isFieldTypeNull(field)) {
                     field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
                 }
+                else {
+                    field = Field.nullable(field.getName().toLowerCase(), field.getType());
+                }
                 schemaBuilder.addField(getCompatibleField(field));
             }
             return schemaBuilder.build();
