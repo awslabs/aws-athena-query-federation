@@ -38,6 +38,7 @@
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <mssql.jdbc.version>11.2.3.jre11</mssql.jdbc.version>
         <commons.cli.version>1.5.0</commons.cli.version>
+        <spark.version>3.2.1</spark.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
         <mvn.checkstyle.version>3.2.1</mvn.checkstyle.version>
@@ -86,19 +87,25 @@
     </scm>
     <modules>
         <module>athena-arrow-java-dist</module>
+        <module>athena-federation-sdk</module>
+        <module>athena-federation-sdk-dsv2</module>
+        <module>athena-federation-sdk-tools</module>
+        <module>athena-federation-integ-test</module>
         <module>athena-cloudwatch</module>
+        <module>athena-cloudwatch-dsv2</module>
+        <module>athena-cloudwatch-metrics</module>
+        <module>athena-cloudwatch-metrics-dsv2</module>
+        <module>athena-dynamodb</module>
+        <module>athena-dynamodb-dsv2</module>
+        <module>athena-aws-cmdb</module>
+        <module>athena-aws-cmdb-dsv2</module>
         <module>athena-docdb</module>
         <module>athena-redis</module>
-        <module>athena-aws-cmdb</module>
-        <module>athena-dynamodb</module>
         <module>athena-hbase</module>
-        <module>athena-cloudwatch-metrics</module>
         <module>athena-example</module>
         <module>athena-elasticsearch</module>
-        <module>athena-federation-sdk</module>
         <module>athena-tpcds</module>
         <module>athena-jdbc</module>
-        <module>athena-federation-sdk-tools</module>
         <module>athena-mysql</module>
         <module>athena-postgresql</module>
         <module>athena-redshift</module>
@@ -106,7 +113,6 @@
         <module>athena-vertica</module>
         <module>athena-timestream</module>
         <module>athena-neptune</module>
-        <module>athena-federation-integ-test</module>
         <module>athena-google-bigquery</module>
         <module>athena-oracle</module>
         <module>athena-sqlserver</module>
