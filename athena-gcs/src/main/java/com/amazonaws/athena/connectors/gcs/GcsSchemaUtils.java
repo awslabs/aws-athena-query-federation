@@ -90,6 +90,7 @@ public class GcsSchemaUtils
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
         switch (fieldType) {
             case TIMESTAMPNANO:
+            case TIMESTAMPSEC:
             case TIMESTAMPMILLI:
             case TIMEMICRO:
             case TIMESTAMPMICRO:
