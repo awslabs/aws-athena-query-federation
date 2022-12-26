@@ -65,14 +65,20 @@ public class GenericPartitionResolver implements PartitionResolver
     @Override
     public PartitionResult getPartitions(Table table, Map<String, FieldReader> fieldReadersMap)
     {
-        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
-        for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
-            partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
-        }
+        String locationUri = null;
         String tableLocation = table.getStorageDescriptor().getLocation();
-        String locationUri = (tableLocation.endsWith("/")
-                ? tableLocation
-                : tableLocation + "/") + partitionPattern;
+        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
+        if (null != partitionPattern) {
+            for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
+                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
+            }
+            locationUri = (tableLocation.endsWith("/")
+                    ? tableLocation
+                    : tableLocation + "/") + partitionPattern;
+        }
+        else {
+            locationUri = tableLocation;
+        }
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
 <<<<<<< HEAD:athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/glue/HivePartitionResolver.java
 <<<<<<< HEAD
