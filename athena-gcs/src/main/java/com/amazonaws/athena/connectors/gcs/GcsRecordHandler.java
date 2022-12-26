@@ -62,8 +62,8 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GL
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
 
 public class GcsRecordHandler

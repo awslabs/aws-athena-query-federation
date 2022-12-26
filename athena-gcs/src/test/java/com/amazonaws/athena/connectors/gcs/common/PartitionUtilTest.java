@@ -36,7 +36,6 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -202,16 +201,6 @@ public class PartitionUtilTest
             }
         }
     }
-
-//    @Test
-//    public void testColumnPrefixFromRegExAndModelFolder()
-//    {
-//        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/"));
-//        Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
-//        assertTrue(optionalRegEx.isPresent());
-//        List<ColumnPrefix> columnPrefixes = PartitionUtil.getColumnPrefixes("year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
-//        assertFalse("List of column prefix is empty", columnPrefixes.isEmpty());
-//    }
 
     @Test
     public void testGetStoragePartitions() throws ParseException
