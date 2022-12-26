@@ -51,7 +51,7 @@ public class GcsSchemaUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsSchemaUtils.class);
 
-    private GcsSchemaUtils()
+    protected GcsSchemaUtils()
     {
     }
 

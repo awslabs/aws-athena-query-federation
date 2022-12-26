@@ -139,7 +139,8 @@ public class GcsMetadataHandler
         if (glueClient != null) {
             try {
                 schema.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemas());
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 LOGGER.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
             }
         }
@@ -164,7 +165,8 @@ public class GcsMetadataHandler
                         new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
                                 request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
                         TABLE_FILTER).getTables());
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 LOGGER.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
             }
         }
@@ -193,7 +195,8 @@ public class GcsMetadataHandler
                     throw new GcsConnectorException("doGetTable: Unable to retrieve schema from AWSGlue in database/schema. " + request.getTableName().getTableName());
                 }
                 return response;
-            } catch (RuntimeException e) {
+            }
+            catch (RuntimeException e) {
                 LOGGER.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
                                 "Falling back to schema inference. If inferred schema is incorrect, create " +
                                 "a matching table in Glue to define schema (see README)",
