@@ -30,12 +30,6 @@ public class StorageConstants
      */
     public static final String STORAGE_SPLIT_JSON = "storage_split_json";
 
-    // Environment variables passed as properties in ObjectStorageMetadataConfig
-    public static final String FILE_EXTENSION_ENV_VAR = "file_extension";
-
     // split constants
-    public static final String TABLE_PARAM_BUCKET_NAME = "bucketName";
     public static final String TABLE_PARAM_OBJECT_NAME_LIST = "objectName";
-    public static final String IS_TABLE_PARTITIONED = "table_partitioned";
-    public static final String TABLE_PARAM_OBJECT_NAME = "partitioned_table_base";
 }

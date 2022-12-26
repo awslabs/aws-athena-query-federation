@@ -21,8 +21,8 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 public class PartitionResult
 {
-    private PartitionLocation partition;
-    private String tableType;
+    private final PartitionLocation partition;
+    private final String tableType;
 
     public PartitionResult(String tableType, PartitionLocation partition)
     {

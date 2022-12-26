@@ -65,7 +65,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
+<<<<<<< HEAD
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 <<<<<<< HEAD:athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/storage/AbstractStorageMetadata.java
 <<<<<<< HEAD
@@ -74,6 +76,8 @@ import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEn
 import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.tableNameFromFile;
 =======
 >>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver):athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/storage/StorageMetadataImpl.java
+=======
+>>>>>>> c92a23df (Remove unnecessary code for GCS)
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 =======
 >>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
@@ -234,7 +238,7 @@ public class StorageMetadataImpl implements StorageMetadata
                         List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(folderPath, folderRegEx,
                                 table.getPartitionKeys(), table.getParameters());
                         if (!partitions.isEmpty()) {
-                            partitionFolders.add(new PartitionFolder(folderPath, partitions));
+                            partitionFolders.add(new PartitionFolder(partitions));
                         }
                         else {
                             LOGGER.info("No partitions found for the folder {}", blob.getName());

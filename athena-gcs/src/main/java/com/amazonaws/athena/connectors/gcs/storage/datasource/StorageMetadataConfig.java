@@ -35,8 +35,6 @@ package com.amazonaws.athena.connectors.gcs.storage.datasource;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.FILE_EXTENSION_ENV_VAR;
-
 public class StorageMetadataConfig
 {
     /**
@@ -45,7 +43,7 @@ public class StorageMetadataConfig
     private String storageCredentialJson;
 
     /**
-     * Properties retrieved from System environment varaibles
+     * Properties retrieved from System environment variables
      */
     private final Map<String, String> properties = new HashMap<>();
 
@@ -81,23 +79,5 @@ public class StorageMetadataConfig
     {
         this.properties.putAll(properties);
         return this;
-    }
-
-    /**
-     * Returns the file extension set via the file_extension environment variable
-     *
-     * @return File extension
-     */
-    public String extension()
-    {
-        return "." + properties.get(FILE_EXTENSION_ENV_VAR).toLowerCase();
-    }
-
-    public String getPropertyElseDefault(String key, String defaultValue)
-    {
-        String val = properties.get(key);
-        return  (val == null || val.isBlank())
-                ? defaultValue
-                : val;
     }
 }

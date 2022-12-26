@@ -23,27 +23,11 @@ import java.util.List;
 
 public class PartitionFolder
 {
-    private String folderPath;
-    private List<StoragePartition> partitions;
+    private final List<StoragePartition> partitions;
 
-    public PartitionFolder()
+    public PartitionFolder(List<StoragePartition> partitions)
     {
-    }
-
-    public PartitionFolder(String folderPath, List<StoragePartition> partitions)
-    {
-        this.folderPath = folderPath;
         this.partitions = partitions;
-    }
-
-    public String getFolderPath()
-    {
-        return folderPath;
-    }
-
-    public void setFolderPath(String folderPath)
-    {
-        this.folderPath = folderPath;
     }
 
     public List<StoragePartition> getPartitions()
@@ -64,7 +48,6 @@ public class PartitionFolder
     public String toString()
     {
         return "PartitionFolder{" +
-                "folderPath='" + folderPath + '\'' +
                 ", partitions=" + partitions +
                 '}';
     }

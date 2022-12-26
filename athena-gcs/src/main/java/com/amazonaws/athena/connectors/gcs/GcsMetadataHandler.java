@@ -195,7 +195,7 @@ public class GcsMetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
     {
-        GetTableResponse response = null;
+        GetTableResponse response;
         if (glueClient != null) {
             try {
                 response = super.doGetTable(blockAllocator, request);
@@ -236,7 +236,10 @@ public class GcsMetadataHandler
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
+<<<<<<< HEAD
 
+=======
+>>>>>>> c92a23df (Remove unnecessary code for GCS)
         List<PartitionFolder> partitionFolders = datasource.getPartitionFolders(request, request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {

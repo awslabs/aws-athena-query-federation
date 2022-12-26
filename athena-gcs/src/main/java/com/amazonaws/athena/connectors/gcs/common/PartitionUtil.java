@@ -22,8 +22,6 @@ package com.amazonaws.athena.connectors.gcs.common;
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -35,72 +33,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
-import static com.amazonaws.athena.connectors.gcs.common.StorageIOUtil.getFolderName;
 import static java.util.Objects.requireNonNull;
 
 public class PartitionUtil
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PartitionUtil.class);
-
     private static final Pattern PARTITION_PATTERN = Pattern.compile("(.*)(\\{.*?})(.*?)");
 
     private static final String DEFAULT_DATE_REGEX_STRING = "\\d{4}-\\d{2}-\\d{2}";
 
     private PartitionUtil()
     {
-    }
-
-    public static String getRootName(String prefix)
-    {
-        int indexOfPathSeparator = prefix.indexOf("/");
-        if (indexOfPathSeparator > -1) {
-            return prefix.substring(0, indexOfPathSeparator);
-        }
-        return prefix;
-    }
-
-    public static boolean isPartitionFolder(String folderName)
-    {
-        String simpleName = getFolderName(folderName);
-        boolean matched = FieldValuePatternMatcher.matches(simpleName);
-        LOGGER.debug("Folder {} matches with the pattern of a partition table {}", folderName, matched);
-        return matched;
-    }
-
-    public static Optional<FieldValue> getPartitionFieldValue(String folderName)
-    {
-        String simpleName = getFolderName(folderName);
-        LOGGER.debug("Creating FieldValue from partition folder {}" + simpleName);
-        return FieldValue.from(simpleName);
-    }
-
-    private static class FieldValuePatternMatcher
-    {
-        private static final Pattern FIELD_EQUAL_VALUE_PATTERN_SINGLE_QUOTED_PATTERN = Pattern.compile("([a-zA-Z0-9_]+)='(.*?)(?<!\\\\)'");
-        private static final Pattern FIELD_EQUAL_VALUE_PATTERN_DOUBLE_QUOTED_PATTERN = Pattern.compile("([a-zA-Z0-9_]+)=\"(.*?)(?<!\\\\)\"");
-        private static final Pattern FIELD_EQUAL_VALUE_PATTERN_DOUBLE_NO_QUOTED_PATTERN = Pattern.compile("([a-zA-Z0-9_]+)=(.*?)(?<!\\\\)");
-
-        public static boolean matches(String maybeFieldValue)
-        {
-            return matchesSingleQuoted(maybeFieldValue)
-                    || matchesDoubleQuoted(maybeFieldValue)
-                    || matchesUnQuoted(maybeFieldValue);
-        }
-
-        private static boolean matchesSingleQuoted(String maybeFieldValue)
-        {
-            return FIELD_EQUAL_VALUE_PATTERN_SINGLE_QUOTED_PATTERN.matcher(maybeFieldValue).matches();
-        }
-
-        private static boolean matchesDoubleQuoted(String maybeFieldValue)
-        {
-            return FIELD_EQUAL_VALUE_PATTERN_DOUBLE_QUOTED_PATTERN.matcher(maybeFieldValue).matches();
-        }
-
-        private static boolean matchesUnQuoted(String maybeFieldValue)
-        {
-            return FIELD_EQUAL_VALUE_PATTERN_DOUBLE_NO_QUOTED_PATTERN.matcher(maybeFieldValue).matches();
-        }
     }
 
     public static Optional<String> getRegExExpression(Table table)
@@ -140,28 +82,6 @@ public class PartitionUtil
         return Optional.empty();
     }
 
-    public static List<ColumnPrefix> getColumnPrefixes(String folderModel, String folderNameRegEx, List<Column> partitionColumns)
-    {
-        List<ColumnPrefix> columnPrefixes = new ArrayList<>();
-        String[] regExParts = folderNameRegEx.split("/");
-        String[] folderParts = folderModel.split("/");
-        if (folderParts.length >= regExParts.length) {
-            for (int i = 0; i < regExParts.length; i++) {
-                Matcher matcher = Pattern.compile(regExParts[i]).matcher(folderParts[i]);
-                if (matcher.matches() && matcher.groupCount() > 0) {
-                    String regExPrefix = matcher.group(1);
-                    if (regExPrefix.endsWith("/") || regExPrefix.isBlank()) {
-                        regExPrefix = "";
-                    }
-                    final String prefix = regExPrefix;
-                    Optional<String> optionalColName = getMatchingColumnFromPrefix(partitionColumns, prefix);
-                    optionalColName.ifPresent(s -> columnPrefixes.add(new ColumnPrefix(s, prefix)));
-                }
-            }
-        }
-        return columnPrefixes;
-    }
-
     public static List<StoragePartition> getStoragePartitions(String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
     {
         List<StoragePartition> partitions = new ArrayList<>();
@@ -194,38 +114,7 @@ public class PartitionUtil
         return partitions;
     }
 
-    // TODO: unused
-    public static Optional<PartitionFolder> getPartitionFolder(String folderName, String folderNameRegEx,
-                                                               List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
-    {
-        if (folderName != null && !folderName.isBlank()) {
-            String[] folderParts = folderName.split("/");
-            List<ColumnPrefix> columnPrefixes = getColumnPrefixes(folderParts[0], folderNameRegEx, partitionColumns);
-            if (columnPrefixes.isEmpty()) {
-                return Optional.empty();
-            }
-            List<StoragePartition> partitions = getStoragePartitions(folderName, folderNameRegEx, partitionColumns, tableParameters);
-            if (partitions.isEmpty()) {
-                return Optional.empty();
-            }
-            return Optional.of(new PartitionFolder(folderName, partitions));
-        }
-        return Optional.empty();
-    }
-
     // helpers
-    private static Optional<String> getMatchingColumnFromPrefix(List<Column> columns, String prefix)
-    {
-        if (prefix != null && !prefix.isBlank() && !columns.isEmpty()) {
-            for (Column column : columns) {
-                if (prefix.contains(column.getName())) {
-                    return Optional.of(column.getName());
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
     private static boolean setStoragePartitionValues(List<Column> columns, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
     {
         if (columnValue != null && !columnValue.isBlank()) {

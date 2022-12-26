@@ -31,6 +31,7 @@ import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentia
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data.
  */
+@SuppressWarnings("unused")
 public class GcsCompositeHandler
         extends CompositeHandler
 {

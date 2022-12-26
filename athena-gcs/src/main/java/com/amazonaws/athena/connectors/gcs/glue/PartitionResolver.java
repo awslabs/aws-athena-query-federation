@@ -19,10 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs.glue;
 
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
-import com.amazonaws.services.glue.AWSGlueClient;
 import com.amazonaws.services.glue.model.Table;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
@@ -32,9 +29,6 @@ public interface PartitionResolver
 {
     /**
      * Determine the partitions based on Glue Catalog
-     * @param awsGlue An instance of {@link AWSGlueClient}
-     * @param tableInfo An instance of {@link TableName}
-     * @param constraints An instance of {@link Constraints}
      * @return A list of partitions
      */
     PartitionResult getPartitions(Table table, Map<String, FieldReader> fieldReadersMap);

@@ -69,33 +69,4 @@ public class StorageLocation
     }
 
     // builder
-    public static Builder builder()
-    {
-        return new Builder();
-    }
-
-    private static class Builder
-    {
-        private String bucketName;
-        private String location;
-
-        private Builder(){}
-
-        public Builder bucketName(String bucketName)
-        {
-            this.bucketName = bucketName;
-            return this;
-        }
-
-        public Builder location(String location)
-        {
-            this.location = location;
-            return this;
-        }
-
-        public StorageLocation build()
-        {
-            return new StorageLocation(bucketName, location);
-        }
-    }
 }
