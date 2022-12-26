@@ -192,7 +192,7 @@ public class GcsMetadataHandler
         if (glueClient != null) {
             try {
                 response = super.doGetTable(blockAllocator, request);
-                if (null == response || null == response.getSchema()) {
+                if (null == response || null == response.getSchema() || response.getSchema().getFields().isEmpty() || (response.getSchema().getFields().stream().count() - response.getPartitionColumns().stream().count()) == 0) {
                     throw new GcsConnectorException("doGetTable: Unable to retrieve schema from AWSGlue in database/schema. " + request.getTableName().getTableName());
                 }
                 return response;
