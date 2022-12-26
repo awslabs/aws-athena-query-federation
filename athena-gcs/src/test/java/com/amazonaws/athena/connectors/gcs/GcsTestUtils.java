@@ -20,9 +20,6 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connectors.gcs.common.StorageObject;
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
-import com.amazonaws.athena.connectors.gcs.storage.TableListResult;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
@@ -57,15 +54,6 @@ public class GcsTestUtils {
         return datasetList;
     }
 
-    // Returns a list of mocked Tables
-    static TableListResult getTableList()
-    {
-        List<StorageObject> tableList = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
-            tableList.add(new StorageObject("table" + i, "object" + i, false, List.of()));
-        }
-        return new TableListResult(tableList, "testToken");
-    }
 
     //Returns the schema by returning a list of fields in Google BigQuery Format.
     static StorageTable getTestSchemaFields()
@@ -99,15 +87,6 @@ public class GcsTestUtils {
         }
         return schemaBuilder.build();
     }
-
-//    public static List<StorageSplit> getSplits()
-//    {
-//        List<StorageSplit> splitList = new ArrayList<>();
-//        List<GroupSplit> groupSplits = new ArrayList<>();
-//        splitList.add(new StorageSplit("test", groupSplits));
-//        splitList.add(new StorageSplit("test1", groupSplits));
-//        return splitList;
-//    }
 
     static Schema getBlockTestSchema()
     {

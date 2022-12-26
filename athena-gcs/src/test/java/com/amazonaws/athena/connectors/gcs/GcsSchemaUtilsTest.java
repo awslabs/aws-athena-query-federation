@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.athena.connectors.gcs.storage.AbstractStorageMetadata;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.google.common.collect.ImmutableMap;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.when;
 public class GcsSchemaUtilsTest
 {
     @Mock
-    AbstractStorageMetadata abstractStorageMetadata;
+    StorageMetadata storageMetadata;
 
     @Test
     public void testBuildTableSchema() throws Exception
@@ -59,8 +59,8 @@ public class GcsSchemaUtilsTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation("gs://mydatalake1test/birthday/"));
         table.setCatalogId("catalog");
-        when(abstractStorageMetadata.getStorageTable(Mockito.any(),Mockito.any(),Mockito.any())).thenReturn(Optional.of(GcsTestUtils.getTestSchemaFields()));
-        Schema schema = GcsSchemaUtils.buildTableSchema(abstractStorageMetadata, table);
+        when(storageMetadata.getStorageTable(Mockito.any(),Mockito.any(),Mockito.any())).thenReturn(Optional.of(GcsTestUtils.getTestSchemaFields()));
+        Schema schema = GcsSchemaUtils.buildTableSchema(storageMetadata, table);
         assertNotNull(schema);
     }
 
