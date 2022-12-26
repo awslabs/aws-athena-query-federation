@@ -46,7 +46,7 @@ public class GcsConstants
     public static final String GCS_CREDENTIAL_KEYS_ENV_VAR = "gcs_credential_key";
 
     /**
-     * A ssl file location constant to store the SSL cerificate
+     * A ssl file location constant to store the SSL certificate
      * The file location is fixed at /tmp directory
      * to retrieve ssl certificate location
      */
@@ -59,7 +59,6 @@ public class GcsConstants
      */
     public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION = "GOOGLE_APPLICATION_CREDENTIALS";
 
-    public static final String BLOCK_PARTITION_COLUMN_NAME = "part_name";
     public static final String FUNCTION_ARN_REGEX = "arn:aws[a-zA-Z-]*?:lambda:[a-zA-Z0-9-]+:(\\d{12}):function:[a-zA-Z0-9-_]+";
 
     public static final String CATALOG_NAME_ENV_OVERRIDE = "glue_catalog";

@@ -24,13 +24,12 @@ import java.util.Optional;
 
 /**
  * Used to evaluate expression to select a partition folder based on the constraints
- * The constraints are built using another util
+ * These are built using another util
  */
 public class FieldValue
 {
     private final String field;
     private final String value;
-    private String originalValue;
 
     public FieldValue(String field, String value)
     {
@@ -43,7 +42,6 @@ public class FieldValue
         String[] fieldValuePair = fieldValue.split("=");
         if (fieldValuePair.length == 2) {
             FieldValue value = new FieldValue(fieldValuePair[0].toLowerCase(), fieldValuePair[1].replace("'", "").replace("\"", ""));
-            value.originalValue = fieldValue;
             return Optional.of(value);
         }
         return Optional.empty();
@@ -57,11 +55,6 @@ public class FieldValue
     public String getValue()
     {
         return value;
-    }
-
-    public String getOriginalValue()
-    {
-        return originalValue;
     }
 
     @Override

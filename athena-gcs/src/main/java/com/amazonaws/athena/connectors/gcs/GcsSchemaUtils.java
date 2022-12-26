@@ -24,16 +24,6 @@ import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.glue.model.Table;
-import org.apache.arrow.dataset.file.FileFormat;
-import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
-import org.apache.arrow.dataset.jni.NativeMemoryPool;
-import org.apache.arrow.dataset.scanner.ScanOptions;
-import org.apache.arrow.dataset.scanner.Scanner;
-import org.apache.arrow.dataset.source.Dataset;
-import org.apache.arrow.dataset.source.DatasetFactory;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -121,20 +111,6 @@ public class GcsSchemaUtils
                 }
             default:
                 return field;
-        }
-    }
-
-    public static Optional<Schema> getSchemaFromGcsUri(String uri, FileFormat fileFormat) throws Exception
-    {
-        ScanOptions options = new ScanOptions(1);
-        try (
-                BufferAllocator allocator = new RootAllocator();
-                DatasetFactory datasetFactory = new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), fileFormat, uri);
-                Dataset dataset = datasetFactory.finish();
-                Scanner scanner = dataset.newScan(options);
-                ArrowReader reader = scanner.scanBatches()
-        ) {
-            return Optional.of(reader.getVectorSchemaRoot().getSchema());
         }
     }
 }

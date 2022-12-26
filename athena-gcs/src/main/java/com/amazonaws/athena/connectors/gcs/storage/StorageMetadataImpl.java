@@ -65,8 +65,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 import static java.util.Objects.requireNonNull;
 
@@ -214,7 +214,7 @@ public class StorageMetadataImpl implements StorageMetadata
                         List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(folderPath, folderRegEx,
                                 table.getPartitionKeys(), table.getParameters());
                         if (!partitions.isEmpty()) {
-                            partitionFolders.add(new PartitionFolder(folderPath, partitions));
+                            partitionFolders.add(new PartitionFolder(partitions));
                         }
                         else {
                             LOGGER.info("No partitions found for the folder {}", blob.getName());

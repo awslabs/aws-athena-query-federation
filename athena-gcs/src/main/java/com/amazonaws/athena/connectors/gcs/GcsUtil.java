@@ -147,4 +147,14 @@ public class GcsUtil
         }
         return null;
     }
+
+    public static String createUri(String bucketName, String objectNames)
+    {
+        return "gs://" + bucketName + "/" + objectNames;
+    }
+
+    public static String createUri(String path)
+    {
+        return "gs://"  + path;
+    }
 }

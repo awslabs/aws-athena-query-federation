@@ -30,25 +30,4 @@ public class UncheckedGcsConnectorException extends RuntimeException
     {
         super(message);
     }
-
-    /**
-     * Instantiate the unchecked exception with a message and Throwable instance
-     *
-     * @param message   Message of the exception
-     * @param throwable Base exception for tracing
-     */
-    public UncheckedGcsConnectorException(String message, Throwable throwable)
-    {
-        super(message, throwable);
-    }
-
-    /**
-     * Instantiate the unchecked exception with a message and Throwable instance
-     *
-     * @param exception Base exception for tracing
-     */
-    public UncheckedGcsConnectorException(Exception exception)
-    {
-        super(exception);
-    }
 }

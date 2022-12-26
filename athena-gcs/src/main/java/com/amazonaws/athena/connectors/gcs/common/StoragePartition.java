@@ -29,13 +29,6 @@ public class StoragePartition
     {
     }
 
-    public StoragePartition(String columnName, String columnType, Object columnValue)
-    {
-        this.columnName = columnName;
-        this.columnType = columnType;
-        this.columnValue = columnValue;
-    }
-
     public String getColumnName()
     {
         return columnName;
@@ -45,11 +38,6 @@ public class StoragePartition
     {
         this.columnName = columnName;
         return this;
-    }
-
-    public String getColumnType()
-    {
-        return columnType;
     }
 
     public StoragePartition columnType(String columnType)
@@ -63,10 +51,9 @@ public class StoragePartition
         return columnValue;
     }
 
-    public StoragePartition columnValue(Object columnValue)
+    public void columnValue(Object columnValue)
     {
         this.columnValue = columnValue;
-        return this;
     }
 
     @Override
