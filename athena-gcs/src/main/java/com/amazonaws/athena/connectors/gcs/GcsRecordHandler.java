@@ -49,6 +49,8 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
+import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,12 +58,12 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.gcs.GcsFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
@@ -180,16 +182,28 @@ public class GcsRecordHandler
             List<FieldVector> gcsFieldVectors, int rowIndex)
     {
         spiller.writeRows((Block block, int rowNum) -> {
-            boolean isMatched;
+            boolean isMatched = true;
             for (FieldVector vector : gcsFieldVectors) {
                 Object value = vector.getObject(rowIndex);
                 // Writing data in spiller for each field.
-                isMatched = block.offerValue(vector.getField().getName().toLowerCase(Locale.ROOT), rowNum, value);
-
-                // If this field is not qualified we are not trying with next field,
-                // just leaving the whole record.
-                if (!isMatched) {
-                    return 0;
+                Field nextField = vector.getField();
+                Types.MinorType fieldType = Types.getMinorTypeForArrowType(vector.getField().getType());
+                try {
+                    switch (fieldType) {
+                        case LIST:
+                        case STRUCT:
+                            isMatched &= block.offerComplexValue(nextField.getName(), rowNum, DEFAULT_FIELD_RESOLVER, value);
+                            break;
+                        default:
+                            isMatched &= block.offerValue(nextField.getName(), rowNum, value);
+                            break;
+                    }
+                    if (!isMatched) {
+                        return 0;
+                    }
+                }
+                catch (Exception ex) {
+                    throw new RuntimeException("Error while processing field " + nextField.getName(), ex);
                 }
             }
             return 1;
