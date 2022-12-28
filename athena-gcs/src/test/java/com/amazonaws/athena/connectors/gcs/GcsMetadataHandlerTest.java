@@ -24,8 +24,11 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -98,6 +101,7 @@ public class GcsMetadataHandlerTest
     private GcsMetadataHandler gcsMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
+    private QueryStatusChecker queryStatusChecker;
     @Mock
     private AWSGlue awsGlue;
 
@@ -127,6 +131,7 @@ public class GcsMetadataHandlerTest
     {
         Storage storage = mock(Storage.class);
         Blob blob = mock(Blob.class);
+        Blob blob1 = mock(Blob.class);
         mockStatic(StorageOptions.class);
         StorageOptions.Builder optionBuilder = mock(StorageOptions.Builder.class);
         PowerMockito.when(StorageOptions.newBuilder()).thenReturn(optionBuilder);
@@ -135,9 +140,11 @@ public class GcsMetadataHandlerTest
         PowerMockito.when(optionBuilder.build()).thenReturn(mockedOptions);
         PowerMockito.when(mockedOptions.getService()).thenReturn(storage);
         PowerMockito.when(storage.list(anyString(), Mockito.any())).thenReturn(tables);
-        PowerMockito.when(tables.iterateAll()).thenReturn(List.of(blob));
+        PowerMockito.when(tables.iterateAll()).thenReturn(List.of(blob, blob1));
         PowerMockito.when(blob.getName()).thenReturn("data.parquet");
+        PowerMockito.when(blob1.getName()).thenReturn("birthday/year=2000/birth_month09/12/");
         environmentVariables.set("gcs_credential_key", "gcs_credential_keys");
+        environmentVariables.set("glue_catalog", "fakedatabase");
         mockStatic(ServiceAccountCredentials.class);
         PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
         MockitoAnnotations.initMocks(this);
@@ -235,6 +242,43 @@ public class GcsMetadataHandlerTest
         GetTableResponse res = gcsMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         Field expectedField = res.getSchema().findField("name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(expectedField.getType()));
+    }
+
+    @Test
+    public void testGetPartitions() throws Exception {
+        Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64,true)), null);
+        Map<String, String> metadataSchema = new HashMap<>();
+        metadataSchema.put("dataFormat", "parquet");
+        Schema schema = new Schema(asList(field), metadataSchema);
+        Table table = new Table();
+        table.setName("birthday");
+        table.setDatabaseName("mydatalake1");
+        table.setParameters(ImmutableMap.of("classification", "parquet",
+                "partition.pattern","year={year}/birth_month{month}/{day}")
+        );
+        table.setStorageDescriptor(new StorageDescriptor()
+                .withLocation("gs://mydatalake1test/birthday/").withColumns(new Column()));
+        table.setCatalogId(CATALOG);
+        List<Column> columns = List.of(
+                createColumn("year", "bigint"),
+                createColumn("month", "int"),
+                createColumn("day", "int")
+        );
+        table.setPartitionKeys(columns);
+        GetTableResult getTableResult = new GetTableResult();
+        getTableResult.setTable(table);
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("day",
+                EquatableValueSet.newBuilder(blockAllocator, new ArrowType.Int(64,true),false,false).build());
+        PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
+        GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
+        Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName("mydatalake1", "birthday"));
+        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
+        Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(new Constraints(constraintsMap));
+        BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
+        gcsMetadataHandler.getPartitions(blockWriter,getTableLayoutRequest,queryStatusChecker);
+
     }
 
     @Test
