@@ -65,6 +65,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
@@ -211,8 +212,9 @@ public class StorageMetadataImpl implements StorageMetadata
                             continue;
                         }
                         LOGGER.info("Folder " + folderPath + " has been selected against the expression");
-                        List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(folderPath, folderRegEx,
-                                table.getPartitionKeys(), table.getParameters());
+                        Map<String, String> tableParameters = table.getParameters();
+                        List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(tableParameters.get(PARTITION_PATTERN_PATTERN), folderPath,
+                                folderRegEx, table.getPartitionKeys(), tableParameters);
                         if (!partitions.isEmpty()) {
                             partitionFolders.add(new PartitionFolder(partitions));
                         }

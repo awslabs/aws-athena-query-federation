@@ -82,21 +82,30 @@ public class PartitionUtil
         return Optional.empty();
     }
 
-    public static List<StoragePartition> getStoragePartitions(String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
+    public static List<StoragePartition> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
     {
         List<StoragePartition> partitions = new ArrayList<>();
+        String[] partitionPatternParts = partitionPattern.split("/");
         String[] regExParts = folderNameRegEx.split("/");
         String[] folderParts = folderModel.split("/");
         if (folderParts.length >= regExParts.length) {
             for (int i = 0; i < regExParts.length; i++) {
                 Matcher matcher = Pattern.compile(regExParts[i]).matcher(folderParts[i]);
                 if (matcher.matches() && matcher.groupCount() > 0) {
+                    String partitionColumn = null;
                     String columnValue = null;
                     if (matcher.groupCount() == 1
                             && matcher.group(0).equals(matcher.group(1))) {
+                        Optional<String> optionalPartitionColumn = extractPartitionColumn(folderParts[i], partitionPattern);
+                        if (optionalPartitionColumn.isEmpty()) {
+                            continue;
+                        }
+                        partitionColumn = optionalPartitionColumn.get();
                         columnValue = matcher.group(1);
                     }
                     else if (matcher.groupCount() > 1) {
+                        // TODO: check whether the column conatins '='
+                        partitionColumn = matcher.group(1).replaceAll("[=]", "");
                         columnValue = matcher.group(2);
                     }
 
@@ -105,7 +114,7 @@ public class PartitionUtil
                     }
 
                     StoragePartition partition = new StoragePartition();
-                    if (setStoragePartitionValues(partitionColumns, columnValue, partition, tableParameters)) {
+                    if (setStoragePartitionValues(partitionColumns, partitionColumn,  columnValue, partition, tableParameters)) {
                         partitions.add(partition);
                     }
                 }
@@ -115,15 +124,17 @@ public class PartitionUtil
     }
 
     // helpers
-    private static boolean setStoragePartitionValues(List<Column> columns, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
+    private static boolean setStoragePartitionValues(List<Column> columns, String columnName, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
     {
         if (columnValue != null && !columnValue.isBlank()) {
             if (!columns.isEmpty()) {
                 for (Column column : columns) {
-                    partition.columnName(column.getName())
-                            .columnType(column.getType())
-                            .columnValue(convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters));
-                    return true;
+                    if (column.getName().equalsIgnoreCase(columnName)) {
+                        partition.columnName(column.getName())
+                                .columnType(column.getType())
+                                .columnValue(convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters));
+                        return true;
+                    }
                 }
             }
         }
@@ -213,5 +224,30 @@ public class PartitionUtil
                 .replaceAll("Z", "-\\\\d{3,4}") // replace time-zone offset with 3-4 digits with the prefix '-'
                 .replaceAll("z", "(.*?){2,6}") // replace time zone abbreviations with any character of length of min 2, max 6 (currently max is 5)
                 .replaceAll("G", "AD"); // Era designator. Currently BC not supported
+    }
+
+    private static Optional<String> getPartitionColumnName(List<Column> partitionColumns, String mixed)
+    {
+        if (!partitionColumns.isEmpty()
+                && (mixed != null && !mixed.isBlank())) {
+            mixed = mixed.replace("=", "");
+            for (Column column : partitionColumns) {
+                if (column.getName().equalsIgnoreCase(mixed)) {
+                    return Optional.of(mixed);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<String> extractPartitionColumn(String folderPart, String patternPart)
+    {
+        Matcher matcher = PARTITION_PATTERN.matcher(folderPart);
+        if (matcher.matches()) {
+            for (int i = 0; i < matcher.groupCount(); i++) {
+                System.out.println(matcher.group(i));
+            }
+        }
+        return Optional.empty();
     }
 }
