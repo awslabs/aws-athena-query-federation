@@ -241,6 +241,12 @@ public class GcsMetadataHandlerTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation("gs://default/testtable/").withColumns(new Column()));
         table.setCatalogId(CATALOG);
+        List<Column> columns = List.of(
+                createColumn("year", "bigint"),
+                createColumn("month", "int"),
+                createColumn("day", "int")
+        );
+        table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
         PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
