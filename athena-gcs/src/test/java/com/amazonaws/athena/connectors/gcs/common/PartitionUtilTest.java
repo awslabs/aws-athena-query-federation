@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
+import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.createColumn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -52,8 +53,8 @@ public class PartitionUtilTest
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
 
         List<Column> columns = List.of(
-          createColumn("year", "bigint"),
-          createColumn("month", "int")
+                createColumn("year", "bigint"),
+                createColumn("month", "int")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
     }
@@ -96,8 +97,7 @@ public class PartitionUtilTest
             String folder = partitionFolders.get(i);
             if (i % 2 > 0) { // Odd, should match
                 assertTrue("Folder " + folder + " didn't match with the pattern", folderMatchPattern.matcher(folder).matches());
-            }
-            else { // Even shouldn't
+            } else { // Even shouldn't
                 assertFalse("Folder " + folder + " should NOT match with the pattern", folderMatchPattern.matcher(folder).matches());
             }
         }
@@ -129,8 +129,7 @@ public class PartitionUtilTest
             String folder = partitionFolders.get(i);
             if (i % 2 > 0) { // Odd, should match
                 assertTrue("Folder " + folder + " didn't match with the pattern", folderMatchPattern.matcher(folder).matches());
-            }
-            else { // Even shouldn't
+            } else { // Even shouldn't
                 assertFalse("Folder " + folder + " should NOT match with the pattern", folderMatchPattern.matcher(folder).matches());
             }
         }
@@ -162,8 +161,7 @@ public class PartitionUtilTest
             String folder = partitionFolders.get(i);
             if (i % 2 > 0) { // Odd, should match
                 assertTrue("Folder " + folder + " didn't match with the pattern", folderMatchPattern.matcher(folder).matches());
-            }
-            else { // Even shouldn't
+            } else { // Even shouldn't
                 assertFalse("Folder " + folder + " should NOT match with the pattern", folderMatchPattern.matcher(folder).matches());
             }
         }
@@ -195,8 +193,7 @@ public class PartitionUtilTest
             String folder = partitionFolders.get(i);
             if (i % 2 > 0) { // Odd, should match
                 assertTrue("Folder " + folder + " didn't match with the pattern", folderMatchPattern.matcher(folder).matches());
-            }
-            else { // Even shouldn't
+            } else { // Even shouldn't
                 assertFalse("Folder " + folder + " should NOT match with the pattern", folderMatchPattern.matcher(folder).matches());
             }
         }
@@ -247,14 +244,5 @@ public class PartitionUtilTest
                 assertEquals("Partition size is more than 3", 3, partitions.size());
             }
         }
-    }
-
-    // helpers
-    private static Column createColumn(String name, String type)
-    {
-        Column column = new Column();
-        column.setName(name);
-        column.setType(type);
-        return column;
     }
 }
