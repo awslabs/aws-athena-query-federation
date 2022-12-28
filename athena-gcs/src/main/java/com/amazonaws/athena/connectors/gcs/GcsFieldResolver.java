@@ -26,7 +26,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import java.util.Map;
 
 /**
- * Used to resolve DocDB complex structures to Apache Arrow Types.
+ * Used to resolve complex structures to Apache Arrow Types.
  *
  * @see FieldResolver
  */

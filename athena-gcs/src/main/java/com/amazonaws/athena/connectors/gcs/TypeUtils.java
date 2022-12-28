@@ -85,10 +85,6 @@ public class TypeUtils
                 return origVal;
             case DATEMILLI:
                 return origVal.toString();
-//                if (origVal instanceof ArrowType.Timestamp) {
-//                    return new Date(((BsonTimestamp) origVal).getTime() * 1_000);
-//                }
-//                return origVal;
             default:
                 return origVal;
         }
