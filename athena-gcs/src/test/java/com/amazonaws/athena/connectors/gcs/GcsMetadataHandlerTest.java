@@ -30,16 +30,28 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.*;
+import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.*;
+import com.amazonaws.services.glue.model.Column;
+import com.amazonaws.services.glue.model.Database;
+import com.amazonaws.services.glue.model.GetDatabasesResult;
+import com.amazonaws.services.glue.model.GetTableResult;
+import com.amazonaws.services.glue.model.GetTablesResult;
+import com.amazonaws.services.glue.model.StorageDescriptor;
+import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
@@ -48,7 +60,6 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.PageImpl;
 import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableMap;
@@ -58,7 +69,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
@@ -72,7 +82,11 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
@@ -98,33 +112,26 @@ public class GcsMetadataHandlerTest
     private static final String TEST_TOKEN = "testToken";
     private static final String SCHEMA_NAME = "default";
     private static final TableName TABLE_NAME = new TableName("default", "testtable");
+    @Rule
+    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
+    @Mock
+    protected PageImpl<Blob> tables;
+    @Mock
+    GoogleCredentials credentials;
+    @Mock
+    AmazonS3 amazonS3;
     private GcsMetadataHandler gcsMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
     private QueryStatusChecker queryStatusChecker;
     @Mock
     private AWSGlue awsGlue;
-
-    @Mock
-    GoogleCredentials credentials;
-
     @Mock
     private AWSSecretsManager secretsManager;
-
     @Mock
     private ServiceAccountCredentials serviceAccountCredentials;
-
-    @Mock
-    AmazonS3 amazonS3;
-
     @Mock
     private AmazonAthena athena;
-
-    @Mock
-    protected PageImpl<Blob> tables;
-
-    @Rule
-    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     @Before
     public void setUp() throws Exception
@@ -204,7 +211,7 @@ public class GcsMetadataHandlerTest
                         .withParameters(ImmutableMap.of("classification", "parquet"))));
         getTablesResult.setTableList(tableList);
         PowerMockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
-        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN,50 );
+        ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN, 50);
         ListTablesResponse tableNamesResponse = gcsMetadataHandler.doListTables(blockAllocator, listTablesRequest);
         assertEquals(2, tableNamesResponse.getTables().size());
     }
@@ -238,15 +245,16 @@ public class GcsMetadataHandlerTest
         getTableResult.setTable(table);
         PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         mockStatic(GcsSchemaUtils.class);
-        PowerMockito.when(GcsSchemaUtils.buildTableSchema(any(),any())).thenReturn(schema);
+        PowerMockito.when(GcsSchemaUtils.buildTableSchema(any(), any())).thenReturn(schema);
         GetTableResponse res = gcsMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         Field expectedField = res.getSchema().findField("name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(expectedField.getType()));
     }
 
     @Test
-    public void testGetPartitions() throws Exception {
-        Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64,true)), null);
+    public void testGetPartitions() throws Exception
+    {
+        Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "parquet");
         Schema schema = new Schema(asList(field), metadataSchema);
@@ -254,7 +262,7 @@ public class GcsMetadataHandlerTest
         table.setName("birthday");
         table.setDatabaseName("mydatalake1");
         table.setParameters(ImmutableMap.of("classification", "parquet",
-                "partition.pattern","year={year}/birth_month{month}/{day}")
+                "partition.pattern", "year={year}/birth_month{month}/{day}")
         );
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation("gs://mydatalake1test/birthday/").withColumns(new Column()));
@@ -269,7 +277,7 @@ public class GcsMetadataHandlerTest
         getTableResult.setTable(table);
         Map<String, ValueSet> constraintsMap = new HashMap<>();
         constraintsMap.put("day",
-                EquatableValueSet.newBuilder(blockAllocator, new ArrowType.Int(64,true),false,false).build());
+                EquatableValueSet.newBuilder(blockAllocator, new ArrowType.Int(64, true), false, false).build());
         PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName("mydatalake1", "birthday"));
@@ -277,7 +285,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(new Constraints(constraintsMap));
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
-        gcsMetadataHandler.getPartitions(blockWriter,getTableLayoutRequest,queryStatusChecker);
+        gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, queryStatusChecker);
 
     }
 
