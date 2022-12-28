@@ -21,17 +21,27 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
+import com.amazonaws.services.glue.model.Column;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class GcsTestUtils {
     public static final String BOOL_FIELD_NAME_1 = "bool1";
@@ -66,7 +76,6 @@ public class GcsTestUtils {
         return new StorageTable("test", "test", map, fields, false);
     }
 
-    @NotNull
     static List<Field> getFields()
     {
         List<Field> fields = new ArrayList<>();
@@ -129,6 +138,14 @@ public class GcsTestUtils {
     public static VectorSchemaRoot getVectorSchemaRoot()
     {
         return new VectorSchemaRoot((List<Field>) getTestSchemaFieldsArrow(), (List<FieldVector>) getTestFieldVector(), 4);
+    }
+
+    public static Column createColumn(String name, String type)
+    {
+        Column column = new Column();
+        column.setName(name);
+        column.setType(type);
+        return column;
     }
 
 }
