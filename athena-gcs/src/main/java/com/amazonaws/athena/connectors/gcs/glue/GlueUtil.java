@@ -38,7 +38,9 @@ public class GlueUtil
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlueUtil.class);
 
-    private GlueUtil(){}
+    private GlueUtil()
+    {
+    }
 
     public static Table getGlueTable(MetadataRequest request, TableName tableName, AWSGlue awsGlue)
     {
