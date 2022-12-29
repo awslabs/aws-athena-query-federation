@@ -82,21 +82,43 @@ public class PartitionUtil
         return Optional.empty();
     }
 
-    public static List<StoragePartition> getStoragePartitions(String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
+    public static List<StoragePartition> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
     {
         List<StoragePartition> partitions = new ArrayList<>();
+        String[] partitionPatternParts = partitionPattern.split("/");
         String[] regExParts = folderNameRegEx.split("/");
         String[] folderParts = folderModel.split("/");
         if (folderParts.length >= regExParts.length) {
             for (int i = 0; i < regExParts.length; i++) {
                 Matcher matcher = Pattern.compile(regExParts[i]).matcher(folderParts[i]);
                 if (matcher.matches() && matcher.groupCount() > 0) {
+                    String partitionColumn = null;
                     String columnValue = null;
                     if (matcher.groupCount() == 1
                             && matcher.group(0).equals(matcher.group(1))) {
+                        Matcher nonHivePartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
+                        if (nonHivePartitionPatternMatcher.matches()) {
+                            partitionColumn = nonHivePartitionPatternMatcher.group(2).replaceAll("[{}]", "");
+                        }
+                        else { // unknown partition layout
+                            continue;
+                        }
                         columnValue = matcher.group(1);
                     }
                     else if (matcher.groupCount() > 1) {
+                        String columnName = matcher.group(1);
+                        if (columnName.contains("=")) {
+                            partitionColumn = matcher.group(1).replaceAll("=", "");
+                        }
+                        else {
+                            Matcher nonHivePartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
+                            if (nonHivePartitionPatternMatcher.matches()) {
+                                partitionColumn = nonHivePartitionPatternMatcher.group(2).replaceAll("[{}]", "");
+                            }
+                            else { // unknown partition layout
+                                continue;
+                            }
+                        }
                         columnValue = matcher.group(2);
                     }
 
@@ -105,7 +127,7 @@ public class PartitionUtil
                     }
 
                     StoragePartition partition = new StoragePartition();
-                    if (setStoragePartitionValues(partitionColumns, columnValue, partition, tableParameters)) {
+                    if (setStoragePartitionValues(partitionColumns, partitionColumn,  columnValue, partition, tableParameters)) {
                         partitions.add(partition);
                     }
                 }
@@ -115,15 +137,17 @@ public class PartitionUtil
     }
 
     // helpers
-    private static boolean setStoragePartitionValues(List<Column> columns, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
+    private static boolean setStoragePartitionValues(List<Column> columns, String columnName, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
     {
         if (columnValue != null && !columnValue.isBlank()) {
             if (!columns.isEmpty()) {
                 for (Column column : columns) {
-                    partition.columnName(column.getName())
-                            .columnType(column.getType())
-                            .columnValue(convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters));
-                    return true;
+                    if (column.getName().equalsIgnoreCase(columnName)) {
+                        partition.columnName(column.getName())
+                                .columnType(column.getType())
+                                .columnValue(convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters));
+                        return true;
+                    }
                 }
             }
         }
