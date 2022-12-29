@@ -23,8 +23,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
@@ -72,6 +70,7 @@ import java.util.*;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.createColumn;
+import static com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilderTest.createSummaryWithLValueRangeEqual;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -245,9 +244,7 @@ public class GcsMetadataHandlerTest
     {
         environmentVariables.set("glue_catalog", "12345678910");
         Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
-        Map<String, String> metadataSchema = new HashMap<>();
-        metadataSchema.put("dataFormat", "parquet");
-        Schema schema = new Schema(asList(field), metadataSchema);
+        Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         Table table = new Table();
         table.setName("birthday");
         table.setDatabaseName("mydatalake1");
@@ -265,15 +262,13 @@ public class GcsMetadataHandlerTest
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
-        Map<String, ValueSet> constraintsMap = new HashMap<>();
-        constraintsMap.put("day",
-                EquatableValueSet.newBuilder(blockAllocator, new ArrowType.Int(64, true), false, false).build());
         PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName("mydatalake1", "birthday"));
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
-        Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(new Constraints(constraintsMap));
+        Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L));
+        Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
         gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, queryStatusChecker);
     }
