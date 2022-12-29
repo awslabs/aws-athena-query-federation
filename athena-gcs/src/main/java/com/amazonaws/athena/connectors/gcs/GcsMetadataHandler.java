@@ -276,7 +276,6 @@ public class GcsMetadataHandler
         }
 
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
-
             //Setting the readers to the partition row we are on
             for (Column col : table.getPartitionKeys()) {
                 fieldReadersMap.get(col.getName()).setPosition(curPartition);
