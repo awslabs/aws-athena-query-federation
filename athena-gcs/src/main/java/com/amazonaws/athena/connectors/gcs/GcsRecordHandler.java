@@ -36,6 +36,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
@@ -58,6 +59,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
@@ -95,7 +97,7 @@ public class GcsRecordHandler
      * @param amazonAthena   An instance of AmazonAthena
      */
     @VisibleForTesting
-    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
+    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena) throws IOException
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
@@ -122,46 +124,48 @@ public class GcsRecordHandler
         TableName tableInfo = recordsRequest.getTableName();
         LOGGER.info("Reading records from the table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Split split = recordsRequest.getSplit();
-        final StorageSplit storageSplit
+        final List<StorageSplit> storageSplits
                 = new ObjectMapper()
                 .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
-                        StorageSplit.class);
-        String uri = createUri(storageSplit.getFileName());
-        LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
-        ScanOptions options = new ScanOptions(32768);
-        try (
-                // Taking an allocator for using direct memory for Arrow Vectors/Arrays.
-                // We will use this allocator for filtered result output.
-                BufferAllocator allocator = new RootAllocator();
+                        new TypeReference<List<StorageSplit>>(){});
+        for (StorageSplit storageSplit : storageSplits) {
+            String uri = createUri(storageSplit.getFileName());
+            LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
+            ScanOptions options = new ScanOptions(32768);
+            try (
+                    // Taking an allocator for using direct memory for Arrow Vectors/Arrays.
+                    // We will use this allocator for filtered result output.
+                    BufferAllocator allocator = new RootAllocator();
 
-                // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
-                // Thus, we can peek the schema for data sources and decide on a unified schema.
-                DatasetFactory datasetFactory = new FileSystemDatasetFactory(
-                        allocator, NativeMemoryPool.getDefault(), GcsUtil.getFileFormat(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)), uri
-                );
+                    // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
+                    // Thus, we can peek the schema for data sources and decide on a unified schema.
+                    DatasetFactory datasetFactory = new FileSystemDatasetFactory(
+                            allocator, NativeMemoryPool.getDefault(), GcsUtil.getFileFormat(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)), uri
+                    );
 
-                // Creates a Dataset with auto-inferred schema
-                Dataset dataset = datasetFactory.finish();
+                    // Creates a Dataset with auto-inferred schema
+                    Dataset dataset = datasetFactory.finish();
 
-                // Create a new Scanner using the provided scan options.
-                // This scanner also contains the arrow schema for the dataset.
-                Scanner scanner = dataset.newScan(options);
+                    // Create a new Scanner using the provided scan options.
+                    // This scanner also contains the arrow schema for the dataset.
+                    Scanner scanner = dataset.newScan(options);
 
-                // To read Schema and ArrowRecordBatches we need a reader.
-                // This reader reads the dataset as a stream of record batches.
-                ArrowReader reader = scanner.scanBatches()
-        ) {
-            // We are loading records batch by batch until we reached at the end.
-            while (reader.loadNextBatch()) {
-                try (
-                        // Returns the vector schema root.
-                        // This will be loaded with new values on every call to loadNextBatch on the reader.
-                        VectorSchemaRoot root = reader.getVectorSchemaRoot()
-                ) {
-                    // We will loop on batch records and consider each records to write in spiller.
-                    for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
-                        // we are passing record to spiller to be written.
-                        execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex);
+                    // To read Schema and ArrowRecordBatches we need a reader.
+                    // This reader reads the dataset as a stream of record batches.
+                    ArrowReader reader = scanner.scanBatches()
+            ) {
+                // We are loading records batch by batch until we reached at the end.
+                while (reader.loadNextBatch()) {
+                    try (
+                            // Returns the vector schema root.
+                            // This will be loaded with new values on every call to loadNextBatch on the reader.
+                            VectorSchemaRoot root = reader.getVectorSchemaRoot()
+                    ) {
+                        // We will loop on batch records and consider each records to write in spiller.
+                        for (int rowIndex = 0; rowIndex < root.getRowCount(); rowIndex++) {
+                            // we are passing record to spiller to be written.
+                            execute(spiller, invoker.invoke(root::getFieldVectors), rowIndex);
+                        }
                     }
                 }
             }
@@ -192,10 +196,10 @@ public class GcsRecordHandler
                     switch (fieldType) {
                         case LIST:
                         case STRUCT:
-                            isMatched &= block.offerComplexValue(nextField.getName(), rowNum, DEFAULT_FIELD_RESOLVER, value);
+                            isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(Locale.ROOT), rowNum, DEFAULT_FIELD_RESOLVER, value);
                             break;
                         default:
-                            isMatched &= block.offerValue(nextField.getName(), rowNum, value);
+                            isMatched &= block.offerValue(nextField.getName().toLowerCase(Locale.ROOT), rowNum, value);
                             break;
                     }
                     if (!isMatched) {

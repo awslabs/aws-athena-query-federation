@@ -281,27 +281,37 @@ public class GcsMetadataHandler
         Set<Split> splits = new HashSet<>();
         Map<String, FieldReader> fieldReadersMap = new HashMap<>();
         Block partitions = request.getPartitions();
+
+        //setting the readers for each partition column
         for (Column col : table.getPartitionKeys()) {
             fieldReadersMap.put(col.getName(), partitions.getFieldReader(col.getName()));
         }
+
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
+
+            //Setting the readers to the partition row we are on
             for (Column col : table.getPartitionKeys()) {
                 fieldReadersMap.get(col.getName()).setPosition(curPartition);
             }
+
+            //getting the partition folder name with bucket and file type
             PartitionResult partitionResult = new GenericPartitionResolver().getPartitions(table, fieldReadersMap);
             LOGGER.info("Partition location {} for type {}", partitionResult.getPartition(), partitionResult.getTableType());
+
+            //getting storage file list
             List<StorageSplit> storageSplits = datasource.getStorageSplits(partitionResult.getTableType(), partitionResult.getPartition());
             SpillLocation spillLocation = makeSpillLocation(request);
             LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), storageSplits);
-            for (StorageSplit split : storageSplits) {
-                String storageSplitJson = splitAsJson(split);
-                LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
-                        storageSplitJson);
-                Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                        .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get("classification"))
-                        .add(STORAGE_SPLIT_JSON, storageSplitJson);
-                splits.add(splitBuilder.build());
-            }
+
+            //creating splits based folder
+            String storageSplitJson = splitAsJson(storageSplits);
+            LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
+                    storageSplitJson);
+            Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
+                    .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get("classification"))
+                    .add(STORAGE_SPLIT_JSON, storageSplitJson);
+            splits.add(splitBuilder.build());
+
             if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
                 //We exceeded the number of split we want to return in a single request, return and provide a continuation token.
                 return new GetSplitsResponse(request.getCatalogName(), splits, String.valueOf(curPartition + 1));
