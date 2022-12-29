@@ -119,6 +119,7 @@
         <module>athena-hortonworks-hive</module>
         <module>athena-db2</module>
         <module>athena-msk</module>
+        <module>athena-gcs</module>
     </modules>
     <dependencies>
         <dependency>
