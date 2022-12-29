@@ -82,13 +82,13 @@ public class GcsUtil
     /**
      * Builds a string representation of an instance of {@link StorageSplit}
      *
-     * @param split An instance of {@link StorageSplit}
+     * @param splits An instance of {@link StorageSplit}
      * @return String representation of an instance of {@link StorageSplit}
      * @throws JsonProcessingException If JSON processing error happens
      */
-    public static synchronized String splitAsJson(StorageSplit split) throws JsonProcessingException
+    public static synchronized String splitAsJson(List<StorageSplit> splits) throws JsonProcessingException
     {
-        return objectMapper.writeValueAsString(split);
+        return objectMapper.writeValueAsString(splits);
     }
 
     public static boolean isFieldTypeNull(Field field)
