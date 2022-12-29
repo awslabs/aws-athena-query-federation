@@ -164,7 +164,6 @@ public class PartitionUtil
                 if (column.getName().equalsIgnoreCase(columnName)) {
                     String regEx = requireNonNull(getRegExByColumnType(column.getName(), column.getType(), tableParameters));
                     String regExWithPattern = createGroup(folderPart.replace(variable, regEx), regEx);
-                    System.out.println(regExWithPattern);
                     return regExWithPattern;
                 }
             }
