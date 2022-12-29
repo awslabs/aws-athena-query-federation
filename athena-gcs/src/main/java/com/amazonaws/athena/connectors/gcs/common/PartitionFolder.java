@@ -34,16 +34,6 @@ public class PartitionFolder
     {
         return partitions;
     }
-<<<<<<< HEAD
-
-    public void setPartitions(List<StoragePartition> partitions)
-    {
-        this.partitions = partitions;
-    }
-
-<<<<<<< HEAD
-=======
->>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver)
     @Override
     public String toString()
     {
@@ -51,6 +41,4 @@ public class PartitionFolder
                 ", partitions=" + partitions +
                 '}';
     }
-=======
->>>>>>> 8913f0f9 (GcsMetadataHandler changes for doGetSplits)
 }

@@ -59,14 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-<<<<<<< HEAD
-<<<<<<< HEAD
-import java.lang.reflect.InvocationTargetException;
-=======
->>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver)
 import java.text.ParseException;
-=======
->>>>>>> c93cd00e (GcsMetadataHandler changes for doGetTable)
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -236,22 +229,17 @@ public class GcsMetadataHandler
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-<<<<<<< HEAD
-
-=======
->>>>>>> c92a23df (Remove unnecessary code for GCS)
         List<PartitionFolder> partitionFolders = datasource.getPartitionFolders(request, request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {
             for (PartitionFolder folder : partitionFolders) {
                 blockWriter.writeRows((Block block, int rowNum) ->
                 {
-                    boolean matched = true;
                     for (StoragePartition partition : folder.getPartitions()) {
-                        matched &= block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
+                        block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
                     }
                     //we wrote 1 row so we return 1
-                    return matched ? 1 : 0;
+                    return 1;
                 });
             }
         }

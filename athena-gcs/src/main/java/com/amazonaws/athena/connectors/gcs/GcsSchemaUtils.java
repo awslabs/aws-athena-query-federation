@@ -59,15 +59,9 @@ public class GcsSchemaUtils
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
         Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(storageLocation.getBucketName(), storageLocation.getLocation(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM));
         if (optionalStorageTable.isPresent()) {
-<<<<<<< HEAD
-            StorageTable table = optionalStorageTable.get();
-            LOGGER.info("Schema Fields\n{}", table.getFields());
-            for (Field field : table.getFields()) {
-=======
             StorageTable sTable = optionalStorageTable.get();
             LOGGER.debug("Schema Fields\n{}", sTable.getFields());
             for (Field field : sTable.getFields()) {
->>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
                 if (isFieldTypeNull(field)) {
                     field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
                 }

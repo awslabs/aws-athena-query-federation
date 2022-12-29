@@ -68,20 +68,7 @@ import java.util.regex.Pattern;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.TABLE_PARAM_OBJECT_NAME_LIST;
-<<<<<<< HEAD
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.createUri;
-<<<<<<< HEAD:athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/storage/AbstractStorageMetadata.java
-<<<<<<< HEAD
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getUniqueEntityName;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.getValidEntityNameFromFile;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageUtil.tableNameFromFile;
-=======
->>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver):athena-gcs/src/main/java/com/amazonaws/athena/connectors/gcs/storage/StorageMetadataImpl.java
-=======
->>>>>>> c92a23df (Remove unnecessary code for GCS)
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
-=======
->>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
 import static java.util.Objects.requireNonNull;
 
 public class StorageMetadataImpl implements StorageMetadata
@@ -129,15 +116,6 @@ public class StorageMetadataImpl implements StorageMetadata
     @Override
     public List<Field> getTableFields(String bucketName, List<String> objectNames, FileFormat format)
     {
-<<<<<<< HEAD
-<<<<<<< HEAD
-        LOGGER.debug("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
-=======
-        LOGGER.info("Retrieving field schema for file(s) {}, under the bucket {}", objectNames, bucketName);
->>>>>>> 3a864c14 (Rename all instances with datasource to metadata)
-        requireNonNull(objectNames, "List of tables in bucket " + bucketName + " was null");
-=======
->>>>>>> 3d441084 (Apply constraints on the partition folder(s)  to optimize performance)
         if (objectNames.isEmpty()) {
             throw new UncheckedGcsConnectorException("List of tables in bucket " + bucketName + " was empty");
         }
@@ -206,8 +184,6 @@ public class StorageMetadataImpl implements StorageMetadata
     public List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
             throws ParseException
     {
-<<<<<<< HEAD
-<<<<<<< HEAD
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         List<PartitionFolder> partitionFolders = new ArrayList<>();
         Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
@@ -253,16 +229,6 @@ public class StorageMetadataImpl implements StorageMetadata
             LOGGER.info("Table {}.{} not found", tableInfo.getSchemaName(), tableInfo.getTableName());
         }
         return partitionFolders;
-=======
-        return List.of(new PartitionFolder("gs://mydatalake4/full_data/", List.of(new StoragePartition("ss_sold_date_sk", "integer", 2451051L))));
->>>>>>> 8913f0f9 (GcsMetadataHandler changes for doGetSplits)
-=======
-        List<PartitionFolder> partitionList = new ArrayList<>();
-        for (int i = 2000; i < 2031; i++) {
-            partitionList.add(new PartitionFolder("gs://athena-30part-folder/data/", List.of(new StoragePartition("year", "integer", Long.valueOf(i)))));
-        }
-        return partitionList;
->>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
     }
 
     /**

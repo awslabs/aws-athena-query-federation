@@ -71,14 +71,6 @@ public interface StorageMetadata
     @VisibleForTesting
     Storage getStorage();
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableName, Constraints constraints, AWSGlue glueClient) throws ParseException;
-=======
-    List<PartitionFolder> getPartitionFolders(MetadataRequest request, TableName tableName, AWSGlue glueClient);
-
->>>>>>> 06e0c49c (GcsMetadataHandler changes for doGetSplits)
-=======
     /**
      * Retrieves a list of partition folders from the GCS bucket based on partition.pattern Table parameter and partition keys set forth in Glue table. If the summary from the
      * constraints is empty (no where clauses or unsupported clauses), it will essentially return all the partition folders from the GCS bucket. If there is any constraints to
@@ -95,5 +87,4 @@ public interface StorageMetadata
      * @throws ParseException Throws if any occurs during parsing regular expression
      */
     List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableName, Constraints constraints, AWSGlue awsGlue) throws ParseException;
->>>>>>> deea6529 (Remove few unnecessary methods, rename StorageMetadata impl and PartitionResolver)
 }
