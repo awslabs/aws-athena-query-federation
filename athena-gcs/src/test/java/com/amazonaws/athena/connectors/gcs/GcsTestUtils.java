@@ -107,6 +107,16 @@ public class GcsTestUtils {
                 .build();
     }
 
+    static Schema getDatatypeTestSchema()
+    {
+        return SchemaBuilder.newBuilder()
+                .addBigIntField("id")
+                .addStringField("name")
+                .addStructField("address")
+                .addListField("hobbies", ArrowType.List.INSTANCE)
+                .build();
+    }
+
     static Collection<Field> getTestSchemaFieldsArrow()
     {
         return Arrays.asList(
