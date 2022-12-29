@@ -96,16 +96,29 @@ public class PartitionUtil
                     String columnValue = null;
                     if (matcher.groupCount() == 1
                             && matcher.group(0).equals(matcher.group(1))) {
-                        Optional<String> optionalPartitionColumn = extractPartitionColumn(folderParts[i], partitionPattern);
-                        if (optionalPartitionColumn.isEmpty()) {
+                        Matcher nonHivePartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
+                        if (nonHivePartitionPatternMatcher.matches()) {
+                            partitionColumn = nonHivePartitionPatternMatcher.group(2).replaceAll("[{}]", "");
+                        }
+                        else { // unknown partition layout
                             continue;
                         }
-                        partitionColumn = optionalPartitionColumn.get();
                         columnValue = matcher.group(1);
                     }
                     else if (matcher.groupCount() > 1) {
-                        // TODO: check whether the column conatins '='
-                        partitionColumn = matcher.group(1).replaceAll("[=]", "");
+                        String columnName = matcher.group(1);
+                        if (columnName.contains("=")) {
+                            partitionColumn = matcher.group(1).replaceAll("=", "");
+                        }
+                        else {
+                            Matcher nonHivePartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
+                            if (nonHivePartitionPatternMatcher.matches()) {
+                                partitionColumn = nonHivePartitionPatternMatcher.group(2).replaceAll("[{}]", "");
+                            }
+                            else { // unknown partition layout
+                                continue;
+                            }
+                        }
                         columnValue = matcher.group(2);
                     }
 
@@ -224,30 +237,5 @@ public class PartitionUtil
                 .replaceAll("Z", "-\\\\d{3,4}") // replace time-zone offset with 3-4 digits with the prefix '-'
                 .replaceAll("z", "(.*?){2,6}") // replace time zone abbreviations with any character of length of min 2, max 6 (currently max is 5)
                 .replaceAll("G", "AD"); // Era designator. Currently BC not supported
-    }
-
-    private static Optional<String> getPartitionColumnName(List<Column> partitionColumns, String mixed)
-    {
-        if (!partitionColumns.isEmpty()
-                && (mixed != null && !mixed.isBlank())) {
-            mixed = mixed.replace("=", "");
-            for (Column column : partitionColumns) {
-                if (column.getName().equalsIgnoreCase(mixed)) {
-                    return Optional.of(mixed);
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<String> extractPartitionColumn(String folderPart, String patternPart)
-    {
-        Matcher matcher = PARTITION_PATTERN.matcher(folderPart);
-        if (matcher.matches()) {
-            for (int i = 0; i < matcher.groupCount(); i++) {
-                System.out.println(matcher.group(i));
-            }
-        }
-        return Optional.empty();
     }
 }

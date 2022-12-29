@@ -196,10 +196,10 @@ public class GcsRecordHandler
                     switch (fieldType) {
                         case LIST:
                         case STRUCT:
-                            isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(Locale.ROOT), rowNum, DEFAULT_FIELD_RESOLVER, value);
+                            isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(), rowNum, DEFAULT_FIELD_RESOLVER, value);
                             break;
                         default:
-                            isMatched &= block.offerValue(nextField.getName().toLowerCase(Locale.ROOT), rowNum, value);
+                            isMatched &= block.offerValue(nextField.getName().toLowerCase(), rowNum, value);
                             break;
                     }
                     if (!isMatched) {
@@ -207,7 +207,7 @@ public class GcsRecordHandler
                     }
                 }
                 catch (Exception ex) {
-                    throw new RuntimeException("Error while processing field " + nextField.getName(), ex);
+                    throw new RuntimeException("Error while processing field " + nextField.getName().toLowerCase(), ex);
                 }
             }
             return 1;
