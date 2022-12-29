@@ -20,38 +20,23 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
-import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.BlockWriter;
+import com.amazonaws.athena.connector.lambda.data.*;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.*;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
-import com.amazonaws.services.glue.model.Column;
-import com.amazonaws.services.glue.model.Database;
-import com.amazonaws.services.glue.model.GetDatabasesResult;
-import com.amazonaws.services.glue.model.GetTableResult;
-import com.amazonaws.services.glue.model.GetTablesResult;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
+import com.amazonaws.services.glue.model.*;
+import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
@@ -82,11 +67,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
@@ -151,7 +132,6 @@ public class GcsMetadataHandlerTest
         PowerMockito.when(blob.getName()).thenReturn("data.parquet");
         PowerMockito.when(blob1.getName()).thenReturn("birthday/year=2000/birth_month09/12/");
         environmentVariables.set("gcs_credential_key", "gcs_credential_keys");
-        environmentVariables.set("glue_catalog", "fakedatabase");
         mockStatic(ServiceAccountCredentials.class);
         PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
         MockitoAnnotations.initMocks(this);
@@ -234,6 +214,9 @@ public class GcsMetadataHandlerTest
         metadataSchema.put("dataFormat", "parquet");
         Schema schema = new Schema(asList(field), metadataSchema);
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", new TableName(SCHEMA_NAME, "testtable"));
+        Context context =mock(Context.class);
+        when(context.getInvokedFunctionArn()).thenReturn("arn:aws:lambda:us-east-1:12345678910:function:gcs-lambda");
+        getTableRequest.setContext(context);
         Table table = new Table();
         table.setName("testtable");
         table.setDatabaseName("default");
@@ -260,6 +243,7 @@ public class GcsMetadataHandlerTest
     @Test
     public void testGetPartitions() throws Exception
     {
+        environmentVariables.set("glue_catalog", "12345678910");
         Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "parquet");
@@ -292,7 +276,6 @@ public class GcsMetadataHandlerTest
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(new Constraints(constraintsMap));
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
         gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, queryStatusChecker);
-
     }
 
     @Test
