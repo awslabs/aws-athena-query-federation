@@ -91,7 +91,6 @@ public class PartitionUtilTest
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        System.out.println(optionalRegEx.get());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
         for (int i = 0; i < partitionFolders.size(); i++) {
             String folder = partitionFolders.get(i);
@@ -123,7 +122,6 @@ public class PartitionUtilTest
         // build regex
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        System.out.println(optionalRegEx.get());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
         for (int i = 0; i < partitionFolders.size(); i++) {
             String folder = partitionFolders.get(i);
@@ -155,7 +153,6 @@ public class PartitionUtilTest
         // build regex
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        System.out.println(optionalRegEx.get());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
         for (int i = 0; i < partitionFolders.size(); i++) {
             String folder = partitionFolders.get(i);
@@ -187,7 +184,6 @@ public class PartitionUtilTest
         // build regex
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        System.out.printf("Regular expression %s%n", optionalRegEx.get());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
         for (int i = 0; i < partitionFolders.size(); i++) {
             String folder = partitionFolders.get(i);
