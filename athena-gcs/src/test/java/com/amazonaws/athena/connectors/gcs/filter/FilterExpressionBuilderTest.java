@@ -24,11 +24,7 @@ import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.*;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.gcs.GcsTestUtils;
@@ -40,7 +36,6 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.checkerframework.checker.nullness.qual.AssertNonNullIfNonNull;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -79,7 +74,7 @@ public class FilterExpressionBuilderTest
         assertNotNull(exp);
     }
 
-    protected Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)
+    public static Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)
     {
         Block block = Mockito.mock(Block.class);
         FieldReader fieldReader = Mockito.mock(FieldReader.class);
