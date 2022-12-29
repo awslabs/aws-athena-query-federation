@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /*-
  * #%L
  * athena-gcs
@@ -200,4 +201,12 @@ public class GcsRecordHandlerTest {
             this.bytes = bytes;
         }
     }
+=======
+package com.amazonaws.athena.connectors.gcs;
+
+public class GcsRecordHandlerTest
+{
+
+
+>>>>>>> 4c03dd08 (Add person-data.parquet file for record handler test)
 }
