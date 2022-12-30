@@ -61,15 +61,15 @@ public class TypeUtils
                 }
             case FLOAT8:
                 if (origVal instanceof Integer) {
-                    return (double) (int) origVal;
+                    return ((Double) origVal).intValue();
                 }
                 else if (origVal instanceof Float) {
-                    return (double) (float) origVal;
+                    return ((Double) origVal).floatValue();
                 }
                 return origVal;
             case FLOAT4:
                 if (origVal instanceof Integer) {
-                    return (float) (int) origVal;
+                    return ((Float) origVal).intValue();
                 }
                 else if (origVal instanceof Double) {
                     return ((Double) origVal).floatValue();
