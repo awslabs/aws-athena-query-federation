@@ -103,4 +103,9 @@ public class TableName
     {
         return Objects.hashCode(schemaName, tableName);
     }
+
+    public String getQualifiedTableName()
+    {
+        return String.format("%s.%s", schemaName, tableName);
+    }
 }
