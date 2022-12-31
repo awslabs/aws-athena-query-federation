@@ -19,19 +19,19 @@
  */
 package com.amazonaws.athena.connectors.db2;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link Db2MuxMetadataHandler} and {@link Db2MuxRecordHandler}.
  */
-public class Db2MuxCompositeHandler extends CompositeHandler
+public class Db2MuxCompositeHandler extends MultiplexingJdbcCompositeHandler
 {
     /**
      * Constructs objects of type CompositeHandler.
      */
-    public Db2MuxCompositeHandler()
+    public Db2MuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new Db2MuxMetadataHandler(), new Db2MuxRecordHandler());
+        super(Db2MuxMetadataHandler.class, Db2MuxRecordHandler.class, Db2MetadataHandler.class, Db2RecordHandler.class);
     }
 }

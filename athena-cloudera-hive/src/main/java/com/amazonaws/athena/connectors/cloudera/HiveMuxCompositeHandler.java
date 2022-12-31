@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link HiveMuxMetadataHandler} and {@link HiveMuxRecordHandler}.
  */
 public class HiveMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public HiveMuxCompositeHandler()
+    public HiveMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new HiveMuxMetadataHandler(), new HiveMuxRecordHandler());
+        super(HiveMuxMetadataHandler.class, HiveMuxRecordHandler.class, HiveMetadataHandler.class, HiveRecordHandler.class);
     }
 }

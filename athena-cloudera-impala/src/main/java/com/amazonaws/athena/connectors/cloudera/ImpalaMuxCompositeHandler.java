@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.cloudera;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link ImpalaMuxMetadataHandler} and {@link ImpalaMuxRecordHandler}.
  */
 public class ImpalaMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public ImpalaMuxCompositeHandler()
+    public ImpalaMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new ImpalaMuxMetadataHandler(), new ImpalaMuxRecordHandler());
+        super(ImpalaMuxMetadataHandler.class, ImpalaMuxRecordHandler.class, ImpalaMetadataHandler.class, ImpalaRecordHandler.class);
     }
 }

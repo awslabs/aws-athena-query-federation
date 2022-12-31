@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.postgresql;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link PostGreSqlMuxMetadataHandler} and {@link PostGreSqlMuxRecordHandler}.
  */
 public class PostGreSqlMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public PostGreSqlMuxCompositeHandler()
+    public PostGreSqlMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new PostGreSqlMuxMetadataHandler(), new PostGreSqlMuxRecordHandler());
+        super(PostGreSqlMuxMetadataHandler.class, PostGreSqlMuxRecordHandler.class, PostGreSqlMetadataHandler.class, PostGreSqlRecordHandler.class);
     }
 }

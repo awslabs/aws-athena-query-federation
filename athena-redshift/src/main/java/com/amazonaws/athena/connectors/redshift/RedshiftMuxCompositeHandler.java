@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.redshift;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link RedshiftMuxMetadataHandler} and {@link RedshiftMuxRecordHandler}.
  */
 public class RedshiftMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public RedshiftMuxCompositeHandler()
+    public RedshiftMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new RedshiftMuxMetadataHandler(), new RedshiftMuxRecordHandler());
+        super(RedshiftMuxMetadataHandler.class, RedshiftMuxRecordHandler.class, RedshiftMetadataHandler.class, RedshiftRecordHandler.class);
     }
 }
