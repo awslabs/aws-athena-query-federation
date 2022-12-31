@@ -113,11 +113,11 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                 getTableLayoutRequest.getTableName().getTableName());
         try (Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider());
              Statement stmt = connection.createStatement();
-             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getTableName().toUpperCase())) {
+             PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase())) {
             Map<String, String> columnHashMap = getMetadataForGivenTable(psmt);
             String tableType = columnHashMap.get("TableType");
             if (tableType == null) {
-                ResultSet partitionRs = stmt.executeQuery("show files in " + getTableLayoutRequest.getTableName().getTableName().toUpperCase());
+                ResultSet partitionRs = stmt.executeQuery("show files in " + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase());
                 Set<String> partition = new HashSet<>();
                 while (partitionRs != null && partitionRs.next()) {
                     String partitionString = partitionRs.getString("Partition");
@@ -254,6 +254,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
     }
+
     /**
      * Used to convert Impala data types to Apache arrow data types
      * @param jdbcConnection  A JDBC Impala database connection
@@ -267,7 +268,8 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         try (ResultSet resultSet = getColumns(jdbcConnection.getCatalog(), tableName, jdbcConnection.getMetaData());
              Connection connection = getJdbcConnectionFactory().getConnection(getCredentialProvider())) {
-            try (PreparedStatement psmt = connection.prepareStatement(GET_METADATA_QUERY + tableName.getTableName().toUpperCase())) {
+            try (PreparedStatement psmt = connection.prepareStatement(
+                GET_METADATA_QUERY + tableName.getQualifiedTableName().toUpperCase())) {
                 Map<String, String> hashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
