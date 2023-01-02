@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.gcs.storage;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
-import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
@@ -142,7 +141,7 @@ public class StorageMetadataImpl implements StorageMetadata
                     .setTableName(tableName)
                     .partitioned(true)
                     .setParameter(TABLE_PARAM_OBJECT_NAME_LIST, String.join(",", files))
-                    .setFieldList(getTableFields(databaseName, files, GcsUtil.getFileFormat(format)))
+                    .setFieldList(getTableFields(databaseName, files, FileFormat.valueOf(format.toUpperCase())))
                     .build();
             return Optional.of(table);
         }

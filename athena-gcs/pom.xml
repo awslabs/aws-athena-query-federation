@@ -69,12 +69,12 @@
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-dataset</artifactId>
-            <version>10.0.1</version>
+            <version>${apache.arrow.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.arrow</groupId>
             <artifactId>arrow-memory-netty</artifactId>
-            <version>10.0.1</version>
+            <version>${apache.arrow.version}</version>
             <scope>runtime</scope>
         </dependency>
         <!-- GCS -->
@@ -104,7 +104,7 @@
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
-            <version>7.4.0</version>
+            <version>${testng.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -134,7 +134,7 @@
         <dependency>
             <groupId>com.github.stefanbirkner</groupId>
             <artifactId>system-rules</artifactId>
-            <version>1.19.0</version>
+            <version>${test.system.rules.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -148,7 +148,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.2.1</version>
+                <version>${mvn.shade.plugin.version}</version>
                 <configuration>
                     <createDependencyReducedPom>false</createDependencyReducedPom>
                     <filters>
@@ -164,7 +164,8 @@
                         </filter>
                     </filters>
                     <transformers>
-                        <transformer implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer">
+                        <!-- This transformer is here to concatenate log4j2 cache during shading -->
+                        <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
                         </transformer>
                     </transformers>
                 </configuration>
@@ -172,7 +173,7 @@
                     <dependency>
                         <groupId>com.github.edwgiz</groupId>
                         <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
-                        <version>2.8.1</version>
+                        <version>${log4j2.cachefile.transformer.version}</version>
                     </dependency>
                 </dependencies>
                 <executions>
@@ -187,7 +188,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>${maven.compiler.plugin.version}</version>
                 <configuration>
                     <forceJavacCompilerUse>true</forceJavacCompilerUse>
                 </configuration>
