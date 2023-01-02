@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.gcs.filter;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -64,13 +65,12 @@ public class FilterExpressionBuilderTest
     public FederatedIdentity federatedIdentity;
 
     @Test
-    public void testGetExpressions() throws Exception
+    public void testGetExpressions()
     {
         StorageSplit storageSplit = StorageSplit.builder().fileName("athena-30part-nested/data/year=2000/Month_col=5/data.parquet").build();
         Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema);
-        AthenaReadRecordsRequest request = buildReadRecordsRequest(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L), "BUCKET", "PARQUET_TABLE", storageSplit, true);
-        List<FilterExpression> exp = filterExpressionBuilder.getExpressions(request.getConstraints());
+        List<FilterExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));
         assertNotNull(exp);
     }
 
@@ -81,42 +81,9 @@ public class FilterExpressionBuilderTest
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(fieldName, fieldType));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = new AthenaMarker(block, Marker.Bound.EXACTLY, false).withValue(fieldValue);
+        Marker low = Marker.exactly(new BlockAllocatorImpl(), new ArrowType.Int(32, true), fieldValue);
         return Map.of(
                 fieldName, SortedRangeSet.of(false, new Range(low, low))
         );
     }
-
-
-    public synchronized AthenaReadRecordsRequest buildReadRecordsRequest(Map<String, ValueSet> summary,
-                                                                         String schema, String table, StorageSplit split,
-                                                                         boolean parquetFields) throws JsonProcessingException
-    {
-        TableName inputTableName = new TableName(schema, table);
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        addSchemaFields(schemaBuilder, parquetFields);
-        Schema fieldSchema = schemaBuilder.build();
-        Constraints constraints = new AthenaConstraints(summary);
-        S3SpillLocation s3SpillLocation = S3SpillLocation.newBuilder().withIsDirectory(true).build();
-        Split.Builder splitBuilder = Split.newBuilder(s3SpillLocation, null)
-                .add(StorageConstants.STORAGE_SPLIT_JSON, new ObjectMapper().writeValueAsString(split))
-                .add(TABLE_PARAM_OBJECT_NAME_LIST, split.getFileName());
-        return new AthenaReadRecordsRequest(this.federatedIdentity,
-                "default", "testQueryId", inputTableName,
-                fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
-    }
-
-    // helpers
-    private void addSchemaFields(SchemaBuilder schemaBuilder, boolean parquetFields)
-    {
-        Map<String, ArrowType> fieldMap = parquetFieldMap ;
-        for (Map.Entry<String, ArrowType> field : fieldMap.entrySet()) {
-            schemaBuilder.addField(FieldBuilder.newBuilder(field.getKey(), field.getValue()).build());
-        }
-    }
-
-    public final Map<String, ArrowType> parquetFieldMap = Map.of(
-            "id", BIGINT.getType()
-    );
-
 }

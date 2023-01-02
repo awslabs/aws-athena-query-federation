@@ -19,29 +19,14 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.services.glue.model.StorageDescriptor;
-import com.amazonaws.services.glue.model.Table;
-import com.google.common.collect.ImmutableMap;
-import org.apache.arrow.dataset.file.FileFormat;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Optional;
-
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
@@ -50,15 +35,6 @@ import static org.mockito.Mockito.when;
 @PrepareForTest({GcsTestUtils.class})
 public class GcsUtilsTest
 {
-    @Test
-    public void testGetFileFormat()
-    {
-        FileFormat parquetFormat = GcsUtil.getFileFormat("parquet");
-        assertEquals(FileFormat.PARQUET, parquetFormat);
-        FileFormat csvFormat = GcsUtil.getFileFormat("csv");
-        assertEquals(FileFormat.CSV, csvFormat);
-    }
-
     @Test
     public void testCreateUri()
     {
