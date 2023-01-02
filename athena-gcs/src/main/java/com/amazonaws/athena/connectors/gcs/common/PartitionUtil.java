@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
 
@@ -74,7 +73,7 @@ public class PartitionUtil
                 patternToCheck = patternToCheck.replace(DEFAULT_DATE_REGEX_STRING, "");
             }
             if (patternToCheck.contains("{") || patternToCheck.contains("}")) {
-                throw new UncheckedGcsConnectorException("partition.partition parameter is either invalid or contains a column variable " +
+                throw new IllegalArgumentException("partition.partition parameter is either invalid or contains a column variable " +
                         "which is not the part of partitions. Pattern is: " + partitionPattern);
             }
             return Optional.of(folderMatchingPattern.replaceAll("['\"]", ""));
@@ -199,7 +198,7 @@ public class PartitionUtil
                 }
                 return "(" + getDateRegExByPattern(datePattern) + ")";
             default:
-                throw new UncheckedGcsConnectorException("Column type '" + columnType + "' is not supported for a partition column in this connector");
+                throw new IllegalArgumentException("Column type '" + columnType + "' is not supported for a partition column in this connector");
         }
     }
 
@@ -222,7 +221,7 @@ public class PartitionUtil
                 }
                 return new SimpleDateFormat(datePattern).parse(columnValue);
             default:
-                throw new UncheckedGcsConnectorException("Column type '" + columnType + "' is not supported for a partition column in this connector");
+                throw new IllegalArgumentException("Column type '" + columnType + "' is not supported for a partition column in this connector");
         }
     }
 

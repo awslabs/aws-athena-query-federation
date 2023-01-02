@@ -19,8 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
-
 import static java.util.Objects.requireNonNull;
 
 public class StorageLocation
@@ -61,7 +59,7 @@ public class StorageLocation
     {
         int schemeIndex = uri.indexOf("://");
         if (schemeIndex < 2) {
-            throw new UncheckedGcsConnectorException("Malformed GCS URI: " + uri);
+            throw new IllegalArgumentException("Malformed GCS URI: " + uri);
         }
         String baseLocation = uri.substring(schemeIndex + 3);
         int separatorIndex = baseLocation.indexOf("/");

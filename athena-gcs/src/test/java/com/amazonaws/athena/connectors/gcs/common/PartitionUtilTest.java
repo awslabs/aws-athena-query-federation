@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
-import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
@@ -59,7 +58,7 @@ public class PartitionUtilTest
         when(table.getPartitionKeys()).thenReturn(columns);
     }
 
-    @Test(expected = UncheckedGcsConnectorException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testFolderNameRegExPatterExpectException()
     {
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/{day}"));
