@@ -174,7 +174,6 @@ public class GcsRecordHandlerTest
 
     @SuppressWarnings("unchecked")
     @Test
-    @Ignore
     public void testReadWithConstraint()
             throws Exception
     {
