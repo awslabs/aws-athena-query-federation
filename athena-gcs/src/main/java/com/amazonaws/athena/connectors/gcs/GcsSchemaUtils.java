@@ -58,24 +58,19 @@ public class GcsSchemaUtils
         String locationUri = table.getStorageDescriptor().getLocation();
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
         Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(storageLocation.getBucketName(), storageLocation.getLocation(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM));
-        if (optionalStorageTable.isPresent()) {
-            StorageTable sTable = optionalStorageTable.get();
-            LOGGER.debug("Schema Fields\n{}", sTable.getFields());
-            for (Field field : sTable.getFields()) {
-                if (isFieldTypeNull(field)) {
-                    field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
-                }
-                else {
-                    field = new Field(field.getName().toLowerCase(), new FieldType(field.isNullable(), field.getType(), field.getDictionary(), field.getMetadata()), field.getChildren());
-                }
-                schemaBuilder.addField(getCompatibleField(field));
+
+        StorageTable sTable = optionalStorageTable.get();
+        LOGGER.debug("Schema Fields\n{}", sTable.getFields());
+        for (Field field : sTable.getFields()) {
+            if (isFieldTypeNull(field)) {
+                field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
             }
-            return schemaBuilder.build();
+            else {
+                field = new Field(field.getName().toLowerCase(), new FieldType(field.isNullable(), field.getType(), field.getDictionary(), field.getMetadata()), field.getChildren());
+            }
+            schemaBuilder.addField(getCompatibleField(field));
         }
-        else {
-            LOGGER.error("Table '{}' was not found under schema '{}'", table.getName(), table.getDatabaseName());
-            throw new GcsConnectorException("Table '" + table.getName() + "' was not found under schema '" + table.getDatabaseName() + "'");
-        }
+        return schemaBuilder.build();
     }
 
     public static Field getCompatibleField(Field field)

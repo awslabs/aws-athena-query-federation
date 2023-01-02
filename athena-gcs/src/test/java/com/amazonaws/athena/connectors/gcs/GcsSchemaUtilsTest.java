@@ -68,21 +68,6 @@ public class GcsSchemaUtilsTest
         assertNotNull(schema);
     }
 
-    @Test(expected = GcsConnectorException.class)
-    public void testBuildTableSchemaException() throws Exception
-    {
-        Table table = new Table();
-        table.setName("birthday");
-        table.setDatabaseName("default");
-        table.setParameters(ImmutableMap.of("classification", "parquet"));
-        table.setStorageDescriptor(new StorageDescriptor()
-                .withLocation("gs://mydatalake1test/birthday/"));
-        table.setCatalogId("catalog");
-        when(storageMetadata.getStorageTable(Mockito.any(),Mockito.any(),Mockito.any())).thenReturn(Optional.empty());
-        Schema schema = GcsSchemaUtils.buildTableSchema(storageMetadata, table);
-        assertNotNull(schema);
-    }
-
     @Test
     public void testGetCompatibleField()
     {
@@ -94,11 +79,5 @@ public class GcsSchemaUtilsTest
         assertNotNull(field2);
         Field field3 = GcsSchemaUtils.getCompatibleField(Field.nullable("id", new ArrowType.Binary()));
         assertNotNull(field3);
-    }
-
-    @Test(expected = GcsConnectorException.class)
-    public void testConnectorException()
-    {
-        throw new GcsConnectorException("exception", new Exception());
     }
 }

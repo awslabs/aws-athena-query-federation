@@ -90,7 +90,7 @@ public class GcsMetadataHandler
     private static final String SOURCE_TYPE = "gcs";
     //as this connector mandatory required glue database and table metadata
     private static final boolean DISABLE_GLUE = false;
-    private static final CharSequence GCS_FLAG = "gcs";
+    private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for DDB.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
@@ -150,12 +150,10 @@ public class GcsMetadataHandler
     @Override
     public ListTablesResponse doListTables(BlockAllocator allocator, final ListTablesRequest request) throws Exception
     {
-
         return super.doListTables(allocator,
                 new ListTablesRequest(request.getIdentity(), request.getQueryId(),
                         request.getCatalogName(), request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
                 TABLE_FILTER);
-
     }
 
     /**
@@ -172,34 +170,27 @@ public class GcsMetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request) throws Exception
     {
-        GetTableResponse response;
-        try {
-            response = super.doGetTable(blockAllocator, request);
-            if (null == response || null == response.getSchema() || response.getSchema().getFields().isEmpty() || (response.getSchema().getFields().stream().count() - response.getPartitionColumns().stream().count()) == 0) {
-                throw new GcsConnectorException("doGetTable: Unable to retrieve schema from AWSGlue in database/schema. " + request.getTableName().getTableName());
-            }
+        GetTableResponse response = super.doGetTable(blockAllocator, request);
+        //check whether schema added by user
+        //return if schema present else fetch from files(dataset api)
+        if (response != null && response.getSchema() != null && (response.getSchema().getFields().stream().count() - response.getPartitionColumns().stream().count()) > 0) {
             return response;
         }
-        catch (RuntimeException e) {
-            LOGGER.warn("doGetTable: Unable to retrieve table {} from AWSGlue in database/schema {}. " +
-                            "Falling back to schema inference. If inferred schema is incorrect, create " +
-                            "a matching table in Glue to define schema (see README)",
-                    request.getTableName().getTableName(), request.getTableName().getSchemaName(), e);
+        else {
+            LOGGER.warn("Fetching schema from google cloud storage files");
+            //fetch schema from GCS in case user doesn't define it in glue table
+            //this will get table(location uri and partition details) without schema metadata
+            Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
+            //fetch schema from dataset api
+            Schema schema = buildTableSchema(this.datasource, table);
+            Map<String, String> columnNameMapping = getColumnNameMapping(table);
+            Set<String> partitionCols = new HashSet<>();
+            if (table.getPartitionKeys() != null) {
+                partitionCols = table.getPartitionKeys()
+                        .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
+            }
+            return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
         }
-
-        //fetch schema from GCS in case user doesn't define it in glue table
-        //this will get table(location uri and partition details) without schema metadata
-        Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
-        //fetch schema from dataset api
-        Schema schema = buildTableSchema(this.datasource, table);
-        Map<String, String> columnNameMapping = getColumnNameMapping(table);
-        Set<String> partitionCols = new HashSet<>();
-        if (table.getPartitionKeys() != null) {
-            partitionCols = table.getPartitionKeys()
-                    .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
-        }
-
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
     }
 
     /**

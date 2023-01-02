@@ -38,6 +38,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.arrow.dataset.file.FileFormat;
 import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
 import org.apache.arrow.dataset.scanner.ScanOptions;
@@ -81,7 +82,7 @@ public class GcsRecordHandler
     // to handle back-pressure during API invocation to GCS
     ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
 
-    public GcsRecordHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
+    public GcsRecordHandler() throws IOException
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
@@ -139,7 +140,7 @@ public class GcsRecordHandler
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
                     DatasetFactory datasetFactory = new FileSystemDatasetFactory(
-                            allocator, NativeMemoryPool.getDefault(), GcsUtil.getFileFormat(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)), uri
+                            allocator, NativeMemoryPool.getDefault(), FileFormat.valueOf(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM).toUpperCase()), uri
                     );
 
                     // Creates a Dataset with auto-inferred schema

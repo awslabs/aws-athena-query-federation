@@ -153,8 +153,8 @@ public class GcsMetadataHandlerTest
     public void testDoListSchemaNames() throws Exception
     {
         GetDatabasesResult result = new GetDatabasesResult().withDatabaseList(
-                new Database().withName("gcsdatabase").withLocationUri("s3://gcs"),
-                new Database().withName("s3database").withLocationUri("s3://gcs"));
+                new Database().withName("gcsdatabase").withLocationUri("s3://google-cloud-storage-flag"),
+                new Database().withName("s3database").withLocationUri("s3://google-cloud-storage-flag"));
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, CATALOG);
         PowerMockito.when(awsGlue.getDatabases(any())).thenReturn(result);
@@ -221,12 +221,10 @@ public class GcsMetadataHandlerTest
         table.setDatabaseName("default");
         table.setParameters(ImmutableMap.of("classification", "parquet"));
         table.setStorageDescriptor(new StorageDescriptor()
-                .withLocation("gs://default/testtable/").withColumns(new Column()));
+                .withLocation("gs://default/testtable/").withColumns(new Column().withName("name").withType("String")));
         table.setCatalogId(CATALOG);
         List<Column> columns = List.of(
-                createColumn("year", "bigint"),
-                createColumn("month", "int"),
-                createColumn("day", "int")
+                createColumn("name", "String")
         );
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
