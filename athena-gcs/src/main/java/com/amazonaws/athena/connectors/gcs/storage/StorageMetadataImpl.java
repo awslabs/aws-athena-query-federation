@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.gcs.storage;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
-import com.amazonaws.athena.connectors.gcs.UncheckedGcsConnectorException;
 import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
@@ -116,7 +115,7 @@ public class StorageMetadataImpl implements StorageMetadata
     public List<Field> getTableFields(String bucketName, List<String> objectNames, FileFormat format)
     {
         if (objectNames.isEmpty()) {
-            throw new UncheckedGcsConnectorException("List of tables in bucket " + bucketName + " was empty");
+            throw new IllegalArgumentException("List of tables in bucket " + bucketName + " was empty");
         }
         return getFileSchema(bucketName, objectNames.get(0), format).getFields();
     }
@@ -146,7 +145,7 @@ public class StorageMetadataImpl implements StorageMetadata
             return Optional.of(table);
         }
 
-        throw new UncheckedGcsConnectorException("No object found for the table name '" + tableName + "' under bucket " + databaseName);
+        throw new IllegalArgumentException("No object found for the table name '" + tableName + "' under bucket " + databaseName);
     }
 
     /**
