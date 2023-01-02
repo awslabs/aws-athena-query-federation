@@ -111,8 +111,8 @@ public class ImpalaMetadataHandlerTest
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value3},{value2}};
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
-        Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY+tempTableName.getTableName().toUpperCase())).thenReturn(preparestatement1);
-        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+        Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY + tempTableName.getQualifiedTableName().toUpperCase())).thenReturn(preparestatement1);
+        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -123,7 +123,9 @@ public class ImpalaMetadataHandlerTest
         for (int i = 0; i < getTableLayoutResponse.getPartitions().getRowCount(); i++) {
             expectedValues.add(BlockUtils.rowToString(getTableLayoutResponse.getPartitions(), i));
         }
-        Assert.assertEquals(expectedValues.get(0), "[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']");
+        Assert.assertEquals(2, expectedValues.size());
+        Assert.assertEquals("[partition :  case_date=02-01-2000 and case_number=1 and case_instance=89898990 and case_location='Hyderabad']", expectedValues.get(0));
+        Assert.assertEquals("[partition :  case_date=01-01-2000 and case_number=0 and case_instance=89898989 and case_location is NULL]", expectedValues.get(1));
         SchemaBuilder expectedSchemaBuilder = SchemaBuilder.newBuilder();
         expectedSchemaBuilder.addField(FieldBuilder.newBuilder("partition", org.apache.arrow.vector.types.Types.MinorType.VARCHAR.getType()).build());
         Schema expectedSchema = expectedSchemaBuilder.build();
@@ -150,10 +152,10 @@ public class ImpalaMetadataHandlerTest
        int[] types2 = {Types.VARCHAR};
        Object[][] values1 = {};
        Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
-       String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+       String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
        PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
        Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY+tableName)).thenReturn(preparestatement1);
-       final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+       final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
        Statement statement1 = Mockito.mock(Statement.class);
        Mockito.when(this.connection.createStatement()).thenReturn(statement1);
        ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
@@ -209,10 +211,10 @@ public class ImpalaMetadataHandlerTest
         int[] types2 = {Types.VARCHAR};
         Object[][] values1 = {{value2},{value3}};
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
-        String tableName =getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+        String tableName =getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         PreparedStatement preparestatement1 = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(ImpalaMetadataHandler.GET_METADATA_QUERY+tableName)).thenReturn(preparestatement1);
-        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getTableName().toUpperCase();
+        final String getPartitionDetailsSql = "show files in "  + getTableLayoutRequest.getTableName().getQualifiedTableName().toUpperCase();
         Statement statement1 = Mockito.mock(Statement.class);
         Mockito.when(this.connection.createStatement()).thenReturn(statement1);
         ResultSet resultSet1 = mockResultSet(columns2, types2, values1, new AtomicInteger(-1));
