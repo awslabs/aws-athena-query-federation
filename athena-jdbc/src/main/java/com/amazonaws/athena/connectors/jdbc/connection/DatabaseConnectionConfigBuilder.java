@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
  */
 public class DatabaseConnectionConfigBuilder
 {
-    private static final String CONNECTION_STRING_PROPERTY_SUFFIX = "_connection_string";
+    public static final String CONNECTION_STRING_PROPERTY_SUFFIX = "_connection_string";
     public static final String DEFAULT_CONNECTION_STRING_PROPERTY = "default";
     private static final int MUX_CATALOG_LIMIT = 100;
 

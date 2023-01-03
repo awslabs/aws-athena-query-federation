@@ -21,17 +21,17 @@
  */
 package com.amazonaws.athena.connectors.saphana;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link SaphanaMuxMetadataHandler} and {@link SaphanaMuxRecordHandler}.
  */
 public class SaphanaMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public SaphanaMuxCompositeHandler()
+    public SaphanaMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new SaphanaMuxMetadataHandler(), new SaphanaMuxRecordHandler());
+        super(SaphanaMuxMetadataHandler.class, SaphanaMuxRecordHandler.class, SaphanaMetadataHandler.class, SaphanaRecordHandler.class);
     }
 }
