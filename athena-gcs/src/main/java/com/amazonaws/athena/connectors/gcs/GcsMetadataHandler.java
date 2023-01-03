@@ -38,7 +38,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.glue.GenericPartitionResolver;
@@ -204,13 +203,13 @@ public class GcsMetadataHandler
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<PartitionFolder> partitionFolders = datasource.getPartitionFolders(request, request.getSchema(), tableInfo, request.getConstraints(), glueClient);
+        List<List<StoragePartition>> partitionFolders = datasource.getPartitionFolders(request, request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {
-            for (PartitionFolder folder : partitionFolders) {
+            for (List<StoragePartition> folder : partitionFolders) {
                 blockWriter.writeRows((Block block, int rowNum) ->
                 {
-                    for (StoragePartition partition : folder.getPartitions()) {
+                    for (StoragePartition partition : folder) {
                         block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
                     }
                     //we wrote 1 row so we return 1

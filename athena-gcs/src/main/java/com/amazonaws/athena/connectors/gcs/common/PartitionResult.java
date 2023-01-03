@@ -21,16 +21,16 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 public class PartitionResult
 {
-    private final PartitionLocation partition;
+    private final StorageLocation partition;
     private final String tableType;
 
-    public PartitionResult(String tableType, PartitionLocation partition)
+    public PartitionResult(String tableType, StorageLocation partition)
     {
         this.tableType = tableType;
         this.partition = partition;
     }
 
-    public PartitionLocation getPartition()
+    public StorageLocation getPartition()
     {
         return partition;
     }

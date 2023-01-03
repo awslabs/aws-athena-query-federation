@@ -65,4 +65,5 @@ public class StorageLocation
         int separatorIndex = baseLocation.indexOf("/");
         return new StorageLocation(baseLocation.substring(0, separatorIndex), baseLocation.substring(separatorIndex + 1));
     }
+
 }

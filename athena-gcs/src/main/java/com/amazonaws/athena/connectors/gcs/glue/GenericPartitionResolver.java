@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs.glue;
 
-import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.services.glue.model.Table;
@@ -58,9 +57,6 @@ public class GenericPartitionResolver
         }
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
         LOGGER.info("Retrieved partition for table {} is {}", table.getName(), storageLocation);
-        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), PartitionLocation.builder()
-                .bucketName(storageLocation.getBucketName())
-                .location(storageLocation.getLocation())
-                .build());
+        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), storageLocation);
     }
 }

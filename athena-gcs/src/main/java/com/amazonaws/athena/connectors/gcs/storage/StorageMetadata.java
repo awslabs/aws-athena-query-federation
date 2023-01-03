@@ -23,8 +23,6 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connectors.gcs.common.FieldValue;
-import com.amazonaws.athena.connectors.gcs.common.PartitionFolder;
-import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
@@ -129,10 +127,10 @@ public class StorageMetadata
      * Retrieves a list of StorageSplit that essentially contain the list of all files for a given table type in a storage location
      *
      * @param tableType Type of the table (e.g., PARQUET or CSV)
-     * @param partition List of {@link PartitionLocation} instances
+     * @param partition List of {@link StorageLocation} instances
      * @return A list of {@link StorageSplit} instances
      */
-    public List<StorageSplit> getStorageSplits(String tableType, PartitionLocation partition)
+    public List<StorageSplit> getStorageSplits(String tableType, StorageLocation partition)
     {
         String extension = "." + tableType.toLowerCase();
         List<StorageSplit> splits = new ArrayList<>();
@@ -171,14 +169,14 @@ public class StorageMetadata
      * @param tableInfo Name of the table
      * @param constraints An instance of {@link Constraints}, captured from where clauses
      * @param awsGlue An instance of {@link AWSGlue}
-     * @return A list of {@link PartitionFolder} instances
+     * @return A list of {@link List<StoragePartition>} instances
      * @throws ParseException Throws if any occurs during parsing regular expression
      */
-    public List<PartitionFolder> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
+    public List<List<StoragePartition>> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
             throws ParseException
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<PartitionFolder> partitionFolders = new ArrayList<>();
+        List<List<StoragePartition>> partitionFolders = new ArrayList<>();
         Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
         if (table != null) {
             Optional<String> optionalFolderRegEx = PartitionUtil.getRegExExpression(table);
@@ -209,7 +207,7 @@ public class StorageMetadata
                         List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(tableParameters.get(PARTITION_PATTERN_PATTERN), folderPath,
                                 folderRegEx, table.getPartitionKeys(), tableParameters);
                         if (!partitions.isEmpty()) {
-                            partitionFolders.add(new PartitionFolder(partitions));
+                            partitionFolders.add(partitions);
                         }
                         else {
                             LOGGER.info("No partitions found for the folder {}", blob.getName());
