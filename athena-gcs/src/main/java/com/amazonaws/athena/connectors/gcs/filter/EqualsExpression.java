@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.gcs.filter;
 
 public class EqualsExpression
 {
-
     final Integer columnIndex;
 
     final String columnName;
@@ -44,25 +43,6 @@ public class EqualsExpression
     public String columnName()
     {
         return this.columnName;
-    }
-
-    /**
-     * Applies the value against this expression
-     *
-     * @param value Column value
-     * @return Return if a match found, false otherwise
-     */
-    public boolean apply(Object value)
-    {
-        boolean evaluated = false;
-        if (expression == null
-                && (value == null || value.toString().equals("null") || value.toString().equals("NULL"))) {
-            evaluated = true;
-        }
-        else if (expression != null) {
-            evaluated = expression.toString().equals(value.toString());
-        }
-        return evaluated;
     }
 
     /**
