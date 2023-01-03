@@ -21,17 +21,17 @@
  */
 package com.amazonaws.athena.connectors.snowflake;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link SnowflakeMuxMetadataHandler} and {@link SnowflakeMuxRecordHandler}.
  */
 public class SnowflakeMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public SnowflakeMuxCompositeHandler()
+    public SnowflakeMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new SnowflakeMuxMetadataHandler(), new SnowflakeMuxRecordHandler());
+        super(SnowflakeMuxMetadataHandler.class, SnowflakeMuxRecordHandler.class, SnowflakeMetadataHandler.class, SnowflakeRecordHandler.class);
     }
 }
