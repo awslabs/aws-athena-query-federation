@@ -19,20 +19,21 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class PartitionFolder
 {
-    private final List<StoragePartition> partitions;
+    private final List<StoragePartition> partitions = new ArrayList<>();
 
     public PartitionFolder(List<StoragePartition> partitions)
     {
-        this.partitions = partitions;
+        this.partitions .addAll(partitions);
     }
 
     public List<StoragePartition> getPartitions()
     {
-        return partitions;
+        return List.copyOf(partitions);
     }
     @Override
     public String toString()

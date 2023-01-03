@@ -19,20 +19,39 @@
  */
 package com.amazonaws.athena.connectors.gcs.filter;
 
-public class EqualsExpression extends AbstractFilterExpression<Object>
+public class EqualsExpression
 {
+
+    final Integer columnIndex;
+
+    final String columnName;
+
+    public Object expression;
+
     /**
-     * {@inheritDoc}
+     * Constructs this with column index and an expression
+     *
+     * @param columnIndex      Index of the column
+     * @param expression Expression to match
      */
     public EqualsExpression(Integer columnIndex, String columnName, Object expression)
     {
-        super(columnIndex, columnName, expression);
+       this.columnIndex = columnIndex;
+       this.columnName = columnName;
+       this.expression = expression;
+    }
+
+    public String columnName()
+    {
+        return this.columnName;
     }
 
     /**
-     * {@inheritDoc}
+     * Applies the value against this expression
+     *
+     * @param value Column value
+     * @return Return if a match found, false otherwise
      */
-    @Override
     public boolean apply(Object value)
     {
         boolean evaluated = false;
@@ -47,9 +66,11 @@ public class EqualsExpression extends AbstractFilterExpression<Object>
     }
 
     /**
-     * {@inheritDoc}
+     * Applies the value to evaluate the expression
+     *
+     * @param value Value being examined
+     * @return True if the expression evaluated to true (matches), false otherwise
      */
-    @Override
     public boolean apply(String value)
     {
         boolean evaluated = false;

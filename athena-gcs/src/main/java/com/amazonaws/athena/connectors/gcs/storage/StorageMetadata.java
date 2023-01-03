@@ -28,7 +28,7 @@ import com.amazonaws.athena.connectors.gcs.common.PartitionLocation;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
-import com.amazonaws.athena.connectors.gcs.filter.FilterExpression;
+import com.amazonaws.athena.connectors.gcs.filter.EqualsExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
 import com.amazonaws.services.glue.AWSGlue;
@@ -69,7 +69,7 @@ import static java.util.Objects.requireNonNull;
 public class StorageMetadata
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StorageMetadata.class);
-    protected static Storage storage;
+    protected Storage storage;
 
     /**
      * Instantiate a storage data source object with provided config
@@ -190,7 +190,7 @@ public class StorageMetadata
                 Page<Blob> blobPage = storage.list(storageLocation.getBucketName(), prefix(storageLocation.getLocation()));
                 String folderRegEx = optionalFolderRegEx.get();
                 Pattern folderRegExPattern = Pattern.compile(folderRegEx);
-                List<FilterExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
+                List<EqualsExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
                 LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
                 for (Blob blob : blobPage.iterateAll()) {
                     String blobName = blob.getName();
@@ -259,7 +259,7 @@ public class StorageMetadata
         return factory.inspect();
     }
 
-    private boolean canIncludePath(String folderPath, List<FilterExpression> expressions)
+    private boolean canIncludePath(String folderPath, List<EqualsExpression> expressions)
     {
         if (expressions.isEmpty()) {
             return true;
@@ -271,12 +271,12 @@ public class StorageMetadata
                 continue;
             }
             FieldValue fieldValue = optionalFieldValue.get();
-            Optional<FilterExpression> optionalExpression = expressions.stream()
+            Optional<EqualsExpression> optionalExpression = expressions.stream()
                     .filter(expr -> expr.columnName().equalsIgnoreCase(fieldValue.getField()))
                     .findFirst();
             if (optionalExpression.isPresent()) {
                 LOGGER.info("Evaluating field value {} against the expression {}", fieldValue, expressions);
-                FilterExpression expression = optionalExpression.get();
+                EqualsExpression expression = optionalExpression.get();
                 if (!expression.apply(fieldValue.getValue())) {
                     return false;
                 }

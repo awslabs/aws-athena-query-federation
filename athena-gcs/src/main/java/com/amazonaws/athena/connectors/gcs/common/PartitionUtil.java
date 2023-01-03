@@ -45,7 +45,7 @@ public class PartitionUtil
     }
 
     /**
-     * Return a regular expression of partition pattern
+     * Return a regular expression for partition pattern from AWS Glue
      *
      * @param table  response of get table from AWS Glue
      * @return optional Sting of regular expression

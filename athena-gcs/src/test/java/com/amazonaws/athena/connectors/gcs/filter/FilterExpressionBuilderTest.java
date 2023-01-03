@@ -65,7 +65,7 @@ public class FilterExpressionBuilderTest
         StorageSplit storageSplit = StorageSplit.builder().fileName("athena-30part-nested/data/year=2000/Month_col=5/data.parquet").build();
         Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema);
-        List<FilterExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));
+        List<EqualsExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));
         assertNotNull(exp);
     }
 

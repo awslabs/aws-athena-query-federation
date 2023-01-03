@@ -58,9 +58,9 @@ public class FilterExpressionBuilder
      */
     private final Map<String, Integer> columnIndices = new HashMap<>();
 
-    private final List<FilterExpression> and = new ArrayList<>();
+    private final List<EqualsExpression> and = new ArrayList<>();
 
-    private final List<FilterExpression> or = new ArrayList<>();
+    private final List<EqualsExpression> or = new ArrayList<>();
 
     public FilterExpressionBuilder(Schema schema)
     {
@@ -85,12 +85,12 @@ public class FilterExpressionBuilder
      * Prepares the expressions based on the provided arguments.
      *
      * @param constraints            An instance of {@link Constraints} that is a summary of where clauses (if any)
-     * @return A list of {@link FilterExpression}
+     * @return A list of {@link EqualsExpression}
      */
-    public List<FilterExpression> getExpressions(Constraints constraints)
+    public List<EqualsExpression> getExpressions(Constraints constraints)
     {
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
-        List<FilterExpression> conjuncts = new ArrayList<>();
+        List<EqualsExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
@@ -105,17 +105,17 @@ public class FilterExpressionBuilder
     }
 
     /**
-     * Add one or more {@link FilterExpression} based on {@link ValueSet}
+     * Add one or more {@link EqualsExpression} based on {@link ValueSet}
      *
      * @param columnName The name of the column
      * @param valueSet   An instance of {@link ValueSet}
      * @param type       Type of the column
-     * @return List of {@link FilterExpression}
+     * @return List of {@link EqualsExpression}
      */
-    private List<FilterExpression> addFilterExpressions(String columnName, ValueSet valueSet, ArrowType type)
+    private List<EqualsExpression> addFilterExpressions(String columnName, ValueSet valueSet, ArrowType type)
     {
         LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
-        List<FilterExpression> disjuncts = new ArrayList<>();
+        List<EqualsExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
         if (valueSet instanceof SortedRangeSet) {
             LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
@@ -151,14 +151,14 @@ public class FilterExpressionBuilder
         return exactly;
     }
 
-    private void addToAnd(FilterExpression expression)
+    private void addToAnd(EqualsExpression expression)
     {
         if (!and.contains(expression)) {
             and.add(expression);
         }
     }
 
-    protected final void addToOr(FilterExpression expression)
+    protected final void addToOr(EqualsExpression expression)
     {
         or.add(expression);
     }

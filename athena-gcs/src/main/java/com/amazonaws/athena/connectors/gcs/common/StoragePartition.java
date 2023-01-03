@@ -19,6 +19,9 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
+/**
+ * Used to get Storage Partition
+ */
 public class StoragePartition
 {
     private String columnName;
