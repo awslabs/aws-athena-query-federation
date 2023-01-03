@@ -69,7 +69,7 @@ import static java.util.Objects.requireNonNull;
 public class StorageMetadata
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StorageMetadata.class);
-    protected Storage storage;
+    protected static Storage storage;
 
     /**
      * Instantiate a storage data source object with provided config
