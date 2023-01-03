@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
@@ -48,7 +47,7 @@ import static org.mockito.ArgumentMatchers.any;
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*"})
-@PrepareForTest({StorageDatasourceFactory.class, GoogleCredentials.class, GcsSchemaUtils.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class})
+@PrepareForTest({ GoogleCredentials.class, GcsSchemaUtils.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class})
 public class GcsCompositeHandlerTest {
     private GcsCompositeHandler gcsCompositeHandler;
     @Mock

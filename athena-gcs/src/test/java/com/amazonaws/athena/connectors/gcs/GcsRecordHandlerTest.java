@@ -34,8 +34,7 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadataImpl;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
@@ -73,7 +72,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
-import static com.amazonaws.athena.connectors.gcs.storage.StorageConstants.STORAGE_SPLIT_JSON;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -86,7 +85,7 @@ import static org.testng.AssertJUnit.assertEquals;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
 })
-@PrepareForTest({GcsTestUtils.class, GcsUtil.class, StorageDatasourceFactory.class, GoogleCredentials.class, AWSSecretsManagerClientBuilder.class})
+@PrepareForTest({GcsTestUtils.class, GcsUtil.class, GoogleCredentials.class, AWSSecretsManagerClientBuilder.class})
 public class GcsRecordHandlerTest
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandlerTest.class);
@@ -101,7 +100,7 @@ public class GcsRecordHandlerTest
     GoogleCredentials credentials;
 
     @Mock
-    StorageMetadataImpl storageMetadata;
+    StorageMetadata storageMetadata;
 
     private AmazonS3 amazonS3;
 
@@ -153,9 +152,9 @@ public class GcsRecordHandlerTest
         PowerMockito.mockStatic(GoogleCredentials.class);
         PowerMockito.when(GoogleCredentials.fromStream(any())).thenReturn(credentials);
         PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
-        suppress(constructor(StorageMetadataImpl.class, String.class, Map.class));
-        PowerMockito.mockStatic(StorageDatasourceFactory.class);
-        PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), any())).thenReturn(storageMetadata);
+        suppress(constructor(StorageMetadata.class, String.class, Map.class));
+        //PowerMockito.mockStatic(StorageDatasourceFactory.class);
+        //PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), any())).thenReturn(storageMetadata);
         Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
         spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator());
 

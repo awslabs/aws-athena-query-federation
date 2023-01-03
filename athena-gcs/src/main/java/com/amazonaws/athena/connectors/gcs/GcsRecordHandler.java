@@ -27,7 +27,6 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.gcs.storage.StorageConstants;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -67,7 +66,6 @@ import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_F
 import static com.amazonaws.athena.connectors.gcs.GcsFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
-import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
 
 public class GcsRecordHandler
         extends RecordHandler
@@ -100,7 +98,7 @@ public class GcsRecordHandler
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
+        this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
     }
 
     /**
@@ -125,7 +123,7 @@ public class GcsRecordHandler
         Split split = recordsRequest.getSplit();
         final List<StorageSplit> storageSplits
                 = new ObjectMapper()
-                .readValue(split.getProperty(StorageConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
+                .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         new TypeReference<List<StorageSplit>>(){});
         for (StorageSplit storageSplit : storageSplits) {
             String uri = createUri(storageSplit.getFileName());

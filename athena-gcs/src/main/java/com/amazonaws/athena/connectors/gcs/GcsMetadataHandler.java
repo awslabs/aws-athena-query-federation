@@ -75,7 +75,6 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSO
 import static com.amazonaws.athena.connectors.gcs.GcsSchemaUtils.buildTableSchema;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
-import static com.amazonaws.athena.connectors.gcs.storage.datasource.StorageDatasourceFactory.createDatasource;
 import static java.util.Objects.requireNonNull;
 
 public class GcsMetadataHandler
@@ -103,7 +102,7 @@ public class GcsMetadataHandler
     {
         super(DISABLE_GLUE, SOURCE_TYPE);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
+        this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
     }
@@ -119,7 +118,7 @@ public class GcsMetadataHandler
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        this.datasource = createDatasource(gcsCredentialsJsonString, System.getenv());
+        this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");

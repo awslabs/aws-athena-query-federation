@@ -27,13 +27,6 @@ import com.amazonaws.services.glue.model.Table;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.CATALOG_NAME_ENV_OVERRIDE;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.FUNCTION_ARN_REGEX;
-
 public class GlueUtil
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlueUtil.class);
@@ -45,45 +38,10 @@ public class GlueUtil
     public static Table getGlueTable(MetadataRequest request, TableName tableName, AWSGlue awsGlue)
     {
         com.amazonaws.services.glue.model.GetTableRequest getTableRequest = new com.amazonaws.services.glue.model.GetTableRequest();
-        getTableRequest.setCatalogId(getCatalog(request));
         getTableRequest.setDatabaseName(tableName.getSchemaName());
         getTableRequest.setName(tableName.getTableName());
 
         GetTableResult result = awsGlue.getTable(getTableRequest);
         return result.getTable();
-    }
-
-    private static String getCatalog(MetadataRequest request)
-    {
-        String override = System.getenv(CATALOG_NAME_ENV_OVERRIDE);
-        if (override == null) {
-            if (request.getContext() != null) {
-                String functionArn = request.getContext().getInvokedFunctionArn();
-                String functionOwner = getFunctionOwner(functionArn).orElse(null);
-                if (functionOwner != null) {
-                    LOGGER.debug("Function Owner: " + functionOwner);
-                    return functionOwner;
-                }
-            }
-            return request.getIdentity().getAccount();
-        }
-        return override;
-    }
-
-    private static Optional<String> getFunctionOwner(String functionArn)
-    {
-        if (functionArn != null) {
-            Pattern arnPattern = Pattern.compile(FUNCTION_ARN_REGEX);
-            Matcher arnMatcher = arnPattern.matcher(functionArn);
-            try {
-                if (arnMatcher.matches() && arnMatcher.groupCount() > 0 && arnMatcher.group(1) != null) {
-                    return Optional.of(arnMatcher.group(1));
-                }
-            }
-            catch (Exception e) {
-                LOGGER.warn("Unable to parse owner from function arn: " + functionArn, e);
-            }
-        }
-        return Optional.empty();
     }
 }

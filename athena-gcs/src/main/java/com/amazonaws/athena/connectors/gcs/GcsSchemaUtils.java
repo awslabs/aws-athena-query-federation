@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.glue.model.Table;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -32,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
@@ -46,22 +44,21 @@ public class GcsSchemaUtils
     }
 
     /**
-     * Builds the table schema based on the provided field by the retrieved instance of {@link StorageTable}
+     * Builds the table schema based on the provided field
      *
      * @param datasource An instance of {@link StorageMetadata}
      * @param table      Glue table object
      * @return An instance of {@link Schema}
      */
-    public static Schema buildTableSchema(StorageMetadata datasource, Table table) throws Exception
+    public static Schema buildTableSchema(StorageMetadata datasource, Table table)
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         String locationUri = table.getStorageDescriptor().getLocation();
         StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
-        Optional<StorageTable> optionalStorageTable = datasource.getStorageTable(storageLocation.getBucketName(), storageLocation.getLocation(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM));
+        List<Field> fieldList = datasource.getFields(storageLocation.getBucketName(), storageLocation.getLocation(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM));
 
-        StorageTable sTable = optionalStorageTable.get();
-        LOGGER.debug("Schema Fields\n{}", sTable.getFields());
-        for (Field field : sTable.getFields()) {
+        LOGGER.debug("Schema Fields\n{}", fieldList);
+        for (Field field : fieldList) {
             if (isFieldTypeNull(field)) {
                 field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
             }

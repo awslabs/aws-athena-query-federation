@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connectors.gcs.storage.datasource.StorageTable;
 import com.amazonaws.services.glue.model.Column;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
@@ -66,14 +65,14 @@ public class GcsTestUtils {
 
 
     //Returns the schema by returning a list of fields in Google BigQuery Format.
-    static StorageTable getTestSchemaFields()
+    static List<Field> getTestSchemaFields()
     {
         List<Field> fields = getFields();
         Map<String, String> map = new HashMap<>();
         map.put("bucketName", "test");
         map.put("objectName", "test");
         map.put("partitioned_table_base", "test");
-        return new StorageTable("test", "test", map, fields, false);
+        return fields;
     }
 
     static List<Field> getFields()
@@ -89,9 +88,9 @@ public class GcsTestUtils {
     public static Schema getTestSchema()
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
-        StorageTable storageTable = getTestSchemaFields();
+        List<Field> fields = getTestSchemaFields();
 
-        for (Field field : storageTable.getFields()) {
+        for (Field field : fields) {
             schemaBuilder.addField(field);
         }
         return schemaBuilder.build();

@@ -23,13 +23,10 @@ import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.google.common.collect.ImmutableMap;
-import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.joda.time.tz.UTCProvider;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -37,8 +34,6 @@ import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.util.Optional;
 
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
@@ -63,7 +58,7 @@ public class GcsSchemaUtilsTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation("gs://mydatalake1test/birthday/"));
         table.setCatalogId("catalog");
-        when(storageMetadata.getStorageTable(Mockito.any(),Mockito.any(),Mockito.any())).thenReturn(Optional.of(GcsTestUtils.getTestSchemaFields()));
+        when(storageMetadata.getFields(Mockito.any(),Mockito.any(),Mockito.any())).thenReturn(GcsTestUtils.getTestSchemaFields());
         Schema schema = GcsSchemaUtils.buildTableSchema(storageMetadata, table);
         assertNotNull(schema);
     }

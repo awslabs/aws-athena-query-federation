@@ -32,14 +32,14 @@ import java.util.Map;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 
-public class GenericPartitionResolver implements PartitionResolver
+public class GenericPartitionResolver
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericPartitionResolver.class);
 
     /**
-     * {@inheritDoc}
+     * Determine the partitions based on Glue Catalog
+     * @return A list of partitions
      */
-    @Override
     public PartitionResult getPartitions(Table table, Map<String, FieldReader> fieldReadersMap)
     {
         String locationUri = null;
