@@ -68,11 +68,9 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static com.amazonaws.athena.connectors.gcs.GcsSchemaUtils.buildTableSchema;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
 import static java.util.Objects.requireNonNull;
 
@@ -92,15 +90,15 @@ public class GcsMetadataHandler
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for DDB.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
-            || (table.getParameters() != null && GcsUtil.isSupportedFileType(table.getParameters().get("classification")))
-            || (table.getStorageDescriptor().getParameters() != null && GcsUtil.isSupportedFileType(table.getStorageDescriptor().getParameters().get("classification")));
+            || (table.getParameters() != null && GcsUtil.isSupportedFileType(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM)))
+            || (table.getStorageDescriptor().getParameters() != null && GcsUtil.isSupportedFileType(table.getStorageDescriptor().getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM)));
     private final StorageMetadata datasource;
     private final AWSGlue glueClient;
 
     public GcsMetadataHandler() throws IOException
     {
         super(DISABLE_GLUE, SOURCE_TYPE);
-        String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
+        String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
         this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
@@ -116,7 +114,7 @@ public class GcsMetadataHandler
                                  AmazonS3 amazonS3, AWSGlue glueClient) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
-        String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
+        String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
         this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
@@ -269,7 +267,7 @@ public class GcsMetadataHandler
             LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
                     storageSplitJson);
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get("classification"))
+                    .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
                     .add(STORAGE_SPLIT_JSON, storageSplitJson);
             splits.add(splitBuilder.build());
 
@@ -279,7 +277,7 @@ public class GcsMetadataHandler
             }
             LOGGER.info("Splits created {}", splits);
         }
-        LOGGER.info("doGetSplits: exit - " + splits.size());
+        LOGGER.info("doGetSplits: exit - {}", splits.size());
         return new GetSplitsResponse(catalogName, splits);
     }
 

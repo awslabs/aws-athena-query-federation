@@ -8,13 +8,13 @@ Metadata:
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     ReadmeUrl: README.md
-    Labels: ['athena-federation', 'GCS', 'Google Cloud Storage', 'parquet', 'csv']
+    Labels: ['athena-federation', 'GCS', 'Google-Cloud-Storage', 'parquet', 'csv']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
     SemanticVersion: 2022.42.2
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
-  AthenaCatalogName:
+  AthenaLambdaName:
     Description: 'The name you will give to this catalog is a Lambda name for Athena. Athena will use this name as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
@@ -37,27 +37,15 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
-  VpcId:
-    Description: 'VPC ID'
-    Type: 'AWS::EC2::VPC::Id'
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
   SecurityGroupIds:
     Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
     Type: 'List<AWS::EC2::SecurityGroup::Id>'
-  SecretNameOrPrefix:
-    Description: 'Secret name (exact) or a prefix as a Secret Name pattern (e.g., <prefix>-<secret name>). Unless the given pattern is present in the Secret Name, invocation of GetSecretValue will be denied'
-    Type: String
-    Default: "gcs-*"
   GcsSecretName:
     Description: 'Secret key name in the AWS Secrets Manager.'
     Type: String
-    Default: "gcs-athena"
-  GcsCredentialKey:
-    Description: 'GCS credential secret key that contains the GCS credentials JSON value (key in key/value).'
-    Type: String
-    Default: "gcs_credential_keys"
 Resources:
   ConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -68,11 +56,10 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           gcs_secret_name: !Ref GcsSecretName
-          gcs_credential_key: !Ref GcsCredentialKey
           SSL_CERT_FILE: '/tmp/cacert.pem'
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
 
-      FunctionName: !Sub "${AthenaCatalogName}"
+      FunctionName: !Sub "${AthenaLambdaName}"
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
       CodeUri: "./target/athena-gcs-2022.47.2.jar"
       Description: "Amazon Athena Gcs Connector"
@@ -106,7 +93,7 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${SecretNameOrPrefix}'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${GcsSecretName}*'
         - S3ReadPolicy:
             BucketName:
               Ref: SpillBucket

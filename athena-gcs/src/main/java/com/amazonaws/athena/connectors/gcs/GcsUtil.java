@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -36,11 +35,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION;
@@ -53,29 +49,6 @@ public class GcsUtil
 
     private GcsUtil()
     {
-    }
-
-    /**
-     * Retrieves the GCS credential JSON from the JSON (key/value pairs)
-     *
-     * @param secretString String from the Secrets Manager
-     * @return GCS credentials JSON
-     */
-    public static String getGcsCredentialJsonString(final String secretString, String gcsCredentialKeysEnvVar) throws IOException
-    {
-        String appCredentialsJsonString = null;
-        if (secretString != null) {
-            TypeReference<HashMap<String, String>> typeRef
-                    = new TypeReference<>()
-            {
-            };
-            ObjectMapper mapper = new ObjectMapper();
-            Map<String, String> secretKeys = mapper.readValue(secretString.getBytes(StandardCharsets.UTF_8), typeRef);
-            appCredentialsJsonString = secretKeys.get(System.getenv(gcsCredentialKeysEnvVar));
-        }
-        return requireNonNull(appCredentialsJsonString, "GCS credential was null using key "
-                + gcsCredentialKeysEnvVar
-                + " in the secret " + System.getenv(gcsCredentialKeysEnvVar));
     }
 
     /**
@@ -96,6 +69,10 @@ public class GcsUtil
                 || field.getType().equals(Types.MinorType.NULL.getType());
     }
 
+    /**
+     * Install cacert from resource folder to temp location
+     * This is required for dataset api
+     */
     public static void installCaCertificate() throws IOException
     {
         ClassLoader classLoader = GcsRecordHandler.class.getClassLoader();
@@ -111,10 +88,14 @@ public class GcsUtil
         }
     }
 
+    /**
+     * Install/place Google cloud platform credentials from AWS secret manager to temp location
+     * This is required for dataset api
+     */
     public static void installGoogleCredentialsJsonFile() throws IOException
     {
         CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
-        String gcsCredentialsJsonString = getGcsCredentialJsonString(secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
+        String gcsCredentialsJsonString = secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
         File dest = new File(System.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION));
         boolean destDirExists = new File(dest.getParent()).mkdirs();
         if (!destDirExists && dest.exists()) {

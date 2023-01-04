@@ -28,7 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
-import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -55,17 +54,13 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_CREDENTIAL_KEYS_ENV_VAR;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.getGcsCredentialJsonString;
 
 public class GcsRecordHandler
         extends RecordHandler
@@ -74,12 +69,10 @@ public class GcsRecordHandler
 
     private static final String SOURCE_TYPE = "gcs";
 
-    private final StorageMetadata datasource;
-
     // to handle back-pressure during API invocation to GCS
     ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
 
-    public GcsRecordHandler() throws IOException
+    public GcsRecordHandler()
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
@@ -94,11 +87,9 @@ public class GcsRecordHandler
      * @param amazonAthena   An instance of AmazonAthena
      */
     @VisibleForTesting
-    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena) throws IOException
+    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
     {
         super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
-        String gcsCredentialsJsonString = getGcsCredentialJsonString(this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR)), GCS_CREDENTIAL_KEYS_ENV_VAR);
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
     }
 
     /**

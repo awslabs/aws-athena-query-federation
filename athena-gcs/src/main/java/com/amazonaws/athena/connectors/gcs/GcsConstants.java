@@ -41,12 +41,6 @@ public class GcsConstants
     public static final String GCS_SECRET_KEY_ENV_VAR = "gcs_secret_name";
 
     /**
-     * An environment variable in the deployed Lambda that says the key name under the configured secret that
-     * contains credential keys/other values in the form of  JSON to access the GCS buckets/objects
-     */
-    public static final String GCS_CREDENTIAL_KEYS_ENV_VAR = "gcs_credential_key";
-
-    /**
      * A ssl file location constant to store the SSL certificate
      * The file location is fixed at /tmp directory
      * to retrieve ssl certificate location

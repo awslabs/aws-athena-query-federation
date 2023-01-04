@@ -160,7 +160,7 @@ public class GcsRecordHandlerTest
 
         // Mocking GcsUtil
         PowerMockito.mockStatic(GcsUtil.class);
-        PowerMockito.when(GcsUtil.getGcsCredentialJsonString(anyString(), anyString())).thenReturn("mockJson");
+        //PowerMockito.when(GcsUtil.getGcsCredentialJsonString(anyString(), anyString())).thenReturn("mockJson");
         final File parquetFile = new File(GcsRecordHandlerTest.class.getProtectionDomain().getCodeSource().getLocation().getPath());
         PowerMockito.when(GcsUtil.createUri(anyString())).thenReturn( "file:" + parquetFile.getPath() + "/" + "person-data.parquet");
 
