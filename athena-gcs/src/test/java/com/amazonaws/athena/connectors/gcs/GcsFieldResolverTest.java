@@ -42,26 +42,26 @@ import static org.junit.jupiter.api.Assertions.assertNull;
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
 })
 @PrepareForTest({GcsTestUtils.class})
-public class TypeUtilsTest
+public class GcsFieldResolverTest
 {
     @Test
     public void testCoerce()
     {
-        assertNull(TypeUtils.coerce(Field.nullable("id", new ArrowType.Int(64, false)), null));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Int(64, false)), 1L));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Int(32, true)), 1.0F));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Int(32, true)), 1.000));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Int(32, true)), 1));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Utf8()), "1L"));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Utf8()), 1));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), 1.00));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), 1));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), 1.0F));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), 1));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), 1.0F));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), 1.000));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Bool()), true));
-        assertNotNull(TypeUtils.coerce(Field.notNullable("id", new ArrowType.Date(DateUnit.MILLISECOND)), "2022-01-01"));
+        assertNull(GcsFieldResolver.coerce(Field.nullable("id", new ArrowType.Int(64, false)), null));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Int(64, false)), 1L));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Int(32, true)), 1.0F));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Int(32, true)), 1.000));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Int(32, true)), 1));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Utf8()), "1L"));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Utf8()), 1));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), 1.00));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), 1));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)), 1.0F));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), 1));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), 1.0F));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)), 1.000));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Bool()), true));
+        assertNotNull(GcsFieldResolver.coerce(Field.notNullable("id", new ArrowType.Date(DateUnit.MILLISECOND)), "2022-01-01"));
     }
 
     @Test

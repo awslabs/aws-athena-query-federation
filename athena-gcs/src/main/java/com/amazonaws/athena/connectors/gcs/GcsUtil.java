@@ -19,8 +19,12 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
+import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
+import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.GetTableResult;
+import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -139,5 +143,22 @@ public class GcsUtil
     public static String createUri(String path)
     {
         return "gs://"  + path;
+    }
+
+    /**
+     * Get AWS Glue table object
+     *
+     * @param tableName table info
+     * @param awsGlue AWS Glue client
+     * @return Table object
+     */
+    public static Table getGlueTable(TableName tableName, AWSGlue awsGlue)
+    {
+        com.amazonaws.services.glue.model.GetTableRequest getTableRequest = new com.amazonaws.services.glue.model.GetTableRequest();
+        getTableRequest.setDatabaseName(tableName.getSchemaName());
+        getTableRequest.setName(tableName.getTableName());
+
+        GetTableResult result = awsGlue.getTable(getTableRequest);
+        return result.getTable();
     }
 }

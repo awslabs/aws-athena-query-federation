@@ -39,10 +39,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
+import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
-import com.amazonaws.athena.connectors.gcs.glue.GenericPartitionResolver;
-import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -88,7 +87,7 @@ public class GcsMetadataHandler
     private static final boolean DISABLE_GLUE = false;
     private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
-    // used to filter out Glue tables which lack indications of being used for DDB.
+    // used to filter out Glue tables which lack indications of being used for GCS.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
             || (table.getParameters() != null && GcsUtil.isSupportedFileType(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM)))
             || (table.getStorageDescriptor().getParameters() != null && GcsUtil.isSupportedFileType(table.getStorageDescriptor().getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM)));
@@ -176,7 +175,7 @@ public class GcsMetadataHandler
             LOGGER.warn("Fetching schema from google cloud storage files");
             //fetch schema from GCS in case user doesn't define it in glue table
             //this will get table(location uri and partition details) without schema metadata
-            Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
+            Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
             //fetch schema from dataset api
             Schema schema = buildTableSchema(this.datasource, table);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
@@ -201,7 +200,7 @@ public class GcsMetadataHandler
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<List<StoragePartition>> partitionFolders = datasource.getPartitionFolders(request, request.getSchema(), tableInfo, request.getConstraints(), glueClient);
+        List<List<StoragePartition>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {
             for (List<StoragePartition> folder : partitionFolders) {
@@ -236,7 +235,7 @@ public class GcsMetadataHandler
         LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=queryId {}", request.getQueryId());
         int partitionContd = decodeContinuationToken(request);
 
-        Table table = GlueUtil.getGlueTable(request, request.getTableName(), glueClient);
+        Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
         Map<String, FieldReader> fieldReadersMap = new HashMap<>();
@@ -254,7 +253,7 @@ public class GcsMetadataHandler
             }
 
             //getting the partition folder name with bucket and file type
-            PartitionResult partitionResult = new GenericPartitionResolver().getPartitions(table, fieldReadersMap);
+            PartitionResult partitionResult = PartitionUtil.getPartitions(table, fieldReadersMap);
             LOGGER.info("Partition location {} for type {}", partitionResult.getPartition(), partitionResult.getTableType());
 
             //getting storage file list

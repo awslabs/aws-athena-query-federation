@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.gcs.storage;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
@@ -29,7 +29,6 @@ import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
 import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.athena.connectors.gcs.filter.EqualsExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
-import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
 import com.google.api.gax.paging.Page;
@@ -148,7 +147,6 @@ public class StorageMetadata
      *
      * TODO: Date expression evaluation needs to be taken care
      *
-     * @param request An instance of {@link MetadataRequest}, may be {@link com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest} or any subclass
      * @param schema An instance of {@link Schema} that describes underlying Table's schema
      * @param tableInfo Name of the table
      * @param constraints An instance of {@link Constraints}, captured from where clauses
@@ -156,13 +154,13 @@ public class StorageMetadata
      * @return A list of {@link List<StoragePartition>} instances
      * @throws ParseException Throws if any occurs during parsing regular expression
      */
-    public List<List<StoragePartition>> getPartitionFolders(MetadataRequest request, Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
+    public List<List<StoragePartition>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
             throws ParseException
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         List<List<StoragePartition>> partitionFolders = new ArrayList<>();
         // get Glue table object
-        Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
+        Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
         if (table != null) {
             // get partition folder regEx pattern
             Optional<String> optionalFolderRegEx = PartitionUtil.getRegExExpression(table);
@@ -185,10 +183,10 @@ public class StorageMetadata
                     if (folderRegExPattern.matcher(folderPath).matches()) {
                         LOGGER.info("Examining folder {} against regex {} matches", folderPath, folderRegEx);
                         if (!canIncludePath(folderPath, expressions)) {
-                            LOGGER.info("Folder " + folderPath + " has NOT been selected against the expression");
+                            LOGGER.info("Folder {} has NOT been selected against the expression", folderPath);
                             continue;
                         }
-                        LOGGER.info("Folder " + folderPath + " has been selected against the expression");
+                        LOGGER.info("Folder {} has NOT been selected against the expression", folderPath);
                         Map<String, String> tableParameters = table.getParameters();
                         List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(tableParameters.get(PARTITION_PATTERN_PATTERN), folderPath,
                                 folderRegEx, table.getPartitionKeys(), tableParameters);

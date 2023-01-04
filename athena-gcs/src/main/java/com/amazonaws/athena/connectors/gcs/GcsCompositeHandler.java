@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
@@ -38,7 +37,7 @@ public class GcsCompositeHandler
     /**
      * The default constructor that initializes metadata and record handlers for GCS
      */
-    public GcsCompositeHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
+    public GcsCompositeHandler() throws IOException
     {
         super(new GcsMetadataHandler(), new GcsRecordHandler());
         installCaCertificate();

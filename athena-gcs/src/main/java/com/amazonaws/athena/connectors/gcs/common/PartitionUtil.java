@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
 import static java.util.Objects.requireNonNull;
 
@@ -164,15 +166,13 @@ public class PartitionUtil
      */
     private static boolean setStoragePartitionValues(List<Column> columns, String columnName, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
     {
-        if (columnValue != null && !columnValue.isBlank()) {
-            if (!columns.isEmpty()) {
-                for (Column column : columns) {
-                    if (column.getName().equalsIgnoreCase(columnName)) {
-                        partition.columnName(column.getName())
+        if (columnValue != null && !columnValue.isBlank() && !columns.isEmpty()) {
+            for (Column column : columns) {
+                if (column.getName().equalsIgnoreCase(columnName)) {
+                    partition.columnName(column.getName())
                                 .columnType(column.getType())
                                 .columnValue(convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters));
-                        return true;
-                    }
+                    return true;
                 }
             }
         }
@@ -196,8 +196,7 @@ public class PartitionUtil
             for (Column column : partitionColumns) {
                 if (column.getName().equalsIgnoreCase(columnName)) {
                     String regEx = requireNonNull(getRegExByColumnType(column.getName(), column.getType(), tableParameters));
-                    String regExWithPattern = createGroup(folderPart.replace(variable, regEx), regEx);
-                    return regExWithPattern;
+                    return createGroup(folderPart.replace(variable, regEx), regEx);
                 }
             }
         }
@@ -238,7 +237,6 @@ public class PartitionUtil
             case "int":
             case "smallint":
             case "tinyint":
-//                return "\\d+";
                 return "(\\d+)";
             case "date":
                 String datePattern = tableParameters.get(String.format("partition.%s.pattern", columnName));
@@ -298,5 +296,29 @@ public class PartitionUtil
                 .replaceAll("Z", "-\\\\d{3,4}") // replace time-zone offset with 3-4 digits with the prefix '-'
                 .replaceAll("z", "(.*?){2,6}") // replace time zone abbreviations with any character of length of min 2, max 6 (currently max is 5)
                 .replaceAll("G", "AD"); // Era designator. Currently BC not supported
+    }
+
+    /**
+     * Determine the partitions based on Glue Catalog
+     * @return A list of partitions
+     */
+    public static PartitionResult getPartitions(Table table, Map<String, FieldReader> fieldReadersMap)
+    {
+        String locationUri;
+        String tableLocation = table.getStorageDescriptor().getLocation();
+        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
+        if (null != partitionPattern) {
+            for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
+                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
+            }
+            locationUri = (tableLocation.endsWith("/")
+                    ? tableLocation
+                    : tableLocation + "/") + partitionPattern;
+        }
+        else {
+            locationUri = tableLocation;
+        }
+        StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
+        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), storageLocation);
     }
 }
