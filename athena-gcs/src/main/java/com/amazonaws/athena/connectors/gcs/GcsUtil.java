@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.athena.connectors.gcs.storage.StorageSplit;
+import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

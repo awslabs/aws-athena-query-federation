@@ -116,7 +116,6 @@ public class StorageMetadataTest
         storageMetadata = mock(StorageMetadata.class);
         when(storageMetadata.getFields(any(),any(),any())).thenCallRealMethod();
         when(storageMetadata.getStorageFiles(any(),any(),any())).thenCallRealMethod();
-        when(storageMetadata.getTableFields(any(),any(),any())).thenCallRealMethod();
         when(storageMetadata.getFileSchema(any(),any(),any())).thenReturn(schema);
         List<Field> fields = storageMetadata.getFields("mydatalake1", "birthday", "parquet");
         Assert.assertFalse(fields.isEmpty());

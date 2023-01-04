@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connectors.gcs.storage;
+package com.amazonaws.athena.connectors.gcs.common;
 
 import static java.util.Objects.requireNonNull;
 

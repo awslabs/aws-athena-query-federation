@@ -26,6 +26,7 @@ import com.amazonaws.athena.connectors.gcs.common.FieldValue;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.common.StorageLocation;
 import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
+import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.athena.connectors.gcs.filter.EqualsExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.athena.connectors.gcs.glue.GlueUtil;
@@ -88,22 +89,6 @@ public class StorageMetadata
     }
 
     /**
-     * Return a list of Field instances with field name and field type (Arrow type)
-     *
-     * @param bucketName  Name of the bucket
-     * @param objectNames Name of the file in the specified bucket
-     * @param format   file type
-     * @return List of field instances
-     */
-    public List<Field> getTableFields(String bucketName, List<String> objectNames, FileFormat format)
-    {
-        if (objectNames.isEmpty()) {
-            throw new IllegalArgumentException("List of tables in bucket " + bucketName + " was empty");
-        }
-        return getFileSchema(bucketName, objectNames.get(0), format).getFields();
-    }
-
-    /**
      * Returns a list of field names and associated file type
      *
      * @param databaseName Name of the database
@@ -114,10 +99,9 @@ public class StorageMetadata
     public synchronized List<Field> getFields(String databaseName, String tableName, String format)
     {
         LOGGER.info("Getting table fields for object {}.{}", databaseName, tableName);
-
         List<String> files = getStorageFiles(databaseName, tableName, format);
         if (!files.isEmpty()) {
-            return getTableFields(databaseName, files, FileFormat.valueOf(format.toUpperCase()));
+            return getFileSchema(databaseName, files.get(0), FileFormat.valueOf(format.toUpperCase())).getFields();
         }
 
         throw new IllegalArgumentException("No object found for the table name '" + tableName + "' under bucket " + databaseName);
@@ -177,8 +161,10 @@ public class StorageMetadata
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         List<List<StoragePartition>> partitionFolders = new ArrayList<>();
+        // get Glue table object
         Table table = GlueUtil.getGlueTable(request, tableInfo, awsGlue);
         if (table != null) {
+            // get partition folder regEx pattern
             Optional<String> optionalFolderRegEx = PartitionUtil.getRegExExpression(table);
             if (optionalFolderRegEx.isPresent()) {
                 String locationUri = table.getStorageDescriptor().getLocation();
