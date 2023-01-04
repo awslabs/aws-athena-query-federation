@@ -19,17 +19,17 @@
  */
 package com.amazonaws.athena.connectors.mysql;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link MySqlMuxMetadataHandler} and {@link MySqlMuxRecordHandler}.
  */
 public class MySqlMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public MySqlMuxCompositeHandler()
+    public MySqlMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new MySqlMuxMetadataHandler(), new MySqlMuxRecordHandler());
+        super(MySqlMuxMetadataHandler.class, MySqlMuxRecordHandler.class, MySqlMetadataHandler.class, MySqlRecordHandler.class);
     }
 }

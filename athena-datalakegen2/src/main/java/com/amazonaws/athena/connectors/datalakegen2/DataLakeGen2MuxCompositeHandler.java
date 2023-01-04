@@ -19,16 +19,16 @@
  */
 package com.amazonaws.athena.connectors.datalakegen2;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link DataLakeGen2MuxMetadataHandler} and {@link DataLakeGen2MuxRecordHandler}.
  */
-public class DataLakeGen2MuxCompositeHandler extends CompositeHandler
+public class DataLakeGen2MuxCompositeHandler extends MultiplexingJdbcCompositeHandler
 {
-    public DataLakeGen2MuxCompositeHandler()
+    public DataLakeGen2MuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new DataLakeGen2MuxMetadataHandler(), new DataLakeGen2MuxRecordHandler());
+        super(DataLakeGen2MuxMetadataHandler.class, DataLakeGen2MuxRecordHandler.class, DataLakeGen2MetadataHandler.class, DataLakeGen2RecordHandler.class);
     }
 }

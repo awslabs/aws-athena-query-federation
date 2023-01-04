@@ -20,17 +20,17 @@
 
 package com.amazonaws.athena.connectors.sqlserver;
 
-import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler;
 
 /**
  * Boilerplate composite handler that allows us to use a single Lambda function for both
  * Metadata and Data. In this case we just compose {@link SqlServerMuxMetadataHandler} and {@link SqlServerMuxRecordHandler}.
  */
 public class SqlServerMuxCompositeHandler
-        extends CompositeHandler
+        extends MultiplexingJdbcCompositeHandler
 {
-    public SqlServerMuxCompositeHandler()
+    public SqlServerMuxCompositeHandler() throws java.lang.ReflectiveOperationException
     {
-        super(new SqlServerMuxMetadataHandler(), new SqlServerMuxRecordHandler());
+        super(SqlServerMuxMetadataHandler.class, SqlServerMuxRecordHandler.class, SqlServerMetadataHandler.class, SqlServerRecordHandler.class);
     }
 }
