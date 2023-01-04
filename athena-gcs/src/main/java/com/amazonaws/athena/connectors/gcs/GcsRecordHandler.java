@@ -23,6 +23,7 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
+import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
@@ -59,7 +60,6 @@ import java.util.List;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
-import static com.amazonaws.athena.connectors.gcs.GcsFieldResolver.DEFAULT_FIELD_RESOLVER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 
 public class GcsRecordHandler
@@ -165,9 +165,9 @@ public class GcsRecordHandler
      * along with row index. We will access into batch using the row index and
      * get the record to write into spiller.
      *
-     * @param spiller - block spiller
+     * @param spiller         - block spiller
      * @param gcsFieldVectors - the batch
-     * @param rowIndex - row index
+     * @param rowIndex        - row index
      */
     private void execute(
             BlockSpiller spiller,
@@ -184,7 +184,7 @@ public class GcsRecordHandler
                     switch (fieldType) {
                         case LIST:
                         case STRUCT:
-                            isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(), rowNum, DEFAULT_FIELD_RESOLVER, value);
+                            isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(), rowNum, FieldResolver.DEFAULT, value);
                             break;
                         default:
                             isMatched &= block.offerValue(nextField.getName().toLowerCase(), rowNum, value);

@@ -153,14 +153,11 @@ public class GcsRecordHandlerTest
         PowerMockito.when(GoogleCredentials.fromStream(any())).thenReturn(credentials);
         PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
         suppress(constructor(StorageMetadata.class, String.class, Map.class));
-        //PowerMockito.mockStatic(StorageDatasourceFactory.class);
-        //PowerMockito.when(StorageDatasourceFactory.createDatasource(anyString(), any())).thenReturn(storageMetadata);
         Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
         spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator());
 
         // Mocking GcsUtil
         PowerMockito.mockStatic(GcsUtil.class);
-        //PowerMockito.when(GcsUtil.getGcsCredentialJsonString(anyString(), anyString())).thenReturn("mockJson");
         final File parquetFile = new File(GcsRecordHandlerTest.class.getProtectionDomain().getCodeSource().getLocation().getPath());
         PowerMockito.when(GcsUtil.createUri(anyString())).thenReturn( "file:" + parquetFile.getPath() + "/" + "person-data.parquet");
 
