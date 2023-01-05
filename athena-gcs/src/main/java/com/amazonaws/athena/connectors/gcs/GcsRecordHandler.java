@@ -115,7 +115,7 @@ public class GcsRecordHandler
         final List<StorageSplit> storageSplits
                 = new ObjectMapper()
                 .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
-                        new TypeReference<List<StorageSplit>>(){});
+                        new TypeReference<>(){});
         for (StorageSplit storageSplit : storageSplits) {
             String uri = createUri(storageSplit.getFileName());
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());

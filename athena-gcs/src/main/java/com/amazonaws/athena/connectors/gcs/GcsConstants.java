@@ -54,8 +54,28 @@ public class GcsConstants
      */
     public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION = "GOOGLE_APPLICATION_CREDENTIALS";
 
+    /**
+     * Glue Table classification to specify type of the data a Glue Table represents.
+     * For example, PARQUET, CSV, etc.
+     */
     public static final String CLASSIFICATION_GLUE_TABLE_PARAM = "classification";
 
+    /**
+     * Partition pattern parameter added as an additional parameter in a Glue Table to identify partition
+     * folder pattern after the Table's location URI. A pattern consists of storage prefix with one or more  partition key variable placeholders
+     * For example, for partition fields year and month of type Integer, partition folder can be like the following:
+     * <ul>
+     *     <li>year=2000/month=01</li>
+     *     <li>year=2001/month=12</li>
+     *     <li>....</li>
+     * </ul>
+     * In such case the <code>partition.pattern</code> should look like the following:
+     * <p>
+     *     <code>year={year}/month={month}</code><br/>
+     *     Where {year} and {month} are the partition key variable placeholders values of which will be determined at runtime
+     * </p>
+     *
+     */
     public static final String PARTITION_PATTERN_PATTERN = "partition.pattern";
 
     /**

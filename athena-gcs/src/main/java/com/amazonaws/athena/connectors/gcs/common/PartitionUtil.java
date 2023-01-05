@@ -38,8 +38,18 @@ import static java.util.Objects.requireNonNull;
 
 public class PartitionUtil
 {
+    /**
+     * Pattern from a regular expression that identifies a match in a phrases to see if there is any
+     * partition key variable placeholder. A partition key variable placeholder looks something like the following:
+     * year={year}/month={month}
+     * Here, {year} and {month} are the partition key variable placeholders
+     */
     private static final Pattern PARTITION_PATTERN = Pattern.compile("(.*)(\\{.*?})(.*?)");
 
+    /**
+     * Regular expression to match a date in the pattern yyyy-MM-dd. For example this regex will match 2022-12-20,
+     * 2023-01-05 but not 20-05-2022 (i.e., dd-MM-yyyy)
+     */
     private static final String DEFAULT_DATE_REGEX_STRING = "\\d{4}-\\d{2}-\\d{2}";
 
     private PartitionUtil()
@@ -47,7 +57,9 @@ public class PartitionUtil
     }
 
     /**
-     * Return a regular expression for partition pattern from AWS Glue
+     * Return a regular expression for partition pattern from AWS Glue. This will dynamically generate a
+     * regular expression to match a folder within the GCS to see if the folder conforms with the partition keys
+     * already setup in the AWS Glue Table (if any)
      *
      * @param table  response of get table from AWS Glue
      * @return optional Sting of regular expression
@@ -57,15 +69,19 @@ public class PartitionUtil
         Map<String, String> tableParameters = table.getParameters();
         List<Column> partitionColumns = table.getPartitionKeys();
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
+        // Check to see if there is a partition pattern configured for the Table by the user
+        // if not, it returns empty value
         if (partitionPattern == null || partitionPattern.isBlank()) {
             return Optional.empty();
         }
         Matcher partitionMatcher = PARTITION_PATTERN.matcher(partitionPattern);
         String folderMatchingPattern = "";
+        // Check to see if the pattern contains one or more partition key variable placeholders
         if (partitionMatcher.matches()) {
             String[] folderParts = partitionPattern.split("/");
             StringBuilder folderMatchingPatternBuilder = new StringBuilder();
             for (String folderPart : folderParts) {
+                // Generates a dynamic regex for the folder part
                 folderMatchingPatternBuilder.append(getFolderValuePattern(partitionColumns, folderPart, tableParameters)).append("/");
             }
             folderMatchingPattern = folderMatchingPatternBuilder.toString();
@@ -180,12 +196,12 @@ public class PartitionUtil
     }
 
     /**
-     * Return a partition folder value
+     * Return a dynamic folder regex pattern for the given folder part
      *
-     * @param partitionColumns  list of partition column
-     * @param folderPart folder name string
+     * @param partitionColumns  list of partition column to see column name and types for the folder regex pattern
+     * @param folderPart folder part string, each parts in a path is separated by a folder separator, usually a '/' (forward slash)
      * @param tableParameters  Glue table parameters
-     * @return string
+     * @return Regex pattern for the given folder part
      */
     private static String getFolderValuePattern(List<Column> partitionColumns, String folderPart, Map<String, String> tableParameters)
     {

@@ -82,13 +82,13 @@ public class GcsUtil
         ClassLoader classLoader = GcsRecordHandler.class.getClassLoader();
         File file = new File(requireNonNull(classLoader.getResource("")).getFile());
         File src = new File(file.getAbsolutePath() + File.separator + "cacert.pem");
-        File dest = new File(System.getenv(SSL_CERT_FILE_LOCATION));
-        File parentDest = new File(dest.getParent());
-        if (!dest.exists()) {
-            if (!parentDest.exists()) {
-                parentDest.mkdirs();
+        File destination = new File(System.getenv(SSL_CERT_FILE_LOCATION));
+        File parentDestination = new File(destination.getParent());
+        if (!destination.exists()) {
+            if (!parentDestination.exists()) {
+                parentDestination.mkdirs();
             }
-            Files.copy(src.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(src.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -100,12 +100,12 @@ public class GcsUtil
     {
         CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         String gcsCredentialsJsonString = secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
-        File dest = new File(System.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION));
-        boolean destDirExists = new File(dest.getParent()).mkdirs();
-        if (!destDirExists && dest.exists()) {
+        File destination = new File(System.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION));
+        boolean destinationDirExists = new File(destination.getParent()).mkdirs();
+        if (!destinationDirExists && destination.exists()) {
             return;
         }
-        try (OutputStream out = new FileOutputStream(dest)) {
+        try (OutputStream out = new FileOutputStream(destination)) {
             out.write(gcsCredentialsJsonString.getBytes(StandardCharsets.UTF_8));
             out.flush();
         }
