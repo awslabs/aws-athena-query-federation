@@ -11,7 +11,7 @@ def get_new_version():
     '''], shell=True).decode("utf-8")
 
     # Generate the version without iteration for this week
-    new_version_without_iteration = datetime.datetime.now().strftime("%Y.%U")
+    new_version_without_iteration = datetime.datetime.now().strftime("%Y.%-U")
 
     # If the latest previous release version happened in the same week, bump the iteration
     if previous_release_version.startswith(new_version_without_iteration):
