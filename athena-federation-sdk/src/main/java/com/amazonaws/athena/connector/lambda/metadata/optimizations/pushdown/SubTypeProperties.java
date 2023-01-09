@@ -17,24 +17,31 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum FilterPushdownSubType
-        implements PushdownSubTypes
+import java.util.List;
+
+public class SubTypeProperties
+    implements PushdownSubTypes
 {
-    NONE("none"),
-    ALL("all");
+    private final String propertyName;
+    private final List<String> propertyValues;
 
-    private String subType;
+    public SubTypeProperties(String propertyName, List<String> propertyValues)
+    {
+        this.propertyName = propertyName;
+        this.propertyValues = propertyValues;
+    }
 
     @Override
     public String getSubType()
     {
-        return subType;
+        return propertyName;
     }
 
-    FilterPushdownSubType(String subType)
+    @Override
+    public List<String> getProperties()
     {
-        this.subType = subType;
+        return propertyValues;
     }
 }

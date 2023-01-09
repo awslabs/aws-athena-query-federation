@@ -76,6 +76,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
@@ -297,7 +298,7 @@ public abstract class MetadataHandler
                     assertNotNull(response);
                     objectMapper.writeValue(outputStream, response);
                 }
-
+                return;
             default:
                 throw new IllegalArgumentException("Unknown request type " + type);
         }
@@ -463,7 +464,7 @@ public abstract class MetadataHandler
      */
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
-        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), null);
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), Collections.emptyMap());
     }
 
     /**

@@ -17,12 +17,13 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum SamplePushdownSubType
+public enum FilterPushdownSubType
         implements PushdownSubTypes
 {
-    NONE("none");
+    NONE("none"),
+    ALL("all");
 
     private String subType;
 
@@ -32,7 +33,7 @@ public enum SamplePushdownSubType
         return subType;
     }
 
-    SamplePushdownSubType(String subType)
+    FilterPushdownSubType(String subType)
     {
         this.subType = subType;
     }

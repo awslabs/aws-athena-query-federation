@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.FederatedIdentitySerDe;
@@ -313,7 +314,8 @@ public class ObjectMapperFactoryV3
         ReadRecordsResponseSerDe.Serializer readRecords = new ReadRecordsResponseSerDe.Serializer(block);
         RemoteReadRecordsResponseSerDe.Serializer remoteReadRecords = new RemoteReadRecordsResponseSerDe.Serializer(schema, spillLocation, encryptionKey);
         UserDefinedFunctionResponseSerDe.Serializer userDefinedFunction = new UserDefinedFunctionResponseSerDe.Serializer(block);
-        GetDataSourceCapabilitiesResponseSerDeV3.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Serializer();
+        VersionedSerDe.Serializer<OptimizationSubType> optimizationSubtype = new OptimizationSubTypeSerDeV3.Serializer();
+        GetDataSourceCapabilitiesResponseSerDeV3.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Serializer(optimizationSubtype);
 
         return new FederationResponseSerDeV3.Serializer(
                 ping,
@@ -347,7 +349,8 @@ public class ObjectMapperFactoryV3
         ReadRecordsResponseSerDe.Deserializer readRecords = new ReadRecordsResponseSerDe.Deserializer(block);
         RemoteReadRecordsResponseSerDe.Deserializer remoteReadRecords = new RemoteReadRecordsResponseSerDe.Deserializer(schema, spillLocation, encryptionKey);
         UserDefinedFunctionResponseSerDe.Deserializer userDefinedFunction = new UserDefinedFunctionResponseSerDe.Deserializer(block);
-        GetDataSourceCapabilitiesResponseSerDeV3.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Deserializer();
+        VersionedSerDe.Deserializer<OptimizationSubType> optimizationSubtype = new OptimizationSubTypeSerDeV3.Deserializer();
+        GetDataSourceCapabilitiesResponseSerDeV3.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Deserializer(optimizationSubtype);
 
         return new FederationResponseSerDeV3.Deserializer(
                 ping,

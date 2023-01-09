@@ -17,12 +17,12 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum ProjectionPushdownSubType
+public enum TableFunctionPushdownSubType
         implements PushdownSubTypes
 {
-    DEFAULT_PLACEHOLDER("default_place_holder");
+    NONE("none");
 
     private String subType;
 
@@ -32,7 +32,7 @@ public enum ProjectionPushdownSubType
         return subType;
     }
 
-    ProjectionPushdownSubType(String subType)
+    TableFunctionPushdownSubType(String subType)
     {
         this.subType = subType;
     }

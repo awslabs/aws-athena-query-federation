@@ -110,7 +110,7 @@ public class MySqlFederationExpressionParserTest {
     public void testParseVariableExpression()
     {
         VariableExpression colThree = new VariableExpression("colThree", intType);
-        assertEquals(federationExpressionParser.parseVariableExpression(colThree), "colThree");
+        assertEquals(federationExpressionParser.parseVariableExpression(colThree, QUOTE_CHAR), "colThree");
     }
 
     @Test(expected = IllegalArgumentException.class)

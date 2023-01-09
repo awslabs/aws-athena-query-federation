@@ -17,13 +17,12 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum LimitPushdownSubType
+public enum JoinPushdownSubType
         implements PushdownSubTypes
 {
-    NONE("none"),
-    ALL("all");
+    NONE("none");
 
     private String subType;
 
@@ -33,7 +32,7 @@ public enum LimitPushdownSubType
         return subType;
     }
 
-    LimitPushdownSubType(String subType)
+    JoinPushdownSubType(String subType)
     {
         this.subType = subType;
     }

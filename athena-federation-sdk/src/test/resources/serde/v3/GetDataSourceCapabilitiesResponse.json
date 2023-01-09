@@ -2,8 +2,27 @@
   "@type" : "GetDataSourceCapabilitiesResponse",
   "catalogName" : "test-catalog",
   "capabilities" : {
-    "supports_filter_pushdown" : [ "none" ],
-    "supports_aggregate_functions" : [ "supports_avg_pushdown", "supports_max_pushdown" ],
-    "supports_limit_pushdown" : [ "none" ]
+    "supports_filter_pushdown" : [ {
+      "subType" : "none",
+      "properties" : [ ]
+    } ],
+    "supports_aggregate_functions" : [ {
+      "subType" : "supports_avg_pushdown",
+      "properties" : [ ]
+    }, {
+      "subType" : "supports_max_pushdown",
+      "properties" : [ ]
+    } ],
+    "supports_limit_pushdown" : [ {
+      "subType" : "none",
+      "properties" : [ ]
+    } ],
+    "supports_complex_expression_pushdown" : [ {
+      "subType" : "supports_function_call_expression_pushdown",
+      "properties" : [ ]
+    }, {
+      "subType" : "supported_function_expression_types",
+      "properties" : [ "$add", "$subtract", "$cast" ]
+    } ]
   }
 }

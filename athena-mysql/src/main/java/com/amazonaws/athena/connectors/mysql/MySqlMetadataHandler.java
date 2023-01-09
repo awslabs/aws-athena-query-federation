@@ -25,17 +25,19 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.AggregationPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.FilterPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -120,7 +122,7 @@ public class MySqlMetadataHandler
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
-        Map<String, List<String>> capabilities = new HashMap<>();
+        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_AGGREGATE_FUNCTIONS.withSupportedSubTypes(
             AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN,
             AggregationPushdownSubType.SUPPORTS_MIN_PUSHDOWN,
@@ -134,8 +136,13 @@ public class MySqlMetadataHandler
         ));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
             ComplexExpressionPushdownSubType.SUPPORTS_CONSTANT_EXPRESSION_PUSHDOWN,
-            ComplexExpressionPushdownSubType.SUPPOROTS_VARIABLE_EXPRESSIONS_PUSHDOWN,
-            ComplexExpressionPushdownSubType.SUPPROTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN
+            ComplexExpressionPushdownSubType.SUPPORTS_VARIABLE_EXPRESSIONS_PUSHDOWN,
+            ComplexExpressionPushdownSubType.SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN,
+            ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                    .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
+                            .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                            .filter(s -> !StandardFunctions.CAST_FUNCTION_NAME.getFunctionName().getFunctionName().equals(s))
+                            .toArray(String[]::new))
         ));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);

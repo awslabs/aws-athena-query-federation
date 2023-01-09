@@ -42,6 +42,8 @@ public abstract class FederationExpressionParser
 {
     static final Logger LOGGER = LoggerFactory.getLogger(FederationExpressionParser.class);
 
+    private static final String quoteCharacter = "'";
+
     /**
      * Each datasource has different syntax for various operations, quotes, etc. This is the only method a subclass to implement, and otherwise will just
      * invoke parseComplexExpressions.
@@ -89,7 +91,7 @@ public abstract class FederationExpressionParser
             }
             else if (argument instanceof VariableExpression) { // base case
                 VariableExpression variableExpression = (VariableExpression) argument;
-                arguments.add(parseVariableExpression(variableExpression));
+                arguments.add(parseVariableExpression(variableExpression, quoteChar));
             } 
             else {
                 throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
@@ -116,7 +118,7 @@ public abstract class FederationExpressionParser
 
         if (constantExpression.getType().equals(ArrowType.Utf8.INSTANCE) || constantExpression.getType().equals(ArrowType.LargeUtf8.INSTANCE)) {
             constants = constants.stream()
-                                 .map(val -> quoteChar + val + quoteChar)
+                                 .map(val -> quoteCharacter + val + quoteCharacter)
                                  .collect(Collectors.toList());
         }
 
@@ -124,8 +126,8 @@ public abstract class FederationExpressionParser
     }
 
     @VisibleForTesting
-    public String parseVariableExpression(VariableExpression variableExpression) 
+    public String parseVariableExpression(VariableExpression variableExpression, String quoteChar)
     {
-        return variableExpression.getColumnName();
+        return quoteChar + variableExpression.getColumnName() + quoteChar;
     }
 }

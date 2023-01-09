@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.metadata;
 
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
@@ -32,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 public class GetDataSourceCapabilitiesResponse
         extends MetadataResponse
 {
-    private final Map<String, List<String>> capabilities;
+    private final Map<String, List<OptimizationSubType>> capabilities;
     /**
      * Constructs a new MetadataResponse object.
      *
@@ -40,14 +41,14 @@ public class GetDataSourceCapabilitiesResponse
      * @param capabilities The map of capabilities supported by the data source.
      */
     public GetDataSourceCapabilitiesResponse(@JsonProperty("catalogName") String catalogName,
-                                             @JsonProperty("capabilities") Map<String, List<String>> capabilities)
+                                             @JsonProperty("capabilities") Map<String, List<OptimizationSubType>> capabilities)
     {
         super(MetadataRequestType.GET_DATASOURCE_CAPABILITIES, catalogName);
         requireNonNull(capabilities, "capabilities are null");
         this.capabilities = Collections.unmodifiableMap(capabilities);
     }
 
-    public Map<String, List<String>> getCapabilities()
+    public Map<String, List<OptimizationSubType>> getCapabilities()
     {
         return Collections.unmodifiableMap(capabilities);
     }
