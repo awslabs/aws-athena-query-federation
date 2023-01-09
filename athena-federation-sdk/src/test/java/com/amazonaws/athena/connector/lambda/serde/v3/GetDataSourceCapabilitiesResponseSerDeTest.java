@@ -21,10 +21,10 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;

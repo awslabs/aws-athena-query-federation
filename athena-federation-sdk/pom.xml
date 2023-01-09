@@ -4,11 +4,11 @@
     <parent>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-athena-query-federation</artifactId>
-        <version>2022.47.1</version>
+        <version>2023.1.2-athena-test-SNAPSHOT</version>
     </parent>
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-federation-sdk</artifactId>
-    <version>2022.47.1</version>
+    <version>2023.1.2-athena-test-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Amazon Athena Query Federation SDK</name>
     <description>The Athena Query Federation SDK defines a set of interfaces and wire protocols that you can implement to enable Athena to delegate portions of it's query execution plan to code that you deploy/write.</description>

@@ -12,7 +12,7 @@ Metadata:
       - athena-federation
       - jdbc
     HomePageUrl: 'https://github.com/awslabs/aws-athena-query-federation'
-    SemanticVersion: 2022.47.1
+    SemanticVersion: 2023.1.2-athena-test-SNAPSHOT
     SourceCodeUrl: 'https://github.com/awslabs/aws-athena-query-federation'
 Parameters:
   LambdaFunctionName:
@@ -68,7 +68,7 @@ Resources:
           default: !Ref DefaultConnectionString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.datalakegen2.DataLakeGen2MuxCompositeHandler"
-      CodeUri: "./target/athena-datalakegen2-2022.47.1.jar"
+      CodeUri: "./target/athena-datalakegen2-2023.1.2-athena-test-SNAPSHOT.jar"
       Description: "Enables Amazon Athena to communicate with DataLake Gen2 using JDBC"
       Runtime: java11
       Timeout: !Ref LambdaTimeout

@@ -37,7 +37,7 @@ while true; do
     esac
 done
 
-VERSION=2022.47.1
+VERSION=2023.1.2-athena-test-SNAPSHOT
 
 dir=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 
