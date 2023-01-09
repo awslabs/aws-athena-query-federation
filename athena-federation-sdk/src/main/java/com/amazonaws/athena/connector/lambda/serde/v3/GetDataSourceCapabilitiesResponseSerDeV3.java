@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
@@ -29,10 +30,10 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -45,9 +46,12 @@ public class GetDataSourceCapabilitiesResponseSerDeV3
 
     public static final class Serializer extends TypedSerializer<FederationResponse> implements VersionedSerDe.Serializer<FederationResponse>
     {
-        public Serializer()
+        private final VersionedSerDe.Serializer<OptimizationSubType> optimizationSubTypeSerializer;
+
+        public Serializer(VersionedSerDe.Serializer<OptimizationSubType> optimizationSubTypeSerializer)
         {
             super(FederationResponse.class, GetDataSourceCapabilitiesResponse.class);
+            this.optimizationSubTypeSerializer = optimizationSubTypeSerializer;
         }
 
         @Override
@@ -59,8 +63,12 @@ public class GetDataSourceCapabilitiesResponseSerDeV3
             jgen.writeStringField(CATALOG_NAME_FIELD, getDataSourceCapabilitiesResponse.getCatalogName());
 
             jgen.writeObjectFieldStart(CAPABILITIES_NAME_FIELD);
-            for (Map.Entry<String, List<String>> entry : getDataSourceCapabilitiesResponse.getCapabilities().entrySet()) {
-                writeStringArray(jgen, entry.getKey(), entry.getValue());
+            for (Map.Entry<String, List<OptimizationSubType>> entry : getDataSourceCapabilitiesResponse.getCapabilities().entrySet()) {
+                jgen.writeArrayFieldStart(entry.getKey());
+                for (OptimizationSubType optimizationSubType : entry.getValue()) {
+                    optimizationSubTypeSerializer.serialize(optimizationSubType, jgen, provider);
+                }
+                jgen.writeEndArray();
             }
             jgen.writeEndObject();
         }
@@ -68,9 +76,12 @@ public class GetDataSourceCapabilitiesResponseSerDeV3
 
     public static final class Deserializer extends TypedDeserializer<FederationResponse> implements VersionedSerDe.Deserializer<FederationResponse>
     {
-        public Deserializer()
+        private final VersionedSerDe.Deserializer<OptimizationSubType> optimizationSubTypeDeserializer;
+
+        public Deserializer(VersionedSerDe.Deserializer<OptimizationSubType> optimizationSubTypeDeserializer)
         {
             super(FederationResponse.class, GetDataSourceCapabilitiesResponse.class);
+            this.optimizationSubTypeDeserializer = optimizationSubTypeDeserializer;
         }
 
         @Override
@@ -82,15 +93,17 @@ public class GetDataSourceCapabilitiesResponseSerDeV3
             assertFieldName(jparser, CAPABILITIES_NAME_FIELD);
             jparser.nextToken();
 
-            ImmutableMap.Builder<String, List<String>> capabilities = ImmutableMap.builder();
+            ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
             while (jparser.nextToken() != JsonToken.END_OBJECT) {
                 String field = jparser.getCurrentName();
-                validateArrayStart(jparser);
-                List<String> subTypes = new ArrayList<>();
+                jparser.nextToken();
+                ImmutableList.Builder<OptimizationSubType> optimizationSubType = ImmutableList.builder();
                 while (jparser.nextToken() != JsonToken.END_ARRAY) {
-                    subTypes.add(jparser.getValueAsString());
+                    validateObjectStart(jparser.getCurrentToken());
+                    optimizationSubType.add(optimizationSubTypeDeserializer.doDeserialize(jparser, ctxt));
+                    validateObjectEnd(jparser);
                 }
-                capabilities.put(field, subTypes);
+                capabilities.put(field, optimizationSubType.build());
             }
 
             return new GetDataSourceCapabilitiesResponse(catalogName, capabilities.build());

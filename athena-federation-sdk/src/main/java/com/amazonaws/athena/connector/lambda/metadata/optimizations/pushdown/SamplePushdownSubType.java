@@ -17,9 +17,9 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum TableFunctionPushdownSubType
+public enum SamplePushdownSubType
         implements PushdownSubTypes
 {
     NONE("none");
@@ -32,7 +32,7 @@ public enum TableFunctionPushdownSubType
         return subType;
     }
 
-    TableFunctionPushdownSubType(String subType)
+    SamplePushdownSubType(String subType)
     {
         this.subType = subType;
     }

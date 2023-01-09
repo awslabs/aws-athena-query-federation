@@ -136,7 +136,7 @@ public abstract class JdbcSplitQueryBuilder
         else {
             sql.append(appendLimitOffset(split)); // legacy method to preserve functionality of existing connector impls
         }
-        LOGGER.debug("Generated SQL : {}", sql.toString());
+        LOGGER.info("Generated SQL : {}", sql.toString());
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
 
         // TODO all types, converts Arrow values to JDBC.

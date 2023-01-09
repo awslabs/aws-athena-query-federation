@@ -114,7 +114,7 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
                 clause = Joiner.on(" <= ").join(arguments);
                 break;
             case LIKE_PATTERN_FUNCTION_NAME:
-                clause = arguments.get(0) + " LIKE " + quoteChar + arguments.get(1) + quoteChar;
+                clause = arguments.get(0) + " LIKE " + arguments.get(1);
                 break;
             case MODULUS_FUNCTION_NAME:
                 clause = Joiner.on(" % ").join(arguments);

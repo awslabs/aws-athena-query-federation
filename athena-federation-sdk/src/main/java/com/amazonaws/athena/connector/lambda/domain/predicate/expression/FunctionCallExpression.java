@@ -60,7 +60,7 @@ public final class FunctionCallExpression
     }
 
     @Override
-    @JsonProperty("arguments")
+    @JsonProperty("children")
     public List<? extends FederationExpression> getChildren()
     {
         return arguments;

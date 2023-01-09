@@ -19,21 +19,17 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v3;
 
-import com.amazonaws.athena.connector.lambda.data.Block;
-import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.AggregationPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.FilterPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -57,10 +53,17 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
     public void beforeTest()
             throws IOException
     {
-        Map<String, List<String>> capabilities = new HashMap<>();
+        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_AGGREGATE_FUNCTIONS.withSupportedSubTypes(AggregationPushdownSubType.SUPPORTS_AVG_PUSHDOWN, AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(FilterPushdownSubType.NONE));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(LimitPushdownSubType.NONE));
+        capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+                ComplexExpressionPushdownSubType.SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN,
+                ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
+                        .withSubTypeProperties(
+                                StandardFunctions.ADD_FUNCTION_NAME.getFunctionName().getFunctionName(),
+                                StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName().getFunctionName(),
+                                StandardFunctions.CAST_FUNCTION_NAME.getFunctionName().getFunctionName())));
 
 
 

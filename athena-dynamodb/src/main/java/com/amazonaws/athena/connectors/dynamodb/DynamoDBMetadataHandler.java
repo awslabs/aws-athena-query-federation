@@ -44,8 +44,9 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.FilterPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
@@ -170,7 +171,7 @@ public class DynamoDBMetadataHandler
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
-        Map<String, List<String>> capabilities = new HashMap<>();
+        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
             LimitPushdownSubType.ALL
         ));

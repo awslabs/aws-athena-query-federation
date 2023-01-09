@@ -17,15 +17,12 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum ComplexExpressionPushdownSubType
+public enum ProjectionPushdownSubType
         implements PushdownSubTypes
 {
-    NONE("none"),
-    SUPPORTS_CONSTANT_EXPRESSION_PUSHDOWN("supports_constant_expression_pushdown"),
-    SUPPROTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN("supports_function_call_expression_pushdown"),
-    SUPPOROTS_VARIABLE_EXPRESSIONS_PUSHDOWN("supports_variable_expression_pushdown");
+    DEFAULT_PLACEHOLDER("default_place_holder");
 
     private String subType;
 
@@ -35,7 +32,7 @@ public enum ComplexExpressionPushdownSubType
         return subType;
     }
 
-    ComplexExpressionPushdownSubType(String subType)
+    ProjectionPushdownSubType(String subType)
     {
         this.subType = subType;
     }

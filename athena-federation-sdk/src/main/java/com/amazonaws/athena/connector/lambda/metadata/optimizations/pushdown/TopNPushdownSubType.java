@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
 public enum TopNPushdownSubType
         implements PushdownSubTypes

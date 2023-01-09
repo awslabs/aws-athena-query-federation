@@ -17,27 +17,17 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.metadata.optimizations;
+package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 
-public enum AggregationPushdownSubType
-        implements PushdownSubTypes
+import java.util.Collections;
+import java.util.List;
+
+public interface PushdownSubTypes
 {
-    SUPPORTS_MAX_PUSHDOWN("supports_max_pushdown"),
-    SUPPORTS_AVG_PUSHDOWN("supports_avg_pushdown"),
-    SUPPORTS_MIN_PUSHDOWN("supports_min_pushdown"),
-    SUPPORTS_SUM_PUSHDOWN("supports_sum_pushdown"),
-    SUPPORTS_COUNT_PUSHDOWN("supports_count_pushdown");
+    String getSubType();
 
-    private String subType;
-
-    AggregationPushdownSubType(String subtype)
+    default List<String> getProperties()
     {
-        this.subType = subtype;
-    }
-
-    @Override
-    public String getSubType()
-    {
-        return subType;
+        return Collections.emptyList();
     }
 }
