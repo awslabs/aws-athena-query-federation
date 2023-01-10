@@ -50,7 +50,8 @@ import static org.junit.Assert.assertEquals;
 public class MySqlFederationExpressionParserTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySqlFederationExpressionParserTest.class);
-    private static final String QUOTE_CHAR = MySqlRecordHandler.MYSQL_QUOTE_CHARACTER;
+    private static final String COLUMN_QUOTE_CHAR = MySqlRecordHandler.MYSQL_QUOTE_CHARACTER;
+    private static final String CONSTANT_QUOTE_CHAR = "'";
 
     BlockAllocator blockAllocator;
     ArrowType intType = new ArrowType.Int(32, true);
@@ -73,7 +74,7 @@ public class MySqlFederationExpressionParserTest {
     public void testParseConstantExpression()
     {
         ConstantExpression ten = buildIntConstantExpression();
-        assertEquals(federationExpressionParser.parseConstantExpression(ten, QUOTE_CHAR), "10");
+        assertEquals(federationExpressionParser.parseConstantExpression(ten), "10");
     }
 
 
@@ -84,7 +85,7 @@ public class MySqlFederationExpressionParserTest {
             BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Int(32, true),
             List.of(25, 10, 5, 1)), new ArrowType.Int(32, true)
         );
-        assertEquals(federationExpressionParser.parseConstantExpression(listOfNums, QUOTE_CHAR), "25,10,5,1");
+        assertEquals(federationExpressionParser.parseConstantExpression(listOfNums), "25,10,5,1");
     }
 
     @Test
@@ -96,12 +97,9 @@ public class MySqlFederationExpressionParserTest {
             rawStrings), new ArrowType.Utf8()
         );
 
-        List<String> quotedStrings = rawStrings.stream().map(str -> QUOTE_CHAR + str + QUOTE_CHAR).collect(Collectors.toList());
+        List<String> quotedStrings = rawStrings.stream().map(str -> CONSTANT_QUOTE_CHAR + str + CONSTANT_QUOTE_CHAR).collect(Collectors.toList());
         String expected = Joiner.on(",").join(quotedStrings);
-        String actual = federationExpressionParser.parseConstantExpression(listOfStrings, QUOTE_CHAR);
-        LOGGER.error("Formed expected string {}", expected);
-        LOGGER.error("Found actual string {}", actual);
-        
+        String actual = federationExpressionParser.parseConstantExpression(listOfStrings);
         assertEquals(expected, actual);
     }
 
@@ -110,7 +108,7 @@ public class MySqlFederationExpressionParserTest {
     public void testParseVariableExpression()
     {
         VariableExpression colThree = new VariableExpression("colThree", intType);
-        assertEquals(federationExpressionParser.parseVariableExpression(colThree, QUOTE_CHAR), "colThree");
+        assertEquals(federationExpressionParser.parseVariableExpression(colThree), COLUMN_QUOTE_CHAR + "colThree" + COLUMN_QUOTE_CHAR);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -139,16 +137,16 @@ public class MySqlFederationExpressionParserTest {
     public void testCreateSqlForComplexExpressionContent_BinaryFunction()
     {
         FunctionName subFunction = StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName();
-        String subClause = federationExpressionParser.mapFunctionToDataSourceSyntax(subFunction, intType, List.of("col1", "10"));
-        assertEquals(subClause, "(col1 - 10)");
+        String subClause = federationExpressionParser.mapFunctionToDataSourceSyntax(subFunction, intType, List.of("`col1`", "10"));
+        assertEquals(subClause, "(`col1` - 10)");
     }
 
     @Test
     public void testCreateSqlForComplexExpressionContent_VarargFunction()
     {
         FunctionName inFunction = StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName();
-        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, List.of("coinValueColumn", "25,10,5,1"));
-        assertEquals(inClause, "(coinValueColumn IN (25,10,5,1))");
+        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, List.of("`coinValueColumn`", "25,10,5,1"));
+        assertEquals(inClause, "(`coinValueColumn` IN (25,10,5,1))");
     }
     
     @Test
@@ -171,7 +169,7 @@ public class MySqlFederationExpressionParserTest {
             StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
             ltArguments);
 
-        assertEquals("((colOne + colThree) < 10)", federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression, QUOTE_CHAR));
+        assertEquals("((" + quoteColumn("colOne") + " + "  + quoteColumn("colThree") + ") < 10)", federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) fullExpression));
     }
 
     // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
@@ -233,9 +231,21 @@ public class MySqlFederationExpressionParserTest {
             List.of(andFunction, notFunction)
         );
 
-        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction, QUOTE_CHAR);
+        String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction);
         // actual is ((((colOne + colTwo) > colThree) AND (colFour IN (banana))) OR (colFour <> fruit))
-        String expected = "((((colOne + colTwo) > colThree) AND (colFour IN (" + QUOTE_CHAR + "banana" + QUOTE_CHAR + "," + QUOTE_CHAR + "dragonfruit" + QUOTE_CHAR + "))) OR (colFour <> "+ QUOTE_CHAR + "fruit" + QUOTE_CHAR + "))";
+        String expected = "((((" + quoteColumn("colOne") + " + " + quoteColumn("colTwo") + ") > "
+                                  + quoteColumn("colThree") + ") AND (" + quoteColumn("colFour") +
+                                  " IN (" + quoteConstant("banana") + "," + quoteConstant("dragonfruit") + "))) OR (" + quoteColumn("colFour") + " <> " + quoteConstant("fruit") + "))";
         assertEquals(expected, fullClause);
+    }
+
+    private String quoteColumn(String columnName)
+    {
+        return COLUMN_QUOTE_CHAR + columnName + COLUMN_QUOTE_CHAR;
+    }
+
+    private String quoteConstant(String constant)
+    {
+        return CONSTANT_QUOTE_CHAR + constant + CONSTANT_QUOTE_CHAR;
     }
 }

@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.mysql;
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
 import com.google.common.base.Joiner;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.commons.lang3.NotImplementedException;
 
 import java.util.List;
 
@@ -31,13 +30,6 @@ public class MySqlFederationExpressionParser extends JdbcFederationExpressionPar
     public MySqlFederationExpressionParser(String quoteChar)
     {
         super(quoteChar);
-    }
-
-    @Override
-    public String writeCastClause(ArrowType arrowType, List<String> arguments)
-    {
-        // TODO: Implement.
-        throw new NotImplementedException();
     }
 
     @Override

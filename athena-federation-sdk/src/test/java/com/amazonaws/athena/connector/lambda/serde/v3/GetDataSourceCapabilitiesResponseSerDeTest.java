@@ -62,8 +62,7 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
                 ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                         .withSubTypeProperties(
                                 StandardFunctions.ADD_FUNCTION_NAME.getFunctionName().getFunctionName(),
-                                StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName().getFunctionName(),
-                                StandardFunctions.CAST_FUNCTION_NAME.getFunctionName().getFunctionName())));
+                                StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName().getFunctionName())));
 
 
 

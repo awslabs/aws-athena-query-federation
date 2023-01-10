@@ -42,7 +42,7 @@ public abstract class FederationExpressionParser
 {
     static final Logger LOGGER = LoggerFactory.getLogger(FederationExpressionParser.class);
 
-    private static final String quoteCharacter = "'";
+    private static final String quoteCharacter = "'"; // AFAIK this is going to be valid for all sources when quoting a constant.
 
     /**
      * Each datasource has different syntax for various operations, quotes, etc. This is the only method a subclass to implement, and otherwise will just
@@ -50,7 +50,7 @@ public abstract class FederationExpressionParser
      */
     public abstract String mapFunctionToDataSourceSyntax(FunctionName functionName, ArrowType type, List<String> arguments);
 
-    public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints, String quoteChar)
+    public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
     {
         List<String> complexExpressionConjuncts = new ArrayList<>();
         if (constraints.getExpression() == null || constraints.getExpression().isEmpty()) {
@@ -60,7 +60,7 @@ public abstract class FederationExpressionParser
         List<FederationExpression> federationExpressions = constraints.getExpression();
         for (FederationExpression federationExpression : federationExpressions) {
             FunctionCallExpression functionCallExpression = (FunctionCallExpression) federationExpression;
-            complexExpressionConjuncts.add(parseFunctionCallExpression(functionCallExpression, quoteChar));
+            complexExpressionConjuncts.add(parseFunctionCallExpression(functionCallExpression));
         }
         return complexExpressionConjuncts;
     }
@@ -70,12 +70,12 @@ public abstract class FederationExpressionParser
      * @param functionCallExpression
      * @return
      */
-    public String parseFunctionCallExpression(FunctionCallExpression functionCallExpression, String quoteChar)
+    public String parseFunctionCallExpression(FunctionCallExpression functionCallExpression)
     {
-        return parseFunctionCallExpressionHelper(functionCallExpression, quoteChar);
+        return parseFunctionCallExpressionHelper(functionCallExpression);
     }
 
-    protected String parseFunctionCallExpressionHelper(FunctionCallExpression functionCallExpression, String quoteChar)
+    protected String parseFunctionCallExpressionHelper(FunctionCallExpression functionCallExpression)
     {
         FunctionName functionName = functionCallExpression.getFunctionName();
         List<FederationExpression> functionArguments = functionCallExpression.getArguments();
@@ -83,15 +83,15 @@ public abstract class FederationExpressionParser
 
         for (FederationExpression argument : functionArguments) {
             if (argument instanceof FunctionCallExpression) { // recursive case
-                arguments.add(parseFunctionCallExpressionHelper((FunctionCallExpression) argument, quoteChar));
+                arguments.add(parseFunctionCallExpressionHelper((FunctionCallExpression) argument));
             } 
             else if (argument instanceof ConstantExpression) { // base case
                 ConstantExpression constantExpression = (ConstantExpression) argument;
-                arguments.add(parseConstantExpression(constantExpression, quoteChar));
+                arguments.add(parseConstantExpression(constantExpression));
             }
             else if (argument instanceof VariableExpression) { // base case
                 VariableExpression variableExpression = (VariableExpression) argument;
-                arguments.add(parseVariableExpression(variableExpression, quoteChar));
+                arguments.add(parseVariableExpression(variableExpression));
             } 
             else {
                 throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
@@ -102,7 +102,7 @@ public abstract class FederationExpressionParser
     
     // basing this off of the toString() impl in Block.java
     @VisibleForTesting
-    public String parseConstantExpression(ConstantExpression constantExpression, String quoteChar) 
+    public String parseConstantExpression(ConstantExpression constantExpression)
     {
         Block values = constantExpression.getValues();
         String dummyColumn = values.getSchema().getFields().get(0).getName();
@@ -125,9 +125,13 @@ public abstract class FederationExpressionParser
         return Joiner.on(",").join(constants);
     }
 
+    /**
+     * Various connectors have different standards for wrapping column names in some specific quote character.
+     * This default implementation just returns the column name for connectors that don't have this specification.
+     */
     @VisibleForTesting
-    public String parseVariableExpression(VariableExpression variableExpression, String quoteChar)
+    public String parseVariableExpression(VariableExpression variableExpression) 
     {
-        return quoteChar + variableExpression.getColumnName() + quoteChar;
+        return variableExpression.getColumnName();
     }
 }

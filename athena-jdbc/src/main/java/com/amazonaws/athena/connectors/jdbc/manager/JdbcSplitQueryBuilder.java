@@ -211,7 +211,7 @@ public abstract class JdbcSplitQueryBuilder
                 }
             }
         }
-        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints, quoteCharacters)); // not part of loop bc not per-column
+        conjuncts.addAll(jdbcFederationExpressionParser.parseComplexExpressions(columns, constraints)); // not part of loop bc not per-column
         return conjuncts;
     }
 

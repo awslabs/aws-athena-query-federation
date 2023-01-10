@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.OperatorType;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
@@ -40,8 +41,16 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
 
     // we pull out the functions that are not going to be universally supported by jdbc into their own methods.
     // connectors which support them can extend this class and override them.
-    public abstract String writeCastClause(ArrowType type, List<String> arguments);
     public abstract String writeArrayConstructorClause(ArrowType type, List<String> arguments);
+
+    /**
+     * JDBC Requires wrapping column names in a specific quote char
+     */
+    @Override
+    public String parseVariableExpression(VariableExpression variableExpression)
+    {
+        return quoteChar + variableExpression.getColumnName() + quoteChar;
+    }
 
     
     @Override
@@ -81,9 +90,9 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
             case ARRAY_CONSTRUCTOR_FUNCTION_NAME: // up to subclass
                 clause = writeArrayConstructorClause(type, arguments);
                 break;
-            case CAST_FUNCTION_NAME: // up to subclass
-                clause = writeCastClause(type, arguments);
-                break;
+            // case CAST_FUNCTION_NAME: // up to subclass
+            //     clause = writeCastClause(type, arguments);
+            //     break;
             case DIVIDE_FUNCTION_NAME:
                 clause = Joiner.on(" / ").join(arguments);
                 break;

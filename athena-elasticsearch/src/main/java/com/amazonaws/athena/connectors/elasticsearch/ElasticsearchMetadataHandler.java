@@ -164,8 +164,6 @@ public class ElasticsearchMetadataHandler
             FilterPushdownSubType.ALL
         ));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
-            ComplexExpressionPushdownSubType.SUPPORTS_CONSTANT_EXPRESSION_PUSHDOWN,
-            ComplexExpressionPushdownSubType.SUPPORTS_VARIABLE_EXPRESSIONS_PUSHDOWN,
             ComplexExpressionPushdownSubType.SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN,
             ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.withSubTypeProperties(
                     Arrays.stream(StandardFunctions.values())
