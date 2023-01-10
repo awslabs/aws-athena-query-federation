@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.mysql;
 
 import com.amazonaws.athena.connectors.jdbc.manager.JdbcFederationExpressionParser;
+import com.google.common.base.Joiner;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.NotImplementedException;
 
@@ -43,6 +44,6 @@ public class MySqlFederationExpressionParser extends JdbcFederationExpressionPar
     public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
     {
         // TODO: Implement.
-        throw new NotImplementedException();
+        return Joiner.on(", ").join(arguments);
     }    
 }

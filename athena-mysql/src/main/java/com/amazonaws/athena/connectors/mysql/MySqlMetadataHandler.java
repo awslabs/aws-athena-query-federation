@@ -141,6 +141,7 @@ public class MySqlMetadataHandler
             ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                     .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
                             .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
+                            .filter(s -> !StandardFunctions.CAST_FUNCTION_NAME.getFunctionName().getFunctionName().equals(s))
                             .toArray(String[]::new))
         ));
 

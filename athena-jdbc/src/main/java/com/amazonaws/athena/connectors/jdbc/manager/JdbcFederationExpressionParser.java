@@ -129,7 +129,7 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
                 clause = Joiner.on(" <> ").join(arguments);
                 break;
             case NOT_FUNCTION_NAME:
-                clause = Joiner.on(" IS NOT ").join(arguments);
+                clause = " NOT " + arguments.get(0);
                 break;
             case NULLIF_FUNCTION_NAME:
                 clause = "NULLIF(" + arguments.get(0) + ", " + arguments.get(1) + ")";
