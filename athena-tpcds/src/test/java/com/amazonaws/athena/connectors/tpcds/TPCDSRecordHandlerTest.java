@@ -188,7 +188,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 100_000_000_000L,
                 100_000_000_000L //100GB don't expect this to spill
         );
@@ -232,7 +232,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "10000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );

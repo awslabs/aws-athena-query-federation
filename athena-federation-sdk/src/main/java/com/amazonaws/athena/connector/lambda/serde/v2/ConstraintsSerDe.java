@@ -93,6 +93,7 @@ public final class ConstraintsSerDe
             return new Constraints(summaryMap.build(),
                     Collections.emptyList(),
                     Collections.emptyList(),
+                    Collections.emptyList(),
                     NO_LIMIT_VALUE);
         }
     }

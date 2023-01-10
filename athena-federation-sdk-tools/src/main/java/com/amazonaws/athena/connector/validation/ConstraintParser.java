@@ -135,7 +135,7 @@ public class ConstraintParser
   public static Constraints parseConstraints(Schema schema, Optional<String> input)
   {
     if (!input.isPresent() || input.get().trim().isEmpty()) {
-      return new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), -1);
+      return new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1);
     }
 
     Map<String, ArrowType> fieldTypes = schema.getFields().stream()
@@ -144,7 +144,7 @@ public class ConstraintParser
     Map<String, ValueSet> constraints = new HashMap<>();
     Iterable<String> constraintStrings = CONSTRAINT_SPLITTER.split(input.get());
     constraintStrings.forEach(str -> parseAndAddConstraint(fieldTypes, constraints, str));
-    return new Constraints(constraints, Collections.emptyList(), Collections.emptyList(), -1);
+    return new Constraints(constraints, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1);
   }
 
   private static void parseAndAddConstraint(Map<String, ArrowType> fieldTypes,

@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.elasticsearch;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.util.List;

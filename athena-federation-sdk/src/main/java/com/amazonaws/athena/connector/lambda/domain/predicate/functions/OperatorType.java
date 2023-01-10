@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions;
+package com.amazonaws.athena.connector.lambda.domain.predicate.functions;
 
 public enum OperatorType {
     UNARY,

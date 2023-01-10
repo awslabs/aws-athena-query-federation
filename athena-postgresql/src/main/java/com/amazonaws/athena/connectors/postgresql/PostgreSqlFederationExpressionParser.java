@@ -33,13 +33,6 @@ public class PostgreSqlFederationExpressionParser extends JdbcFederationExpressi
     }
 
     @Override
-    public String writeCastClause(ArrowType type, List<String> arguments)
-    {
-        // TODO Implement.
-        throw new NotImplementedException();
-    }
-
-    @Override
     public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
     {
         // TODO Implement.

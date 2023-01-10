@@ -212,7 +212,7 @@ public class ExampleRecordHandlerTest
                     new TableName("schema", "table"),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), Collections.emptyList(), -1),
                     100_000_000_000L, //100GB don't expect this to spill
                     100_000_000_000L
             );
@@ -253,7 +253,7 @@ public class ExampleRecordHandlerTest
                     new TableName("schema", "table"),
                     schemaForRead,
                     Split.newBuilder(makeSpillLocation(), encryptionKey).add("year", "10").add("month", "10").add("day", "10").build(),
-                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), Collections.emptyList(), -1),
                     1_600_000L, //~1.5MB so we should see some spill
                     1000L
             );

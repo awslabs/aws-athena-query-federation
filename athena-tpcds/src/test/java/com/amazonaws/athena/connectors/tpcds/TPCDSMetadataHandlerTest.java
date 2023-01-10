@@ -159,7 +159,7 @@ public class TPCDSMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName("tpcds1", "customer"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 schema,
                 Collections.EMPTY_SET);
 

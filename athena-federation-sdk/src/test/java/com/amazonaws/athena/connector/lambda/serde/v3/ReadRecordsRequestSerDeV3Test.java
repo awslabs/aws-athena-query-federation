@@ -27,16 +27,17 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.AllOrNoneValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
@@ -62,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequest>
 {
@@ -106,11 +108,15 @@ public class ReadRecordsRequestSerDeV3Test extends TypedSerDeTest<FederationRequ
                         new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
 
         FunctionCallExpression functionCallExpression = new FunctionCallExpression(Types.MinorType.FLOAT8.getType(),
-                StandardFunctions.SUM_FUNCTION_NAME.getFunctionName(),
-                List.of(new VariableExpression("col1", Types.MinorType.FLOAT8.getType())));
+                                                       AggregationFunctions.SUM.getFunctionName(),
+                                                       List.of(new VariableExpression("col1", Types.MinorType.FLOAT8.getType())));
         AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(List.of(functionCallExpression), List.of("col1"), List.of(List.of("col2")));
+        List<OrderByField> orderByClause = List.of(
+            new OrderByField("col3", "ASC"),
+            new OrderByField("col2", "DESC")
+        );
 
-        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), List.of(aggregateFunctionClause), -1);
+        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), List.of(aggregateFunctionClause), orderByClause, -1);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

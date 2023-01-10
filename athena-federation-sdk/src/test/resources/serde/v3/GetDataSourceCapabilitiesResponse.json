@@ -22,7 +22,7 @@
       "properties" : [ ]
     }, {
       "subType" : "supported_function_expression_types",
-      "properties" : [ "$add", "$subtract", "$cast" ]
+      "properties" : [ "$add", "$subtract" ]
     } ]
   }
 }

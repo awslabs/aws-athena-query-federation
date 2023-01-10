@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
@@ -187,7 +188,7 @@ public class DynamoDBRecordHandler
             logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
         }
 
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), disableProjectionAndCasing);
+        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(), disableProjectionAndCasing);
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
         GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
@@ -206,7 +207,7 @@ public class DynamoDBRecordHandler
 
         GeneratedRowWriter rowWriter = rowWriterBuilder.build();
         long numRows = 0;
-
+        boolean hasLimit = recordsRequest.getConstraints().hasLimit();
         while (itemIterator.hasNext()) {
             if (!queryStatusChecker.isQueryRunning()) {
                 // we can stop processing because the query waiting for this data has already terminated
@@ -221,6 +222,9 @@ public class DynamoDBRecordHandler
             }
             spiller.writeRows((Block block, int rowNum) -> rowWriter.writeRow(block, rowNum, item) ? 1 : 0);
             numRows++;
+            if (hasLimit && numRows >= recordsRequest.getConstraints().getLimit()) {
+                return;
+            }
         }
         logger.info("readWithConstraint: numRows[{}]", numRows);
     }
@@ -228,7 +232,7 @@ public class DynamoDBRecordHandler
     /*
     Converts a split into a Query or Scan request
      */
-    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema, boolean disableProjectionAndCasing)
+    private AmazonWebServiceRequest buildReadRequest(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
     {
         validateExpectedMetadata(split.getProperties());
         // prepare filters
@@ -270,7 +274,7 @@ public class DynamoDBRecordHandler
             expressionAttributeNames.put(hashKeyAlias, hashKeyName);
             expressionAttributeValues.put(HASH_KEY_VALUE_ALIAS, Jackson.fromJsonString(split.getProperty(hashKeyName), AttributeValue.class));
 
-            return new QueryRequest()
+            QueryRequest queryRequest = new QueryRequest()
                     .withTableName(tableName)
                     .withIndexName(indexName)
                     .withKeyConditionExpression(keyConditionExpression)
@@ -278,12 +282,16 @@ public class DynamoDBRecordHandler
                     .withExpressionAttributeNames(expressionAttributeNames)
                     .withExpressionAttributeValues(expressionAttributeValues)
                     .withProjectionExpression(projectionExpression);
+            if (constraints.hasLimit()) {
+                queryRequest.setLimit((int) constraints.getLimit());
+            }
+            return queryRequest;
         }
         else {
             int segmentId = Integer.parseInt(split.getProperty(SEGMENT_ID_PROPERTY));
             int segmentCount = Integer.parseInt(split.getProperty(SEGMENT_COUNT_METADATA));
 
-            return new ScanRequest()
+            ScanRequest scanRequest = new ScanRequest()
                     .withTableName(tableName)
                     .withSegment(segmentId)
                     .withTotalSegments(segmentCount)
@@ -291,15 +299,19 @@ public class DynamoDBRecordHandler
                     .withExpressionAttributeNames(expressionAttributeNames.isEmpty() ? null : expressionAttributeNames)
                     .withExpressionAttributeValues(expressionAttributeValues.isEmpty() ? null : expressionAttributeValues)
                     .withProjectionExpression(projectionExpression);
+            if (constraints.hasLimit()) {
+                scanRequest.setLimit((int) constraints.getLimit());
+            }
+            return scanRequest;
         }
     }
 
     /*
     Creates an iterator that can iterate through a Query or Scan, sending paginated requests as necessary
      */
-    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema, boolean disableProjectionAndCasing)
+    private Iterator<Map<String, AttributeValue>> getIterator(Split split, String tableName, Schema schema, Constraints constraints, boolean disableProjectionAndCasing)
     {
-        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema, disableProjectionAndCasing);
+        AmazonWebServiceRequest request = buildReadRequest(split, tableName, schema, constraints, disableProjectionAndCasing);
         return new Iterator<Map<String, AttributeValue>>() {
             AtomicReference<Map<String, AttributeValue>> lastKeyEvaluated = new AtomicReference<>();
             AtomicReference<Iterator<Map<String, AttributeValue>>> currentPageIterator = new AtomicReference<>();

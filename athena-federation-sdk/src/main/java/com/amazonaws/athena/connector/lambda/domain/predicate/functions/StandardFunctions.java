@@ -1,4 +1,4 @@
-package com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions;
+package com.amazonaws.athena.connector.lambda.domain.predicate.functions;
 
 /*-
  * #%L
@@ -44,8 +44,9 @@ public enum StandardFunctions
 
     /**
      * $cast function result type is determined by the {@link Call#getType()}
+     * Cast is nuanced and very connector specific. We omit it for initial release.
      */
-    CAST_FUNCTION_NAME(new FunctionName("$cast"), OperatorType.UNARY),
+    // CAST_FUNCTION_NAME(new FunctionName("$cast"), OperatorType.UNARY),
 
     EQUAL_OPERATOR_FUNCTION_NAME(new FunctionName("$equal"), OperatorType.BINARY),
     NOT_EQUAL_OPERATOR_FUNCTION_NAME(new FunctionName("$not_equal"), OperatorType.BINARY),
@@ -93,10 +94,6 @@ public enum StandardFunctions
      * indeterminate result, otherwise returns {@code false}
      */
     IN_PREDICATE_FUNCTION_NAME(new FunctionName("$in"), OperatorType.BINARY),
-
-    
-
-    SUM_FUNCTION_NAME(new FunctionName("$sum")),
 
     /**
      * $array creates instance of {@link Array Type}

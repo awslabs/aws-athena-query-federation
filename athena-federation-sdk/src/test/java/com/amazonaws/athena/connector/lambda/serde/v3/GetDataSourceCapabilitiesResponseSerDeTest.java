@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v3;
 
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
@@ -62,8 +62,7 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
                 ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                         .withSubTypeProperties(
                                 StandardFunctions.ADD_FUNCTION_NAME.getFunctionName().getFunctionName(),
-                                StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName().getFunctionName(),
-                                StandardFunctions.CAST_FUNCTION_NAME.getFunctionName().getFunctionName())));
+                                StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName().getFunctionName())));
 
 
 

@@ -38,9 +38,7 @@ public enum ComplexExpressionPushdownSubType
             return new SubTypeProperties(getSubType(), Arrays.asList(properties));
         }
     },
-    SUPPORTS_CONSTANT_EXPRESSION_PUSHDOWN("supports_constant_expression_pushdown"),
-    SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN("supports_function_call_expression_pushdown"),
-    SUPPORTS_VARIABLE_EXPRESSIONS_PUSHDOWN("supports_variable_expression_pushdown");
+    SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN("supports_function_call_expression_pushdown");
 
     private String subType;
 
