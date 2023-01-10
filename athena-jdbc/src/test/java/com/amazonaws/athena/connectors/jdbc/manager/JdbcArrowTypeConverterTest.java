@@ -39,6 +39,7 @@ public class JdbcArrowTypeConverterTest
         Assert.assertEquals(Types.MinorType.FLOAT4.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.FLOAT, 0, 0));
         Assert.assertEquals(Types.MinorType.FLOAT8.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.DOUBLE, 0, 0));
         Assert.assertEquals(new ArrowType.Decimal(5, 3), JdbcArrowTypeConverter.toArrowType(java.sql.Types.DECIMAL, 5, 3));
+        Assert.assertEquals(new ArrowType.Decimal(38, 0), JdbcArrowTypeConverter.toArrowType(java.sql.Types.NUMERIC, 0, 0));
         Assert.assertEquals(Types.MinorType.VARCHAR.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.CHAR, 0, 0));
         Assert.assertEquals(Types.MinorType.VARCHAR.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.NCHAR, 0, 0));
         Assert.assertEquals(Types.MinorType.VARCHAR.getType(), JdbcArrowTypeConverter.toArrowType(java.sql.Types.VARCHAR, 0, 0));
