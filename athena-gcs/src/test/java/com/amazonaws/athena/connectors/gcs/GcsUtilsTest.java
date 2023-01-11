@@ -39,20 +39,13 @@ public class GcsUtilsTest
     public void testCreateUri()
     {
         String uri = GcsUtil.createUri("bucket", "test");
-        assertEquals(uri, "gs://bucket/test");
+        assertEquals("gs://bucket/test", uri);
     }
 
     @Test
     public void testCreateUriPath()
     {
         String uri = GcsUtil.createUri("bucket/test");
-        assertEquals(uri, "gs://bucket/test");
-    }
-
-    @Test
-    public void testIsSupported()
-    {
-        boolean isSupported = GcsUtil.isSupportedFileType("csv");
-        assertTrue(isSupported);
+        assertEquals("gs://bucket/test", uri);
     }
 }

@@ -22,13 +22,13 @@ package com.amazonaws.athena.connectors.gcs.common;
 /**
  * Used to get Storage Partition
  */
-public class StoragePartition
+public class PartitionColumnData
 {
     private String columnName;
     private String columnType;
     private Object columnValue;
 
-    public StoragePartition()
+    public PartitionColumnData()
     {
     }
 
@@ -37,13 +37,13 @@ public class StoragePartition
         return columnName;
     }
 
-    public StoragePartition columnName(String columnName)
+    public PartitionColumnData columnName(String columnName)
     {
         this.columnName = columnName;
         return this;
     }
 
-    public StoragePartition columnType(String columnType)
+    public PartitionColumnData columnType(String columnType)
     {
         this.columnType = columnType;
         return this;

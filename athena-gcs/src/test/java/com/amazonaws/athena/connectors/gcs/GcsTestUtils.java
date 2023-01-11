@@ -65,7 +65,7 @@ public class GcsTestUtils {
 
 
     //Returns the schema by returning a list of fields in Google BigQuery Format.
-    static List<Field> getTestSchemaFields()
+    public static List<Field> getTestSchemaFields()
     {
         List<Field> fields = getFields();
         Map<String, String> map = new HashMap<>();

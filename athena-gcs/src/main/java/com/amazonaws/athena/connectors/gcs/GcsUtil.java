@@ -21,13 +21,10 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -38,8 +35,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.List;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
@@ -48,23 +43,9 @@ import static java.util.Objects.requireNonNull;
 
 public class GcsUtil
 {
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    static List<String> supportedTypeList = Arrays.asList("parquet", "csv");
 
     private GcsUtil()
     {
-    }
-
-    /**
-     * Builds a string representation of an instance of {@link StorageSplit}
-     *
-     * @param splits An instance of {@link StorageSplit}
-     * @return String representation of an instance of {@link StorageSplit}
-     * @throws JsonProcessingException If JSON processing error happens
-     */
-    public static synchronized String splitAsJson(List<StorageSplit> splits) throws JsonProcessingException
-    {
-        return objectMapper.writeValueAsString(splits);
     }
 
     public static boolean isFieldTypeNull(Field field)
@@ -112,26 +93,15 @@ public class GcsUtil
     }
 
     /**
-     * return whether file format supported or not
-     *
-     * @param classification file format
-     * @return boolean is format supported
-     */
-    public static boolean isSupportedFileType(String classification)
-    {
-        return supportedTypeList.stream().anyMatch(str -> str.trim().equalsIgnoreCase(classification));
-    }
-
-    /**
      * Builds a GCS uri
      *
      * @param bucketName bucket name
-     * @param objectNames folder path
+     * @param path folder path
      * @return String representation uri
      */
-    public static String createUri(String bucketName, String objectNames)
+    public static String createUri(String bucketName, String path)
     {
-        return "gs://" + bucketName + "/" + objectNames;
+        return "gs://" + bucketName + "/" + path;
     }
 
     /**

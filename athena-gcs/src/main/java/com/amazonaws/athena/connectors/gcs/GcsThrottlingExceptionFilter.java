@@ -22,9 +22,9 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.services.athena.model.AmazonAthenaException;
 
-public class GcsExceptionFilter implements ThrottlingInvoker.ExceptionFilter
+public class GcsThrottlingExceptionFilter implements ThrottlingInvoker.ExceptionFilter
 {
-    public static final ThrottlingInvoker.ExceptionFilter EXCEPTION_FILTER = new GcsExceptionFilter();
+    public static final ThrottlingInvoker.ExceptionFilter EXCEPTION_FILTER = new GcsThrottlingExceptionFilter();
 
     @Override
     public boolean isMatch(Exception ex)

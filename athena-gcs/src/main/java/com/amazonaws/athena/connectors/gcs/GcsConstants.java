@@ -22,12 +22,11 @@ package com.amazonaws.athena.connectors.gcs;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 
 public class GcsConstants
 {
     /**
-     * A deserialized JSON from an instance of {@link StorageSplit} to be added as a property
+     * A deserialized JSON from an String List to be added as a property
      * of a Split. This Split will be passed to the {@link GcsRecordHandler#readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)} to
      * help know from which file it will read the records, along with record offset and total count of records to read
      */
@@ -76,7 +75,7 @@ public class GcsConstants
      * </p>
      *
      */
-    public static final String PARTITION_PATTERN_PATTERN = "partition.pattern";
+    public static final String PARTITION_PATTERN_KEY = "partition.pattern";
 
     /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering

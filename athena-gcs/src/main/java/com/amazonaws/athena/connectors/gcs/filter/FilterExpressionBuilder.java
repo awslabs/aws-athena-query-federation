@@ -21,7 +21,6 @@ package com.amazonaws.athena.connectors.gcs.filter;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
-import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -30,9 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
 
@@ -53,11 +50,6 @@ public class FilterExpressionBuilder
      */
     private final List<Field> fields;
 
-    /**
-     * A column-column index map to store an index for the associated column name
-     */
-    private final Map<String, Integer> columnIndices = new HashMap<>();
-
     private final List<EqualsExpression> and = new ArrayList<>();
 
     private final List<EqualsExpression> or = new ArrayList<>();
@@ -65,10 +57,6 @@ public class FilterExpressionBuilder
     public FilterExpressionBuilder(Schema schema)
     {
         this.fields = schema.getFields();
-        for (int i = 0; i < fields.size(); i++) {
-            String columnName = fields.get(i).getName();
-            columnIndices.put(columnName, i);
-        }
     }
 
     /**
@@ -117,21 +105,19 @@ public class FilterExpressionBuilder
         LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
         List<EqualsExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
-        if (valueSet instanceof SortedRangeSet) {
-            LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
-            if (!valueSet.isNullAllowed() && isHighLowEquals(valueSet)
-                    && valueSet.getRanges().getSpan().getLow().getBound().equals(EXACTLY)) {
-                return List.of(new EqualsExpression(columnIndices.get(columnName), columnName.toLowerCase(), valueSet.getRanges().getSpan().getLow().getValue()));
-            }
+        LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
+        if (!valueSet.isNullAllowed() && isHighLowEquals(valueSet)
+                && valueSet.getRanges().getSpan().getLow().getBound().equals(EXACTLY)) {
+            return List.of(new EqualsExpression(columnName.toLowerCase(), valueSet.getRanges().getSpan().getLow().getValue()));
+        }
 
-            for (Range range : valueSet.getRanges().getOrderedRanges()) {
-                if (range.isSingleValue()) {
-                    singleValues.add(range.getLow().getValue());
-                }
+        for (Range range : valueSet.getRanges().getOrderedRanges()) {
+            if (range.isSingleValue()) {
+                singleValues.add(range.getLow().getValue());
             }
-            if (singleValues.size() == 1) {
-                disjuncts.add(new EqualsExpression(columnIndices.get(columnName), columnName.toLowerCase(), singleValues.get(0)));
-            }
+        }
+        if (singleValues.size() == 1) {
+            disjuncts.add(new EqualsExpression(columnName.toLowerCase(), singleValues.get(0)));
         }
         disjuncts.forEach(this::addToOr);
         return or;

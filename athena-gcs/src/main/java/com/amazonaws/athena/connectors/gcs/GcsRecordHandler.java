@@ -28,7 +28,6 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
 import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
@@ -59,7 +58,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
-import static com.amazonaws.athena.connectors.gcs.GcsExceptionFilter.EXCEPTION_FILTER;
+import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 
 public class GcsRecordHandler
@@ -112,12 +111,12 @@ public class GcsRecordHandler
         TableName tableInfo = recordsRequest.getTableName();
         LOGGER.info("Reading records from the table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Split split = recordsRequest.getSplit();
-        final List<StorageSplit> storageSplits
+        final List<String> fileList
                 = new ObjectMapper()
                 .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         new TypeReference<>(){});
-        for (StorageSplit storageSplit : storageSplits) {
-            String uri = createUri(storageSplit.getFileName());
+        for (String file : fileList) {
+            String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
             ScanOptions options = new ScanOptions(32768);
             try (

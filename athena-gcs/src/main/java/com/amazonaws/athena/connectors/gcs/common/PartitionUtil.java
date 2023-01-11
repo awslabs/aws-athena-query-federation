@@ -23,6 +23,8 @@ import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -32,8 +34,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
 import static java.util.Objects.requireNonNull;
 
 public class PartitionUtil
@@ -51,7 +52,7 @@ public class PartitionUtil
      * 2023-01-05 but not 20-05-2022 (i.e., dd-MM-yyyy)
      */
     private static final String DEFAULT_DATE_REGEX_STRING = "\\d{4}-\\d{2}-\\d{2}";
-
+    private static final String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
     private PartitionUtil()
     {
     }
@@ -68,7 +69,7 @@ public class PartitionUtil
     {
         Map<String, String> tableParameters = table.getParameters();
         List<Column> partitionColumns = table.getPartitionKeys();
-        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
+        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         // Check to see if there is a partition pattern configured for the Table by the user
         // if not, it returns empty value
         if (partitionPattern == null || partitionPattern.isBlank()) {
@@ -115,9 +116,9 @@ public class PartitionUtil
      * @param tableParameters table parameter
      * @return List of storage partition(column name, column type and value)
      */
-    public static List<StoragePartition> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
+    public static List<PartitionColumnData> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
     {
-        List<StoragePartition> partitions = new ArrayList<>();
+        List<PartitionColumnData> partitions = new ArrayList<>();
         String[] partitionPatternParts = partitionPattern.split("/");
         String[] regExParts = folderNameRegEx.split("/");
         String[] folderParts = folderModel.split("/");
@@ -159,7 +160,7 @@ public class PartitionUtil
                         continue;
                     }
 
-                    StoragePartition partition = new StoragePartition();
+                    PartitionColumnData partition = new PartitionColumnData();
                     if (setStoragePartitionValues(partitionColumns, partitionColumn,  columnValue, partition, tableParameters)) {
                         partitions.add(partition);
                     }
@@ -180,7 +181,7 @@ public class PartitionUtil
      * @param tableParameters table parameters
      * @return boolean flag
      */
-    private static boolean setStoragePartitionValues(List<Column> columns, String columnName, String columnValue, StoragePartition partition, Map<String, String> tableParameters) throws ParseException
+    private static boolean setStoragePartitionValues(List<Column> columns, String columnName, String columnValue, PartitionColumnData partition, Map<String, String> tableParameters) throws ParseException
     {
         if (columnValue != null && !columnValue.isBlank() && !columns.isEmpty()) {
             for (Column column : columns) {
@@ -288,7 +289,7 @@ public class PartitionUtil
             case "date":
                 String datePattern = tableParameters.get(String.format("partition.%s.pattern", columnName));
                 if (datePattern == null) {
-                    datePattern = DEFAULT_DATE_REGEX_STRING;
+                    datePattern = DEFAULT_DATE_PATTERN;
                 }
                 return new SimpleDateFormat(datePattern).parse(columnValue);
             default:
@@ -318,11 +319,11 @@ public class PartitionUtil
      * Determine the partitions based on Glue Catalog
      * @return A list of partitions
      */
-    public static PartitionResult getPartitions(Table table, Map<String, FieldReader> fieldReadersMap)
+    public static URI getPartitions(Table table, Map<String, FieldReader> fieldReadersMap) throws URISyntaxException
     {
         String locationUri;
         String tableLocation = table.getStorageDescriptor().getLocation();
-        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_PATTERN);
+        String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         if (null != partitionPattern) {
             for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
                 partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
@@ -334,7 +335,6 @@ public class PartitionUtil
         else {
             locationUri = tableLocation;
         }
-        StorageLocation storageLocation = StorageLocation.fromUri(locationUri);
-        return new PartitionResult(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), storageLocation);
+        return new URI(locationUri);
     }
 }

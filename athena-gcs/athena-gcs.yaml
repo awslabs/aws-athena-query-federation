@@ -100,6 +100,3 @@ Resources:
         - S3WritePolicy:
             BucketName:
               Ref: SpillBucket
-      VpcConfig:
-        SecurityGroupIds: !Ref SecurityGroupIds
-        SubnetIds: !Ref SubnetIds

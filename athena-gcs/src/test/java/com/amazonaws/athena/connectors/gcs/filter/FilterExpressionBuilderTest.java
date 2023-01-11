@@ -29,7 +29,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.gcs.GcsTestUtils;
-import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -62,7 +61,6 @@ public class FilterExpressionBuilderTest
     @Test
     public void testGetExpressions()
     {
-        StorageSplit storageSplit = StorageSplit.builder().fileName("athena-30part-nested/data/year=2000/Month_col=5/data.parquet").build();
         Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema);
         List<EqualsExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));

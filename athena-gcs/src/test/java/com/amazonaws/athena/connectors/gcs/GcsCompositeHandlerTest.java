@@ -47,7 +47,7 @@ import static org.mockito.ArgumentMatchers.any;
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*"})
-@PrepareForTest({ GoogleCredentials.class, GcsSchemaUtils.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class})
+@PrepareForTest({ GoogleCredentials.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class})
 public class GcsCompositeHandlerTest {
     private GcsCompositeHandler gcsCompositeHandler;
     @Mock

@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_PATTERN;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.createColumn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -61,7 +61,7 @@ public class PartitionUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void testFolderNameRegExPatterExpectException()
     {
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/{day}"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/{day}"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
     }
@@ -69,7 +69,7 @@ public class PartitionUtilTest
     @Test
     public void testFolderNameRegExPatter()
     {
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         assertFalse("Expression shouldn't contain a '{' character", optionalRegEx.get().contains("{"));
@@ -87,7 +87,7 @@ public class PartitionUtilTest
                 "year=2001/birth_month01/",
                 "month01/"
         );
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "year={year}/birth_month{month}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
@@ -113,7 +113,7 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "creation_dt={creation_dt}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "creation_dt={creation_dt}/"));
         List<Column> columns = List.of(
                 createColumn("creation_dt", "date")
         );
@@ -144,7 +144,7 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "state='{stateName}'/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state='{stateName}'/"));
         List<Column> columns = List.of(
                 createColumn("stateName", "string")
         );
@@ -175,7 +175,7 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, "state={stateName}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state={stateName}/"));
         List<Column> columns = List.of(
                 createColumn("stateName", "string")
         );
@@ -198,10 +198,10 @@ public class PartitionUtilTest
     public void testGetHivePartitions() throws ParseException
     {
         String partitionPatten = "year={year}/birth_month{month}/";
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, partitionPatten));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
+        List<PartitionColumnData> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
         assertFalse("List of column prefix is empty", partitions.isEmpty());
         assertEquals("Partition size is more than 2", 2, partitions.size());
         // Assert partition 1
@@ -225,10 +225,10 @@ public class PartitionUtilTest
         when(table.getPartitionKeys()).thenReturn(columns);
 
         String partitionPatten = "year={year}/birth_month{month}/{day}";
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, partitionPatten));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/12/",
+        List<PartitionColumnData> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/12/",
                 optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
         assertFalse("List of column prefix is empty", partitions.isEmpty());
         assertEquals("Partition size is more than 3", 3, partitions.size());
@@ -256,7 +256,7 @@ public class PartitionUtilTest
         );
         when(table.getPartitionKeys()).thenReturn(columns);
         String partitionPattern = "year={year}/birth_month{month}/{day}";
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_PATTERN, partitionPattern));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern));
 
         // list of folders in a bucket
         List<String> bucketFolders = List.of(
@@ -275,7 +275,7 @@ public class PartitionUtilTest
         Pattern folderMatchingPattern = Pattern.compile(optionalRegEx.get());
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                List<StoragePartition> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
+                List<PartitionColumnData> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys(), table.getParameters());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
             }

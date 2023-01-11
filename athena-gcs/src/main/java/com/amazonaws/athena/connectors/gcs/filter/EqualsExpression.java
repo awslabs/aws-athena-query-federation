@@ -21,21 +21,18 @@ package com.amazonaws.athena.connectors.gcs.filter;
 
 public class EqualsExpression
 {
-    final Integer columnIndex;
-
     final String columnName;
 
-    public Object expression;
+    private Object expression;
 
     /**
      * Constructs this with column index and an expression
      *
-     * @param columnIndex      Index of the column
+     * @param columnName      Name of the column
      * @param expression Expression to match
      */
-    public EqualsExpression(Integer columnIndex, String columnName, Object expression)
+    public EqualsExpression(String columnName, Object expression)
     {
-       this.columnIndex = columnIndex;
        this.columnName = columnName;
        this.expression = expression;
     }

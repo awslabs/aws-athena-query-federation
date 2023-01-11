@@ -38,10 +38,8 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.gcs.common.PartitionResult;
+import com.amazonaws.athena.connectors.gcs.common.PartitionColumnData;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
-import com.amazonaws.athena.connectors.gcs.common.StoragePartition;
-import com.amazonaws.athena.connectors.gcs.common.StorageSplit;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -50,6 +48,7 @@ import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -57,6 +56,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -69,8 +70,6 @@ import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.U
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
-import static com.amazonaws.athena.connectors.gcs.GcsSchemaUtils.buildTableSchema;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.splitAsJson;
 import static java.util.Objects.requireNonNull;
 
 public class GcsMetadataHandler
@@ -88,9 +87,7 @@ public class GcsMetadataHandler
     private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for GCS.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().contains(TABLE_FILTER_IDENTIFIER)
-            || (table.getParameters() != null && GcsUtil.isSupportedFileType(table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM)))
-            || (table.getStorageDescriptor().getParameters() != null && GcsUtil.isSupportedFileType(table.getStorageDescriptor().getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM)));
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().startsWith(TABLE_FILTER_IDENTIFIER);
     private final StorageMetadata datasource;
     private final AWSGlue glueClient;
 
@@ -98,7 +95,7 @@ public class GcsMetadataHandler
     {
         super(DISABLE_GLUE, SOURCE_TYPE);
         String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
+        this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
     }
@@ -114,7 +111,7 @@ public class GcsMetadataHandler
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
-        this.datasource = new StorageMetadata(gcsCredentialsJsonString, System.getenv());
+        this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
@@ -177,7 +174,7 @@ public class GcsMetadataHandler
             //this will get table(location uri and partition details) without schema metadata
             Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
             //fetch schema from dataset api
-            Schema schema = buildTableSchema(this.datasource, table);
+            Schema schema = datasource.buildTableSchema(table);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
             Set<String> partitionCols = new HashSet<>();
             if (table.getPartitionKeys() != null) {
@@ -196,17 +193,17 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws ParseException
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws ParseException, URISyntaxException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<List<StoragePartition>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
+        List<List<PartitionColumnData>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {
-            for (List<StoragePartition> folder : partitionFolders) {
+            for (List<PartitionColumnData> folder : partitionFolders) {
                 blockWriter.writeRows((Block block, int rowNum) ->
                 {
-                    for (StoragePartition partition : folder) {
+                    for (PartitionColumnData partition : folder) {
                         block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
                     }
                     //we wrote 1 row so we return 1
@@ -253,16 +250,16 @@ public class GcsMetadataHandler
             }
 
             //getting the partition folder name with bucket and file type
-            PartitionResult partitionResult = PartitionUtil.getPartitions(table, fieldReadersMap);
-            LOGGER.info("Partition location {} for type {}", partitionResult.getPartition(), partitionResult.getTableType());
+            URI locationUri = PartitionUtil.getPartitions(table, fieldReadersMap);
+            LOGGER.info("Partition location {} ", locationUri);
 
             //getting storage file list
-            List<StorageSplit> storageSplits = datasource.getStorageSplits(partitionResult.getTableType(), partitionResult.getPartition());
+            List<String> fileList = datasource.getStorageSplits(locationUri);
             SpillLocation spillLocation = makeSpillLocation(request);
-            LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), storageSplits);
+            LOGGER.info("Split list for {}.{} is \n{}", table.getDatabaseName(), table.getName(), fileList);
 
             //creating splits based folder
-            String storageSplitJson = splitAsJson(storageSplits);
+            String storageSplitJson = new ObjectMapper().writeValueAsString(fileList);
             LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
                     storageSplitJson);
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
