@@ -4,7 +4,7 @@
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-athena-query-federation</artifactId>
     <packaging>pom</packaging>
-    <version>2023.1.2-athena-test-SNAPSHOT</version>
+    <version>2023.2.1-athena-test</version>
     <name>AWS Athena Query Federation</name>
     <description>The Amazon Athena Query Federation SDK allows you to customize Amazon Athena with your own code.</description>
     <url>https://github.com/awslabs/aws-athena-query-federation</url>

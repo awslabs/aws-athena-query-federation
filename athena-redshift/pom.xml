@@ -3,21 +3,21 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2023.1.2-athena-test-SNAPSHOT</version>
+        <version>2023.2.1-athena-test</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>athena-redshift</artifactId>
-    <version>2023.1.2-athena-test-SNAPSHOT</version>
+    <version>2023.2.1-athena-test</version>
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-postgresql</artifactId>
-            <version>2023.1.2-athena-test-SNAPSHOT</version>
+            <version>2023.2.1-athena-test</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2023.1.2-athena-test-SNAPSHOT</version>
+            <version>2023.2.1-athena-test</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -28,7 +28,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-jdbc</artifactId>
-            <version>2023.1.2-athena-test-SNAPSHOT</version>
+            <version>2023.2.1-athena-test</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
