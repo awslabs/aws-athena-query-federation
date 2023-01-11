@@ -25,8 +25,13 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressi
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.arrow.vector.types.Types;
@@ -51,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Query builder for database table split.
@@ -109,14 +115,19 @@ public abstract class JdbcSplitQueryBuilder
     {
         StringBuilder sql = new StringBuilder();
 
-        String columnNames = tableSchema.getFields().stream()
-                .map(Field::getName)
-                .filter(c -> !split.getProperties().containsKey(c))
-                .map(this::quote)
-                .collect(Collectors.joining(", "));
+        String columnNames = Stream.concat(
+                tableSchema.getFields()
+                        .stream()
+                        .map(Field::getName)
+                        .filter(c -> !split.getProperties().containsKey(c))
+                        .map(this::quote),
+                extractAggregateSelectClauses(constraints)
+                        .stream()
+                ).collect(Collectors.joining(", "));
 
         sql.append("SELECT ");
         sql.append(columnNames);
+
         if (columnNames.isEmpty()) {
             sql.append("null");
         }
@@ -130,6 +141,12 @@ public abstract class JdbcSplitQueryBuilder
             sql.append(" WHERE ")
                     .append(Joiner.on(" AND ").join(clauses));
         }
+
+        String aggregateGroupByClause = extractAggregateGroupByClause(constraints);
+        if (!Strings.isNullOrEmpty(aggregateGroupByClause)) {
+            sql.append(" ").append(aggregateGroupByClause);
+        }
+
         if (constraints.getLimit() > 0) {
             sql.append(appendLimitOffset(split, constraints));
         }
@@ -190,6 +207,62 @@ public abstract class JdbcSplitQueryBuilder
         }
 
         return statement;
+    }
+
+    private List<String> extractAggregateSelectClauses(Constraints constraints)
+    {
+        List<String> clauses = new ArrayList<>();
+        List<AggregateFunctionClause> aggregateFunctionClauses = constraints.getAggregateFunctionClause();
+        for (AggregateFunctionClause aggregateFunctionClause : aggregateFunctionClauses) {
+            List<FederationExpression> aggregateFunctions = aggregateFunctionClause.getAggregateFunctions();
+            FunctionCallExpression aggregateFunction = (FunctionCallExpression) aggregateFunctions.get(0); // should have exactly 1 function call
+            List<String> aggColumnNames = aggregateFunctionClause.getColumnNames();
+            String aggColumnName = aggColumnNames.get(0); // aggregate functions always have exactly 1 argument
+
+            AggregationFunctions functionEnum = AggregationFunctions.fromFunctionName(aggregateFunction.getFunctionName());
+
+            String formatted;
+            switch (functionEnum) {
+                case SUM:
+                    formatted = "SUM(" + quote(aggColumnName) + ")";
+                    break;
+                case MAX:
+                    formatted = "MAX(" + quote(aggColumnName) + ")";
+                    break;
+                case MIN:
+                    formatted = "MIN(" + quote(aggColumnName) + ")";
+                    break;
+                case COUNT:
+                case AVG:
+                default:
+                    throw new IllegalArgumentException("Aggregate function " + functionEnum.getFunctionName() + " is not yet supported.");
+            }
+            clauses.add(formatted);
+        }
+        return clauses;
+    }
+
+    /**
+     * The order of the group by clauses matters.
+     * @param constraints
+     * @return
+     */
+    private String extractAggregateGroupByClause(Constraints constraints)
+    {
+        List<AggregateFunctionClause> aggregateFunctionClauses = constraints.getAggregateFunctionClause();
+        if (aggregateFunctionClauses == null || aggregateFunctionClauses.size() == 0) {
+            return "";
+        }
+        AggregateFunctionClause aggregateFunctionClause = aggregateFunctionClauses.get(0);
+
+        // all aggregate functions will have the same grouping set. So just read the first clause's first grouping set.
+        List<String> uniqueColNames = aggregateFunctionClause.getGroupingSets().get(0);
+        if (uniqueColNames.size() > 0) {
+            return "GROUP BY " + uniqueColNames.stream()
+                    .map(this::quote)
+                    .collect(Collectors.joining(", "));
+        }
+        return "";
     }
 
     protected abstract String getFromClauseWithSplit(final String catalog, final String schema, final String table, final Split split);

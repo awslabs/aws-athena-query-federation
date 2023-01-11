@@ -25,7 +25,7 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -127,7 +127,7 @@ public class MySqlMetadataHandler
             AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN,
             AggregationPushdownSubType.SUPPORTS_MIN_PUSHDOWN,
             AggregationPushdownSubType.SUPPORTS_SUM_PUSHDOWN
-            ));
+        ));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
             LimitPushdownSubType.ALL
         ));

@@ -28,6 +28,9 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
+import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
@@ -38,6 +41,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -47,7 +51,9 @@ import org.mockito.Mockito;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -118,6 +124,20 @@ public class MySqlRecordHandlerTest
         ValueSet valueSet7 = getSingleValueSet(1.2d);
         ValueSet valueSet8 = getSingleValueSet(true);
 
+        AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(
+                List.of(
+                        new FunctionCallExpression(
+                                Types.MinorType.VARCHAR.getType(),
+                                AggregationFunctions.SUM.getFunctionName(),
+                                new ArrayList<>()
+                        )
+                ),
+                List.of("testCol3"),
+                List.of(
+                        List.of("testCol1", "testCol2")
+                )
+        );
+
         Constraints constraints = Mockito.mock(Constraints.class);
         Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
                 .put("testCol1", valueSet1)
@@ -130,8 +150,9 @@ public class MySqlRecordHandlerTest
                 .put("testCol8", valueSet8)
                 .build());
         Mockito.when(constraints.getLimit()).thenReturn(100L);
+        Mockito.when(constraints.getAggregateFunctionClause()).thenReturn(List.of(aggregateFunctionClause));
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8` FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) LIMIT 100";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8`, SUM(`testCol3`) FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) GROUP BY `testCol1`, `testCol2` LIMIT 100";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 

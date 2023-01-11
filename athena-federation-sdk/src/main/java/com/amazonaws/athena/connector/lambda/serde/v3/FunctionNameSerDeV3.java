@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v3;
 
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;

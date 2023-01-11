@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.domain.predicate.expression;
 
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;

@@ -1,4 +1,4 @@
-package com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions;
+package com.amazonaws.athena.connector.lambda.domain.predicate.functions;
 
 /*-
  * #%L

@@ -1,4 +1,4 @@
-package com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions;
+package com.amazonaws.athena.connector.lambda.domain.predicate.functions;
 
 /*-
  * #%L
@@ -94,10 +94,6 @@ public enum StandardFunctions
      * indeterminate result, otherwise returns {@code false}
      */
     IN_PREDICATE_FUNCTION_NAME(new FunctionName("$in"), OperatorType.BINARY),
-
-    
-
-    SUM_FUNCTION_NAME(new FunctionName("$sum")),
 
     /**
      * $array creates instance of {@link Array Type}

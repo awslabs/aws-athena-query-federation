@@ -21,7 +21,7 @@ package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;

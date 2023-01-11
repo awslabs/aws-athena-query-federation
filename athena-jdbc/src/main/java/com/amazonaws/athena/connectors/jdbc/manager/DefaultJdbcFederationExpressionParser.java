@@ -20,7 +20,7 @@
 package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.commons.lang3.NotImplementedException;
 

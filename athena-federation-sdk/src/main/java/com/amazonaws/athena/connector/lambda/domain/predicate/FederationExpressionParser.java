@@ -25,7 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Constan
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.FunctionName;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import org.apache.arrow.vector.complex.reader.FieldReader;

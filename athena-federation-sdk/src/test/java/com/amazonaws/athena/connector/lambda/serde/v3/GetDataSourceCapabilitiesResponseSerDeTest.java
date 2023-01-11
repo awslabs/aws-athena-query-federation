@@ -19,7 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v3;
 
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.functions.StandardFunctions;
+import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
