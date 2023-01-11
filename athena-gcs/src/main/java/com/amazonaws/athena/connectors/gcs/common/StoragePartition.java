@@ -19,17 +19,22 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Used to get Storage Partition
  */
 public class StoragePartition
 {
-    private String columnName;
-    private String columnType;
-    private Object columnValue;
+    private final String columnName;
+    private final String columnType;
+    private final Object columnValue;
 
-    public StoragePartition()
+    public StoragePartition(String columnName, String columnType, Object columnValue)
     {
+        this.columnName = requireNonNull(columnName, "columnName was null");
+        this.columnType = requireNonNull(columnType, "columnType was null");
+        this.columnValue = requireNonNull(columnValue, "columnValue was null");
     }
 
     public String getColumnName()
@@ -37,26 +42,9 @@ public class StoragePartition
         return columnName;
     }
 
-    public StoragePartition columnName(String columnName)
-    {
-        this.columnName = columnName;
-        return this;
-    }
-
-    public StoragePartition columnType(String columnType)
-    {
-        this.columnType = columnType;
-        return this;
-    }
-
     public Object getColumnValue()
     {
         return columnValue;
-    }
-
-    public void columnValue(Object columnValue)
-    {
-        this.columnValue = columnValue;
     }
 
     @Override
