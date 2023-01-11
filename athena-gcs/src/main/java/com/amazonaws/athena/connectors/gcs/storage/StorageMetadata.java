@@ -117,7 +117,8 @@ public class StorageMetadata
     {
         List<String> fileList = new ArrayList<>();
         String bucketName = locationUri.getAuthority();
-        Page<Blob> blobs = storage.list(bucketName, prefix(locationUri.getPath()));
+        String path = locationUri.getPath().startsWith("/") ? locationUri.getPath().substring(1, locationUri.getPath().length() - 1) : locationUri.getPath();
+        Page<Blob> blobs = storage.list(bucketName, prefix(path));
         for (Blob blob : blobs.iterateAll()) {
             if (blob.getSize() > 0) {
                 fileList.add(bucketName + "/" + blob.getName());
@@ -155,15 +156,16 @@ public class StorageMetadata
                 LOGGER.info("Location URI for table {}.{} is {}", tableInfo.getSchemaName(), tableInfo.getTableName(), locationUri);
                 URI storageLocation = new URI(locationUri);
                 LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
-                Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(storageLocation.getPath()));
+                String path = storageLocation.getPath().substring(1);
+                Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
                 String folderRegEx = optionalFolderRegEx.get();
                 Pattern folderRegExPattern = Pattern.compile(folderRegEx);
                 List<EqualsExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
                 LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
                 for (Blob blob : blobPage.iterateAll()) {
                     String blobName = blob.getName();
-                    String folderPath = blobName.startsWith(storageLocation.getPath())
-                            ? blobName.replace(storageLocation.getPath(), "")
+                    String folderPath = blobName.startsWith(path)
+                            ? blobName.replace(path, "")
                             : blobName;
                     LOGGER.info("Examining folder {} against regex {}", folderPath, folderRegEx);
                     if (folderRegExPattern.matcher(folderPath).matches()) {
