@@ -160,10 +160,8 @@ public class PartitionUtil
                         continue;
                     }
 
-                    PartitionColumnData partition = new PartitionColumnData();
-                    if (setStoragePartitionValues(partitionColumns, partitionColumn,  columnValue, partition, tableParameters)) {
-                        partitions.add(partition);
-                    }
+                    Optional<StoragePartition> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionColumn,  columnValue, tableParameters);
+                    optionalStoragePartition.ifPresent(partitions::add);
                 }
             }
         }
@@ -181,19 +179,17 @@ public class PartitionUtil
      * @param tableParameters table parameters
      * @return boolean flag
      */
-    private static boolean setStoragePartitionValues(List<Column> columns, String columnName, String columnValue, PartitionColumnData partition, Map<String, String> tableParameters) throws ParseException
+    private static Optional<StoragePartition> produceStoragePartition(List<Column> columns, String columnName, String columnValue, Map<String, String> tableParameters) throws ParseException
     {
         if (columnValue != null && !columnValue.isBlank() && !columns.isEmpty()) {
             for (Column column : columns) {
                 if (column.getName().equalsIgnoreCase(columnName)) {
-                    partition.columnName(column.getName())
-                                .columnType(column.getType())
-                                .columnValue(convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters));
-                    return true;
+                    return Optional.of(new StoragePartition(column.getName(), column.getType(),
+                            convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters)));
                 }
             }
         }
-        return false;
+        return Optional.empty();
     }
 
     /**

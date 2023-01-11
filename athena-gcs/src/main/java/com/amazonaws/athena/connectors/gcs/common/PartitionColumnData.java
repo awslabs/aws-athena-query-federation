@@ -30,6 +30,9 @@ public class PartitionColumnData
 
     public PartitionColumnData()
     {
+        this.columnName = requireNonNull(columnName, "columnName was null");
+        this.columnType = requireNonNull(columnType, "columnType was null");
+        this.columnValue = requireNonNull(columnValue, "columnValue was null");
     }
 
     public String getColumnName()
@@ -52,11 +55,6 @@ public class PartitionColumnData
     public Object getColumnValue()
     {
         return columnValue;
-    }
-
-    public void columnValue(Object columnValue)
-    {
-        this.columnValue = columnValue;
     }
 
     @Override
