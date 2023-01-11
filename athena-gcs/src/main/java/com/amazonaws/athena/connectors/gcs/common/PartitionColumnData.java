@@ -2,7 +2,7 @@
  * #%L
  * athena-gcs
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connectors.gcs.common;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Used to get Storage Partition
  */
@@ -28,7 +30,7 @@ public class PartitionColumnData
     private String columnType;
     private Object columnValue;
 
-    public PartitionColumnData()
+    public PartitionColumnData(String columnName, String columnType, Object columnValue)
     {
         this.columnName = requireNonNull(columnName, "columnName was null");
         this.columnType = requireNonNull(columnType, "columnType was null");
@@ -38,18 +40,6 @@ public class PartitionColumnData
     public String getColumnName()
     {
         return columnName;
-    }
-
-    public PartitionColumnData columnName(String columnName)
-    {
-        this.columnName = columnName;
-        return this;
-    }
-
-    public PartitionColumnData columnType(String columnType)
-    {
-        this.columnType = columnType;
-        return this;
     }
 
     public Object getColumnValue()

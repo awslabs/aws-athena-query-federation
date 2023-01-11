@@ -152,7 +152,7 @@ public class GcsRecordHandlerTest
         PowerMockito.mockStatic(GoogleCredentials.class);
         PowerMockito.when(GoogleCredentials.fromStream(any())).thenReturn(credentials);
         PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
-        suppress(constructor(StorageMetadata.class, String.class, Map.class));
+        suppress(constructor(StorageMetadata.class, String.class));
         Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
         spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator());
 
@@ -174,7 +174,7 @@ public class GcsRecordHandlerTest
     {
         // Mocking split
         Split split = mock(Split.class);
-        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("[{\"fileName\": \"data.parquet\"}]");
+        when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("[\"data.parquet\"]");
         when(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)).thenReturn("parquet");
 
         // Test readWithConstraint

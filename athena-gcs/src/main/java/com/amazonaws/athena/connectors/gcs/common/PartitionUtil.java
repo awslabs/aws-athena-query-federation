@@ -1,15 +1,15 @@
 /*-
  * #%L
- * athena-storage-api
+ * athena-gcs
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -53,6 +53,7 @@ public class PartitionUtil
      */
     private static final String DEFAULT_DATE_REGEX_STRING = "\\d{4}-\\d{2}-\\d{2}";
     private static final String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
+
     private PartitionUtil()
     {
     }
@@ -62,7 +63,7 @@ public class PartitionUtil
      * regular expression to match a folder within the GCS to see if the folder conforms with the partition keys
      * already setup in the AWS Glue Table (if any)
      *
-     * @param table  response of get table from AWS Glue
+     * @param table response of get table from AWS Glue
      * @return optional Sting of regular expression
      */
     public static Optional<String> getRegExExpression(Table table)
@@ -109,11 +110,11 @@ public class PartitionUtil
     /**
      * Return a list of storage partition(column name, column type and value)
      *
-     * @param partitionPattern  Name of the bucket
-     * @param folderModel partition folder name
-     * @param folderNameRegEx folder name regular expression
+     * @param partitionPattern Name of the bucket
+     * @param folderModel      partition folder name
+     * @param folderNameRegEx  folder name regular expression
      * @param partitionColumns partition column name list
-     * @param tableParameters table parameter
+     * @param tableParameters  table parameter
      * @return List of storage partition(column name, column type and value)
      */
     public static List<PartitionColumnData> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
@@ -160,7 +161,7 @@ public class PartitionUtil
                         continue;
                     }
 
-                    Optional<StoragePartition> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionColumn,  columnValue, tableParameters);
+                    Optional<PartitionColumnData> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionColumn, columnValue, tableParameters);
                     optionalStoragePartition.ifPresent(partitions::add);
                 }
             }
@@ -169,22 +170,22 @@ public class PartitionUtil
     }
 
     // helpers
+
     /**
      * Return a true when storage partition added successfully
      *
-     * @param columns  list of column
-     * @param columnName Name of the partition column
-     * @param columnValue  value of partition folder
-     * @param partition storage partition object
+     * @param columns         list of column
+     * @param columnName      Name of the partition column
+     * @param columnValue     value of partition folder
      * @param tableParameters table parameters
      * @return boolean flag
      */
-    private static Optional<StoragePartition> produceStoragePartition(List<Column> columns, String columnName, String columnValue, Map<String, String> tableParameters) throws ParseException
+    private static Optional<PartitionColumnData> produceStoragePartition(List<Column> columns, String columnName, String columnValue, Map<String, String> tableParameters) throws ParseException
     {
         if (columnValue != null && !columnValue.isBlank() && !columns.isEmpty()) {
             for (Column column : columns) {
                 if (column.getName().equalsIgnoreCase(columnName)) {
-                    return Optional.of(new StoragePartition(column.getName(), column.getType(),
+                    return Optional.of(new PartitionColumnData(column.getName(), column.getType(),
                             convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters)));
                 }
             }
@@ -195,8 +196,8 @@ public class PartitionUtil
     /**
      * Return a dynamic folder regex pattern for the given folder part
      *
-     * @param partitionColumns  list of partition column to see column name and types for the folder regex pattern
-     * @param folderPart folder part string, each parts in a path is separated by a folder separator, usually a '/' (forward slash)
+     * @param partitionColumns list of partition column to see column name and types for the folder regex pattern
+     * @param folderPart       folder part string, each parts in a path is separated by a folder separator, usually a '/' (forward slash)
      * @param tableParameters  Glue table parameters
      * @return Regex pattern for the given folder part
      */
@@ -219,7 +220,7 @@ public class PartitionUtil
     /**
      * Return a folder pattern
      *
-     * @param folderPattern  Name of the bucket
+     * @param folderPattern Name of the bucket
      * @param variableRegEx Name of the file in the specified bucket
      * @return string folder pattern
      */
@@ -235,9 +236,9 @@ public class PartitionUtil
     /**
      * Return a regEx column type
      *
-     * @param columnName  Name of the column
-     * @param columnType column type
-     * @param tableParameters   table parameters
+     * @param columnName      Name of the column
+     * @param columnType      column type
+     * @param tableParameters table parameters
      * @return column type
      */
     private static String getRegExByColumnType(String columnName, String columnType, Map<String, String> tableParameters)
@@ -265,9 +266,9 @@ public class PartitionUtil
     /**
      * Return a column value with exact type from string value
      *
-     * @param columnName  Name of the column
-     * @param columnType column type
-     * @param tableParameters   table parameters
+     * @param columnName      Name of the column
+     * @param columnType      column type
+     * @param tableParameters table parameters
      * @return object of column value
      */
     private static Object convertStringByColumnType(String columnName, String columnType, String columnValue, Map<String, String> tableParameters) throws ParseException
@@ -296,7 +297,7 @@ public class PartitionUtil
     /**
      * Return a date pattern string
      *
-     * @param datePattern  value of partition folder when date pattern
+     * @param datePattern value of partition folder when date pattern
      * @return string of date pattern
      */
     private static String getDateRegExByPattern(String datePattern)
@@ -313,6 +314,7 @@ public class PartitionUtil
 
     /**
      * Determine the partitions based on Glue Catalog
+     *
      * @return A list of partitions
      */
     public static URI getPartitions(Table table, Map<String, FieldReader> fieldReadersMap) throws URISyntaxException
