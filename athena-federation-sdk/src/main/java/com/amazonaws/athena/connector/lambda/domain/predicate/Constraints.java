@@ -87,6 +87,11 @@ public class Constraints
         return limit;
     }
 
+    public boolean hasLimit()
+    {
+        return this.limit > -1;
+    }
+
     public List<AggregateFunctionClause> getAggregateFunctionClause()
     {
         return aggregateFunctionClause;
