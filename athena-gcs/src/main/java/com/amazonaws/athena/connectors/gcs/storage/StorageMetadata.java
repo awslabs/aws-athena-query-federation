@@ -116,7 +116,7 @@ public class StorageMetadata
     {
         List<String> fileList = new ArrayList<>();
         String bucketName = locationUri.getAuthority();
-        String path = locationUri.getPath().startsWith("/") ? locationUri.getPath().substring(1, locationUri.getPath().length() - 1) : locationUri.getPath();
+        String path = locationUri.getPath().startsWith("/") ? locationUri.getPath().substring(1) : locationUri.getPath();
         Page<Blob> blobs = storage.list(bucketName, prefix(path));
         for (Blob blob : blobs.iterateAll()) {
             if (blob.getSize() > 0) {
@@ -203,7 +203,7 @@ public class StorageMetadata
     protected Optional<String> getStorageFiles(String bucket, String prefix)
     {
         LOGGER.info("Listing nested files for prefix {} under the bucket {}", prefix, bucket);
-        Page<Blob> blobPage = storage.list(bucket, prefix(prefix));
+        Page<Blob> blobPage = storage.list(bucket, prefix(prefix.substring(1)));
         for (Blob blob : blobPage.iterateAll()) {
             // check whether it is file, It may return folder also
             if (blob.getSize() > 0) {
@@ -294,25 +294,15 @@ public class StorageMetadata
             case TIMESTAMPMILLITZ:
             case TIMESTAMPMICROTZ:
             case TIMENANO:
-                if (field.isNullable()) {
                     return new Field(fieldName,
-                            FieldType.nullable(Types.MinorType.DATEMILLI.getType()), List.of());
-                }
-                else {
-                    return new Field(fieldName,
-                            FieldType.notNullable(Types.MinorType.DATEMILLI.getType()), List.of());
-                }
+                            new FieldType(field.isNullable(), Types.MinorType.DATEMILLI.getType(), field.getDictionary(),
+                                    field.getMetadata()), field.getChildren());
             case FIXEDSIZEBINARY:
             case LARGEVARBINARY:
             case VARBINARY:
-                if (field.isNullable()) {
                     return new Field(fieldName,
-                            FieldType.nullable(Types.MinorType.VARCHAR.getType()), List.of());
-                }
-                else {
-                    return new Field(fieldName,
-                            FieldType.notNullable(Types.MinorType.VARCHAR.getType()), List.of());
-                }
+                            new FieldType(field.isNullable(), Types.MinorType.VARCHAR.getType(), field.getDictionary(),
+                                    field.getMetadata()), field.getChildren());
             default:
                 return field;
         }

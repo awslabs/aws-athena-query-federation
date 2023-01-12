@@ -22,11 +22,15 @@ package com.amazonaws.athena.connectors.gcs.common;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +43,7 @@ import static java.util.Objects.requireNonNull;
 
 public class PartitionUtil
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PartitionUtil.class);
     /**
      * Pattern from a regular expression that identifies a match in a phrases to see if there is any
      * partition key variable placeholder. A partition key variable placeholder looks something like the following:
@@ -243,6 +248,7 @@ public class PartitionUtil
      */
     private static String getRegExByColumnType(String columnName, String columnType, Map<String, String> tableParameters)
     {
+        LOGGER.info("getRegExByColumnType - column name {}", columnName);
         switch (columnType) {
             case "string":
             case "varchar":
@@ -253,11 +259,7 @@ public class PartitionUtil
             case "tinyint":
                 return "(\\d+)";
             case "date":
-                String datePattern = tableParameters.get(String.format("partition.%s.pattern", columnName));
-                if (datePattern == null) {
                     return "(" + DEFAULT_DATE_REGEX_STRING + ")";
-                }
-                return "(" + getDateRegExByPattern(datePattern) + ")";
             default:
                 throw new IllegalArgumentException("Column type '" + columnType + "' is not supported for a partition column in this connector");
         }
@@ -273,6 +275,7 @@ public class PartitionUtil
      */
     private static Object convertStringByColumnType(String columnName, String columnType, String columnValue, Map<String, String> tableParameters) throws ParseException
     {
+        LOGGER.info("convertStringByColumnType - column name {}", columnName);
         switch (columnType) {
             case "string":
             case "varchar":
@@ -284,11 +287,7 @@ public class PartitionUtil
             case "tinyint":
                 return Integer.parseInt(columnValue);
             case "date":
-                String datePattern = tableParameters.get(String.format("partition.%s.pattern", columnName));
-                if (datePattern == null) {
-                    datePattern = DEFAULT_DATE_PATTERN;
-                }
-                return new SimpleDateFormat(datePattern).parse(columnValue);
+                return new SimpleDateFormat(DEFAULT_DATE_PATTERN).parse(columnValue).getTime();
             default:
                 throw new IllegalArgumentException("Column type '" + columnType + "' is not supported for a partition column in this connector");
         }
@@ -324,7 +323,7 @@ public class PartitionUtil
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         if (null != partitionPattern) {
             for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
-                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", String.valueOf(field.getValue().readObject()));
+                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", convertToString(field, table.getParameters()));
             }
             locationUri = (tableLocation.endsWith("/")
                     ? tableLocation
@@ -334,5 +333,15 @@ public class PartitionUtil
             locationUri = tableLocation;
         }
         return new URI(locationUri);
+    }
+
+    private static String convertToString(Map.Entry<String, FieldReader> value, Map<String, String> parameters)
+    {
+        switch (value.getValue().getMinorType()) {
+            case DATEDAY:
+                return LocalDate.ofEpochDay(Long.valueOf(value.getValue().readObject().toString()) + 1).format(DateTimeFormatter.ofPattern(DEFAULT_DATE_PATTERN));
+            default:
+               return String.valueOf(value.getValue().readObject());
+        }
     }
 }

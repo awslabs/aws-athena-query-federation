@@ -55,7 +55,7 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
-          gcs_secret_name: !Ref GcsSecretName
+          secret_manager_gcp_creds_name: !Ref GcsSecretName
           SSL_CERT_FILE: '/tmp/cacert.pem'
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
 
