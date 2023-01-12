@@ -90,6 +90,7 @@ import java.util.Map;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
+import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.allocator;
 import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.createColumn;
 import static com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilderTest.createSummaryWithLValueRangeEqual;
 import static java.util.Arrays.asList;
@@ -166,7 +167,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         mockStatic(AWSGlueClientBuilder.class);
         PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", amazonS3, awsGlue);
+        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", amazonS3, awsGlue, allocator);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }

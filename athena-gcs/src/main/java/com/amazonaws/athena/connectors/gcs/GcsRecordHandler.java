@@ -44,7 +44,6 @@ import org.apache.arrow.dataset.scanner.Scanner;
 import org.apache.arrow.dataset.source.Dataset;
 import org.apache.arrow.dataset.source.DatasetFactory;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -67,15 +66,17 @@ public class GcsRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandler.class);
 
     private static final String SOURCE_TYPE = "gcs";
+    private BufferAllocator allocator;
 
     // to handle back-pressure during API invocation to GCS
     ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
 
-    public GcsRecordHandler()
+    public GcsRecordHandler(BufferAllocator allocator)
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient());
+        this.allocator = allocator;
     }
 
     /**
@@ -120,10 +121,6 @@ public class GcsRecordHandler
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
             ScanOptions options = new ScanOptions(32768);
             try (
-                    // Taking an allocator for using direct memory for Arrow Vectors/Arrays.
-                    // We will use this allocator for filtered result output.
-                    BufferAllocator allocator = new RootAllocator();
-
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
                     DatasetFactory datasetFactory = new FileSystemDatasetFactory(

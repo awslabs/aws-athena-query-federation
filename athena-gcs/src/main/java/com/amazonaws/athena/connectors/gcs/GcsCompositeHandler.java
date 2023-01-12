@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.handlers.CompositeHandler;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 
 import java.io.IOException;
 
@@ -34,12 +36,13 @@ import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentia
 public class GcsCompositeHandler
         extends CompositeHandler
 {
+    private static final BufferAllocator allocator = new RootAllocator();
     /**
      * The default constructor that initializes metadata and record handlers for GCS
      */
     public GcsCompositeHandler() throws IOException
     {
-        super(new GcsMetadataHandler(), new GcsRecordHandler());
+        super(new GcsMetadataHandler(allocator), new GcsRecordHandler(allocator));
         installCaCertificate();
         installGoogleCredentialsJsonFile();
     }

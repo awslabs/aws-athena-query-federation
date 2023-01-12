@@ -43,7 +43,6 @@ import static java.util.Objects.requireNonNull;
 
 public class GcsUtil
 {
-
     private GcsUtil()
     {
     }

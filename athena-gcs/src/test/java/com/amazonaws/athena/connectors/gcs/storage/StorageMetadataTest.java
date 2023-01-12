@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connectors.gcs.GcsTestUtils.allocator;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -117,10 +118,10 @@ public class StorageMetadataTest
         Schema schema = new Schema(asList(field), metadataSchema);
         storageMetadata = mock(StorageMetadata.class);
         storageMock();
-        when(storageMetadata.getFields(any(),any(),any())).thenCallRealMethod();
+        when(storageMetadata.getFields(any(),any(),any(), any())).thenCallRealMethod();
         when(storageMetadata.getStorageFiles(any(),any())).thenCallRealMethod();
-        when(storageMetadata.getFileSchema(any(),any(),any())).thenReturn(schema);
-        List<Field> fields = storageMetadata.getFields("mydatalake1", "birthday", "parquet");
+        when(storageMetadata.getFileSchema(any(),any(),any(), any())).thenReturn(schema);
+        List<Field> fields = storageMetadata.getFields("mydatalake1", "birthday", "parquet", allocator);
         Assert.assertFalse(fields.isEmpty());
     }
 
@@ -146,15 +147,15 @@ public class StorageMetadataTest
         table.setCatalogId("catalog");
         storageMetadata = mock(StorageMetadata.class);
         storageMock();
-        when(storageMetadata.buildTableSchema(any())).thenCallRealMethod();
-        when(storageMetadata.getFields(any(),any(),any())).thenCallRealMethod();
+        when(storageMetadata.buildTableSchema(any(), any())).thenCallRealMethod();
+        when(storageMetadata.getFields(any(),any(),any(), any())).thenCallRealMethod();
         when(storageMetadata.getStorageFiles(any(),any())).thenCallRealMethod();
         Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "parquet");
         Schema schema = new Schema(asList(field), metadataSchema);
-        when(storageMetadata.getFileSchema(any(),any(),any())).thenReturn(schema);
-        Schema outSchema = storageMetadata.buildTableSchema(table);
+        when(storageMetadata.getFileSchema(any(),any(),any(), any())).thenReturn(schema);
+        Schema outSchema = storageMetadata.buildTableSchema(table, allocator);
         assertNotNull(outSchema);
     }
 }

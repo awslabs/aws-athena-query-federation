@@ -49,6 +49,7 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -90,14 +91,16 @@ public class GcsMetadataHandler
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().startsWith(TABLE_FILTER_IDENTIFIER);
     private final StorageMetadata datasource;
     private final AWSGlue glueClient;
+    private BufferAllocator allocator;
 
-    public GcsMetadataHandler() throws IOException
+    public GcsMetadataHandler(BufferAllocator allocator) throws IOException
     {
         super(DISABLE_GLUE, SOURCE_TYPE);
         String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
         this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
+        this.allocator = allocator;
     }
 
     @VisibleForTesting
@@ -107,7 +110,7 @@ public class GcsMetadataHandler
                                  AmazonAthena athena,
                                  String spillBucket,
                                  String spillPrefix,
-                                 AmazonS3 amazonS3, AWSGlue glueClient) throws IOException
+                                 AmazonS3 amazonS3, AWSGlue glueClient, BufferAllocator allocator) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
@@ -115,6 +118,7 @@ public class GcsMetadataHandler
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
         System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
+        this.allocator = allocator;
     }
 
     /**
@@ -174,7 +178,7 @@ public class GcsMetadataHandler
             //this will get table(location uri and partition details) without schema metadata
             Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
             //fetch schema from dataset api
-            Schema schema = datasource.buildTableSchema(table);
+            Schema schema = datasource.buildTableSchema(table, allocator);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
             Set<String> partitionCols = new HashSet<>();
             if (table.getPartitionKeys() != null) {

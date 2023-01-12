@@ -37,7 +37,7 @@ public class GcsConstants
      * An environment variable in the deployed Lambda that says the name of the secret in AWS Secrets Manager. This in ture,
      * contains credential keys/other values in the form of JSON to access the GCS buckets/objects
      */
-    public static final String GCS_SECRET_KEY_ENV_VAR = "gcs_secret_name";
+    public static final String GCS_SECRET_KEY_ENV_VAR = "secret_manager_gcp_creds_name";
 
     /**
      * A ssl file location constant to store the SSL certificate

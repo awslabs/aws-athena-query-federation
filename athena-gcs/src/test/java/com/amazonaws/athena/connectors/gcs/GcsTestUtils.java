@@ -21,6 +21,7 @@ package com.amazonaws.athena.connectors.gcs;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.services.glue.model.Column;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
@@ -48,6 +49,7 @@ public class GcsTestUtils {
     public static final String STRING_FIELD_NAME_1 = "string1";
     public static final String FLOAT_FIELD_NAME_1 = "float1";
     public static final String PROJECT_1_NAME = "testProject";
+    public static BufferAllocator allocator = new RootAllocator();
 
     private GcsTestUtils()
     {

@@ -41,7 +41,6 @@ import org.apache.arrow.dataset.file.FileSystemDatasetFactory;
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
 import org.apache.arrow.dataset.source.DatasetFactory;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -96,12 +95,12 @@ public class StorageMetadata
      * @param format   classification param form table
      * @return An instance of {@link List<Field>} with column metadata
      */
-    public synchronized List<Field> getFields(String bucketName, String tableName, String format)
+    public synchronized List<Field> getFields(String bucketName, String tableName, String format, BufferAllocator allocator)
     {
         LOGGER.info("Getting table fields for object {}.{}", bucketName, tableName);
         Optional<String> file = getStorageFiles(bucketName, tableName);
         if (file.isPresent()) {
-            return getFileSchema(bucketName, file.get(), FileFormat.valueOf(format.toUpperCase())).getFields();
+            return getFileSchema(bucketName, file.get(), FileFormat.valueOf(format.toUpperCase()), allocator).getFields();
         }
 
         throw new IllegalArgumentException("No object found for the table name '" + tableName + "' under bucket " + bucketName);
@@ -215,13 +214,12 @@ public class StorageMetadata
     }
 
     // helpers
-    public Schema getFileSchema(String bucketName, String path, FileFormat format)
+    public Schema getFileSchema(String bucketName, String path, FileFormat format, BufferAllocator allocator)
     {
         requireNonNull(bucketName, "bucketName was null");
         requireNonNull(path, "fileName was null");
         LOGGER.info("Retrieving field schema from file {}, under the bucket {}", path, bucketName);
         String uri = createUri(bucketName, path);
-        BufferAllocator allocator = new RootAllocator();
         DatasetFactory factory = new FileSystemDatasetFactory(allocator,
                 NativeMemoryPool.getDefault(), format, uri);
         // inspect schema
@@ -263,12 +261,12 @@ public class StorageMetadata
      * @param table      Glue table object
      * @return An instance of {@link Schema}
      */
-    public Schema buildTableSchema(Table table) throws URISyntaxException
+    public Schema buildTableSchema(Table table, BufferAllocator allocator) throws URISyntaxException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
         String locationUri = table.getStorageDescriptor().getLocation();
         URI storageLocation = new URI(locationUri);
-        List<Field> fieldList = getFields(storageLocation.getAuthority(), storageLocation.getPath(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM));
+        List<Field> fieldList = getFields(storageLocation.getAuthority(), storageLocation.getPath(), table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM), allocator);
 
         LOGGER.debug("Schema Fields\n{}", fieldList);
         for (Field field : fieldList) {
