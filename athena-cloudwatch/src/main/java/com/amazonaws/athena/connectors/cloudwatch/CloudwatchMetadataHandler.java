@@ -199,9 +199,13 @@ public class CloudwatchMetadataHandler
             logger.info("doListTables: Listing log streams with token {} and size {}", result.getNextToken(), tables.size());
         }
 
-        //We add a special table that represents all log streams. This is helpful depending on how
-        //you have your logs organized.
-        tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
+        // Don't add the ALL_LOG_STREAMS_TABLE unless we're at the end of listing out all the tables.
+        // Otherwise we will end up with multiple ALL_LOG_STREAMS_TABLE showing up in the console.
+        if (nextToken == null) {
+            //We add a special table that represents all log streams. This is helpful depending on how
+            //you have your logs organized.
+            tables.add(new TableName(listTablesRequest.getSchemaName(), ALL_LOG_STREAMS_TABLE));
+        }
 
         return new ListTablesResponse(listTablesRequest.getCatalogName(), tables, nextToken);
     }
