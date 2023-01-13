@@ -264,7 +264,7 @@ public class GcsMetadataHandlerTest
     public void testGetPartitions() throws Exception
     {
         environmentVariables.set("glue_catalog", "12345678910");
-        Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
+        Field field = new Field("year", FieldType.nullable(new ArrowType.Utf8()), null);
         Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         Table table = new Table();
         table.setName("birthday");
@@ -276,9 +276,9 @@ public class GcsMetadataHandlerTest
                 .withLocation("gs://mydatalake1test/birthday/").withColumns(new Column()));
         table.setCatalogId(CATALOG);
         List<Column> columns = List.of(
-                createColumn("year", "bigint"),
-                createColumn("month", "int"),
-                createColumn("day", "int")
+                createColumn("year", "varchar"),
+                createColumn("month", "varchar"),
+                createColumn("day", "varchar")
         );
         table.setPartitionKeys(columns);
         GetTableResult getTableResult = new GetTableResult();
