@@ -52,8 +52,13 @@ Parameters:
     Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
     Default: ''
     Type: String
+  LambdaEncryptionKmsKeyARN:
+    Description: "(Optional) The KMS Key ARN used for encrypting your Lambda environment variables."
+    Default: ""
+    Type: String
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasLambdaEncryptionKmsKeyARN: !Not [ !Equals [ !Ref LambdaEncryptionKmsKeyARN, "" ] ]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -108,3 +113,4 @@ Resources:
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
+      KmsKeyArn: !If [ HasLambdaEncryptionKmsKeyARN, !Ref LambdaEncryptionKmsKeyARN, !Ref "AWS::NoValue" ]
