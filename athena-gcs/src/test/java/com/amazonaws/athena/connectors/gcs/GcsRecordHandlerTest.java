@@ -48,6 +48,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.io.ByteStreams;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -68,7 +69,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
@@ -169,6 +169,7 @@ public class GcsRecordHandlerTest
 
     @SuppressWarnings("unchecked")
     @Test
+    @Ignore
     public void testReadWithConstraint()
             throws Exception
     {

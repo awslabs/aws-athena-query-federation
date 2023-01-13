@@ -137,13 +137,6 @@ public class FilterExpressionBuilder
         return exactly;
     }
 
-    private void addToAnd(EqualsExpression expression)
-    {
-        if (!and.contains(expression)) {
-            and.add(expression);
-        }
-    }
-
     protected final void addToOr(EqualsExpression expression)
     {
         or.add(expression);
