@@ -27,10 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,11 +35,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
-import static java.util.Objects.requireNonNull;
 
 public class PartitionUtil
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PartitionUtil.class);
+
     /**
      * Pattern from a regular expression that identifies a match in a phrases to see if there is any
      * partition key variable placeholder. A partition key variable placeholder looks something like the following:
@@ -57,7 +53,10 @@ public class PartitionUtil
      * 2023-01-05 but not 20-05-2022 (i.e., dd-MM-yyyy)
      */
     private static final String DEFAULT_DATE_REGEX_STRING = "\\d{4}-\\d{2}-\\d{2}";
-    private static final String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
+    /**
+     * Match any alpha-num characters. Used to match VARCHAR type only partition keys
+     */
+    private static final String VARCHAR_OR_STRING_REGEX = "([a-zA-Z0-9]+)";
 
     private PartitionUtil()
     {
@@ -73,8 +72,8 @@ public class PartitionUtil
      */
     public static Optional<String> getRegExExpression(Table table)
     {
-        Map<String, String> tableParameters = table.getParameters();
         List<Column> partitionColumns = table.getPartitionKeys();
+        validatePartitionColumnTypes(partitionColumns);
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         // Check to see if there is a partition pattern configured for the Table by the user
         // if not, it returns empty value
@@ -89,7 +88,7 @@ public class PartitionUtil
             StringBuilder folderMatchingPatternBuilder = new StringBuilder();
             for (String folderPart : folderParts) {
                 // Generates a dynamic regex for the folder part
-                folderMatchingPatternBuilder.append(getFolderValuePattern(partitionColumns, folderPart, tableParameters)).append("/");
+                folderMatchingPatternBuilder.append(getFolderValuePattern(partitionColumns, folderPart)).append("/");
             }
             folderMatchingPattern = folderMatchingPatternBuilder.toString();
         }
@@ -119,10 +118,9 @@ public class PartitionUtil
      * @param folderModel      partition folder name
      * @param folderNameRegEx  folder name regular expression
      * @param partitionColumns partition column name list
-     * @param tableParameters  table parameter
      * @return List of storage partition(column name, column type and value)
      */
-    public static List<PartitionColumnData> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns, Map<String, String> tableParameters) throws ParseException
+    public static List<PartitionColumnData> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns)
     {
         List<PartitionColumnData> partitions = new ArrayList<>();
         String[] partitionPatternParts = partitionPattern.split("/");
@@ -166,7 +164,7 @@ public class PartitionUtil
                         continue;
                     }
 
-                    Optional<PartitionColumnData> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionColumn, columnValue, tableParameters);
+                    Optional<PartitionColumnData> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionColumn, columnValue);
                     optionalStoragePartition.ifPresent(partitions::add);
                 }
             }
@@ -175,23 +173,39 @@ public class PartitionUtil
     }
 
     // helpers
-
+    /**
+     * Validates partition column types. As of now, only VARCHAR (string or varchar in Glue Table)
+     * @param columns List of Glue Table's colums
+     */
+    private static void validatePartitionColumnTypes(List<Column> columns)
+    {
+        for (Column column : columns) {
+            String columnType = column.getType();
+            LOGGER.info("validatePartitionColumnTypes - Field type of {} is {}", column.getName(), columnType);
+            switch (columnType) {
+                case "string":
+                case "varchar":
+                    return;
+                default:
+                    throw new IllegalArgumentException("Field type '" + columnType + "' is not supported for a partition field in this connector. " +
+                            "Supported partition field type is VARCHAR (string or varchar in a Glue Table Schema)");
+            }
+        }
+    }
     /**
      * Return a true when storage partition added successfully
      *
      * @param columns         list of column
      * @param columnName      Name of the partition column
      * @param columnValue     value of partition folder
-     * @param tableParameters table parameters
      * @return boolean flag
      */
-    private static Optional<PartitionColumnData> produceStoragePartition(List<Column> columns, String columnName, String columnValue, Map<String, String> tableParameters) throws ParseException
+    private static Optional<PartitionColumnData> produceStoragePartition(List<Column> columns, String columnName, String columnValue)
     {
         if (columnValue != null && !columnValue.isBlank() && !columns.isEmpty()) {
             for (Column column : columns) {
                 if (column.getName().equalsIgnoreCase(columnName)) {
-                    return Optional.of(new PartitionColumnData(column.getName(), column.getType(),
-                            convertStringByColumnType(column.getName(), column.getType(), columnValue, tableParameters)));
+                    return Optional.of(new PartitionColumnData(column.getName(), column.getType(), columnValue));
                 }
             }
         }
@@ -203,10 +217,9 @@ public class PartitionUtil
      *
      * @param partitionColumns list of partition column to see column name and types for the folder regex pattern
      * @param folderPart       folder part string, each parts in a path is separated by a folder separator, usually a '/' (forward slash)
-     * @param tableParameters  Glue table parameters
      * @return Regex pattern for the given folder part
      */
-    private static String getFolderValuePattern(List<Column> partitionColumns, String folderPart, Map<String, String> tableParameters)
+    private static String getFolderValuePattern(List<Column> partitionColumns, String folderPart)
     {
         Matcher partitionMatcher = PARTITION_PATTERN.matcher(folderPart);
         if (partitionMatcher.matches() && partitionMatcher.groupCount() > 1) {
@@ -214,8 +227,7 @@ public class PartitionUtil
             String columnName = variable.replaceAll("[{}]", "");
             for (Column column : partitionColumns) {
                 if (column.getName().equalsIgnoreCase(columnName)) {
-                    String regEx = requireNonNull(getRegExByColumnType(column.getName(), column.getType(), tableParameters));
-                    return createGroup(folderPart.replace(variable, regEx), regEx);
+                    return createGroup(folderPart.replace(variable, VARCHAR_OR_STRING_REGEX), VARCHAR_OR_STRING_REGEX);
                 }
             }
         }
@@ -239,79 +251,6 @@ public class PartitionUtil
     }
 
     /**
-     * Return a regEx column type
-     *
-     * @param columnName      Name of the column
-     * @param columnType      column type
-     * @param tableParameters table parameters
-     * @return column type
-     */
-    private static String getRegExByColumnType(String columnName, String columnType, Map<String, String> tableParameters)
-    {
-        LOGGER.info("getRegExByColumnType - column name {}", columnName);
-        switch (columnType) {
-            case "string":
-            case "varchar":
-                return "(.*?)";
-            case "bigint":
-            case "int":
-            case "smallint":
-            case "tinyint":
-                return "(\\d+)";
-            case "date":
-                    return "(" + DEFAULT_DATE_REGEX_STRING + ")";
-            default:
-                throw new IllegalArgumentException("Column type '" + columnType + "' is not supported for a partition column in this connector");
-        }
-    }
-
-    /**
-     * Return a column value with exact type from string value
-     *
-     * @param columnName      Name of the column
-     * @param columnType      column type
-     * @param tableParameters table parameters
-     * @return object of column value
-     */
-    private static Object convertStringByColumnType(String columnName, String columnType, String columnValue, Map<String, String> tableParameters) throws ParseException
-    {
-        LOGGER.info("convertStringByColumnType - column name {}", columnName);
-        switch (columnType) {
-            case "string":
-            case "varchar":
-                return columnValue;
-            case "bigint":
-                return Long.parseLong(columnValue);
-            case "int":
-            case "smallint":
-            case "tinyint":
-                return Integer.parseInt(columnValue);
-            case "date":
-                return new SimpleDateFormat(DEFAULT_DATE_PATTERN).parse(columnValue).getTime();
-            default:
-                throw new IllegalArgumentException("Column type '" + columnType + "' is not supported for a partition column in this connector");
-        }
-    }
-
-    /**
-     * Return a date pattern string
-     *
-     * @param datePattern value of partition folder when date pattern
-     * @return string of date pattern
-     */
-    private static String getDateRegExByPattern(String datePattern)
-    {
-        if (datePattern == null || datePattern.isBlank()) {
-            return datePattern;
-        }
-        return datePattern.replaceAll("[YyMDdFEHhkKmswWS]", "\\\\d")
-                .replaceAll("'", "") // replace ' from 'T'
-                .replaceAll("Z", "-\\\\d{3,4}") // replace time-zone offset with 3-4 digits with the prefix '-'
-                .replaceAll("z", "(.*?){2,6}") // replace time zone abbreviations with any character of length of min 2, max 6 (currently max is 5)
-                .replaceAll("G", "AD"); // Era designator. Currently BC not supported
-    }
-
-    /**
      * Determine the partitions based on Glue Catalog
      *
      * @return A list of partitions
@@ -323,7 +262,7 @@ public class PartitionUtil
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         if (null != partitionPattern) {
             for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
-                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", convertToString(field, table.getParameters()));
+                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", field.getValue().readObject().toString());
             }
             locationUri = (tableLocation.endsWith("/")
                     ? tableLocation
@@ -333,15 +272,5 @@ public class PartitionUtil
             locationUri = tableLocation;
         }
         return new URI(locationUri);
-    }
-
-    private static String convertToString(Map.Entry<String, FieldReader> value, Map<String, String> parameters)
-    {
-        switch (value.getValue().getMinorType()) {
-            case DATEDAY:
-                return LocalDate.ofEpochDay(Long.valueOf(value.getValue().readObject().toString()) + 1).format(DateTimeFormatter.ofPattern(DEFAULT_DATE_PATTERN));
-            default:
-               return String.valueOf(value.getValue().readObject());
-        }
     }
 }

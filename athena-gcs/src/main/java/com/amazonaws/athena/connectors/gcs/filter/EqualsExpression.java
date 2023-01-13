@@ -19,8 +19,13 @@
  */
 package com.amazonaws.athena.connectors.gcs.filter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class EqualsExpression
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
+
     final String columnName;
 
     private Object expression;
@@ -58,6 +63,7 @@ public class EqualsExpression
         else if (expression != null) {
             evaluated = expression.toString().equals(value);
         }
+        LOGGER.info("Evaluating {} for column {} is {}", value, columnName, evaluated);
         return evaluated;
     }
 }

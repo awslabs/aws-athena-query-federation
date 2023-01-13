@@ -26,11 +26,11 @@ import static java.util.Objects.requireNonNull;
  */
 public class PartitionColumnData
 {
-    private String columnName;
-    private String columnType;
-    private Object columnValue;
+    private final String columnName;
+    private final String columnType;
+    private final String columnValue;
 
-    public PartitionColumnData(String columnName, String columnType, Object columnValue)
+    public PartitionColumnData(String columnName, String columnType, String columnValue)
     {
         this.columnName = requireNonNull(columnName, "columnName was null");
         this.columnType = requireNonNull(columnType, "columnType was null");
@@ -42,7 +42,7 @@ public class PartitionColumnData
         return columnName;
     }
 
-    public Object getColumnValue()
+    public String getColumnValue()
     {
         return columnValue;
     }

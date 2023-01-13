@@ -70,7 +70,7 @@ import static java.util.Objects.requireNonNull;
 public class StorageMetadata
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StorageMetadata.class);
-    private Storage storage;
+    private final Storage storage;
 
     /**
      * Instantiate a storage data source object with provided config
@@ -166,6 +166,10 @@ public class StorageMetadata
                     String folderPath = blobName.startsWith(path)
                             ? blobName.replace(path, "")
                             : blobName;
+                    // remove the front-slash, because, the expression generated without it
+                    if (folderPath.startsWith("/")) {
+                        folderPath = folderPath.substring(1);
+                    }
                     LOGGER.info("Examining folder {} against regex {}", folderPath, folderRegEx);
                     if (folderRegExPattern.matcher(folderPath).matches()) {
                         LOGGER.info("Examining folder {} against regex {} matches", folderPath, folderRegEx);
@@ -173,10 +177,10 @@ public class StorageMetadata
                             LOGGER.info("Folder {} has NOT been selected against the expression", folderPath);
                             continue;
                         }
-                        LOGGER.info("Folder {} has NOT been selected against the expression", folderPath);
+                        LOGGER.info("Folder {} has been selected against the expression", folderPath);
                         Map<String, String> tableParameters = table.getParameters();
                         List<PartitionColumnData> partitions = PartitionUtil.getStoragePartitions(tableParameters.get(PARTITION_PATTERN_KEY), folderPath,
-                                folderRegEx, table.getPartitionKeys(), tableParameters);
+                                folderRegEx, table.getPartitionKeys());
                         if (!partitions.isEmpty()) {
                             partitionFolders.add(partitions);
                         }
