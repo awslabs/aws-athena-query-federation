@@ -46,13 +46,8 @@ public class PartitionUtil
      * year={year}/month={month}
      * Here, {year} and {month} are the partition key variable placeholders
      */
-    private static final Pattern PARTITION_PATTERN = Pattern.compile("(.*)(\\{.*?})(.*?)");
+    private static final Pattern PARTITION_PATTERN = Pattern.compile("\\{(.*?)}");
 
-    /**
-     * Regular expression to match a date in the pattern yyyy-MM-dd. For example this regex will match 2022-12-20,
-     * 2023-01-05 but not 20-05-2022 (i.e., dd-MM-yyyy)
-     */
-    private static final String DEFAULT_DATE_REGEX_STRING = "\\d{4}-\\d{2}-\\d{2}";
     /**
      * Match any alpha-num characters. Used to match VARCHAR type only partition keys
      */
@@ -81,34 +76,11 @@ public class PartitionUtil
             return Optional.empty();
         }
         Matcher partitionMatcher = PARTITION_PATTERN.matcher(partitionPattern);
-        String folderMatchingPattern = "";
-        // Check to see if the pattern contains one or more partition key variable placeholders
-        if (partitionMatcher.matches()) {
-            String[] folderParts = partitionPattern.split("/");
-            StringBuilder folderMatchingPatternBuilder = new StringBuilder();
-            for (String folderPart : folderParts) {
-                // Generates a dynamic regex for the folder part
-                folderMatchingPatternBuilder.append(getFolderValuePattern(partitionColumns, folderPart)).append("/");
-            }
-            folderMatchingPattern = folderMatchingPatternBuilder.toString();
+        String folderMatchingRegexPattern = partitionPattern;
+        while (partitionMatcher.find()) {
+            folderMatchingRegexPattern = folderMatchingRegexPattern.replace("{" + partitionMatcher.group(1) + "}", VARCHAR_OR_STRING_REGEX);
         }
-
-        if (!folderMatchingPattern.isBlank() && !folderMatchingPattern.endsWith("/")) {
-            folderMatchingPattern += "/";
-        }
-
-        if (!folderMatchingPattern.isBlank()) {
-            String patternToCheck = folderMatchingPattern;
-            if (patternToCheck.contains(DEFAULT_DATE_REGEX_STRING)) {
-                patternToCheck = patternToCheck.replace(DEFAULT_DATE_REGEX_STRING, "");
-            }
-            if (patternToCheck.contains("{") || patternToCheck.contains("}")) {
-                throw new IllegalArgumentException("partition.partition parameter is either invalid or contains a column variable " +
-                        "which is not the part of partitions. Pattern is: " + partitionPattern);
-            }
-            return Optional.of(folderMatchingPattern.replaceAll("['\"]", ""));
-        }
-        return Optional.empty();
+        return Optional.of(folderMatchingRegexPattern);
     }
 
     /**
@@ -130,40 +102,30 @@ public class PartitionUtil
             for (int i = 0; i < regExParts.length; i++) {
                 Matcher matcher = Pattern.compile(regExParts[i]).matcher(folderParts[i]);
                 if (matcher.matches() && matcher.groupCount() > 0) {
-                    String partitionColumn = null;
-                    String columnValue = null;
-                    if (matcher.groupCount() == 1
-                            && matcher.group(0).equals(matcher.group(1))) {
+                    String partitionColumn;
+                    String columnValue;
+                    if (matcher.group(0).equals(matcher.group(1))) { // Non-hive partition (e.g, /{partitionKey1}//{partitionKey2})
                         Matcher nonHivePartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
                         if (nonHivePartitionPatternMatcher.matches()) {
-                            partitionColumn = nonHivePartitionPatternMatcher.group(2).replaceAll("[{}]", "");
+                            partitionColumn = nonHivePartitionPatternMatcher.group(1);
                         }
                         else { // unknown partition layout
-                            continue;
+                            throw new IllegalArgumentException("Unsupported partition layout pattern. partition.pattern is " + partitionPattern);
                         }
-                        columnValue = matcher.group(1);
                     }
-                    else if (matcher.groupCount() > 1) {
-                        String columnName = matcher.group(1);
-                        if (columnName.contains("=")) {
-                            partitionColumn = matcher.group(1).replaceAll("=", "");
+                    else if (matcher.group(0).contains("=")) { // Hive partition (e.g. /folderName1={partitionKey1}/folderName2={partitionKey2})
+                        partitionColumn = matcher.group(0).substring(0, matcher.group(0).indexOf("="));
+                    }
+                    else { // mixed partition (e.g, /folderName{partitionKey})
+                        Matcher mixedPartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
+                        if (mixedPartitionPatternMatcher.find()) {
+                            partitionColumn = mixedPartitionPatternMatcher.group(1);
                         }
-                        else {
-                            Matcher nonHivePartitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPatternParts[i]);
-                            if (nonHivePartitionPatternMatcher.matches()) {
-                                partitionColumn = nonHivePartitionPatternMatcher.group(2).replaceAll("[{}]", "");
-                            }
-                            else { // unknown partition layout
-                                continue;
-                            }
+                        else { // unknown partition layout
+                            throw new IllegalArgumentException("Unsupported partition layout pattern. partition.pattern is " + partitionPattern);
                         }
-                        columnValue = matcher.group(2);
                     }
-
-                    if (columnValue == null) {
-                        continue;
-                    }
-
+                    columnValue = matcher.group(1);
                     Optional<PartitionColumnData> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionColumn, columnValue);
                     optionalStoragePartition.ifPresent(partitions::add);
                 }
@@ -175,7 +137,7 @@ public class PartitionUtil
     // helpers
     /**
      * Validates partition column types. As of now, only VARCHAR (string or varchar in Glue Table)
-     * @param columns List of Glue Table's colums
+     * @param columns List of Glue Table's columns
      */
     private static void validatePartitionColumnTypes(List<Column> columns)
     {
@@ -192,6 +154,7 @@ public class PartitionUtil
             }
         }
     }
+
     /**
      * Return a true when storage partition added successfully
      *
@@ -209,51 +172,24 @@ public class PartitionUtil
                 }
             }
         }
-        return Optional.empty();
+        throw new IllegalArgumentException("Column '" + columnName + "' is not defined as partition ke in Glue Table");
     }
 
     /**
-     * Return a dynamic folder regex pattern for the given folder part
-     *
-     * @param partitionColumns list of partition column to see column name and types for the folder regex pattern
-     * @param folderPart       folder part string, each parts in a path is separated by a folder separator, usually a '/' (forward slash)
-     * @return Regex pattern for the given folder part
-     */
-    private static String getFolderValuePattern(List<Column> partitionColumns, String folderPart)
-    {
-        Matcher partitionMatcher = PARTITION_PATTERN.matcher(folderPart);
-        if (partitionMatcher.matches() && partitionMatcher.groupCount() > 1) {
-            String variable = partitionMatcher.group(2);
-            String columnName = variable.replaceAll("[{}]", "");
-            for (Column column : partitionColumns) {
-                if (column.getName().equalsIgnoreCase(columnName)) {
-                    return createGroup(folderPart.replace(variable, VARCHAR_OR_STRING_REGEX), VARCHAR_OR_STRING_REGEX);
-                }
-            }
-        }
-        return folderPart;
-    }
-
-    /**
-     * Return a folder pattern
-     *
-     * @param folderPattern Name of the bucket
-     * @param variableRegEx Name of the file in the specified bucket
-     * @return string folder pattern
-     */
-    private static String createGroup(String folderPattern, String variableRegEx)
-    {
-        int index = folderPattern.lastIndexOf(variableRegEx);
-        if (index > 1) {
-            return "(" + folderPattern.substring(0, index) + ")" + folderPattern.substring(index);
-        }
-        return folderPattern;
-    }
-
-    /**
-     * Determine the partitions based on Glue Catalog
-     *
-     * @return A list of partitions
+     * Determine the partition folder URI based on Table's partition.pattern and value retrieved from partition field reader (form readWithConstraint() method of GcsRecordHandler)
+     * For example, for the following partition.pattern of the Glue Table:
+     * <p>/folderName1={partitionKey1}</p>
+     * And for the following partition row (from getPartitions() method in GcsMetadataHandler):
+     * <p>
+     *     Partition fields and value:
+     *     <ul>
+     *         <li>Partition column: folderName1</li>
+     *         <li>Partition column value: asdf</li>
+     *     </ul>
+     * </p>
+     * when the Table's Location URI is gs://my_table/data/
+     * this method will return a URI that refer to the GCS location: gs://my_table/data/folderName1=asdf
+     * @return Gcs location URI
      */
     public static URI getPartitions(Table table, Map<String, FieldReader> fieldReadersMap) throws URISyntaxException
     {

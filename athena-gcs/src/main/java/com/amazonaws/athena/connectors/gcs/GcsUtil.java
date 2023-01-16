@@ -19,14 +19,17 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
+import com.amazonaws.athena.connector.lambda.data.DateTimeFormatterUtil;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.joda.time.DateTimeZone;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -35,7 +38,12 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.util.Date;
 
+import static com.amazonaws.athena.connector.lambda.data.BlockUtils.UTC_ZONE_ID;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION;
@@ -129,5 +137,56 @@ public class GcsUtil
 
         GetTableResult result = awsGlue.getTable(getTableRequest);
         return result.getTable();
+    }
+
+    public static Object coerce(FieldVector vector, Object value)
+    {
+        switch (vector.getMinorType()) {
+            case TIMESTAMPNANO:
+            case TIMENANO:
+                if (value instanceof org.joda.time.LocalDateTime) {
+                    DateTimeZone dtz = ((org.joda.time.LocalDateTime) value).getChronology().getZone();
+                    return ((org.joda.time.LocalDateTime) value).toDateTime(dtz).getMillis();
+                }
+                if (value instanceof ZonedDateTime) {
+                    return DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
+                }
+                else if (value instanceof LocalDateTime) {
+                    return DateTimeFormatterUtil.packDateTimeWithZone(
+                            ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+                }
+                else if (value instanceof Date) {
+                    long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
+                            .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+                    return DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
+                }
+                else {
+                    return (long) value / 1000000;
+                }
+            case TIMEMICRO:
+            case TIMESTAMPMICRO:
+            case TIMESTAMPMICROTZ:
+                if (value instanceof org.joda.time.LocalDateTime) {
+                    DateTimeZone dtz = ((org.joda.time.LocalDateTime) value).getChronology().getZone();
+                    return ((org.joda.time.LocalDateTime) value).toDateTime(dtz).getMillis();
+                }
+                if (value instanceof ZonedDateTime) {
+                    return DateTimeFormatterUtil.packDateTimeWithZone((ZonedDateTime) value);
+                }
+                else if (value instanceof LocalDateTime) {
+                    return DateTimeFormatterUtil.packDateTimeWithZone(
+                            ((LocalDateTime) value).atZone(UTC_ZONE_ID).toInstant().toEpochMilli(), UTC_ZONE_ID.getId());
+                }
+                else if (value instanceof Date) {
+                    long ldtInLong = Instant.ofEpochMilli(((Date) value).getTime())
+                            .atZone(UTC_ZONE_ID).toInstant().toEpochMilli();
+                    return DateTimeFormatterUtil.packDateTimeWithZone(ldtInLong, UTC_ZONE_ID.getId());
+                }
+                else {
+                    return (long) value / 1000;
+                }
+            default:
+                return value;
+        }
     }
 }
