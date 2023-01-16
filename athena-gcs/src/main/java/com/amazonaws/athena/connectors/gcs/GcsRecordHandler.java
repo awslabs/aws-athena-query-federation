@@ -183,7 +183,7 @@ public class GcsRecordHandler
                             isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(), rowNum, FieldResolver.DEFAULT, value);
                             break;
                         default:
-                            isMatched &= block.offerValue(nextField.getName().toLowerCase(), rowNum, value);
+                            isMatched &= block.offerValue(nextField.getName().toLowerCase(), rowNum, GcsUtil.coerce(vector, value));
                             break;
                     }
                     if (!isMatched) {

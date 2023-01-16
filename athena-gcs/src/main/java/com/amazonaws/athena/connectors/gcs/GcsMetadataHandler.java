@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connectors.gcs;
 
-import com.amazonaws.SDKGlobalConfiguration;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -117,7 +116,6 @@ public class GcsMetadataHandler
         this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
-        System.setProperty(SDKGlobalConfiguration.DISABLE_CERT_CHECKING_SYSTEM_PROPERTY, "true");
         this.allocator = allocator;
     }
 

@@ -141,7 +141,7 @@ public class StorageMetadata
      * @throws ParseException Throws if any occurs during parsing regular expression
      */
     public List<List<PartitionColumnData>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
-            throws ParseException, URISyntaxException
+            throws URISyntaxException
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         List<List<PartitionColumnData>> partitionFolders = new ArrayList<>();
@@ -295,15 +295,16 @@ public class StorageMetadata
             case TIMESTAMPMILLI:
             case TIMEMICRO:
             case TIMESTAMPMICRO:
-            case TIMESTAMPMILLITZ:
-            case TIMESTAMPMICROTZ:
             case TIMENANO:
                     return new Field(fieldName,
                             new FieldType(field.isNullable(), Types.MinorType.DATEMILLI.getType(), field.getDictionary(),
                                     field.getMetadata()), field.getChildren());
+            case TIMESTAMPMICROTZ:
+                return new Field(fieldName,
+                        new FieldType(field.isNullable(), Types.MinorType.TIMESTAMPMILLITZ.getType(), field.getDictionary(),
+                                field.getMetadata()), field.getChildren());
             case FIXEDSIZEBINARY:
             case LARGEVARBINARY:
-            case VARBINARY:
                     return new Field(fieldName,
                             new FieldType(field.isNullable(), Types.MinorType.VARCHAR.getType(), field.getDictionary(),
                                     field.getMetadata()), field.getChildren());
