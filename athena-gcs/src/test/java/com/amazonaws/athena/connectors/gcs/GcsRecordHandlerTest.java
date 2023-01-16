@@ -36,7 +36,9 @@ import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
+import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.s3.model.S3Object;
@@ -46,9 +48,10 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.io.ByteStreams;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -85,7 +88,8 @@ import static org.testng.AssertJUnit.assertEquals;
 @PowerMockIgnore({"com.sun.org.apache.xerces.*", "javax.xml.*", "org.xml.*",
         "javax.management.*", "org.w3c.*", "javax.net.ssl.*", "sun.security.*", "jdk.internal.reflect.*", "javax.crypto.*"
 })
-@PrepareForTest({GcsTestUtils.class, GcsUtil.class, GoogleCredentials.class, AWSSecretsManagerClientBuilder.class})
+@PrepareForTest({GcsTestUtils.class, GcsUtil.class, GoogleCredentials.class, AmazonS3ClientBuilder.class,
+        AWSSecretsManagerClientBuilder.class, AmazonAthenaClientBuilder.class})
 public class GcsRecordHandlerTest
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandlerTest.class);
@@ -120,6 +124,8 @@ public class GcsRecordHandlerTest
     private FederatedIdentity federatedIdentity;
     GcsRecordHandler gcsRecordHandler;
 
+    private static final BufferAllocator bufferAllocator = new RootAllocator();
+
     @SuppressWarnings("unchecked")
     @Before
     public void init() throws IOException
@@ -145,8 +151,16 @@ public class GcsRecordHandlerTest
                 .withRequestId(UUID.randomUUID().toString())
                 .withSpillLocation(s3SpillLocation)
                 .build();
+        // To mock AmazonS3 via AmazonS3ClientBuilder
+        PowerMockito.mockStatic(AmazonS3ClientBuilder.class);
+        PowerMockito.when(AmazonS3ClientBuilder.defaultClient()).thenReturn(amazonS3);
+        // To mock AWSSecretsManager via AWSSecretsManagerClientBuilder
         PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
+        // To mock AmazonAthena via AmazonAthenaClientBuilder
+        PowerMockito.mockStatic(AmazonAthenaClientBuilder.class);
+        PowerMockito.when(AmazonAthenaClientBuilder.defaultClient()).thenReturn(athena);
+
         GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(List.of("v1")).withSecretString("{\"athena_gcs_keys\": \"test\"}");
         when(secretsManager.getSecretValue(any())).thenReturn(getSecretValueResult);
         PowerMockito.mockStatic(GoogleCredentials.class);
@@ -162,14 +176,12 @@ public class GcsRecordHandlerTest
         PowerMockito.when(GcsUtil.createUri(anyString())).thenReturn( "file:" + parquetFile.getPath() + "/" + "person-data.parquet");
 
         // The class we want to test.
-        gcsRecordHandler = new GcsRecordHandler(amazonS3, secretsManager, athena);
-
+        gcsRecordHandler = new GcsRecordHandler(bufferAllocator);
         LOGGER.info("Completed init.");
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    @Ignore
     public void testReadWithConstraint()
             throws Exception
     {
