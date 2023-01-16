@@ -12,30 +12,30 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.380</aws-sdk.version>
+        <aws-sdk.version>1.12.385</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
-        <aws-cdk.version>1.187.0</aws-cdk.version>
+        <aws-cdk.version>1.188.0</aws-cdk.version>
         <jsii.version>1.73.0</jsii.version>
         <slf4j-log4j.version>2.0.6</slf4j-log4j.version>
         <mockito.legacy.version>3.3.3</mockito.legacy.version>
         <mockito.version>4.11.0</mockito.version>
         <powermock.version>2.0.9</powermock.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.7.1</jqwik.version>
+        <jqwik.version>1.7.2</jqwik.version>
         <assertj.version>3.24.1</assertj.version>
         <testng.version>7.7.1</testng.version>
         <fasterxml.jackson.version>2.14.1</fasterxml.jackson.version>
         <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
         <log4j2Version>2.19.0</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
-        <netty.version>4.1.86.Final</netty.version>
+        <netty.version>4.1.87.Final</netty.version>
         <guava.version>31.1-jre</guava.version>
         <protobuf3.version>3.21.12</protobuf3.version>
         <antlr.st4.version>4.3.4</antlr.st4.version>
         <log4j2.cachefile.transformer.version>2.15</log4j2.cachefile.transformer.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
-        <mssql.jdbc.version>11.2.2.jre11</mssql.jdbc.version>
+        <mssql.jdbc.version>11.2.3.jre11</mssql.jdbc.version>
         <commons.cli.version>1.5.0</commons.cli.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->

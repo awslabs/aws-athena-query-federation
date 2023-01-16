@@ -23,15 +23,16 @@ import org.apache.arrow.adapter.jdbc.JdbcFieldInfo;
 import org.apache.arrow.adapter.jdbc.JdbcToArrowUtils;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.sql.Types;
 
 /**
  * Utility abstracts Jdbc to Arrow type conversions.
  */
 public final class JdbcArrowTypeConverter
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JdbcMetadataHandler.class);
+    private static final int DEFAULT_PRECISION = 38;
+    private static final int DEFAULT_SCALE = Integer.parseInt(System.getenv().getOrDefault("default_scale", "0"));
 
     private JdbcArrowTypeConverter() {}
 
@@ -45,8 +46,17 @@ public final class JdbcArrowTypeConverter
      */
     public static ArrowType toArrowType(final int jdbcType, final int precision, final int scale)
     {
+        int resolvedPrecision = precision;
+        int resolvedScale = scale;
+        boolean needsResolving = jdbcType == Types.NUMERIC && (precision == 0 && scale == 0);
+        // Resolve Precision and Scale if they're not available
+        if (needsResolving) {
+            resolvedPrecision = DEFAULT_PRECISION;
+            resolvedScale = DEFAULT_SCALE;
+        }
+
         ArrowType arrowType = JdbcToArrowUtils.getArrowTypeFromJdbcType(
-                new JdbcFieldInfo(jdbcType, precision, scale),
+                new JdbcFieldInfo(jdbcType, resolvedPrecision, resolvedScale),
                 null);
 
         if (arrowType instanceof ArrowType.Date) {
