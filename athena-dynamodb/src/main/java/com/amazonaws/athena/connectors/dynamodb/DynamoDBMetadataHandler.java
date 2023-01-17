@@ -61,6 +61,7 @@ import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.util.json.Jackson;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -238,7 +239,7 @@ public class DynamoDBMetadataHandler
     @VisibleForTesting
     List<TableName> filterDyanmoDbTables(List<TableName> allDynamoDBTables)
     {
-        if (environment.getVariable(INCLUDED_DDB_TABLES_ENV) != null) {
+        if (!Strings.isNullOrEmpty(environment.getVariable(INCLUDED_DDB_TABLES_ENV))) {
             Set<String> includedDynamoDbTables = Arrays.stream(environment.getVariable(INCLUDED_DDB_TABLES_ENV).split(","))
                     .map(tableName -> tableName.toLowerCase(Locale.ENGLISH).trim()).collect(Collectors.toSet());
             return allDynamoDBTables.stream().filter(name -> includedDynamoDbTables.contains(name.getTableName())).collect(Collectors.toList());

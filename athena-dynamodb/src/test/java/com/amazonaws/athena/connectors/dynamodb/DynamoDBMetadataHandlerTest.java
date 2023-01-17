@@ -251,6 +251,26 @@ public class DynamoDBMetadataHandlerTest
         List<TableName> allDynamoDbTables = List.of(TEST_TABLE_NAME, TEST_TABLE_3_NAME);
 
         {
+            List<TableName> filteredDynamoDbTables = handler.filterDyanmoDbTables(allDynamoDbTables);
+
+            assertThat(filteredDynamoDbTables, iterableWithSize(2));
+            assertThat(filteredDynamoDbTables, hasItem(TEST_TABLE_NAME));
+            assertThat(filteredDynamoDbTables, hasItem(TEST_TABLE_3_NAME));
+        }
+
+        {
+            when(env.getVariable(INCLUDED_DDB_TABLES_ENV)).thenReturn("");
+
+            List<TableName> filteredDynamoDbTables = handler.filterDyanmoDbTables(allDynamoDbTables);
+
+            assertThat(filteredDynamoDbTables, iterableWithSize(2));
+            assertThat(filteredDynamoDbTables, hasItem(TEST_TABLE_NAME));
+            assertThat(filteredDynamoDbTables, hasItem(TEST_TABLE_3_NAME));
+        }
+
+        reset(env);
+
+        {
             when(env.getVariable(INCLUDED_DDB_TABLES_ENV)).thenReturn(TEST_TABLE);
 
             List<TableName> filteredDynamoDbTables = handler.filterDyanmoDbTables(allDynamoDbTables);
