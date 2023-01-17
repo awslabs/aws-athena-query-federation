@@ -143,14 +143,26 @@ public class TimestreamRecordHandler
             switch (Types.getMinorTypeForArrowType(nextField.getType())) {
                 case VARCHAR:
                     builder.withExtractor(nextField.getName(), (VarCharExtractor) (Object context, NullableVarCharHolder value) -> {
-                        value.isSet = 1;
-                        value.value = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        String stringValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (stringValue != null) {
+                            value.isSet = 1;
+                            value.value = stringValue;
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case FLOAT8:
                     builder.withExtractor(nextField.getName(), (Float8Extractor) (Object context, NullableFloat8Holder value) -> {
-                        value.isSet = 1;
-                        value.value = Double.valueOf(((Row) context).getData().get(curFieldNum).getScalarValue());
+                        String doubleValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (doubleValue != null) {
+                            value.isSet = 1;
+                            value.value = Double.valueOf(doubleValue);
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case BIT:
@@ -161,14 +173,26 @@ public class TimestreamRecordHandler
                     break;
                 case BIGINT:
                     builder.withExtractor(nextField.getName(), (BigIntExtractor) (Object context, NullableBigIntHolder value) -> {
-                        value.isSet = 1;
-                        value.value = Long.valueOf(((Row) context).getData().get(curFieldNum).getScalarValue());
+                        String longValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (longValue != null) {
+                            value.isSet = 1;
+                            value.value = Long.valueOf(longValue);
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case DATEMILLI:
                     builder.withExtractor(nextField.getName(), (DateMilliExtractor) (Object context, NullableDateMilliHolder value) -> {
-                        value.isSet = 1;
-                        value.value = TIMESTAMP_FORMATTER.parse(((Row) context).getData().get(curFieldNum).getScalarValue()).getTime();
+                        String dateMilliValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
+                        if (dateMilliValue != null) {
+                            value.isSet = 1;
+                            value.value = TIMESTAMP_FORMATTER.parse(dateMilliValue).getTime();
+                        }
+                        else {
+                            value.isSet = 0;
+                        }
                     });
                     break;
                 case LIST:
