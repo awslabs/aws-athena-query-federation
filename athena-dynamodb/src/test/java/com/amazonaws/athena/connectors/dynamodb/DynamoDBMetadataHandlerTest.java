@@ -91,6 +91,7 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.DYNAMO_DB_FLAG;
+import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.INCLUDED_DDB_TABLES_ENV;
 import static com.amazonaws.athena.connectors.dynamodb.DynamoDBMetadataHandler.MAX_SPLITS_PER_REQUEST;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.EXPRESSION_NAMES_METADATA;
@@ -108,8 +109,12 @@ import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstan
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.TABLE_METADATA;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 
 /**
@@ -236,6 +241,35 @@ public class DynamoDBMetadataHandlerTest
 
 
         assertThat(new HashSet<>(res.getTables()), equalTo(new HashSet<>(expectedTables)));
+    }
+
+    @Test
+    public void filterDynamoDbTables()
+    {
+        DynamoDBMetadataHandler.Environment env = mock(DynamoDBMetadataHandler.Environment.class);
+        handler.environment = env;
+        List<TableName> allDynamoDbTables = List.of(TEST_TABLE_NAME, TEST_TABLE_3_NAME);
+
+        {
+            when(env.getVariable(INCLUDED_DDB_TABLES_ENV)).thenReturn(TEST_TABLE);
+
+            List<TableName> filteredDynamoDbTables = handler.filterDyanmoDbTables(allDynamoDbTables);
+
+            assertThat(filteredDynamoDbTables, iterableWithSize(1));
+            assertThat(filteredDynamoDbTables, hasItem(TEST_TABLE_NAME));
+        }
+
+        reset(env);
+
+        {
+            when(env.getVariable(INCLUDED_DDB_TABLES_ENV)).thenReturn(TEST_TABLE + "," + TEST_TABLE3);
+
+            List<TableName> filteredDynanoDbTables = handler.filterDyanmoDbTables(allDynamoDbTables);
+
+            assertThat(filteredDynanoDbTables, iterableWithSize(2));
+            assertThat(filteredDynanoDbTables, hasItem(TEST_TABLE_NAME));
+            assertThat(filteredDynanoDbTables, hasItem(TEST_TABLE_3_NAME));
+        }
     }
 
     @Test
