@@ -31,7 +31,7 @@ public class GcsConstants
      * help know from which file it will read the records
      */
     static final String STORAGE_SPLIT_JSON = "storage_split_json";
-    static final int MAX_SPLITS_PER_REQUEST = 10_000;
+    static final int MAX_SPLITS_PER_REQUEST = 1000;
 
     /**
      * An environment variable in the deployed Lambda which is name of the secret in AWS Secrets Manager.
