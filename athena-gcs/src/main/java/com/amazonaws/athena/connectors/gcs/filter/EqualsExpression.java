@@ -1,6 +1,6 @@
 /*-
  * #%L
- * athena-storage-api
+ * athena-gcs
  * %%
  * Copyright (C) 2019 - 2022 Amazon Web Services
  * %%
@@ -26,12 +26,12 @@ public class EqualsExpression
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
 
-    final String columnName;
+    public final String columnName;
 
-    private Object expression;
+    private final Object expression;
 
     /**
-     * Constructs this with column index and an expression
+     * Constructs this with column name and an expression
      *
      * @param columnName      Name of the column
      * @param expression Expression to match
@@ -40,11 +40,6 @@ public class EqualsExpression
     {
        this.columnName = columnName;
        this.expression = expression;
-    }
-
-    public String columnName()
-    {
-        return this.columnName;
     }
 
     /**

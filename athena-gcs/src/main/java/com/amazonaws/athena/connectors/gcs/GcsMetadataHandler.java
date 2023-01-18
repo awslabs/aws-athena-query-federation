@@ -37,7 +37,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
-import com.amazonaws.athena.connectors.gcs.common.PartitionColumnData;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
@@ -45,7 +44,6 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
@@ -58,7 +56,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.text.ParseException;
+import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -68,6 +66,7 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static java.util.Objects.requireNonNull;
@@ -75,22 +74,21 @@ import static java.util.Objects.requireNonNull;
 public class GcsMetadataHandler
         extends GlueMetadataHandler
 {
-    public static final String TABLE_FILTER_IDENTIFIER = "gs://";
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsMetadataHandler.class);
     /**
      * used to aid in debugging. Athena will use this name in conjunction with your catalog id
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "gcs";
-    //as this connector mandatory required glue database and table metadata
+    // used to disable Glue. As connector mandatory required glue database and table metadata, so it is always false
     private static final boolean DISABLE_GLUE = false;
     private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for GCS.
-    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().startsWith(TABLE_FILTER_IDENTIFIER);
+    private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().startsWith(GCS_LOCATION_PREFIX);
     private final StorageMetadata datasource;
     private final AWSGlue glueClient;
-    private BufferAllocator allocator;
+    private final BufferAllocator allocator;
 
     public GcsMetadataHandler(BufferAllocator allocator) throws IOException
     {
@@ -103,13 +101,12 @@ public class GcsMetadataHandler
     }
 
     @VisibleForTesting
-    @SuppressWarnings("unused")
     protected GcsMetadataHandler(EncryptionKeyFactory keyFactory,
                                  AWSSecretsManager awsSecretsManager,
                                  AmazonAthena athena,
                                  String spillBucket,
                                  String spillPrefix,
-                                 AmazonS3 amazonS3, AWSGlue glueClient, BufferAllocator allocator) throws IOException
+                                 AWSGlue glueClient, BufferAllocator allocator) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
@@ -167,7 +164,7 @@ public class GcsMetadataHandler
         GetTableResponse response = super.doGetTable(blockAllocator, request);
         //check whether schema added by user
         //return if schema present else fetch from files(dataset api)
-        if (response != null && response.getSchema() != null && (response.getSchema().getFields().stream().count() - response.getPartitionColumns().stream().count()) > 0) {
+        if (response != null && response.getSchema() != null && checkGlueSchema(response)) {
             return response;
         }
         else {
@@ -186,6 +183,13 @@ public class GcsMetadataHandler
             return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
         }
     }
+    /**
+     * Used to check whether user has added schema other than partition column.
+     */
+    private boolean checkGlueSchema(GetTableResponse response)
+    {
+        return (response.getSchema().getFields().stream().count() - response.getPartitionColumns().stream().count()) > 0;
+    }
 
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
@@ -195,18 +199,18 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws ParseException, URISyntaxException
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<List<PartitionColumnData>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
+        List<List<AbstractMap.SimpleImmutableEntry<String, String>>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
         if (!partitionFolders.isEmpty()) {
-            for (List<PartitionColumnData> folder : partitionFolders) {
+            for (List<AbstractMap.SimpleImmutableEntry<String, String>> folder : partitionFolders) {
                 blockWriter.writeRows((Block block, int rowNum) ->
                 {
-                    for (PartitionColumnData partition : folder) {
-                        block.setValue(partition.getColumnName(), rowNum, partition.getColumnValue());
+                    for (AbstractMap.SimpleImmutableEntry<String, String> partition : folder) {
+                        block.setValue(partition.getKey(), rowNum, partition.getValue());
                     }
                     //we wrote 1 row so we return 1
                     return 1;
@@ -219,7 +223,7 @@ public class GcsMetadataHandler
     /**
      * Used to split up the reads required to scan the requested batch of partition(s).
      * <p>
-     * Here we execute the read operations based on row offset and limit form particular bucket and file on GCS
+     * Here we execute the read operations files form particular GCS bucket
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request   Provides details of the catalog, database, table, and partition(s) being queried as well as
@@ -252,7 +256,7 @@ public class GcsMetadataHandler
             }
 
             //getting the partition folder name with bucket and file type
-            URI locationUri = PartitionUtil.getPartitions(table, fieldReadersMap);
+            URI locationUri = PartitionUtil.getPartitionsFolderLocationUri(table, fieldReadersMap);
             LOGGER.info("Partition location {} ", locationUri);
 
             //getting storage file list

@@ -66,6 +66,7 @@ public class GcsRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(GcsRecordHandler.class);
 
     private static final String SOURCE_TYPE = "gcs";
+    public static final int BATCH_SIZE = 32768;
     private BufferAllocator allocator;
 
     // to handle back-pressure during API invocation to GCS
@@ -119,7 +120,7 @@ public class GcsRecordHandler
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
-            ScanOptions options = new ScanOptions(32768);
+            ScanOptions options = new ScanOptions(BATCH_SIZE);
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
@@ -180,6 +181,7 @@ public class GcsRecordHandler
                     switch (fieldType) {
                         case LIST:
                         case STRUCT:
+                        case MAP:
                             isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(), rowNum, FieldResolver.DEFAULT, value);
                             break;
                         default:

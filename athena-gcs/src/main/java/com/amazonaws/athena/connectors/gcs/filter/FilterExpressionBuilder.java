@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.gcs.filter;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
@@ -34,13 +33,9 @@ import java.util.List;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
 
 /**
- * Usually a non-JDBC connector we use MetadataHandler and RecordHandler, which are not specific to
- * JDBC. Thus, we have to handle constraint within the connector. When we fetch constraint summery,
- * we only have constraints with an AND operator. Other operators are handled by Athena itself
- * <p>
- * This is because AND, and OR operators are not still working with parquet
+ * This class is used to build Filter Expression to handle the constraints on partition folder
+ *
  */
-@SuppressWarnings("unused")
 public class FilterExpressionBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterExpressionBuilder.class);
@@ -50,24 +45,12 @@ public class FilterExpressionBuilder
      */
     private final List<Field> fields;
 
-    private final List<EqualsExpression> and = new ArrayList<>();
-
-    private final List<EqualsExpression> or = new ArrayList<>();
+    private final List<EqualsExpression> equalsExpressions = new ArrayList<>();
 
     public FilterExpressionBuilder(Schema schema)
     {
         this.fields = schema.getFields();
     }
-
-    /**
-     * @return List of {@link Field}
-     */
-    public List<Field> fields()
-    {
-        return fields == null ? List.of() : fields;
-    }
-
-    // helpers
 
     /**
      * Prepares the expressions based on the provided arguments.
@@ -80,12 +63,11 @@ public class FilterExpressionBuilder
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
         List<EqualsExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
-            ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
                 LOGGER.info("Value set for column {} was {}", column, valueSet);
                 if (valueSet != null) {
-                    conjuncts.addAll(addFilterExpressions(column.getName(), valueSet, column.getType()));
+                    conjuncts.addAll(addFilterExpressions(column.getName(), valueSet));
                 }
             }
         }
@@ -97,10 +79,9 @@ public class FilterExpressionBuilder
      *
      * @param columnName The name of the column
      * @param valueSet   An instance of {@link ValueSet}
-     * @param type       Type of the column
      * @return List of {@link EqualsExpression}
      */
-    private List<EqualsExpression> addFilterExpressions(String columnName, ValueSet valueSet, ArrowType type)
+    private List<EqualsExpression> addFilterExpressions(String columnName, ValueSet valueSet)
     {
         LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
         List<EqualsExpression> disjuncts = new ArrayList<>();
@@ -119,8 +100,8 @@ public class FilterExpressionBuilder
         if (singleValues.size() == 1) {
             disjuncts.add(new EqualsExpression(columnName.toLowerCase(), singleValues.get(0)));
         }
-        disjuncts.forEach(this::addToOr);
-        return or;
+        equalsExpressions.addAll(disjuncts);
+        return equalsExpressions;
     }
 
     /**
@@ -135,10 +116,5 @@ public class FilterExpressionBuilder
         boolean exactly = (range.getLow() != null && range.getHigh() != null && range.getLow().equals(range.getHigh()));
         LOGGER.info("FilterExpressionBuilder::isHighLowEquals -> exactly same? {}", exactly);
         return exactly;
-    }
-
-    protected final void addToOr(EqualsExpression expression)
-    {
-        or.add(expression);
     }
 }

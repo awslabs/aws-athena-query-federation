@@ -40,6 +40,7 @@ import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connectors.gcs.storage.StorageMetadata;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
@@ -50,7 +51,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
@@ -68,7 +68,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
@@ -81,6 +80,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -120,8 +120,6 @@ public class GcsMetadataHandlerTest
     protected PageImpl<Blob> tables;
     @Mock
     GoogleCredentials credentials;
-    @Mock
-    AmazonS3 amazonS3;
     private GcsMetadataHandler gcsMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
@@ -134,6 +132,8 @@ public class GcsMetadataHandlerTest
     private ServiceAccountCredentials serviceAccountCredentials;
     @Mock
     private AmazonAthena athena;
+    @Mock
+    StorageMetadata storageMetadata;
 
     @Before
     public void setUp() throws Exception
@@ -167,7 +167,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         mockStatic(AWSGlueClientBuilder.class);
         PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", amazonS3, awsGlue, allocator);
+        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
@@ -228,7 +228,6 @@ public class GcsMetadataHandlerTest
     }
 
     @Test
-    @Ignore
     public void doGetTable()
             throws Exception
     {
@@ -237,9 +236,6 @@ public class GcsMetadataHandlerTest
         metadataSchema.put("dataFormat", "parquet");
         Schema schema = new Schema(asList(field), metadataSchema);
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", new TableName(SCHEMA_NAME, "testtable"));
-        Context context =mock(Context.class);
-        when(context.getInvokedFunctionArn()).thenReturn("arn:aws:lambda:us-east-1:12345678910:function:gcs-lambda");
-        getTableRequest.setContext(context);
         Table table = new Table();
         table.setName("testtable");
         table.setDatabaseName("default");
@@ -254,7 +250,9 @@ public class GcsMetadataHandlerTest
         GetTableResult getTableResult = new GetTableResult();
         getTableResult.setTable(table);
         PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
-
+        StorageMetadata storageMetadata = mock(StorageMetadata.class);
+        Whitebox.setInternalState(gcsMetadataHandler, storageMetadata, storageMetadata);
+        PowerMockito.when(storageMetadata.buildTableSchema(any(), any())).thenReturn(schema);
         GetTableResponse res = gcsMetadataHandler.doGetTable(blockAllocator, getTableRequest);
         Field expectedField = res.getSchema().findField("name");
         assertEquals(Types.MinorType.VARCHAR, Types.getMinorTypeForArrowType(expectedField.getType()));

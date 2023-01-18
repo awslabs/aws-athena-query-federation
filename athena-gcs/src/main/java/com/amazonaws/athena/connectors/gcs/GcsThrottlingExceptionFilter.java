@@ -29,12 +29,7 @@ public class GcsThrottlingExceptionFilter implements ThrottlingInvoker.Exception
     @Override
     public boolean isMatch(Exception ex)
     {
-        if (ex instanceof AmazonAthenaException && ex.getMessage().contains("Rate exceeded")) {
-            return true;
-        }
-        if (ex.getMessage().contains("Too Many Requests")) {
-            return true;
-        }
-        return false;
+        return (ex instanceof AmazonAthenaException && ex.getMessage().contains("Rate exceeded"))
+                || ex.getMessage().contains("Too Many Requests");
     }
 }
