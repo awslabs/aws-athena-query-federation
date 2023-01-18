@@ -31,7 +31,7 @@ public class GcsConstants
      * help know from which file it will read the records, along with record offset and total count of records to read
      */
     static final String STORAGE_SPLIT_JSON = "storage_split_json";
-    static final int MAX_SPLITS_PER_REQUEST = 1000_000;
+    static final int MAX_SPLITS_PER_REQUEST = 10_000;
 
     /**
      * An environment variable in the deployed Lambda that says the name of the secret in AWS Secrets Manager. This in ture,
@@ -77,6 +77,10 @@ public class GcsConstants
      */
     public static final String PARTITION_PATTERN_KEY = "partition.pattern";
 
+    /**
+     * GCS location prefix
+     */
+    public static final String GCS_LOCATION_PREFIX = "gs://";
     /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering
      */

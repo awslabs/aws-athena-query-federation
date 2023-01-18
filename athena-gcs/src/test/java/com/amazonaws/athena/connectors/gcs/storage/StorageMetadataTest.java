@@ -37,7 +37,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -109,22 +108,6 @@ public class StorageMetadataTest
         storageMetadata = new StorageMetadata(gcsJson);
     }
 
-    @Test
-    public void testGetStorageTable()
-    {
-        Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
-        Map<String, String> metadataSchema = new HashMap<>();
-        metadataSchema.put("dataFormat", "parquet");
-        Schema schema = new Schema(asList(field), metadataSchema);
-        storageMetadata = mock(StorageMetadata.class);
-        storageMock();
-        when(storageMetadata.getFields(any(),any(),any(), any())).thenCallRealMethod();
-        when(storageMetadata.getStorageFiles(any(),any())).thenCallRealMethod();
-        when(storageMetadata.getFileSchema(any(),any(),any(), any())).thenReturn(schema);
-        List<Field> fields = storageMetadata.getFields("mydatalake1", "birthday", "parquet", allocator);
-        Assert.assertFalse(fields.isEmpty());
-    }
-
     private void storageMock()
     {
         Whitebox.setInternalState(storageMetadata, storage, storage);
@@ -148,7 +131,6 @@ public class StorageMetadataTest
         storageMetadata = mock(StorageMetadata.class);
         storageMock();
         when(storageMetadata.buildTableSchema(any(), any())).thenCallRealMethod();
-        when(storageMetadata.getFields(any(),any(),any(), any())).thenCallRealMethod();
         when(storageMetadata.getStorageFiles(any(),any())).thenCallRealMethod();
         Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
         Map<String, String> metadataSchema = new HashMap<>();
