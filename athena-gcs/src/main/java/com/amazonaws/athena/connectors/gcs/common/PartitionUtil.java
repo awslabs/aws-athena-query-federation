@@ -94,7 +94,7 @@ public class PartitionUtil
      * @param partitionColumns partition column name list
      * @return List of storage partition(column name, column type and value)
      */
-    public static List<AbstractMap.SimpleImmutableEntry<String, String>> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns)
+    protected static List<AbstractMap.SimpleImmutableEntry<String, String>> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns)
     {
         List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = new ArrayList<>();
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
@@ -147,7 +147,7 @@ public class PartitionUtil
                 }
             }
         }
-        throw new IllegalArgumentException("Column '" + columnName + "' is not defined as partition ke in Glue Table");
+        throw new IllegalArgumentException("Column '" + columnName + "' is not defined as partition key in Glue Table");
     }
 
     /**

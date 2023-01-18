@@ -26,16 +26,16 @@ import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
 public class GcsConstants
 {
     /**
-     * A deserialized JSON from an String List to be added as a property
+     * A deserialized JSON from a String List to be added as a property
      * of a Split. This Split will be passed to the {@link GcsRecordHandler#readWithConstraint(BlockSpiller, ReadRecordsRequest, QueryStatusChecker)} to
-     * help know from which file it will read the records, along with record offset and total count of records to read
+     * help know from which file it will read the records
      */
     static final String STORAGE_SPLIT_JSON = "storage_split_json";
     static final int MAX_SPLITS_PER_REQUEST = 10_000;
 
     /**
-     * An environment variable in the deployed Lambda that says the name of the secret in AWS Secrets Manager. This in ture,
-     * contains credential keys/other values in the form of JSON to access the GCS buckets/objects
+     * An environment variable in the deployed Lambda which is name of the secret in AWS Secrets Manager.
+     * contains credential keys/values in the form of JSON to access the GCS buckets/objects
      */
     public static final String GCS_SECRET_KEY_ENV_VAR = "secret_manager_gcp_creds_name";
 
@@ -62,16 +62,16 @@ public class GcsConstants
     /**
      * Partition pattern parameter added as an additional parameter in a Glue Table to identify partition
      * folder pattern after the Table's location URI. A pattern consists of storage prefix with one or more  partition key variable placeholders
-     * For example, for partition fields year and month of type Integer, partition folder can be like the following:
+     * For example, for partition fields state and city of type String, partition folder can be like the following:
      * <ul>
-     *     <li>year=2000/month=01</li>
-     *     <li>year=2001/month=12</li>
+     *     <li>state=Texas/city=Houston</li>
+     *     <li>state=California/city=Los Angeles</li>
      *     <li>....</li>
      * </ul>
      * In such case the <code>partition.pattern</code> should look like the following:
      * <p>
-     *     <code>year={year}/month={month}</code><br/>
-     *     Where {year} and {month} are the partition key variable placeholders values of which will be determined at runtime
+     *     <code>state={state}/city={city}</code><br/>
+     *     Where {state} and {city} are the partition key variable placeholders values of which will be determined at runtime
      * </p>
      *
      */
@@ -81,6 +81,7 @@ public class GcsConstants
      * GCS location prefix
      */
     public static final String GCS_LOCATION_PREFIX = "gs://";
+
     /**
      * default private constructor to prevent code-coverage util to consider a constructor for covering
      */

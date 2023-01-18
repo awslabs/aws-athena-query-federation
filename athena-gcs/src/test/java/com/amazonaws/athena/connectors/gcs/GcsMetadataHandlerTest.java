@@ -120,8 +120,6 @@ public class GcsMetadataHandlerTest
     protected PageImpl<Blob> tables;
     @Mock
     GoogleCredentials credentials;
-    @Mock
-    AmazonS3 amazonS3;
     private GcsMetadataHandler gcsMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
@@ -169,7 +167,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         mockStatic(AWSGlueClientBuilder.class);
         PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", amazonS3, awsGlue, allocator);
+        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }

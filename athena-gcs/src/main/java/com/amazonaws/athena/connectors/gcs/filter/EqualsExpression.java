@@ -28,10 +28,10 @@ public class EqualsExpression
 
     public final String columnName;
 
-    private Object expression;
+    private final Object expression;
 
     /**
-     * Constructs this with column index and an expression
+     * Constructs this with column name and an expression
      *
      * @param columnName      Name of the column
      * @param expression Expression to match

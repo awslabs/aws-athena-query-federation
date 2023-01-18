@@ -33,11 +33,8 @@ import java.util.List;
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
 
 /**
- * Usually a non-JDBC connector we use MetadataHandler and RecordHandler, which are not specific to
- * JDBC. Thus, we have to handle constraint within the connector. When we fetch constraint summery,
- * we only have constraints with an AND operator. Other operators are handled by Athena itself
- * <p>
- * This is because AND, and OR operators are not still working with parquet
+ * This class is used to build Filter Expression to handle the constraints on partition folder
+ *
  */
 public class FilterExpressionBuilder
 {

@@ -181,6 +181,7 @@ public class GcsRecordHandler
                     switch (fieldType) {
                         case LIST:
                         case STRUCT:
+                        case MAP:
                             isMatched &= block.offerComplexValue(nextField.getName().toLowerCase(), rowNum, FieldResolver.DEFAULT, value);
                             break;
                         default:

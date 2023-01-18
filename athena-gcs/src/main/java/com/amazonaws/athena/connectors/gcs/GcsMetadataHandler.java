@@ -44,7 +44,6 @@ import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Database;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
@@ -57,7 +56,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.text.ParseException;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -82,7 +80,7 @@ public class GcsMetadataHandler
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "gcs";
-    //as this connector mandatory required glue database and table metadata
+    // used to disable Glue. As connector mandatory required glue database and table metadata, so it is always false
     private static final boolean DISABLE_GLUE = false;
     private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
@@ -90,7 +88,7 @@ public class GcsMetadataHandler
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getStorageDescriptor().getLocation().startsWith(GCS_LOCATION_PREFIX);
     private final StorageMetadata datasource;
     private final AWSGlue glueClient;
-    private BufferAllocator allocator;
+    private final BufferAllocator allocator;
 
     public GcsMetadataHandler(BufferAllocator allocator) throws IOException
     {
@@ -103,13 +101,12 @@ public class GcsMetadataHandler
     }
 
     @VisibleForTesting
-    @SuppressWarnings("unused")
     protected GcsMetadataHandler(EncryptionKeyFactory keyFactory,
                                  AWSSecretsManager awsSecretsManager,
                                  AmazonAthena athena,
                                  String spillBucket,
                                  String spillPrefix,
-                                 AmazonS3 amazonS3, AWSGlue glueClient, BufferAllocator allocator) throws IOException
+                                 AWSGlue glueClient, BufferAllocator allocator) throws IOException
     {
         super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
         String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
@@ -202,7 +199,7 @@ public class GcsMetadataHandler
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws ParseException, URISyntaxException
+    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker) throws URISyntaxException
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
@@ -226,7 +223,7 @@ public class GcsMetadataHandler
     /**
      * Used to split up the reads required to scan the requested batch of partition(s).
      * <p>
-     * Here we execute the read operations based on row offset and limit form particular bucket and file on GCS
+     * Here we execute the read operations files form particular GCS bucket
      *
      * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param request   Provides details of the catalog, database, table, and partition(s) being queried as well as
