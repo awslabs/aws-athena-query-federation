@@ -78,8 +78,8 @@ public class GcsUtil
     }
 
     /**
-     * Install cacert from resource folder to temp location
-     * This is required for dataset api
+     * Write out the cacerts that we trust from the default java truststore.
+     * Code adapted from: https://stackoverflow.com/a/63678794
      */
     public static void installCaCertificate() throws IOException, NoSuchAlgorithmException, KeyStoreException, CertificateEncodingException
     {
@@ -202,6 +202,7 @@ public class GcsUtil
         }
     }
 
+    // Code adapted from: https://stackoverflow.com/a/40774458
     private static String formatCrtFileContents(Certificate certificate) throws CertificateEncodingException
     {
         Base64.Encoder encoder = Base64.getMimeEncoder(64, LINE_SEPARATOR.getBytes());
