@@ -55,13 +55,6 @@ Parameters:
     Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
     Default: 'false'
     Type: String
-  IsVPCAccess:
-    AllowedValues:
-      - true
-      - false
-    Default: false
-    Description: "If cluster is in VPC select true, [true, false] (default is false)"
-    Type: String
   SecurityGroupIds:
     Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
     Type: CommaDelimitedList
@@ -86,10 +79,11 @@ Parameters:
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
-  IsVPCAccessSelected: !Equals [!Ref IsVPCAccess, true]
+  HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
+  HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
 
 Resources:
-  JdbcConnectorConfig:
+  AthenaMSKConnector:
     Type: 'AWS::Serverless::Function'
     Properties:
       Environment:
@@ -110,18 +104,8 @@ Resources:
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
-        SecurityGroupIds:
-          !If
-          - IsVPCAccessSelected
-          -
-            !Ref SecurityGroupIds
-          - !Ref "AWS::NoValue"
-        SubnetIds:
-          !If
-          - IsVPCAccessSelected
-          -
-            !Ref SubnetIds
-          - !Ref "AWS::NoValue"
+        SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
+        SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue"]
 
   FunctionRole:
     Condition: NotHasLambdaRole
