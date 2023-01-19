@@ -55,7 +55,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
@@ -86,20 +90,20 @@ public class StorageMetadata
     /**
      * Returns a list of field names and associated file type
      *
-     * @param bucketName Name of the database
-     * @param tableName    Name of the table
+     * @param bucketName Name of the bucket
+     * @param prefix    Name of the folder
      * @param format   classification param form table
      * @return An instance of {@link List<Field>} with column metadata
      */
-    private List<Field> getFields(String bucketName, String tableName, String format, BufferAllocator allocator)
+    private List<Field> getFields(String bucketName, String prefix, String format, BufferAllocator allocator)
     {
-        LOGGER.info("Getting table fields for object {}.{}", bucketName, tableName);
-        Optional<String> file = getStorageFiles(bucketName, tableName);
+        LOGGER.info("Getting table fields for object {}.{}", bucketName, prefix);
+        Optional<String> file = getStorageFiles(bucketName, prefix);
         if (file.isPresent()) {
             return getFileSchema(bucketName, file.get(), FileFormat.valueOf(format.toUpperCase()), allocator).getFields();
         }
 
-        throw new IllegalArgumentException("No object found for the table name '" + tableName + "' under bucket " + bucketName);
+        throw new IllegalArgumentException("No object found for the table name '" + prefix + "' under bucket " + bucketName);
     }
 
     /**
@@ -148,10 +152,7 @@ public class StorageMetadata
         String path = storageLocation.getPath().substring(1);
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
         for (Blob blob : blobPage.iterateAll()) {
-            String blobName = blob.getName();
-            String folderPath = blobName.startsWith(path)
-                    ? blobName.replace(path, "")
-                    : blobName;
+            String folderPath = blob.getName().replaceFirst("^" + path, "");
             // remove the front-slash, because, the expression generated without it
             if (folderPath.startsWith("/")) {
                 folderPath = folderPath.substring(1);
@@ -212,19 +213,13 @@ public class StorageMetadata
         if (expressions.isEmpty()) {
             return true;
         }
+        Map<String, EqualsExpression> expressionMap = expressions.stream()
+                .collect(Collectors.toMap(EqualsExpression::getColumnName, Function.identity(), (key, keyNew) -> keyNew, TreeMap::new));
         for (AbstractMap.SimpleImmutableEntry<String, String> partition : partitionList) {
-            Optional<EqualsExpression> optionalExpression = expressions.stream()
-                    .filter(expr -> expr.columnName.equalsIgnoreCase(partition.getKey()))
-                    .findFirst();
-            if (optionalExpression.isPresent()) {
-                LOGGER.debug("Evaluating field value {} against the expression {}", partition, expressions);
-                EqualsExpression expression = optionalExpression.get();
-                if (!expression.apply(partition.getValue())) {
-                    return false;
-                }
-            }
-            else {
-                LOGGER.debug("No expression found for field {}", partition.getKey());
+            LOGGER.debug("Evaluating field value {} against the expression {}", partition, expressions);
+            EqualsExpression expression = expressionMap.get(partition.getKey());
+            if (null != expression && !expression.apply(partition.getValue())) {
+                return false;
             }
         }
         return true;

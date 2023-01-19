@@ -26,7 +26,7 @@ public class EqualsExpression
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
 
-    public final String columnName;
+    private final String columnName;
 
     private final Object expression;
 
@@ -40,6 +40,11 @@ public class EqualsExpression
     {
        this.columnName = columnName;
        this.expression = expression;
+    }
+
+    public String getColumnName()
+    {
+        return columnName;
     }
 
     /**

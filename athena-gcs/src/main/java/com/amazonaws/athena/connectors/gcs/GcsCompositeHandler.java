@@ -24,6 +24,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 
 import java.io.IOException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
 
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.installCaCertificate;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.installGoogleCredentialsJsonFile;
@@ -40,7 +43,7 @@ public class GcsCompositeHandler
     /**
      * The default constructor that initializes metadata and record handlers for GCS
      */
-    public GcsCompositeHandler() throws IOException
+    public GcsCompositeHandler() throws IOException, CertificateEncodingException, NoSuchAlgorithmException, KeyStoreException
     {
         super(new GcsMetadataHandler(allocator), new GcsRecordHandler(allocator));
         installCaCertificate();
