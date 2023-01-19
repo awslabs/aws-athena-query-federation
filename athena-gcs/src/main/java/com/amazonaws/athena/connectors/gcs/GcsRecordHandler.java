@@ -121,13 +121,17 @@ public class GcsRecordHandler
                 = new ObjectMapper()
                 .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8),
                         new TypeReference<>(){});
+        String classification = split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM);
+        FileFormat format = FileFormat.valueOf(classification.toUpperCase());
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
-            FileFormat format = FileFormat.valueOf(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM).toUpperCase());
-            Schema schemaFromSource = new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), format, uri).inspect();
-            ScanOptions options = new ScanOptions(BATCH_SIZE,
-                    Optional.of(getSelectedColumnNames(recordsRequest.getSchema(), getFieldNameMap(schemaFromSource))));
+            Schema schemaFromSource = getSchemaFromSource(uri, classification);
+            ScanOptions options = schemaFromSource != null
+                    ? new ScanOptions(BATCH_SIZE,
+                    Optional.of(getSelectedColumnNames(recordsRequest.getSchema(), getFieldNameMap(schemaFromSource))))
+                    : new ScanOptions(BATCH_SIZE);
+
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
@@ -224,5 +228,23 @@ public class GcsRecordHandler
         }
         LOGGER.info("Columns from source {}", (Object) fieldMap);
         return fieldMap;
+    }
+
+    private Schema getSchemaFromSource(String uri, String tableClassification) throws Exception
+    {
+        FileFormat format = FileFormat.valueOf(tableClassification.toUpperCase());
+        Schema schemaFromSource = null;
+        switch (format) {
+            case PARQUET:
+                LOGGER.info("Source is PARQUET");
+                schemaFromSource = new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), format, uri).inspect();
+                break;
+            case CSV:
+                // for CSV, it won't work, so return null
+                break;
+            default:
+                throw new IllegalArgumentException("Table classification " + tableClassification + " is not supported by the connector");
+        }
+        return schemaFromSource;
     }
 }
