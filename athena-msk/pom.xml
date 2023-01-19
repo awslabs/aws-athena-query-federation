@@ -1,30 +1,26 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>2022.47.1</version>
+        <version>2023.3.1</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-
     <artifactId>athena-msk</artifactId>
     <name>Athena MSK Connector</name>
-    <version>2022.47.1</version>
-
+    <version>2023.3.1</version>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
     </properties>
     <dependencies>
-         <dependency>
+        <dependency>
             <!-- Only use the simple logger for testing so that we can see the output -->
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${slf4j-log4j.version}</version>
             <scope>test</scope>
-         </dependency>
+        </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -72,11 +68,11 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>athena-federation-integ-test</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.3.1</version>
             <classifier>withdep</classifier>
             <scope>test</scope>
             <exclusions>
-            </exclusions>
+</exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -119,9 +115,9 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2022.47.1</version>
+            <version>2023.3.1</version>
             <classifier>withdep</classifier>
-         </dependency>
+        </dependency>
         <!-- Powermock depedency -->
         <dependency>
             <groupId>org.powermock</groupId>
@@ -161,7 +157,7 @@
     </dependencies>
     <build>
         <plugins>
-           <plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>${mvn.shade.plugin.version}</version>
@@ -180,7 +176,7 @@
                     <transformers>
                         <!-- This transformer is here to concatenate log4j2 cache during shading -->
                         <transformer implementation="com.github.edwgiz.maven_shade_plugin.log4j2_cache_transformer.PluginsCacheFileTransformer">
-                        </transformer>
+</transformer>
                     </transformers>
                 </configuration>
                 <dependencies>
