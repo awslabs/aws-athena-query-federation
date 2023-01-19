@@ -45,7 +45,6 @@ public class AnyExpression extends AbstractExpression
      */
     public boolean apply(String value)
     {
-        boolean evaluated = false;
         String[] expressions = (String[]) expression;
         LOGGER.info("Evaluating {} against {}", value, expressions);
         for (String expression : expressions) {
@@ -55,4 +54,14 @@ public class AnyExpression extends AbstractExpression
         }
         return false;
     }
+
+    @Override
+    public String toString()
+    {
+        return "AnyExpression{" +
+                "columnName='" + columnName + '\'' +
+                ", expression=" + expression +
+                '}';
+    }
 }
+

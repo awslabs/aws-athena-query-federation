@@ -31,10 +31,15 @@ public abstract class AbstractExpression
      * @param columnName      Name of the column
      * @param expression Expression to match
      */
-    public AbstractExpression(String columnName, Object expression)
+    protected AbstractExpression(String columnName, Object expression)
     {
         this.columnName = columnName;
         this.expression = expression;
+    }
+
+    public String getColumnName()
+    {
+        return columnName;
     }
 
     /**

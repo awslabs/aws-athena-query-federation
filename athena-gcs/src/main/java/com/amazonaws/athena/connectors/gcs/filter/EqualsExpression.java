@@ -56,4 +56,14 @@ public class EqualsExpression extends AbstractExpression
         LOGGER.info("Evaluating {} for column {} is {}", value, columnName, evaluated);
         return evaluated;
     }
+
+    @Override
+    public String toString()
+    {
+        return "EqualsExpression{" +
+                "columnName='" + columnName + '\'' +
+                ", expression=" + expression +
+                '}';
+    }
 }
+

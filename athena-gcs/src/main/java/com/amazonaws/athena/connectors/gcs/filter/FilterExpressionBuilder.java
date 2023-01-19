@@ -31,8 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
-
 /**
  * This class is used to build Filter Expression to handle the constraints on partition folder
  *
@@ -45,8 +43,6 @@ public class FilterExpressionBuilder
      * List of {@link Field} instances
      */
     private final List<Field> fields;
-
-    private final List<AbstractExpression> equalsExpressions = new ArrayList<>();
 
     public FilterExpressionBuilder(Schema schema)
     {
@@ -68,7 +64,7 @@ public class FilterExpressionBuilder
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
                 LOGGER.info("Value set for column {} was {}", column, valueSet);
                 if (valueSet != null) {
-                    conjuncts.addAll(addFilterExpressions(column.getName(), valueSet));
+                    conjuncts.addAll(getFilterExpressions(column.getName(), valueSet));
                 }
             }
         }
@@ -76,22 +72,18 @@ public class FilterExpressionBuilder
     }
 
     /**
-     * Add one or more {@link EqualsExpression} based on {@link ValueSet}
+     * Add one or more {@link AbstractExpression} based on {@link ValueSet}
      *
      * @param columnName The name of the column
      * @param valueSet   An instance of {@link ValueSet}
-     * @return List of {@link EqualsExpression}
+     * @return List of {@link AbstractExpression}
      */
-    private List<AbstractExpression> addFilterExpressions(String columnName, ValueSet valueSet)
+    private List<AbstractExpression> getFilterExpressions(String columnName, ValueSet valueSet)
     {
-        LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
+        LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
         List<AbstractExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
-        LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
-        if (!valueSet.isNullAllowed() && isHighLowEquals(valueSet)
-                && valueSet.getRanges().getSpan().getLow().getBound().equals(EXACTLY)) {
-            return List.of(new EqualsExpression(columnName.toLowerCase(), valueSet.getRanges().getSpan().getLow().getValue()));
-        }
+        LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
 
         for (Range range : valueSet.getRanges().getOrderedRanges()) {
             if (range.isSingleValue()) {
@@ -105,21 +97,7 @@ public class FilterExpressionBuilder
             disjuncts.add(new AnyExpression(columnName.toLowerCase(),
                     singleValues.stream().map(Object::toString).collect(Collectors.toList()).toArray(new String[singleValues.size()])));
         }
-        equalsExpressions.addAll(disjuncts);
-        return equalsExpressions;
-    }
-
-    /**
-     * To determine whether an EQUAL expression need to be built
-     *
-     * @param valueSet An instance of {@link ValueSet}
-     * @return True if both the high and low value are equal
-     */
-    private boolean isHighLowEquals(ValueSet valueSet)
-    {
-        Range range = valueSet.getRanges().getSpan();
-        boolean exactly = (range.getLow() != null && range.getHigh() != null && range.getLow().equals(range.getHigh()));
-        LOGGER.info("FilterExpressionBuilder::isHighLowEquals -> exactly same? {}", exactly);
-        return exactly;
+        return disjuncts;
     }
 }
+
