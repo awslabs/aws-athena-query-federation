@@ -63,7 +63,7 @@ public class FilterExpressionBuilderTest
     {
         Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema);
-        List<EqualsExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));
+        List<AbstractExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));
         assertNotNull(exp);
     }
 
