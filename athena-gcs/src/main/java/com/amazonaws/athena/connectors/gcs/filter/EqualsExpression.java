@@ -66,4 +66,3 @@ public class EqualsExpression extends AbstractExpression
                 '}';
     }
 }
-
