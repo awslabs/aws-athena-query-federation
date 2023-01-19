@@ -26,10 +26,6 @@ public class EqualsExpression extends AbstractExpression
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
 
-    private final String columnName;
-
-    private final Object expression;
-
     /**
      * Constructs this with column name and an expression
      *
@@ -39,11 +35,6 @@ public class EqualsExpression extends AbstractExpression
     public EqualsExpression(String columnName, Object expression)
     {
         super(columnName, expression);
-    }
-
-    public String getColumnName()
-    {
-        return columnName;
     }
 
     /**

@@ -55,7 +55,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
@@ -209,7 +208,7 @@ public class StorageMetadata
         return factory.inspect();
     }
 
-    private boolean checkPartitionWithConstrains(List<AbstractMap.SimpleImmutableEntry<String, String>> partitionList, List<EqualsExpression> expressions)
+    private boolean checkPartitionWithConstrains(List<AbstractMap.SimpleImmutableEntry<String, String>> partitionList, List<AbstractExpression> expressions)
     {
         if (expressions.isEmpty()) {
             return true;
