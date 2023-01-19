@@ -2,14 +2,14 @@
  * #%L
  * athena-gcs
  * %%
- * Copyright (C) 2019 - 2022 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,13 +22,9 @@ package com.amazonaws.athena.connectors.gcs.filter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class EqualsExpression extends AbstractExpression
+public class AnyExpression extends AbstractExpression
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
-
-    private final String columnName;
-
-    private final Object expression;
+    private static final Logger LOGGER = LoggerFactory.getLogger(AnyExpression.class);
 
     /**
      * Constructs this with column name and an expression
@@ -36,14 +32,9 @@ public class EqualsExpression extends AbstractExpression
      * @param columnName Name of the column
      * @param expression Expression to match
      */
-    public EqualsExpression(String columnName, Object expression)
+    public AnyExpression(String columnName, Object expression)
     {
         super(columnName, expression);
-    }
-
-    public String getColumnName()
-    {
-        return columnName;
     }
 
     /**
@@ -55,14 +46,13 @@ public class EqualsExpression extends AbstractExpression
     public boolean apply(String value)
     {
         boolean evaluated = false;
-        if (expression == null
-                && (value == null || value.equals("null") || value.equals("NULL"))) {
-            evaluated = true;
+        String[] expressions = (String[]) expression;
+        LOGGER.info("Evaluating {} against {}", value, expressions);
+        for (String expression : expressions) {
+            if (value.equals(expression)) {
+                return true;
+            }
         }
-        else if (expression != null) {
-            evaluated = expression.toString().equals(value);
-        }
-        LOGGER.info("Evaluating {} for column {} is {}", value, columnName, evaluated);
-        return evaluated;
+        return false;
     }
 }

@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound.EXACTLY;
 
@@ -45,7 +46,7 @@ public class FilterExpressionBuilder
      */
     private final List<Field> fields;
 
-    private final List<EqualsExpression> equalsExpressions = new ArrayList<>();
+    private final List<AbstractExpression> equalsExpressions = new ArrayList<>();
 
     public FilterExpressionBuilder(Schema schema)
     {
@@ -58,10 +59,10 @@ public class FilterExpressionBuilder
      * @param constraints            An instance of {@link Constraints} that is a summary of where clauses (if any)
      * @return A list of {@link EqualsExpression}
      */
-    public List<EqualsExpression> getExpressions(Constraints constraints)
+    public List<AbstractExpression> getExpressions(Constraints constraints)
     {
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
-        List<EqualsExpression> conjuncts = new ArrayList<>();
+        List<AbstractExpression> conjuncts = new ArrayList<>();
         for (Field column : fields) {
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
@@ -81,10 +82,10 @@ public class FilterExpressionBuilder
      * @param valueSet   An instance of {@link ValueSet}
      * @return List of {@link EqualsExpression}
      */
-    private List<EqualsExpression> addFilterExpressions(String columnName, ValueSet valueSet)
+    private List<AbstractExpression> addFilterExpressions(String columnName, ValueSet valueSet)
     {
         LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
-        List<EqualsExpression> disjuncts = new ArrayList<>();
+        List<AbstractExpression> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
         LOGGER.info("FilterExpressionBuilder::addFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
         if (!valueSet.isNullAllowed() && isHighLowEquals(valueSet)
@@ -99,6 +100,10 @@ public class FilterExpressionBuilder
         }
         if (singleValues.size() == 1) {
             disjuncts.add(new EqualsExpression(columnName.toLowerCase(), singleValues.get(0)));
+        }
+        else {
+            disjuncts.add(new AnyExpression(columnName.toLowerCase(),
+                    singleValues.stream().map(Object::toString).collect(Collectors.toList()).toArray(new String[singleValues.size()])));
         }
         equalsExpressions.addAll(disjuncts);
         return equalsExpressions;

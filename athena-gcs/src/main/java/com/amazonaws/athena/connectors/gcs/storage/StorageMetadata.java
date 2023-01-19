@@ -24,7 +24,7 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
-import com.amazonaws.athena.connectors.gcs.filter.EqualsExpression;
+import com.amazonaws.athena.connectors.gcs.filter.AbstractExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Table;
@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
@@ -145,7 +146,7 @@ public class StorageMetadata
         List<List<AbstractMap.SimpleImmutableEntry<String, String>>> partitionFolders = new ArrayList<>();
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
 
-        List<EqualsExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
+        List<AbstractExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
         LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
         URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
         LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
@@ -213,13 +214,15 @@ public class StorageMetadata
         if (expressions.isEmpty()) {
             return true;
         }
-        Map<String, EqualsExpression> expressionMap = expressions.stream()
-                .collect(Collectors.toMap(EqualsExpression::getColumnName, Function.identity(), (key, keyNew) -> keyNew, TreeMap::new));
         for (AbstractMap.SimpleImmutableEntry<String, String> partition : partitionList) {
-            LOGGER.debug("Evaluating field value {} against the expression {}", partition, expressions);
-            EqualsExpression expression = expressionMap.get(partition.getKey());
-            if (null != expression && !expression.apply(partition.getValue())) {
-                return false;
+            List<AbstractExpression> expressionList = expressions.stream()
+                    .filter(expr -> expr.columnName.equalsIgnoreCase(partition.getKey()))
+                    .collect(Collectors.toList());
+            for (AbstractExpression expression : expressionList) {
+                LOGGER.debug("Evaluating field value {} against the expression {}", partition, expressions);
+                if (!expression.apply(partition.getValue())) {
+                    return false;
+                }
             }
         }
         return true;
