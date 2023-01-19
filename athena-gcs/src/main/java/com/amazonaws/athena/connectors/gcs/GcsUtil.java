@@ -31,17 +31,27 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -50,10 +60,13 @@ import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREF
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION;
-import static java.util.Objects.requireNonNull;
 
 public class GcsUtil
 {
+    private static final String BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
+    private static final String END_CERT = "-----END CERTIFICATE-----";
+    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
+
     private GcsUtil()
     {
     }
@@ -68,18 +81,22 @@ public class GcsUtil
      * Install cacert from resource folder to temp location
      * This is required for dataset api
      */
-    public static void installCaCertificate() throws IOException
+    public static void installCaCertificate() throws IOException, NoSuchAlgorithmException, KeyStoreException, CertificateEncodingException
     {
-        ClassLoader classLoader = GcsRecordHandler.class.getClassLoader();
-        File file = new File(requireNonNull(classLoader.getResource("")).getFile());
-        File src = new File(file.getAbsolutePath() + File.separator + "cacert.pem");
-        File destination = new File(System.getenv(SSL_CERT_FILE_LOCATION));
-        File parentDestination = new File(destination.getParent());
-        if (!destination.exists()) {
-            if (!parentDestination.exists()) {
-                parentDestination.mkdirs();
+        FileWriter caBundleWriter = new FileWriter(System.getenv(SSL_CERT_FILE_LOCATION));
+        try {
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init((KeyStore) null);
+            for (TrustManager trustManager : trustManagerFactory.getTrustManagers()) {
+                X509TrustManager x509TrustManager = (X509TrustManager) trustManager;
+                for (X509Certificate x509Certificate : x509TrustManager.getAcceptedIssuers()) {
+                    caBundleWriter.write(formatCrtFileContents(x509Certificate));
+                    caBundleWriter.write(LINE_SEPARATOR);
+                }
             }
-            Files.copy(src.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        finally {
+            caBundleWriter.close();
         }
     }
 
@@ -183,5 +200,14 @@ public class GcsUtil
             default:
                 return value;
         }
+    }
+
+    private static String formatCrtFileContents(Certificate certificate) throws CertificateEncodingException
+    {
+        Base64.Encoder encoder = Base64.getMimeEncoder(64, LINE_SEPARATOR.getBytes());
+        byte[] rawCrtText = certificate.getEncoded();
+        String encodedCertText = new String(encoder.encode(rawCrtText));
+        String prettifiedCert = BEGIN_CERT + LINE_SEPARATOR + encodedCertText + LINE_SEPARATOR + END_CERT;
+        return prettifiedCert;
     }
 }

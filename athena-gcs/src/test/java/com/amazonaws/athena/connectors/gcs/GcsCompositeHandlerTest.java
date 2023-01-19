@@ -38,6 +38,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateEncodingException;
 import java.util.Collection;
 import java.util.List;
 
@@ -70,7 +73,7 @@ public class GcsCompositeHandlerTest {
     }
 
     @Test
-    public void testGcsCompositeHandler() throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException, IOException
+    public void testGcsCompositeHandler() throws IOException, CertificateEncodingException, NoSuchAlgorithmException, KeyStoreException
     {
         PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);

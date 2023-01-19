@@ -87,20 +87,20 @@ public class StorageMetadata
     /**
      * Returns a list of field names and associated file type
      *
-     * @param bucketName Name of the database
-     * @param tableName    Name of the table
+     * @param bucketName Name of the bucket
+     * @param prefix    Name of the folder
      * @param format   classification param form table
      * @return An instance of {@link List<Field>} with column metadata
      */
-    private List<Field> getFields(String bucketName, String tableName, String format, BufferAllocator allocator)
+    private List<Field> getFields(String bucketName, String prefix, String format, BufferAllocator allocator)
     {
-        LOGGER.info("Getting table fields for object {}.{}", bucketName, tableName);
-        Optional<String> file = getStorageFiles(bucketName, tableName);
+        LOGGER.info("Getting table fields for object {}.{}", bucketName, prefix);
+        Optional<String> file = getStorageFiles(bucketName, prefix);
         if (file.isPresent()) {
             return getFileSchema(bucketName, file.get(), FileFormat.valueOf(format.toUpperCase()), allocator).getFields();
         }
 
-        throw new IllegalArgumentException("No object found for the table name '" + tableName + "' under bucket " + bucketName);
+        throw new IllegalArgumentException("No object found for the table name '" + prefix + "' under bucket " + bucketName);
     }
 
     /**
@@ -149,10 +149,7 @@ public class StorageMetadata
         String path = storageLocation.getPath().substring(1);
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
         for (Blob blob : blobPage.iterateAll()) {
-            String blobName = blob.getName();
-            String folderPath = blobName.startsWith(path)
-                    ? blobName.replace(path, "")
-                    : blobName;
+            String folderPath = blob.getName().replaceFirst("^" + path, "");
             // remove the front-slash, because, the expression generated without it
             if (folderPath.startsWith("/")) {
                 folderPath = folderPath.substring(1);

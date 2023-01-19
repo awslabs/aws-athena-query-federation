@@ -50,11 +50,15 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
@@ -120,12 +124,15 @@ public class GcsRecordHandler
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
-            ScanOptions options = new ScanOptions(BATCH_SIZE);
+            FileFormat format = FileFormat.valueOf(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM).toUpperCase());
+            Schema schemaFromSource = new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), format, uri).inspect();
+            ScanOptions options = new ScanOptions(BATCH_SIZE,
+                    Optional.of(getSelectedColumnNames(recordsRequest.getSchema(), getFieldNameMap(schemaFromSource))));
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
                     DatasetFactory datasetFactory = new FileSystemDatasetFactory(
-                            allocator, NativeMemoryPool.getDefault(), FileFormat.valueOf(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM).toUpperCase()), uri
+                            allocator, NativeMemoryPool.getDefault(), format, uri
                     );
 
                     // Creates a Dataset with auto-inferred schema
@@ -198,5 +205,24 @@ public class GcsRecordHandler
             }
             return 1;
         });
+    }
+
+    private String[] getSelectedColumnNames(Schema schema, Map<String, String> fieldMap)
+    {
+        String[] selectedColumns = schema.getFields().stream()
+                .map(field -> fieldMap.get(field.getName().toLowerCase()))
+                .toArray(String[]::new);
+        LOGGER.info("Selected columns {}", (Object) selectedColumns);
+        return selectedColumns;
+    }
+
+    private Map<String, String> getFieldNameMap(Schema schemaFromSource)
+    {
+        Map<String, String> fieldMap = new HashMap<>();
+        for (Field field : schemaFromSource.getFields()) {
+            fieldMap.put(field.getName().toLowerCase(), field.getName());
+        }
+        LOGGER.info("Columns from source {}", (Object) fieldMap);
+        return fieldMap;
     }
 }

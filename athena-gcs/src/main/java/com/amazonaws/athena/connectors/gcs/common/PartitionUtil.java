@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
 
@@ -76,11 +77,10 @@ public class PartitionUtil
         if (optionalFolderRegex.isPresent()) {
             String folderRegex = optionalFolderRegex.get();
             Pattern folderMatchPattern = Pattern.compile(folderRegex);
-            if (!folderMatchPattern.matcher(partitionFolder).matches()) {
-                return List.of();
+            if (folderMatchPattern.matcher(partitionFolder).matches()) {
+                return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
+                        partitionFolder, folderRegex, table.getPartitionKeys());
             }
-            return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
-                    partitionFolder, folderRegex, table.getPartitionKeys());
         }
         return List.of();
     }
@@ -99,11 +99,18 @@ public class PartitionUtil
         List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = new ArrayList<>();
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
         Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(folderModel);
+        var partitionColumnsSet = partitionColumns.stream()
+                .map(c -> c.getName())
+                .collect(Collectors.toCollection(() -> new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
         while (partitionFolderMatcher.find()) {
             for (int j = 1; j <= partitionFolderMatcher.groupCount() && partitionPatternMatcher.find(); j++) {
                 LOGGER.debug("Partition folder {} : {}", partitionPatternMatcher.group(1), partitionFolderMatcher.group(j));
-                Optional<AbstractMap.SimpleImmutableEntry<String, String>> optionalStoragePartition = produceStoragePartition(partitionColumns, partitionPatternMatcher.group(1), partitionFolderMatcher.group(j));
-                optionalStoragePartition.ifPresent(partitions::add);
+                if (partitionColumnsSet.contains(partitionPatternMatcher.group(1))) {
+                    partitions.add(new AbstractMap.SimpleImmutableEntry<>(partitionPatternMatcher.group(1), partitionFolderMatcher.group(j)));
+                }
+                else {
+                    throw new IllegalArgumentException("Column '" + partitionPatternMatcher.group(1) + "' is not defined as partition key in Glue Table");
+                }
             }
         }
         return partitions;
@@ -128,26 +135,6 @@ public class PartitionUtil
                             "Supported partition field type is VARCHAR (string or varchar in a Glue Table Schema)");
             }
         }
-    }
-
-    /**
-     * Return a true when storage partition added successfully
-     *
-     * @param columns         list of column
-     * @param columnName      Name of the partition column
-     * @param columnValue     value of partition folder
-     * @return boolean flag
-     */
-    private static Optional<AbstractMap.SimpleImmutableEntry<String, String>> produceStoragePartition(List<Column> columns, String columnName, String columnValue)
-    {
-        if (columnValue != null && !columnValue.isBlank() && !columns.isEmpty()) {
-            for (Column column : columns) {
-                if (column.getName().equalsIgnoreCase(columnName)) {
-                    return Optional.of(new AbstractMap.SimpleImmutableEntry<>(column.getName(), columnValue));
-                }
-            }
-        }
-        throw new IllegalArgumentException("Column '" + columnName + "' is not defined as partition key in Glue Table");
     }
 
     /**
