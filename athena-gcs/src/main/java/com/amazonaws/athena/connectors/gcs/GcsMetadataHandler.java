@@ -56,7 +56,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -203,19 +202,17 @@ public class GcsMetadataHandler
     {
         TableName tableInfo = request.getTableName();
         LOGGER.info("Retrieving partition for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<List<AbstractMap.SimpleImmutableEntry<String, String>>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
+        List<Map<String, String>> partitionFolders = datasource.getPartitionFolders(request.getSchema(), tableInfo, request.getConstraints(), glueClient);
         LOGGER.info("Partition folders in table {}.{} are \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), partitionFolders);
-        if (!partitionFolders.isEmpty()) {
-            for (List<AbstractMap.SimpleImmutableEntry<String, String>> folder : partitionFolders) {
-                blockWriter.writeRows((Block block, int rowNum) ->
-                {
-                    for (AbstractMap.SimpleImmutableEntry<String, String> partition : folder) {
-                        block.setValue(partition.getKey(), rowNum, partition.getValue());
-                    }
-                    //we wrote 1 row so we return 1
-                    return 1;
-                });
-            }
+        for (Map<String, String> folder : partitionFolders) {
+            blockWriter.writeRows((Block block, int rowNum) ->
+            {
+                for (Map.Entry<String, String> partition : folder.entrySet()) {
+                    block.setValue(partition.getKey(), rowNum, partition.getValue());
+                }
+                //we wrote 1 row so we return 1
+                return 1;
+            });
         }
         LOGGER.info("Wrote partition?: {}", !partitionFolders.isEmpty());
     }
