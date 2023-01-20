@@ -37,12 +37,6 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
-  SubnetIds:
-    Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
-    Type: 'List<AWS::EC2::Subnet::Id>'
-  SecurityGroupIds:
-    Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
-    Type: 'List<AWS::EC2::SecurityGroup::Id>'
   GcsSecretName:
     Description: 'Secret key name in the AWS Secrets Manager.'
     Type: String
