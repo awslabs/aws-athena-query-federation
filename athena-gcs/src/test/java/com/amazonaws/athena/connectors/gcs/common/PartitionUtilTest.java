@@ -25,6 +25,7 @@ import com.amazonaws.services.glue.model.Table;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -202,16 +203,16 @@ public class PartitionUtilTest
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten ));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        List<Map<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
+        List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
         assertFalse("List of column prefix is empty", partitions.isEmpty());
         assertEquals("Partition size is more than 2", 2, partitions.size());
         // Assert partition 1
-        assertEquals("First hive column name doesn't match", partitions.get(0).keySet().stream().findFirst().get(), "year");
-        assertEquals("First hive column value doesn't match", 2000L, partitions.get(0).values().stream().findFirst().get());
+        assertEquals("First hive column name doesn't match", partitions.get(0).getKey(), "year");
+        assertEquals("First hive column value doesn't match", 2000L, partitions.get(0).getValue());
 
         // Assert partition 2
-        assertEquals("Second hive column name doesn't match", partitions.get(1).keySet().stream().findFirst().get(), "month");
-        assertEquals("Second hive column value doesn't match", 9, partitions.get(1).values().stream().findFirst().get());
+        assertEquals("Second hive column name doesn't match", partitions.get(1).getKey(), "month");
+        assertEquals("Second hive column value doesn't match", 9, partitions.get(1).getValue());
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -229,21 +230,21 @@ public class PartitionUtilTest
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten + "/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        List<Map<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/12/",
+        List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/12/",
                 optionalRegEx.get(), table.getPartitionKeys());
         assertFalse("List of column prefix is empty", partitions.isEmpty());
         assertEquals("Partition size is more than 3", 3, partitions.size());
         // Assert partition 1
-        assertEquals("First hive column name doesn't match", partitions.get(0).keySet().stream().findFirst().get(), "year");
-        assertEquals("First hive column value doesn't match", 2000L, partitions.get(0).values().stream().findFirst().get());
+        assertEquals("First hive column name doesn't match", partitions.get(0).getKey(), "year");
+        assertEquals("First hive column value doesn't match", 2000L, partitions.get(0).getValue());
 
         // Assert partition 2
-        assertEquals("Second hive column name doesn't match", partitions.get(1).keySet().stream().findFirst().get(), "month");
-        assertEquals("Second hive column value doesn't match", 9, partitions.get(1).values().stream().findFirst().get());
+        assertEquals("Second hive column name doesn't match", partitions.get(1).getKey(), "month");
+        assertEquals("Second hive column value doesn't match", 9, partitions.get(1).getValue());
 
         // Assert partition 3
-        assertEquals("Third hive column name doesn't match", partitions.get(2).keySet().stream().findFirst().get(), "day");
-        assertEquals("Thir hive column value doesn't match", 12, partitions.get(2).values().stream().findFirst().get());
+        assertEquals("Third hive column name doesn't match", partitions.get(2).getKey(), "day");
+        assertEquals("Thir hive column value doesn't match", 12, partitions.get(2).getValue());
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -275,7 +276,7 @@ public class PartitionUtilTest
         Pattern folderMatchingPattern = Pattern.compile(optionalRegEx.get());
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                List<Map<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
             }
@@ -315,7 +316,7 @@ public class PartitionUtilTest
                 folder = folder.substring(1);
             }
             if (folderMatchingPattern.matcher(folder).matches()) {
-                List<Map<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 2", 2, partitions.size());
                 matchCount++;
@@ -355,7 +356,7 @@ public class PartitionUtilTest
         int matchCount = 0;
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                List<Map<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
                 matchCount++;
@@ -395,7 +396,7 @@ public class PartitionUtilTest
         int matchCount = 0;
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                List<Map<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
                 matchCount++;
