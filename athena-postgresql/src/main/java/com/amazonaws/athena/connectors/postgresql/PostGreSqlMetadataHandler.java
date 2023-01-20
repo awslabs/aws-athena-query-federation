@@ -38,6 +38,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Agg
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
+import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.TopNPushdownSubType;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionInfo;
 import com.amazonaws.athena.connectors.jdbc.connection.GenericJdbcConnectionFactory;
@@ -143,6 +144,9 @@ public class PostGreSqlMetadataHandler
             .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
                     .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
                     .toArray(String[]::new))
+        ));
+        capabilities.putAll(DataSourceOptimizations.SUPPORTS_TOP_N_PUSHDOWN.withSupportedSubTypes(
+            TopNPushdownSubType.SUPPORTS_ORDER_BY
         ));
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);

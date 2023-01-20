@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.jdbc.manager;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
@@ -147,6 +148,12 @@ public abstract class JdbcSplitQueryBuilder
             sql.append(" ").append(aggregateGroupByClause);
         }
 
+        String orderByClause = extractOrderByClause(constraints);
+
+        if (!Strings.isNullOrEmpty(orderByClause)) {
+            sql.append(" ").append(orderByClause);
+        }
+
         if (constraints.getLimit() > 0) {
             sql.append(appendLimitOffset(split, constraints));
         }
@@ -263,6 +270,17 @@ public abstract class JdbcSplitQueryBuilder
                     .collect(Collectors.joining(", "));
         }
         return "";
+    }
+
+    private String extractOrderByClause(Constraints constraints)
+    {
+        List<OrderByField> orderByClause = constraints.getOrderByClause();
+        if (orderByClause == null || orderByClause.size() == 0) {
+            return "";
+        }
+        return "ORDER BY " + orderByClause.stream()
+            .map(orderByField -> quote(orderByField.getColumnName()) + " " + orderByField.getDirection())
+            .collect(Collectors.joining(", "));
     }
 
     protected abstract String getFromClauseWithSplit(final String catalog, final String schema, final String table, final Split split);

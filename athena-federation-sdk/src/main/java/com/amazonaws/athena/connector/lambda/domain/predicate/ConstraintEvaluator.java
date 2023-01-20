@@ -83,7 +83,7 @@ public class ConstraintEvaluator
      */
     public static ConstraintEvaluator emptyEvaluator()
     {
-        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), -1));
+        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), AggregateFunctionClause.emptyAggregateFunctionClause(), Collections.emptyList(), -1));
     }
 
     /**

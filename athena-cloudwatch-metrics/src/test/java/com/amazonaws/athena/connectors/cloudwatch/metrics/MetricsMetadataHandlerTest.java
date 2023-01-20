@@ -197,7 +197,7 @@ public class MetricsMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName(defaultSchema, "metrics"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -230,7 +230,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metrics"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 continuationToken);
         int numContinuations = 0;
         do {
@@ -304,7 +304,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 continuationToken);
 
         int numContinuations = 0;
@@ -371,7 +371,7 @@ public class MetricsMetadataHandlerTest
                 new TableName(defaultSchema, "metric_samples"),
                 partitions,
                 Collections.singletonList("partitionId"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);

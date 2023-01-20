@@ -25,9 +25,11 @@ import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField.Direction;
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
@@ -138,8 +140,8 @@ public class MySqlRecordHandlerTest
                 )
         );
 
-        Constraints constraints = Mockito.mock(Constraints.class);
-        Mockito.when(constraints.getSummary()).thenReturn(new ImmutableMap.Builder<String, ValueSet>()
+        Constraints constraints = new Constraints(
+            new ImmutableMap.Builder<String, ValueSet>()
                 .put("testCol1", valueSet1)
                 .put("testCol2", valueSet2)
                 .put("testCol3", valueSet3)
@@ -148,11 +150,17 @@ public class MySqlRecordHandlerTest
                 .put("testCol6", valueSet6)
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
-                .build());
-        Mockito.when(constraints.getLimit()).thenReturn(100L);
-        Mockito.when(constraints.getAggregateFunctionClause()).thenReturn(List.of(aggregateFunctionClause));
+                .build(),
+            List.of(),
+            List.of(aggregateFunctionClause),
+            List.of(
+                new OrderByField("testCol1", Direction.DESC.name()),
+                new OrderByField("testCol3", Direction.ASC.name())
+            ),
+            100L
+        );
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8`, SUM(`testCol3`) FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) GROUP BY `testCol1`, `testCol2` LIMIT 100";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8`, SUM(`testCol3`) FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) GROUP BY `testCol1`, `testCol2` ORDER BY `testCol1` DESC, `testCol3` ASC LIMIT 100";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 

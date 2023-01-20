@@ -150,6 +150,13 @@
       "columnNames" : [ "col1" ],
       "groupingSets" : [ [ "col2" ] ]
     } ],
+    "orderByClause" : [ {
+      "columnName" : "col3",
+      "direction" : "ASC"
+    }, {
+      "columnName" : "col2",
+      "direction" : "DESC"
+    } ],
     "limit" : -1
   },
   "maxBlockSize" : "100000000000",

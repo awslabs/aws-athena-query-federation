@@ -193,7 +193,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of(), List.of(), List.of(), 5),
+                new Constraints(ImmutableMap.of(), List.of(), List.of(), List.of(), 5),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -225,7 +225,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of(), List.of(), List.of(), 10_000),
+                new Constraints(ImmutableMap.of(), List.of(), List.of(), List.of(), 10_000),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -336,7 +336,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of(), List.of(), List.of(), 1),
+                new Constraints(ImmutableMap.of(), List.of(), List.of(), List.of(), 1),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 

@@ -22,7 +22,7 @@ package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 public enum TopNPushdownSubType
         implements PushdownSubTypes
 {
-    NONE("none");
+    SUPPORTS_ORDER_BY("SUPPORTS_ORDER_BY");
 
     private String subType;
 

@@ -47,23 +47,26 @@ public class Constraints
     private Map<String, ValueSet> summary;
     private List<FederationExpression> expression;
     private final List<AggregateFunctionClause> aggregateFunctionClause;
+    private final List<OrderByField> orderByClause;
     private long limit;
 
     @Deprecated
     public Constraints(Map<String, ValueSet> summary) 
     {
-        this(summary, Collections.emptyList(), Collections.emptyList(), -1);
+        this(summary, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1);
     }
 
     @JsonCreator
     public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
                        @JsonProperty("expression") List<FederationExpression> expression,
                        @JsonProperty("aggregateFunctionClause") List<AggregateFunctionClause> aggregateFunctionClause,
+                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
                        @JsonProperty("limit") long limit)
     {
         this.summary = summary;
         this.expression = expression;
         this.aggregateFunctionClause = aggregateFunctionClause;
+        this.orderByClause = orderByClause;
         this.limit = limit;
     }
 
@@ -96,6 +99,11 @@ public class Constraints
     {
         return aggregateFunctionClause;
     }
+    
+    public List<OrderByField> getOrderByClause()
+    {
+        return this.orderByClause;
+    }
 
     @Override
     public boolean equals(Object o)
@@ -112,6 +120,7 @@ public class Constraints
         return Objects.equal(this.summary, that.summary) &&
                 Objects.equal(this.expression, that.expression) &&
                 Objects.equal(this.aggregateFunctionClause, that.aggregateFunctionClause) &&
+                Objects.equal(this.orderByClause, that.orderByClause) &&
                 Objects.equal(this.limit, that.limit);
     }
 
@@ -122,6 +131,7 @@ public class Constraints
                 "summary=" + summary +
                 "expression=" + expression +
                 "aggregateFunctionClause=" + aggregateFunctionClause +
+                "orderByClause=" + orderByClause +
                 "limit=" + limit +
                 '}';
     }
@@ -129,7 +139,7 @@ public class Constraints
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(summary, expression, aggregateFunctionClause, limit);
+        return Objects.hashCode(summary, expression, aggregateFunctionClause, orderByClause, limit);
     }
 
     @Override

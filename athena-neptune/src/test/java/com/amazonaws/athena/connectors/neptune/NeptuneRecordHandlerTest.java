@@ -388,7 +388,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                 buildGraphTraversal();
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
-                schemaPG, Split.newBuilder(spillLoc, null).build(), new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), -1),
+                schemaPG, Split.newBuilder(spillLoc, null).build(), new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
                                 100_000_000_000L, 100_000_000_000L);
 
                 RecordResponse rawResponse = handler.doReadRecords(allocator, request);
@@ -424,7 +424,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
 
                 ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY, DEFAULT_CATALOG, QUERY_ID, TABLE_NAME,
                 schemaPGVertexForRead, Split.newBuilder(splitLoc, keyFactory.create()).build(),
-                                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1), 1_500_000L, // ~1.5MB so we should see some spill
+                                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1), 1_500_000L, // ~1.5MB so we should see some spill
                                 0L);
 
                 RecordResponse rawResponse = handler.doReadRecords(allocator, request);

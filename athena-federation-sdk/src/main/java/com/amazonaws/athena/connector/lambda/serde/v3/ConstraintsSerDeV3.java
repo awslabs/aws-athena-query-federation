@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.lambda.serde.v3;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
+import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
@@ -45,6 +46,7 @@ public final class ConstraintsSerDeV3
     private static final String SUMMARY_FIELD = "summary";
     private static final String EXPRESSION_FIELD = "expression";
     private static final String AGGREGATE_FUNCTION_CLAUSE = "aggregateFunctionClause";
+    private static final String ORDER_BY_CLAUSE = "orderByClause";
     private static final String LIMIT_FIELD = "limit";
 
     private ConstraintsSerDeV3() {}
@@ -54,15 +56,18 @@ public final class ConstraintsSerDeV3
         private final ValueSetSerDe.Serializer valueSetSerializer;
         private final VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer;
         private final VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClauseSerializer;
+        private final VersionedSerDe.Serializer<OrderByField> orderByFieldSerializer;
 
         public Serializer(ValueSetSerDe.Serializer valueSetSerializer,
                           VersionedSerDe.Serializer<FederationExpression> federationExpressionSerializer,
-                          VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClauseSerializer)
+                          VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClauseSerializer,
+                          VersionedSerDe.Serializer<OrderByField> orderByFieldSerializer)
         {
             super(Constraints.class);
             this.valueSetSerializer = requireNonNull(valueSetSerializer, "valueSetSerDe is null");
             this.federationExpressionSerializer = requireNonNull(federationExpressionSerializer, "federationExpressionSerDe is null");
             this.aggregateFunctionClauseSerializer = requireNonNull(aggregateFunctionClauseSerializer, "aggregateFunctionClauseSerDe is null");
+            this.orderByFieldSerializer = requireNonNull(orderByFieldSerializer, "orderByFieldSerDe is null");
         }
 
         @Override
@@ -88,6 +93,12 @@ public final class ConstraintsSerDeV3
             }
             jgen.writeEndArray();
 
+            jgen.writeArrayFieldStart(ORDER_BY_CLAUSE);
+            for (OrderByField orderByField : constraints.getOrderByClause()) {
+                orderByFieldSerializer.serialize(orderByField, jgen, provider);
+            }
+            jgen.writeEndArray();
+
             jgen.writeNumberField(LIMIT_FIELD, constraints.getLimit());
         }
     }
@@ -96,16 +107,19 @@ public final class ConstraintsSerDeV3
     {
         private final ValueSetSerDe.Deserializer valueSetDeserializer;
         private final VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer;
-        VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClauseDeserializer;
+        private final VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClauseDeserializer;
+        private final VersionedSerDe.Deserializer<OrderByField> orderByFieldDeserializer;
 
         public Deserializer(ValueSetSerDe.Deserializer valueSetDeserializer,
                             VersionedSerDe.Deserializer<FederationExpression> federationExpressionDeserializer,
-                            VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClauseDeserializer)
+                            VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClauseDeserializer,
+                            VersionedSerDe.Deserializer<OrderByField> orderByFieldDeserializer)
         {
             super(Constraints.class);
             this.valueSetDeserializer = requireNonNull(valueSetDeserializer, "valueSetSerDe is null");
             this.federationExpressionDeserializer = requireNonNull(federationExpressionDeserializer, "federationExpressionSerDe is null");
             this.aggregateFunctionClauseDeserializer = requireNonNull(aggregateFunctionClauseDeserializer, "aggregateFunctionClauseSerDe is null");
+            this.orderByFieldDeserializer = requireNonNull(orderByFieldDeserializer, "orderByFieldSerDe is null");
         }
 
         @Override
@@ -138,9 +152,19 @@ public final class ConstraintsSerDeV3
                 validateObjectEnd(jparser);
             }
 
+            assertFieldName(jparser, ORDER_BY_CLAUSE);
+            validateArrayStart(jparser);
+            ImmutableList.Builder<OrderByField> orderByClauseBuilder = ImmutableList.builder();
+            while (jparser.nextToken() != JsonToken.END_ARRAY) {
+                validateObjectStart(jparser.getCurrentToken());
+                orderByClauseBuilder.add(orderByFieldDeserializer.doDeserialize(jparser, ctxt));
+                validateObjectEnd(jparser);
+            }
+            
+
             long limit = getNextLongField(jparser, LIMIT_FIELD);
 
-            return new Constraints(summaryMap.build(), federationExpression.build(), aggregateFunctionClauseBuilder.build(), limit);
+            return new Constraints(summaryMap.build(), federationExpression.build(), aggregateFunctionClauseBuilder.build(), orderByClauseBuilder.build(), limit);
         }
     }
 }
