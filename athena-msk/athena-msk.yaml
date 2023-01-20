@@ -57,10 +57,12 @@ Parameters:
     Type: String
   SecurityGroupIds:
     Description: 'One or more SecurityGroup IDs corresponding to the SecurityGroup that should be applied to the Lambda function. (e.g. sg1,sg2,sg3)'
-    Type: 'List<AWS::EC2::SecurityGroup::Id>'
+    Type: CommaDelimitedList
+    Default: ""
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
-    Type: 'List<AWS::EC2::Subnet::Id>'
+    Type: CommaDelimitedList
+    Default: ""
   CertificatesS3Reference:
     Description: 'The S3 bucket reference where keystore and truststore certificates are uploaded. Applicable for SSL auth'
     Default: ""
@@ -77,9 +79,11 @@ Parameters:
 Conditions:
   NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  HasSecurityGroups: !Not [ !Equals [ !Join ["", !Ref SecurityGroupIds], "" ] ]
+  HasSubnets: !Not [ !Equals [ !Join ["", !Ref SubnetIds], "" ] ]
 
 Resources:
-  JdbcConnectorConfig:
+  AthenaMSKConnector:
     Type: 'AWS::Serverless::Function'
     Properties:
       Environment:
@@ -100,8 +104,8 @@ Resources:
       MemorySize: !Ref LambdaMemory
       Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
-        SecurityGroupIds: !Ref SecurityGroupIds
-        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds: !If [ HasSecurityGroups, !Ref SecurityGroupIds, !Ref "AWS::NoValue" ]
+        SubnetIds: !If [ HasSubnets, !Ref SubnetIds, !Ref "AWS::NoValue"]
 
   FunctionRole:
     Condition: NotHasLambdaRole

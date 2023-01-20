@@ -42,6 +42,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -282,13 +283,16 @@ public class AmazonMskUtils
      */
     protected static Properties setSaslSslAuthKafkaProperties(Properties properties) throws Exception
     {
-        //Download certificates for kafka connection from S3 and save to temp directory
-        Path tempDir = copyCertificatesFromS3ToTempFolder();
         Map<String, Object> cred = getCredentialsAsKeyValue();
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_SSL");
         properties.setProperty(KAFKA_SASL_MECHANISM, "PLAIN");
-        properties.setProperty(KAFKA_TRUSTSTORE_LOCATION, tempDir + File.separator + TRUSTSTORE);
-        properties.setProperty(KAFKA_TRUSTSTORE_PASSWORD, cred.get(AmazonMskConstants.TRUSTSTORE_PASSWORD).toString());
+        String s3uri = System.getenv(AmazonMskConstants.CERTIFICATES_S3_REFERENCE);
+        if (StringUtils.isNotBlank(s3uri)) {
+            //Download certificates for kafka connection from S3 and save to temp directory
+            Path tempDir = copyCertificatesFromS3ToTempFolder();
+            properties.setProperty(KAFKA_TRUSTSTORE_LOCATION, tempDir + File.separator + TRUSTSTORE);
+            properties.setProperty(KAFKA_TRUSTSTORE_PASSWORD, cred.get(AmazonMskConstants.TRUSTSTORE_PASSWORD).toString());
+        }
         properties.put(KAFKA_SASL_JAAS_CONFIG, "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"" + cred.get(AmazonMskConstants.AWS_SECRET_USERNAME).toString() + "\" password=\"" + cred.get(AmazonMskConstants.AWS_SECRET_PWD).toString() + "\";");
         return properties;
     }

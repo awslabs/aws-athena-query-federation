@@ -12,10 +12,10 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
-        <aws-sdk.version>1.12.385</aws-sdk.version>
+        <aws-sdk.version>1.12.387</aws-sdk.version>
         <aws.lambda-java-core.version>1.2.2</aws.lambda-java-core.version>
         <aws.lambda-java-log4j2.version>1.5.1</aws.lambda-java-log4j2.version>
-        <aws-cdk.version>1.188.0</aws-cdk.version>
+        <aws-cdk.version>1.189.0</aws-cdk.version>
         <jsii.version>1.73.0</jsii.version>
         <slf4j-log4j.version>2.0.6</slf4j-log4j.version>
         <mockito.legacy.version>3.3.3</mockito.legacy.version>
@@ -23,10 +23,10 @@
         <powermock.version>2.0.9</powermock.version>
         <junit.version>4.13.2</junit.version>
         <jqwik.version>1.7.2</jqwik.version>
-        <assertj.version>3.24.1</assertj.version>
+        <assertj.version>3.24.2</assertj.version>
         <testng.version>7.7.1</testng.version>
         <fasterxml.jackson.version>2.14.1</fasterxml.jackson.version>
-        <surefire.failsafe.version>3.0.0-M7</surefire.failsafe.version>
+        <surefire.failsafe.version>3.0.0-M8</surefire.failsafe.version>
         <log4j2Version>2.19.0</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
         <netty.version>4.1.87.Final</netty.version>
@@ -39,7 +39,7 @@
         <commons.cli.version>1.5.0</commons.cli.version>
         <test.system.rules.version>1.19.0</test.system.rules.version>
         <!-- These are mvn on purpose to not conflict with the maven.* namespace -->
-        <mvn.checkstyle.version>3.2.0</mvn.checkstyle.version>
+        <mvn.checkstyle.version>3.2.1</mvn.checkstyle.version>
         <mvn.shade.plugin.version>3.4.1</mvn.shade.plugin.version>
         <mvn.source.plugin.version>3.2.1</mvn.source.plugin.version>
         <mvn.javadoc.plugin.version>3.4.1</mvn.javadoc.plugin.version>
@@ -50,7 +50,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.1</version>
+                <version>5.9.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -200,7 +200,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>3.4.0</version>
+                    <version>3.5.0</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -208,7 +208,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
-                <version>7.4.4</version>
+                <version>8.0.1</version>
                 <executions>
                     <execution>
                         <goals>
