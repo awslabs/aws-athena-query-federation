@@ -19,13 +19,8 @@
  */
 package com.amazonaws.athena.connectors.gcs.filter;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class EqualsExpression extends AbstractExpression
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(EqualsExpression.class);
-
     /**
      * Constructs this with column name and an expression
      *
@@ -45,16 +40,10 @@ public class EqualsExpression extends AbstractExpression
      */
     public boolean apply(String value)
     {
-        boolean evaluated = false;
-        if (expression == null
-                && (value == null || value.equals("null") || value.equals("NULL"))) {
-            evaluated = true;
+        if (expression != null) {
+            return expression.toString().equals(value);
         }
-        else if (expression != null) {
-            evaluated = expression.toString().equals(value);
-        }
-        LOGGER.info("Evaluating {} for column {} is {}", value, columnName, evaluated);
-        return evaluated;
+        return (value == null || value.equalsIgnoreCase("null"));
     }
 
     @Override

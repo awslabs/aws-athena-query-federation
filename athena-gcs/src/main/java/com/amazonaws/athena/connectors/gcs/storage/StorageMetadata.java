@@ -55,7 +55,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
@@ -63,6 +65,7 @@ import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toCollection;
 
 public class StorageMetadata
 {
@@ -210,18 +213,20 @@ public class StorageMetadata
         if (expressions.isEmpty()) {
             return true;
         }
-        for (AbstractMap.SimpleImmutableEntry<String, String> partition : partitionList) {
-            List<AbstractExpression> expressionList = expressions.stream()
-                    .filter(expr -> expr.columnName.equalsIgnoreCase(partition.getKey()))
-                    .collect(Collectors.toList());
-            for (AbstractExpression expression : expressionList) {
-                LOGGER.debug("Evaluating field value {} against the expression {}", partition, expressions);
-                if (!expression.apply(partition.getValue())) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        Map<String, List<AbstractExpression>> expressionMap = expressions.stream()
+                .collect(Collectors.groupingBy(AbstractExpression::getColumnName,
+                        () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER), toCollection(ArrayList::new)));
+
+        boolean expressionFailureExists = partitionList.stream().anyMatch(partitionEntry ->
+                (expressionMap.getOrDefault(partitionEntry.getKey(), List.of()).stream()
+                        .anyMatch(expr -> {
+                            boolean result = expr.apply(partitionEntry.getValue());
+                            LOGGER.debug("Partition entry: {}, expression: {}, result: {}", partitionEntry, expr, result);
+                            return !result;
+                        }))
+        );
+
+        return !expressionFailureExists;
     }
 
     /**
