@@ -74,12 +74,9 @@ public class PartitionUtil
     {
         Optional<String> optionalFolderRegex = getRegExExpression(table);
         if (optionalFolderRegex.isPresent()) {
-            String folderRegex = optionalFolderRegex.get();
-            Pattern folderMatchPattern = Pattern.compile(folderRegex);
-            if (folderMatchPattern.matcher(partitionFolder).matches()) {
-                return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
-                        partitionFolder, folderRegex, table.getPartitionKeys());
-            }
+            String folderNameRegEx = optionalFolderRegex.get();
+            return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
+                partitionFolder, folderNameRegEx, table.getPartitionKeys());
         }
         return Map.of();
     }
@@ -88,16 +85,16 @@ public class PartitionUtil
      * Return a list of storage partition(column name, column type and value)
      *
      * @param partitionPattern Name of the bucket
-     * @param folderModel      partition folder name
+     * @param partitionFolder      partition folder name
      * @param folderNameRegEx  folder name regular expression
      * @param partitionColumns partition column name list
      * @return List of storage partition(column name, column type and value)
      */
-    protected static Map<String, String> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns)
+    protected static Map<String, String> getStoragePartitions(String partitionPattern, String partitionFolder, String folderNameRegEx, List<Column> partitionColumns)
     {
         Map<String, String> partitions = new HashMap<>();
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
-        Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(folderModel);
+        Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(partitionFolder);
         var partitionColumnsSet = partitionColumns.stream()
                 .map(c -> c.getName())
                 .collect(Collectors.toCollection(() -> new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
