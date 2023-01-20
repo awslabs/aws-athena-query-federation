@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -65,22 +64,19 @@ public class PartitionUtil
     }
 
     /**
-     * Return a list of {@link AbstractMap.SimpleImmutableEntry<String, String>} instances
+     * Return a list of {@link Map<String, String>} instances
      *
      * @param table response of get table from AWS Glue
      * @param partitionFolder      partition folder name
-     * @return List of {@link AbstractMap.SimpleImmutableEntry<String, String>} instances (column name, and value)
+     * @return List of {@link Map<String, String>} instances (column name, and value)
      */
-    public static List<AbstractMap.SimpleImmutableEntry<String, String>> getPartitionColumnData(Table table, String partitionFolder)
+    public static List<Map<String, String>> getPartitionColumnData(Table table, String partitionFolder)
     {
         Optional<String> optionalFolderRegex = getRegExExpression(table);
         if (optionalFolderRegex.isPresent()) {
             String folderRegex = optionalFolderRegex.get();
-            Pattern folderMatchPattern = Pattern.compile(folderRegex);
-            if (folderMatchPattern.matcher(partitionFolder).matches()) {
-                return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
-                        partitionFolder, folderRegex, table.getPartitionKeys());
-            }
+            return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
+                    partitionFolder, folderRegex, table.getPartitionKeys());
         }
         return List.of();
     }
@@ -94,9 +90,9 @@ public class PartitionUtil
      * @param partitionColumns partition column name list
      * @return List of storage partition(column name, column type and value)
      */
-    protected static List<AbstractMap.SimpleImmutableEntry<String, String>> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns)
+    protected static List<Map<String, String>> getStoragePartitions(String partitionPattern, String folderModel, String folderNameRegEx, List<Column> partitionColumns)
     {
-        List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = new ArrayList<>();
+        List<Map<String, String>> partitions = new ArrayList<>();
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
         Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(folderModel);
         var partitionColumnsSet = partitionColumns.stream()
@@ -106,7 +102,7 @@ public class PartitionUtil
             for (int j = 1; j <= partitionFolderMatcher.groupCount() && partitionPatternMatcher.find(); j++) {
                 LOGGER.debug("Partition folder {} : {}", partitionPatternMatcher.group(1), partitionFolderMatcher.group(j));
                 if (partitionColumnsSet.contains(partitionPatternMatcher.group(1))) {
-                    partitions.add(new AbstractMap.SimpleImmutableEntry<>(partitionPatternMatcher.group(1), partitionFolderMatcher.group(j)));
+                    partitions.add(Map.of(partitionPatternMatcher.group(1), partitionFolderMatcher.group(j)));
                 }
                 else {
                     throw new IllegalArgumentException("Column '" + partitionPatternMatcher.group(1) + "' is not defined as partition key in Glue Table");

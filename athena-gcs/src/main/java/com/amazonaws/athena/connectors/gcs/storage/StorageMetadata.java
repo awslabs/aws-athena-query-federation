@@ -52,11 +52,12 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -135,14 +136,14 @@ public class StorageMetadata
      * @param tableInfo Name of the table
      * @param constraints An instance of {@link Constraints}, captured from where clauses
      * @param awsGlue An instance of {@link AWSGlue}
-     * @return A list of {@link List<AbstractMap.SimpleImmutableEntry<String, String>>} instances
+     * @return A list of {@link List<Map<String, String>>} instances
      * @throws URISyntaxException Throws if any occurs during parsing Uri
      */
-    public List<List<AbstractMap.SimpleImmutableEntry<String, String>>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
+    public Set<List<Map<String, String>>> getPartitionFolders(Schema schema, TableName tableInfo, Constraints constraints, AWSGlue awsGlue)
             throws URISyntaxException
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
-        List<List<AbstractMap.SimpleImmutableEntry<String, String>>> partitionFolders = new ArrayList<>();
+        Set<List<Map<String, String>>> partitionFolders = new HashSet<>();
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
 
         List<AbstractExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
@@ -158,7 +159,7 @@ public class StorageMetadata
                 folderPath = folderPath.substring(1);
             }
             LOGGER.info("Examining folder {}", folderPath);
-            List<AbstractMap.SimpleImmutableEntry<String, String>> partitions = PartitionUtil.getPartitionColumnData(table, folderPath);
+            List<Map<String, String>> partitions = PartitionUtil.getPartitionColumnData(table, folderPath);
             if (!partitions.isEmpty() && checkPartitionWithConstrains(partitions, expressions)) {
                 partitionFolders.add(partitions);
                 LOGGER.info("Folder {} is selected", folderPath);
@@ -208,7 +209,7 @@ public class StorageMetadata
         return factory.inspect();
     }
 
-    private boolean checkPartitionWithConstrains(List<AbstractMap.SimpleImmutableEntry<String, String>> partitionList, List<AbstractExpression> expressions)
+    private boolean checkPartitionWithConstrains(List<Map<String, String>> partitionList, List<AbstractExpression> expressions)
     {
         if (expressions.isEmpty()) {
             return true;
@@ -218,9 +219,9 @@ public class StorageMetadata
                         () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER), toCollection(ArrayList::new)));
 
         boolean expressionFailureExists = partitionList.stream().anyMatch(partitionEntry ->
-                (expressionMap.getOrDefault(partitionEntry.getKey(), List.of()).stream()
+                (expressionMap.getOrDefault(partitionEntry.keySet().stream().findFirst().get(), List.of()).stream()
                         .anyMatch(expr -> {
-                            boolean result = expr.apply(partitionEntry.getValue());
+                            boolean result = expr.apply(partitionEntry.values().stream().findFirst().get());
                             LOGGER.debug("Partition entry: {}, expression: {}, result: {}", partitionEntry, expr, result);
                             return !result;
                         }))
