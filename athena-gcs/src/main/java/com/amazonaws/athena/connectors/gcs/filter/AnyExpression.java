@@ -45,14 +45,9 @@ public class AnyExpression extends AbstractExpression
      */
     public boolean apply(String value)
     {
-        String[] expressions = (String[]) expression;
+        java.util.List<String> expressions = (java.util.List<String>) expression;
         LOGGER.info("Evaluating {} against {}", value, expressions);
-        for (String expression : expressions) {
-            if (value.equals(expression)) {
-                return true;
-            }
-        }
-        return false;
+        return expressions.stream().anyMatch(expression -> expression.equals(value));
     }
 
     @Override

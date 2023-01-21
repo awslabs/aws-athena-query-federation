@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.gcs.filter;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -64,7 +63,7 @@ public class FilterExpressionBuilder
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
                 LOGGER.info("Value set for column {} was {}", column, valueSet);
                 if (valueSet != null) {
-                    conjuncts.addAll(getFilterExpressions(column.getName(), valueSet));
+                    conjuncts.add(getFilterExpressions(column.getName(), valueSet));
                 }
             }
         }
@@ -72,31 +71,26 @@ public class FilterExpressionBuilder
     }
 
     /**
-     * Add one or more {@link AbstractExpression} based on {@link ValueSet}
+     * Returns an {@link AbstractExpression} based on {@link ValueSet}
      *
      * @param columnName The name of the column
      * @param valueSet   An instance of {@link ValueSet}
-     * @return List of {@link AbstractExpression}
+     * @return {@link AbstractExpression}
      */
-    private List<AbstractExpression> getFilterExpressions(String columnName, ValueSet valueSet)
+    private AbstractExpression getFilterExpressions(String columnName, ValueSet valueSet)
     {
         LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
-        List<AbstractExpression> disjuncts = new ArrayList<>();
-        List<Object> singleValues = new ArrayList<>();
         LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
 
-        for (Range range : valueSet.getRanges().getOrderedRanges()) {
-            if (range.isSingleValue()) {
-                singleValues.add(range.getLow().getValue());
-            }
-        }
+        List<Object> singleValues = valueSet.getRanges().getOrderedRanges().stream()
+          .filter(range -> range.isSingleValue())
+          .map(range -> range.getLow().getValue())
+          .collect(Collectors.toList());
+
         if (singleValues.size() == 1) {
-            disjuncts.add(new EqualsExpression(columnName.toLowerCase(), singleValues.get(0)));
+            return new EqualsExpression(columnName.toLowerCase(), singleValues.get(0));
         }
-        else {
-            disjuncts.add(new AnyExpression(columnName.toLowerCase(),
-                    singleValues.stream().map(Object::toString).collect(Collectors.toList()).toArray(new String[singleValues.size()])));
-        }
-        return disjuncts;
+
+        return new AnyExpression(columnName.toLowerCase(), singleValues.stream().map(Object::toString).collect(Collectors.toList()));
     }
 }

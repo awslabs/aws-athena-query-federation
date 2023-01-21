@@ -37,7 +37,7 @@ public class ExpressionTest
     @Test
     public void testAnyExpression()
     {
-        AbstractExpression expression = new AnyExpression("test_col", new String[] {"test1", "test2"});
+        AbstractExpression expression = new AnyExpression("test_col", java.util.List.of("test1", "test2"));
         assertTrue(expression.apply("test2"), "Amy expression evaluated to false");
         assertEquals("test_col", expression.getColumnName(), "Column doesn't match");
     }
