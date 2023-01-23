@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -30,17 +30,17 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_THREE;
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FOUR;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 
-public class ObjectMapperFactoryV3Test
+public class ObjectMapperFactoryV4Test
 {
     @Test(expected = JsonMappingException.class)
     public void testStrictSerializer()
             throws JsonProcessingException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
+            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FOUR);
             mapper.writeValueAsString(new ArrowType.Null());
         }
     }
@@ -50,7 +50,7 @@ public class ObjectMapperFactoryV3Test
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
+            ObjectMapper mapper = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FOUR);
             mapper.readValue("{\"@type\" : \"FloatingPoint\", \"precision\" : \"DOUBLE\"}", ArrowType.FloatingPoint.class);
         }
     }

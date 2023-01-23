@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
@@ -36,9 +36,9 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-public class GetDataSourceCapabilitiesRequestSerDeV3
+public class GetDataSourceCapabilitiesRequestSerDeV4
 {
-    private GetDataSourceCapabilitiesRequestSerDeV3() {}
+    private GetDataSourceCapabilitiesRequestSerDeV4() {}
 
     public static final class Serializer extends MetadataRequestSerializer implements VersionedSerDe.Serializer<FederationRequest>
     {

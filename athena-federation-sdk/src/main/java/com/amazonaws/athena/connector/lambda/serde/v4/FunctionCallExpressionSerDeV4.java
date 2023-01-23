@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
@@ -38,13 +38,13 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-public final class FunctionCallExpressionSerDeV3
+public final class FunctionCallExpressionSerDeV4
 {
     private static final String FUNCTION_NAME_FIELD = "functionName";
     private static final String TYPE_FIELD = "type";
     private static final String ARGUMENTS_FIELD = "arguments";
 
-    private FunctionCallExpressionSerDeV3() {}
+    private FunctionCallExpressionSerDeV4() {}
 
     public static final class Serializer extends TypedSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {

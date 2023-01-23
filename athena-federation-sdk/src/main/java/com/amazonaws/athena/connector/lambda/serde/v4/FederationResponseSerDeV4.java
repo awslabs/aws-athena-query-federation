@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingDeserializer;
@@ -36,9 +36,9 @@ import com.amazonaws.athena.connector.lambda.serde.v2.RemoteReadRecordsResponseS
 import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionResponseSerDe;
 import com.google.common.collect.ImmutableSet;
 
-public class FederationResponseSerDeV3
+public class FederationResponseSerDeV4
 {
-    private FederationResponseSerDeV3() {}
+    private FederationResponseSerDeV4() {}
 
     public static final class Serializer extends DelegatingSerializer<FederationResponse> implements VersionedSerDe.Serializer<FederationResponse>
     {
@@ -52,7 +52,7 @@ public class FederationResponseSerDeV3
                 ReadRecordsResponseSerDe.Serializer readRecordsSerializer,
                 RemoteReadRecordsResponseSerDe.Serializer remoteReadRecordsSerializer,
                 UserDefinedFunctionResponseSerDe.Serializer userDefinedFunctionSerializer,
-                GetDataSourceCapabilitiesResponseSerDeV3.Serializer getDataSourceCapabilitiesSerializer)
+                GetDataSourceCapabilitiesResponseSerDeV4.Serializer getDataSourceCapabilitiesSerializer)
         {
             super(FederationResponse.class, ImmutableSet.<TypedSerializer<FederationResponse>>builder()
                     .add(pingSerializer)
@@ -81,7 +81,7 @@ public class FederationResponseSerDeV3
                 ReadRecordsResponseSerDe.Deserializer readRecordsDeserializer,
                 RemoteReadRecordsResponseSerDe.Deserializer remoteReadRecordsDeserializer,
                 UserDefinedFunctionResponseSerDe.Deserializer userDefinedFunctionDeserializer,
-                GetDataSourceCapabilitiesResponseSerDeV3.Deserializer getDataSourceCapabilitiesDeserializer)
+                GetDataSourceCapabilitiesResponseSerDeV4.Deserializer getDataSourceCapabilitiesDeserializer)
         {
             super(FederationResponse.class, ImmutableSet.<TypedDeserializer<FederationResponse>>builder()
                     .add(pingDeserializer)

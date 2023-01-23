@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
@@ -37,12 +37,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-public class GetDataSourceCapabilitiesResponseSerDeV3
+public class GetDataSourceCapabilitiesResponseSerDeV4
 {
     private static final String CATALOG_NAME_FIELD = "catalogName";
     private static final String CAPABILITIES_NAME_FIELD = "capabilities";
 
-    private GetDataSourceCapabilitiesResponseSerDeV3() {}
+    private GetDataSourceCapabilitiesResponseSerDeV4() {}
 
     public static final class Serializer extends TypedSerializer<FederationResponse> implements VersionedSerDe.Serializer<FederationResponse>
     {

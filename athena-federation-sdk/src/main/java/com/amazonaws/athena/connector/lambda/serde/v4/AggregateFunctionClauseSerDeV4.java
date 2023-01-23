@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
@@ -37,13 +37,13 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public class AggregateFunctionClauseSerDeV3
+public class AggregateFunctionClauseSerDeV4
 {
     private static final String AGGREGATE_FUNCTIONS_FIELD = "aggregateFunctions";
     private static final String COLUMN_NAMES_FIELD = "columnNames";
     private static final String GROUPING_SETS_FIELD = "groupingSets";
 
-    private AggregateFunctionClauseSerDeV3() {}
+    private AggregateFunctionClauseSerDeV4() {}
 
     public static final class Serializer extends BaseSerializer<AggregateFunctionClause> implements VersionedSerDe.Serializer<AggregateFunctionClause>
     {

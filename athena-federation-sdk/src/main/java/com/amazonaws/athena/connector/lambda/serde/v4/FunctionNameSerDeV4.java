@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -30,11 +30,11 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-public final class FunctionNameSerDeV3
+public final class FunctionNameSerDeV4
 {
     private static final String FUNCTION_NAME_FIELD = "functionName";
 
-    private FunctionNameSerDeV3() {}
+    private FunctionNameSerDeV4() {}
 
     public static final class Serializer extends BaseSerializer<FunctionName> implements VersionedSerDe.Serializer<FunctionName>
     {

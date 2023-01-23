@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -31,12 +31,12 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.IOException;
 import java.util.List;
 
-public class OptimizationSubTypeSerDeV3
+public class OptimizationSubTypeSerDeV4
 {
     private static final String SUBTYPE_FIELD = "subType";
     private static final String PROPERTIES_FIELD = "properties";
 
-    private OptimizationSubTypeSerDeV3() {}
+    private OptimizationSubTypeSerDeV4() {}
 
     public static final class Serializer extends BaseSerializer<OptimizationSubType> implements VersionedSerDe.Serializer<OptimizationSubType>
     {

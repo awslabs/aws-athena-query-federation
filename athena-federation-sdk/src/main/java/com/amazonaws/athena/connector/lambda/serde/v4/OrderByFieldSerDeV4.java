@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -30,12 +30,12 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import java.io.IOException;
 
-public class OrderByFieldSerDeV3
+public class OrderByFieldSerDeV4
 {
     private static final String COLUMN_NAME_FIELD = "columnName";
     private static final String DIRECTION_FIELD = "direction";
 
-    private OrderByFieldSerDeV3() {}
+    private OrderByFieldSerDeV4() {}
 
     public static final class Serializer extends BaseSerializer<OrderByField> implements VersionedSerDe.Serializer<OrderByField>
     {

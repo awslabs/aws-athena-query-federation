@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.BaseSerializer;
@@ -37,9 +37,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 
-public final class SchemaSerDeV3 implements VersionedSerDe
+public final class SchemaSerDeV4 implements VersionedSerDe
 {
-    SchemaSerDeV3() {}
+    SchemaSerDeV4() {}
 
     public static final class Serializer extends BaseSerializer<Schema> implements VersionedSerDe.Serializer<Schema>
     {

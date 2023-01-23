@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.serde.BaseDeserializer;
@@ -41,9 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ArrowRecordBatchSerDeV3
+public final class ArrowRecordBatchSerDeV4
 {
-    private ArrowRecordBatchSerDeV3() {}
+    private ArrowRecordBatchSerDeV4() {}
 
     static final class Serializer extends BaseSerializer<ArrowRecordBatch>
     {

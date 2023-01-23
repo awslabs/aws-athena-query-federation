@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
@@ -41,7 +41,7 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public final class ConstraintsSerDeV3
+public final class ConstraintsSerDeV4
 {
     private static final String SUMMARY_FIELD = "summary";
     private static final String EXPRESSION_FIELD = "expression";
@@ -49,7 +49,7 @@ public final class ConstraintsSerDeV3
     private static final String ORDER_BY_CLAUSE = "orderByClause";
     private static final String LIMIT_FIELD = "limit";
 
-    private ConstraintsSerDeV3() {}
+    private ConstraintsSerDeV4() {}
 
     public static final class Serializer extends BaseSerializer<Constraints> implements VersionedSerDe.Serializer<Constraints>
     {

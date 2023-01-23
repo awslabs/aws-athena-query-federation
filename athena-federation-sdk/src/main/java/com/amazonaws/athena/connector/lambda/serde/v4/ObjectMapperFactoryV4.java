@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -87,7 +87,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.pojo.Schema;
 
-public class ObjectMapperFactoryV3
+public class ObjectMapperFactoryV4
 {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final String LAMDA_EXCEPTION_CLASS_NAME = LambdaFunctionException.class.getName();
@@ -102,7 +102,7 @@ public class ObjectMapperFactoryV3
         SERIALIZER_FACTORY = new StrictSerializerFactory(config);
     }
 
-    private ObjectMapperFactoryV3() {}
+    private ObjectMapperFactoryV4() {}
 
     /**
      * Custom SerializerFactory that *only* uses the custom serializers that we inject into the {@link ObjectMapper}.
@@ -200,12 +200,12 @@ public class ObjectMapperFactoryV3
         return new StrictObjectMapper(allocator);
     }
 
-    private static FederationRequestSerDeV3.Serializer createRequestSerializer()
+    private static FederationRequestSerDeV4.Serializer createRequestSerializer()
     {
         FederatedIdentitySerDe.Serializer identity = new FederatedIdentitySerDe.Serializer();
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
-        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV3.Serializer();
-        VersionedSerDe.Serializer<Block> block = new BlockSerDeV3.Serializer(schema);
+        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV4.Serializer();
+        VersionedSerDe.Serializer<Block> block = new BlockSerDeV4.Serializer(schema);
         ArrowTypeSerDe.Serializer arrowType = new ArrowTypeSerDe.Serializer();
         MarkerSerDe.Serializer marker = new MarkerSerDe.Serializer(block);
         RangeSerDe.Serializer range = new RangeSerDe.Serializer(marker);
@@ -213,15 +213,15 @@ public class ObjectMapperFactoryV3
         SortedRangeSetSerDe.Serializer sortedRangeSet = new SortedRangeSetSerDe.Serializer(arrowType, range);
         AllOrNoneValueSetSerDe.Serializer allOrNoneValueSet = new AllOrNoneValueSetSerDe.Serializer(arrowType);
         ValueSetSerDe.Serializer valueSet = new ValueSetSerDe.Serializer(equatableValueSet, sortedRangeSet, allOrNoneValueSet);
-        VersionedSerDe.Serializer<FunctionName> functionName = new FunctionNameSerDeV3.Serializer();
-        ConstantExpressionSerDeV3.Serializer constantExpression = new ConstantExpressionSerDeV3.Serializer(block, arrowType);
-        FunctionCallExpressionSerDeV3.Serializer functionCallExpression = new FunctionCallExpressionSerDeV3.Serializer(functionName, arrowType);
-        VariableExpressionSerDeV3.Serializer variableExpression = new VariableExpressionSerDeV3.Serializer(arrowType);
-        VersionedSerDe.Serializer<FederationExpression> federationExpression = new FederationExpressionSerDeV3.Serializer(constantExpression, functionCallExpression, variableExpression);
+        VersionedSerDe.Serializer<FunctionName> functionName = new FunctionNameSerDeV4.Serializer();
+        ConstantExpressionSerDeV4.Serializer constantExpression = new ConstantExpressionSerDeV4.Serializer(block, arrowType);
+        FunctionCallExpressionSerDeV4.Serializer functionCallExpression = new FunctionCallExpressionSerDeV4.Serializer(functionName, arrowType);
+        VariableExpressionSerDeV4.Serializer variableExpression = new VariableExpressionSerDeV4.Serializer(arrowType);
+        VersionedSerDe.Serializer<FederationExpression> federationExpression = new FederationExpressionSerDeV4.Serializer(constantExpression, functionCallExpression, variableExpression);
         functionCallExpression.setFederationExpressionSerializer(federationExpression);
-        VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV3.Serializer(federationExpression);
-        VersionedSerDe.Serializer<OrderByField> orderByField = new OrderByFieldSerDeV3.Serializer();
-        VersionedSerDe.Serializer<Constraints> constraints = new ConstraintsSerDeV3.Serializer(valueSet, federationExpression, aggregateFunctionClause, orderByField);
+        VersionedSerDe.Serializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV4.Serializer(federationExpression);
+        VersionedSerDe.Serializer<OrderByField> orderByField = new OrderByFieldSerDeV4.Serializer();
+        VersionedSerDe.Serializer<Constraints> constraints = new ConstraintsSerDeV4.Serializer(valueSet, federationExpression, aggregateFunctionClause, orderByField);
         S3SpillLocationSerDe.Serializer s3SpillLocation = new S3SpillLocationSerDe.Serializer();
         SpillLocationSerDe.Serializer spillLocation = new SpillLocationSerDe.Serializer(s3SpillLocation);
         EncryptionKeySerDe.Serializer encryptionKey = new EncryptionKeySerDe.Serializer();
@@ -234,8 +234,8 @@ public class ObjectMapperFactoryV3
         GetSplitsRequestSerDe.Serializer getSplits = new GetSplitsRequestSerDe.Serializer(identity, tableName, block, constraints);
         ReadRecordsRequestSerDe.Serializer readRecords = new ReadRecordsRequestSerDe.Serializer(identity, tableName, constraints, schema, split);
         UserDefinedFunctionRequestSerDe.Serializer userDefinedFunction = new UserDefinedFunctionRequestSerDe.Serializer(identity, block, schema);
-        GetDataSourceCapabilitiesRequestSerDeV3.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV3.Serializer(identity);
-        return new FederationRequestSerDeV3.Serializer(
+        GetDataSourceCapabilitiesRequestSerDeV4.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV4.Serializer(identity);
+        return new FederationRequestSerDeV4.Serializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -247,12 +247,12 @@ public class ObjectMapperFactoryV3
                 getDataSourceCapabilities);
     }
 
-    private static FederationRequestSerDeV3.Deserializer createRequestDeserializer(BlockAllocator allocator)
+    private static FederationRequestSerDeV4.Deserializer createRequestDeserializer(BlockAllocator allocator)
     {
         FederatedIdentitySerDe.Deserializer identity = new FederatedIdentitySerDe.Deserializer();
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
-        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV3.Deserializer();
-        VersionedSerDe.Deserializer<Block> block = new BlockSerDeV3.Deserializer(allocator, schema);
+        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV4.Deserializer();
+        VersionedSerDe.Deserializer<Block> block = new BlockSerDeV4.Deserializer(allocator, schema);
         ArrowTypeSerDe.Deserializer arrowType = new ArrowTypeSerDe.Deserializer();
         MarkerSerDe.Deserializer marker = new MarkerSerDe.Deserializer(block);
         RangeSerDe.Deserializer range = new RangeSerDe.Deserializer(marker);
@@ -261,15 +261,15 @@ public class ObjectMapperFactoryV3
         AllOrNoneValueSetSerDe.Deserializer allOrNoneValueSet = new AllOrNoneValueSetSerDe.Deserializer(arrowType);
         ValueSetSerDe.Deserializer valueSet = new ValueSetSerDe.Deserializer(equatableValueSet, sortedRangeSet, allOrNoneValueSet);
 
-        VersionedSerDe.Deserializer<FunctionName> functionName = new FunctionNameSerDeV3.Deserializer();
-        ConstantExpressionSerDeV3.Deserializer constantExpression = new ConstantExpressionSerDeV3.Deserializer(block, arrowType);
-        FunctionCallExpressionSerDeV3.Deserializer functionCallExpression = new FunctionCallExpressionSerDeV3.Deserializer(functionName, arrowType);
-        VariableExpressionSerDeV3.Deserializer variableExpression = new VariableExpressionSerDeV3.Deserializer(arrowType);
-        VersionedSerDe.Deserializer<FederationExpression> federationExpression = new FederationExpressionSerDeV3.Deserializer(constantExpression, functionCallExpression, variableExpression);
+        VersionedSerDe.Deserializer<FunctionName> functionName = new FunctionNameSerDeV4.Deserializer();
+        ConstantExpressionSerDeV4.Deserializer constantExpression = new ConstantExpressionSerDeV4.Deserializer(block, arrowType);
+        FunctionCallExpressionSerDeV4.Deserializer functionCallExpression = new FunctionCallExpressionSerDeV4.Deserializer(functionName, arrowType);
+        VariableExpressionSerDeV4.Deserializer variableExpression = new VariableExpressionSerDeV4.Deserializer(arrowType);
+        VersionedSerDe.Deserializer<FederationExpression> federationExpression = new FederationExpressionSerDeV4.Deserializer(constantExpression, functionCallExpression, variableExpression);
         functionCallExpression.setFederationExpressionSerializer(federationExpression);
-        VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV3.Deserializer(federationExpression);
-        VersionedSerDe.Deserializer<OrderByField> orderByField = new OrderByFieldSerDeV3.Deserializer();
-        VersionedSerDe.Deserializer<Constraints> constraints = new ConstraintsSerDeV3.Deserializer(valueSet, federationExpression, aggregateFunctionClause, orderByField);
+        VersionedSerDe.Deserializer<AggregateFunctionClause> aggregateFunctionClause = new AggregateFunctionClauseSerDeV4.Deserializer(federationExpression);
+        VersionedSerDe.Deserializer<OrderByField> orderByField = new OrderByFieldSerDeV4.Deserializer();
+        VersionedSerDe.Deserializer<Constraints> constraints = new ConstraintsSerDeV4.Deserializer(valueSet, federationExpression, aggregateFunctionClause, orderByField);
 
         S3SpillLocationSerDe.Deserializer s3SpillLocation = new S3SpillLocationSerDe.Deserializer();
         SpillLocationSerDe.Deserializer spillLocation = new SpillLocationSerDe.Deserializer(s3SpillLocation);
@@ -284,9 +284,9 @@ public class ObjectMapperFactoryV3
         GetSplitsRequestSerDe.Deserializer getSplits = new GetSplitsRequestSerDe.Deserializer(identity, tableName, block, constraints);
         ReadRecordsRequestSerDe.Deserializer readRecords = new ReadRecordsRequestSerDe.Deserializer(identity, tableName, constraints, schema, split);
         UserDefinedFunctionRequestSerDe.Deserializer userDefinedFunction = new UserDefinedFunctionRequestSerDe.Deserializer(identity, block, schema);
-        GetDataSourceCapabilitiesRequestSerDeV3.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV3.Deserializer(identity);
+        GetDataSourceCapabilitiesRequestSerDeV4.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesRequestSerDeV4.Deserializer(identity);
 
-        return new FederationRequestSerDeV3.Deserializer(
+        return new FederationRequestSerDeV4.Deserializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -298,11 +298,11 @@ public class ObjectMapperFactoryV3
                 getDataSourceCapabilities);
     }
 
-    private static FederationResponseSerDeV3.Serializer createResponseSerializer()
+    private static FederationResponseSerDeV4.Serializer createResponseSerializer()
     {
         TableNameSerDe.Serializer tableName = new TableNameSerDe.Serializer();
-        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV3.Serializer();
-        VersionedSerDe.Serializer<Block> block = new BlockSerDeV3.Serializer(schema);
+        VersionedSerDe.Serializer<Schema> schema = new SchemaSerDeV4.Serializer();
+        VersionedSerDe.Serializer<Block> block = new BlockSerDeV4.Serializer(schema);
         S3SpillLocationSerDe.Serializer s3SpillLocation = new S3SpillLocationSerDe.Serializer();
         SpillLocationSerDe.Serializer spillLocation = new SpillLocationSerDe.Serializer(s3SpillLocation);
         EncryptionKeySerDe.Serializer encryptionKey = new EncryptionKeySerDe.Serializer();
@@ -317,10 +317,10 @@ public class ObjectMapperFactoryV3
         ReadRecordsResponseSerDe.Serializer readRecords = new ReadRecordsResponseSerDe.Serializer(block);
         RemoteReadRecordsResponseSerDe.Serializer remoteReadRecords = new RemoteReadRecordsResponseSerDe.Serializer(schema, spillLocation, encryptionKey);
         UserDefinedFunctionResponseSerDe.Serializer userDefinedFunction = new UserDefinedFunctionResponseSerDe.Serializer(block);
-        VersionedSerDe.Serializer<OptimizationSubType> optimizationSubtype = new OptimizationSubTypeSerDeV3.Serializer();
-        GetDataSourceCapabilitiesResponseSerDeV3.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Serializer(optimizationSubtype);
+        VersionedSerDe.Serializer<OptimizationSubType> optimizationSubtype = new OptimizationSubTypeSerDeV4.Serializer();
+        GetDataSourceCapabilitiesResponseSerDeV4.Serializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV4.Serializer(optimizationSubtype);
 
-        return new FederationResponseSerDeV3.Serializer(
+        return new FederationResponseSerDeV4.Serializer(
                 ping,
                 listSchemas,
                 listTables,
@@ -333,11 +333,11 @@ public class ObjectMapperFactoryV3
                 getDataSourceCapabilities);
     }
 
-    private static FederationResponseSerDeV3.Deserializer createResponseDeserializer(BlockAllocator allocator)
+    private static FederationResponseSerDeV4.Deserializer createResponseDeserializer(BlockAllocator allocator)
     {
         TableNameSerDe.Deserializer tableName = new TableNameSerDe.Deserializer();
-        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV3.Deserializer();
-        VersionedSerDe.Deserializer<Block> block = new BlockSerDeV3.Deserializer(allocator, schema);
+        VersionedSerDe.Deserializer<Schema> schema = new SchemaSerDeV4.Deserializer();
+        VersionedSerDe.Deserializer<Block> block = new BlockSerDeV4.Deserializer(allocator, schema);
         S3SpillLocationSerDe.Deserializer s3SpillLocation = new S3SpillLocationSerDe.Deserializer();
         SpillLocationSerDe.Deserializer spillLocation = new SpillLocationSerDe.Deserializer(s3SpillLocation);
         EncryptionKeySerDe.Deserializer encryptionKey = new EncryptionKeySerDe.Deserializer();
@@ -352,10 +352,10 @@ public class ObjectMapperFactoryV3
         ReadRecordsResponseSerDe.Deserializer readRecords = new ReadRecordsResponseSerDe.Deserializer(block);
         RemoteReadRecordsResponseSerDe.Deserializer remoteReadRecords = new RemoteReadRecordsResponseSerDe.Deserializer(schema, spillLocation, encryptionKey);
         UserDefinedFunctionResponseSerDe.Deserializer userDefinedFunction = new UserDefinedFunctionResponseSerDe.Deserializer(block);
-        VersionedSerDe.Deserializer<OptimizationSubType> optimizationSubtype = new OptimizationSubTypeSerDeV3.Deserializer();
-        GetDataSourceCapabilitiesResponseSerDeV3.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV3.Deserializer(optimizationSubtype);
+        VersionedSerDe.Deserializer<OptimizationSubType> optimizationSubtype = new OptimizationSubTypeSerDeV4.Deserializer();
+        GetDataSourceCapabilitiesResponseSerDeV4.Deserializer getDataSourceCapabilities = new GetDataSourceCapabilitiesResponseSerDeV4.Deserializer(optimizationSubtype);
 
-        return new FederationResponseSerDeV3.Deserializer(
+        return new FederationResponseSerDeV4.Deserializer(
                 ping,
                 listSchemas,
                 listTables,

@@ -17,10 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
+import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connector.lambda.serde.TypedDeserializer;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
@@ -35,20 +36,23 @@ import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-public final class VariableExpressionSerDeV3
+public final class ConstantExpressionSerDeV4
 {
-    private static final String COLUMN_NAME_FIELD = "columnName";
+    private static final String VALUE_BLOCK_FIELD = "valueBlock";
     private static final String TYPE_FIELD = "type";
 
-    private VariableExpressionSerDeV3() {}
+    private ConstantExpressionSerDeV4() {}
 
     public static final class Serializer extends TypedSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {
+        private final VersionedSerDe.Serializer<Block> blockSerializer;
         private final ArrowTypeSerDe.Serializer arrowTypeSerializer;
 
-        public Serializer(ArrowTypeSerDe.Serializer arrowTypeSerializer)
+        public Serializer(VersionedSerDe.Serializer<Block> blockSerializer,
+                          ArrowTypeSerDe.Serializer arrowTypeSerializer)
         {
-            super(FederationExpression.class, VariableExpression.class);
+            super(FederationExpression.class, ConstantExpression.class);
+            this.blockSerializer = requireNonNull(blockSerializer, "blockSerDe is null");
             this.arrowTypeSerializer = requireNonNull(arrowTypeSerializer, "arrowTypeSerializer is null");
         }
 
@@ -56,22 +60,26 @@ public final class VariableExpressionSerDeV3
         protected void doTypedSerialize(FederationExpression federationExpression, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            VariableExpression variableExpression = (VariableExpression) federationExpression;
+            ConstantExpression constantExpression = (ConstantExpression) federationExpression;
 
-            jgen.writeStringField(COLUMN_NAME_FIELD, variableExpression.getColumnName());
+            jgen.writeFieldName(VALUE_BLOCK_FIELD);
+            blockSerializer.serialize(constantExpression.getValues(), jgen, provider);
 
             jgen.writeFieldName(TYPE_FIELD);
-            arrowTypeSerializer.serialize(variableExpression.getType(), jgen, provider);
+            arrowTypeSerializer.serialize(constantExpression.getType(), jgen, provider);
         }
     }
 
     public static final class Deserializer extends TypedDeserializer<FederationExpression> implements VersionedSerDe.Deserializer<FederationExpression>
     {
+        private final VersionedSerDe.Deserializer<Block> blockDeserializer;
         private final ArrowTypeSerDe.Deserializer arrowTypeDeserializer;
 
-        public Deserializer(ArrowTypeSerDe.Deserializer arrowTypeDeserializer)
+        public Deserializer(VersionedSerDe.Deserializer<Block> blockDeserializer,
+                            ArrowTypeSerDe.Deserializer arrowTypeDeserializer)
         {
-            super(FederationExpression.class, VariableExpression.class);
+            super(FederationExpression.class, ConstantExpression.class);
+            this.blockDeserializer = requireNonNull(blockDeserializer, "blockSerDe is null");
             this.arrowTypeDeserializer = requireNonNull(arrowTypeDeserializer, "arrowTypeDeserializer is null");
         }
 
@@ -79,12 +87,13 @@ public final class VariableExpressionSerDeV3
         protected FederationExpression doTypedDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
-           String columnName = getNextStringField(jparser, COLUMN_NAME_FIELD);
+            assertFieldName(jparser, VALUE_BLOCK_FIELD);
+            Block valueBlock = blockDeserializer.deserialize(jparser, ctxt);
 
             assertFieldName(jparser, TYPE_FIELD);
             ArrowType type = arrowTypeDeserializer.deserialize(jparser, ctxt);
 
-            return new VariableExpression(columnName, type);
+            return new ConstantExpression(valueBlock, type);
         }
     }
 }
