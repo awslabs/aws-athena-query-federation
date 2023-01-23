@@ -156,11 +156,12 @@ public class StorageMetadata
 
         List<Map<String, String>> partitionFolders = new ArrayList<>();
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
-            .map(blob -> blob.getName().replaceFirst("^" + path, ""))
-             // remove the front-slash, because, the expression generated without it
-            .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
-            .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-            .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstrains(partitionsMap, expressionMap)));
+                .filter(blob -> !isBlobFile(blob))
+                .map(blob -> blob.getName().replaceFirst("^" + path, ""))
+                 // remove the front-slash, because, the expression generated without it
+                .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
+                .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
+                .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstrains(partitionsMap, expressionMap)));
 
         LOGGER.info("getPartitionFolders results: {}", results);
 

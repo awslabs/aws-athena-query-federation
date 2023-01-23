@@ -54,16 +54,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 @PrepareForTest({GcsTestUtils.class})
 public class FilterExpressionBuilderTest
 {
-    private static final String STORAGE_SPLIT_JSON = "storage_split_json";
-    @Mock
-    public FederatedIdentity federatedIdentity;
-
     @Test
     public void testGetExpressions()
     {
-        Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
+        Schema schema = SchemaBuilder.newBuilder().addField("year", new ArrowType.Utf8()).build();
         FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema);
-        List<AbstractExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L)));
+        List<AbstractExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1")));
         assertNotNull(exp);
     }
 
@@ -74,7 +70,7 @@ public class FilterExpressionBuilderTest
         Mockito.when(fieldReader.getField()).thenReturn(Field.nullable(fieldName, fieldType));
 
         Mockito.when(block.getFieldReader(anyString())).thenReturn(fieldReader);
-        Marker low = Marker.exactly(new BlockAllocatorImpl(), new ArrowType.Int(32, true), fieldValue);
+        Marker low = Marker.exactly(new BlockAllocatorImpl(), new ArrowType.Utf8(), fieldValue);
         return Map.of(
                 fieldName, SortedRangeSet.of(false, new Range(low, low))
         );

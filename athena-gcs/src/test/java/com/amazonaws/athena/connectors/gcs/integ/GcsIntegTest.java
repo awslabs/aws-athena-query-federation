@@ -111,12 +111,7 @@ public class GcsIntegTest extends IntegrationTestBase
     @Override
     protected void setUp() throws Exception
     {
-        try {
             super.setUp();
-        }
-        catch (Exception e) {
-            throw e;
-        }
     }
 
     public GcsIntegTest()

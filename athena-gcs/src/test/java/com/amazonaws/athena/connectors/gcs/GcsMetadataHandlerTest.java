@@ -51,7 +51,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.GetTablesResult;
 import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
-import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
@@ -100,6 +99,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
@@ -109,11 +110,19 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 @PrepareForTest({StorageOptions.class, GoogleCredentials.class, AWSSecretsManagerClientBuilder.class, ServiceAccountCredentials.class, AWSGlueClientBuilder.class, GlueMetadataHandler.class})
 public class GcsMetadataHandlerTest
 {
+    public static final String PARQUET = "parquet";
     private static final String QUERY_ID = "queryId";
     private static final String CATALOG = "catalog";
     private static final String TEST_TOKEN = "testToken";
     private static final String SCHEMA_NAME = "default";
     private static final TableName TABLE_NAME = new TableName("default", "testtable");
+    public static final String LOCATION = "gs://mydatalake1test/birthday/";
+    public static final String TABLE_1 = "testtable1";
+    public static final String TABLE_2 = "testtable2";
+    public static final String CATALOG_NAME = "fakedatabase";
+    public static final String DATABASE_NAME = "mydatalake1";
+    public static final String S3_GOOGLE_CLOUD_STORAGE_FLAG = "s3://google-cloud-storage-flag";
+    public static final String DATABASE_NAME1 = "s3database";
     @Rule
     public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     @Mock
@@ -123,7 +132,6 @@ public class GcsMetadataHandlerTest
     private GcsMetadataHandler gcsMetadataHandler;
     private BlockAllocator blockAllocator;
     private FederatedIdentity federatedIdentity;
-    private QueryStatusChecker queryStatusChecker;
     @Mock
     private AWSGlue awsGlue;
     @Mock
@@ -132,8 +140,6 @@ public class GcsMetadataHandlerTest
     private ServiceAccountCredentials serviceAccountCredentials;
     @Mock
     private AmazonAthena athena;
-    @Mock
-    StorageMetadata storageMetadata;
 
     @Before
     public void setUp() throws Exception
@@ -176,15 +182,15 @@ public class GcsMetadataHandlerTest
     public void testDoListSchemaNames() throws Exception
     {
         GetDatabasesResult result = new GetDatabasesResult().withDatabaseList(
-                new Database().withName("gcsdatabase").withLocationUri("s3://google-cloud-storage-flag"),
-                new Database().withName("s3database").withLocationUri("s3://google-cloud-storage-flag"));
+                new Database().withName(DATABASE_NAME).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG),
+                new Database().withName(DATABASE_NAME1).withLocationUri(S3_GOOGLE_CLOUD_STORAGE_FLAG));
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity,
                 QUERY_ID, CATALOG);
         PowerMockito.when(awsGlue.getDatabases(any())).thenReturn(result);
         ListSchemasResponse schemaNamesResponse = gcsMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
         List<String> expectedSchemaNames = new ArrayList<>();
-        expectedSchemaNames.add("gcsdatabase");
-        expectedSchemaNames.add("s3database");
+        expectedSchemaNames.add(DATABASE_NAME);
+        expectedSchemaNames.add(DATABASE_NAME1);
         assertEquals(expectedSchemaNames, new ArrayList<>(schemaNamesResponse.getSchemas()));
     }
 
@@ -202,15 +208,16 @@ public class GcsMetadataHandlerTest
     {
         GetTablesResult getTablesResult = new GetTablesResult();
         List<Table> tableList = new ArrayList<>();
-        tableList.add(new Table().withName("testtable1")
-                .withParameters(ImmutableMap.of("classification", "parquet"))
+        tableList.add(new Table().withName(TABLE_1)
+
+                .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET))
                 .withStorageDescriptor(new StorageDescriptor()
-                        .withLocation("gs://default/testtable1/")));
-        tableList.add(new Table().withName("testtable2")
+                        .withLocation(LOCATION)));
+        tableList.add(new Table().withName(TABLE_2)
                 .withParameters(ImmutableMap.of())
                 .withStorageDescriptor(new StorageDescriptor()
-                        .withLocation("gs://default/testtable2/")
-                        .withParameters(ImmutableMap.of("classification", "parquet"))));
+                        .withLocation(LOCATION)
+                        .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET))));
         getTablesResult.setTableList(tableList);
         PowerMockito.when(awsGlue.getTables(any())).thenReturn(getTablesResult);
         ListTablesRequest listTablesRequest = new ListTablesRequest(federatedIdentity, QUERY_ID, CATALOG, SCHEMA_NAME, TEST_TOKEN, 50);
@@ -233,15 +240,15 @@ public class GcsMetadataHandlerTest
     {
         Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
-        metadataSchema.put("dataFormat", "parquet");
+        metadataSchema.put("dataFormat", PARQUET);
         Schema schema = new Schema(asList(field), metadataSchema);
         GetTableRequest getTableRequest = new GetTableRequest(federatedIdentity, QUERY_ID, "gcs", new TableName(SCHEMA_NAME, "testtable"));
         Table table = new Table();
-        table.setName("testtable");
-        table.setDatabaseName("default");
-        table.setParameters(ImmutableMap.of("classification", "parquet"));
+        table.setName(TABLE_1);
+        table.setDatabaseName(DATABASE_NAME);
+        table.setParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         table.setStorageDescriptor(new StorageDescriptor()
-                .withLocation("gs://default/testtable/").withColumns(new Column().withName("name").withType("String")));
+                .withLocation(LOCATION).withColumns(new Column().withName("name").withType("String")));
         table.setCatalogId(CATALOG);
         List<Column> columns = List.of(
                 createColumn("name", "String")
@@ -261,17 +268,15 @@ public class GcsMetadataHandlerTest
     @Test
     public void testGetPartitions() throws Exception
     {
-        environmentVariables.set("glue_catalog", "12345678910");
-        Field field = new Field("year", FieldType.nullable(new ArrowType.Utf8()), null);
         Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
         Table table = new Table();
-        table.setName("birthday");
-        table.setDatabaseName("mydatalake1");
-        table.setParameters(ImmutableMap.of("classification", "parquet",
-                "partition.pattern", "year={year}/birth_month{month}/{day}")
+        table.setName(TABLE_1);
+        table.setDatabaseName(DATABASE_NAME);
+        table.setParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET,
+                PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/{day}")
         );
         table.setStorageDescriptor(new StorageDescriptor()
-                .withLocation("gs://mydatalake1test/birthday/").withColumns(new Column()));
+                .withLocation(LOCATION).withColumns(new Column()));
         table.setCatalogId(CATALOG);
         List<Column> columns = List.of(
                 createColumn("year", "varchar"),
@@ -283,13 +288,14 @@ public class GcsMetadataHandlerTest
         getTableResult.setTable(table);
         PowerMockito.when(awsGlue.getTable(any())).thenReturn(getTableResult);
         GetTableLayoutRequest getTableLayoutRequest = Mockito.mock(GetTableLayoutRequest.class);
-        Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName("mydatalake1", "birthday"));
-        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn("fakedatabase");
+        Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName(DATABASE_NAME, TABLE_1));
+        Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(CATALOG_NAME);
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
         Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L));
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
-        gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, queryStatusChecker);
+        gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, null);
+        verify(blockWriter, times(1)).writeRows(any());
     }
 
     @Test
@@ -303,10 +309,10 @@ public class GcsMetadataHandlerTest
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
         GetTableResult getTableResult = mock(GetTableResult.class);
         StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
-        when(storageDescriptor.getLocation()).thenReturn("gs://mydatalake1test/birthday/");
+        when(storageDescriptor.getLocation()).thenReturn(LOCATION);
         Table table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/", CLASSIFICATION_GLUE_TABLE_PARAM, "parquet"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         when(awsGlue.getTable(any())).thenReturn(getTableResult);
         when(getTableResult.getTable()).thenReturn(table);
         List<Column> columns = List.of(
