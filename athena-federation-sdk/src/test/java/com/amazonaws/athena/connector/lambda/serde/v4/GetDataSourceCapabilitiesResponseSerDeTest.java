@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
@@ -68,7 +68,7 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
 
         expected = new GetDataSourceCapabilitiesResponse("test-catalog", capabilities);
 
-        String expectedSerDeFile = utils.getResourceOrFail("serde/v3", "GetDataSourceCapabilitiesResponse.json");
+        String expectedSerDeFile = utils.getResourceOrFail("serde/v4", "GetDataSourceCapabilitiesResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
     }
 
@@ -79,7 +79,7 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
         logger.info("serialize: enter");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        mapperV3.writeValue(outputStream, expected);
+        mapperV4.writeValue(outputStream, expected);
 
         String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
         logger.info("serialize: serialized text[{}]", actual);
@@ -96,7 +96,7 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
         logger.info("deserialize: enter");
         InputStream input = new ByteArrayInputStream(expectedSerDeText.getBytes());
 
-        GetDataSourceCapabilitiesResponse actual = (GetDataSourceCapabilitiesResponse) mapperV3.readValue(input, FederationResponse.class);
+        GetDataSourceCapabilitiesResponse actual = (GetDataSourceCapabilitiesResponse) mapperV4.readValue(input, FederationResponse.class);
 
         logger.info("deserialize: deserialized[{}]", actual);
 

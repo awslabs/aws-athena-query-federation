@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingDeserializer;
@@ -25,16 +25,16 @@ import com.amazonaws.athena.connector.lambda.serde.DelegatingSerializer;
 import com.amazonaws.athena.connector.lambda.serde.VersionedSerDe;
 import com.google.common.collect.ImmutableSet;
 
-public class FederationExpressionSerDeV3
+public class FederationExpressionSerDeV4
 {
-    private FederationExpressionSerDeV3() {}
+    private FederationExpressionSerDeV4() {}
 
     public static final class Serializer extends DelegatingSerializer<FederationExpression> implements VersionedSerDe.Serializer<FederationExpression>
     {
         public Serializer(
-                ConstantExpressionSerDeV3.Serializer constantExpressionSerializer,
-                FunctionCallExpressionSerDeV3.Serializer functionCallExpressionSerializer,
-                VariableExpressionSerDeV3.Serializer variableExpressionSerializer)
+                ConstantExpressionSerDeV4.Serializer constantExpressionSerializer,
+                FunctionCallExpressionSerDeV4.Serializer functionCallExpressionSerializer,
+                VariableExpressionSerDeV4.Serializer variableExpressionSerializer)
         {
             super(FederationExpression.class, ImmutableSet.of(
                     constantExpressionSerializer,
@@ -46,9 +46,9 @@ public class FederationExpressionSerDeV3
     public static final class Deserializer extends DelegatingDeserializer<FederationExpression> implements VersionedSerDe.Deserializer<FederationExpression>
     {
         public Deserializer(
-                ConstantExpressionSerDeV3.Deserializer constantExpressionDeserializer,
-                FunctionCallExpressionSerDeV3.Deserializer functionCallExpressionDeserializer,
-                VariableExpressionSerDeV3.Deserializer variableExpressionDeserializer)
+                ConstantExpressionSerDeV4.Deserializer constantExpressionDeserializer,
+                FunctionCallExpressionSerDeV4.Deserializer functionCallExpressionDeserializer,
+                VariableExpressionSerDeV4.Deserializer variableExpressionDeserializer)
         {
             super(FederationExpression.class, ImmutableSet.of(
                     constantExpressionDeserializer,

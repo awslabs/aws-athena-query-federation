@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.serde.v3;
+package com.amazonaws.athena.connector.lambda.serde.v4;
 
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.serde.DelegatingDeserializer;
@@ -35,9 +35,9 @@ import com.amazonaws.athena.connector.lambda.serde.v2.ReadRecordsRequestSerDe;
 import com.amazonaws.athena.connector.lambda.serde.v2.UserDefinedFunctionRequestSerDe;
 import com.google.common.collect.ImmutableSet;
 
-public class FederationRequestSerDeV3
+public class FederationRequestSerDeV4
 {
-    private FederationRequestSerDeV3() {}
+    private FederationRequestSerDeV4() {}
 
     public static final class Serializer extends DelegatingSerializer<FederationRequest> implements VersionedSerDe.Serializer<FederationRequest>
     {
@@ -50,7 +50,7 @@ public class FederationRequestSerDeV3
                 GetSplitsRequestSerDe.Serializer getSplitsSerializer,
                 ReadRecordsRequestSerDe.Serializer readRecordsSerializer,
                 UserDefinedFunctionRequestSerDe.Serializer userDefinedFunctionSerializer,
-                GetDataSourceCapabilitiesRequestSerDeV3.Serializer getDataSourceCapabilitiesSerializer)
+                GetDataSourceCapabilitiesRequestSerDeV4.Serializer getDataSourceCapabilitiesSerializer)
         {
             super(FederationRequest.class, ImmutableSet.<TypedSerializer<FederationRequest>>builder()
                     .add(pingSerializer)
@@ -77,7 +77,7 @@ public class FederationRequestSerDeV3
                 GetSplitsRequestSerDe.Deserializer getSplitsDeserializer,
                 ReadRecordsRequestSerDe.Deserializer readRecordsDeserializer,
                 UserDefinedFunctionRequestSerDe.Deserializer userDefinedFunctionDeserializer,
-                GetDataSourceCapabilitiesRequestSerDeV3.Deserializer getDataSourceCapabilitiesDeserializer)
+                GetDataSourceCapabilitiesRequestSerDeV4.Deserializer getDataSourceCapabilitiesDeserializer)
         {
             super(FederationRequest.class, ImmutableSet.<TypedDeserializer<FederationRequest>>builder()
                     .add(pingDeserializer)

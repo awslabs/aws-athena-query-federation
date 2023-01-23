@@ -30,7 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_THREE;
+import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_FOUR;
 import static com.amazonaws.athena.connector.lambda.utils.TestUtils.SERDE_VERSION_TWO;
 import static org.junit.Assert.assertEquals;
 
@@ -80,9 +80,9 @@ public class ObjectMapperUtil
         try (BlockAllocator allocator = new BlockAllocatorImpl()){
             // check SerDe write, SerDe read
             ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
-            ObjectMapper serDeV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
+            ObjectMapper serDeV4 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FOUR);
             ObjectMapper serDeV2 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
-            serDeV3.writeValue(serDeOut, object);
+            serDeV4.writeValue(serDeOut, object);
             byte[] serDeOutput = serDeOut.toByteArray();
             assertEquals(object, serDeV2.readValue(new ByteArrayInputStream(serDeOutput), clazz));
         }
@@ -102,11 +102,11 @@ public class ObjectMapperUtil
         try (BlockAllocator allocator = new BlockAllocatorImpl()){
             // check SerDe write, SerDe read
             ByteArrayOutputStream serDeOut = new ByteArrayOutputStream();
-            ObjectMapper serDeV3 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_THREE);
+            ObjectMapper serDeV4 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_FOUR);
             ObjectMapper serDeV2 = VersionedObjectMapperFactory.create(allocator, SERDE_VERSION_TWO);
             serDeV2.writeValue(serDeOut, object);
             byte[] serDeOutput = serDeOut.toByteArray();
-            assertEquals(object, serDeV3.readValue(new ByteArrayInputStream(serDeOutput), clazz));
+            assertEquals(object, serDeV4.readValue(new ByteArrayInputStream(serDeOutput), clazz));
         }
         catch (IOException | AssertionError ex) {
             throw new RuntimeException(ex);
