@@ -154,7 +154,6 @@ public class StorageMetadata
         String path = storageLocation.getPath().substring(1);
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
 
-        List<Map<String, String>> partitionFolders = new ArrayList<>();
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
                 .filter(blob -> !isBlobFile(blob))
                 .map(blob -> blob.getName().replaceFirst("^" + path, ""))
