@@ -37,6 +37,7 @@ public class TestUtils
 
     public final static int SERDE_VERSION_ONE = 1;
     public final static int SERDE_VERSION_TWO = 2;
+    public final static int SERDE_VERSION_THREE = 3;
     public final static int SERDE_VERSION_FOUR = 4;
 
     /**
