@@ -49,7 +49,7 @@ public class PartitionUtil
     /**
      * Pattern from a regular expression that identifies a match in a phrases to see if there is any
      * partition key variable placeholder. A partition key variable placeholder looks something like the following:
-     * year={year}/month={month}
+     * year=${year}/month=${month}
      * Here, {year} and {month} are the partition key variable placeholders
      */
     private static final Pattern PARTITION_PATTERN = Pattern.compile(PARTITION_PATTERN_REGEX);
@@ -157,7 +157,7 @@ public class PartitionUtil
     /**
      * Determine the partition folder URI based on Table's partition.pattern and value retrieved from partition field reader (form readWithConstraint() method of GcsRecordHandler)
      * For example, for the following partition.pattern of the Glue Table:
-     * <p>/folderName1={partitionKey1}</p>
+     * <p>/folderName1=${partitionKey1}</p>
      * And for the following partition row (from getPartitions() method in GcsMetadataHandler):
      * <p>
      *     Partition fields and value:

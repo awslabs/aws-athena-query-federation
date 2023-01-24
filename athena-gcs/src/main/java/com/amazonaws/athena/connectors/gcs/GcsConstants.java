@@ -70,7 +70,7 @@ public class GcsConstants
      * </ul>
      * In such case the <code>partition.pattern</code> should look like the following:
      * <p>
-     *     <code>state={state}/city={city}</code><br/>
+     *     <code>state=${state}/city=${city}</code><br/>
      *     Where {state} and {city} are the partition key variable placeholders values of which will be determined at runtime
      * </p>
      *
