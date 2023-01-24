@@ -209,7 +209,6 @@ public class GcsMetadataHandlerTest
         GetTablesResult getTablesResult = new GetTablesResult();
         List<Table> tableList = new ArrayList<>();
         tableList.add(new Table().withName(TABLE_1)
-
                 .withParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET))
                 .withStorageDescriptor(new StorageDescriptor()
                         .withLocation(LOCATION)));
@@ -268,12 +267,15 @@ public class GcsMetadataHandlerTest
     @Test
     public void testGetPartitions() throws Exception
     {
-        Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false)).build();
+        Schema schema = SchemaBuilder.newBuilder().addField("id", new ArrowType.Int(64, false))
+                .addField("year", new ArrowType.Utf8())
+                .addField("month", new ArrowType.Utf8())
+                .addField("day", new ArrowType.Utf8()).build();
         Table table = new Table();
         table.setName(TABLE_1);
         table.setDatabaseName(DATABASE_NAME);
         table.setParameters(ImmutableMap.of(CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET,
-                PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/{day}")
+                PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/${day}")
         );
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation(LOCATION).withColumns(new Column()));
@@ -291,7 +293,7 @@ public class GcsMetadataHandlerTest
         Mockito.when(getTableLayoutRequest.getTableName()).thenReturn(new TableName(DATABASE_NAME, TABLE_1));
         Mockito.when(getTableLayoutRequest.getCatalogName()).thenReturn(CATALOG_NAME);
         Mockito.when(getTableLayoutRequest.getSchema()).thenReturn(schema);
-        Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("id", new ArrowType.Int(64, false), 1L));
+        Constraints constraints = new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), 2000));
         Mockito.when(getTableLayoutRequest.getConstraints()).thenReturn(constraints);
         BlockWriter blockWriter = Mockito.mock(BlockWriter.class);
         gcsMetadataHandler.getPartitions(blockWriter, getTableLayoutRequest, null);
@@ -301,7 +303,7 @@ public class GcsMetadataHandlerTest
     @Test
     public void testDoGetSplits() throws Exception
     {
-        Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.INT.getType(), 2000);
+        Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
                 partitions, List.of("year"), new Constraints(new HashMap<>()), null);
@@ -312,11 +314,11 @@ public class GcsMetadataHandlerTest
         when(storageDescriptor.getLocation()).thenReturn(LOCATION);
         Table table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         when(awsGlue.getTable(any())).thenReturn(getTableResult);
         when(getTableResult.getTable()).thenReturn(table);
         List<Column> columns = List.of(
-                createColumn("year", "bigint")
+                createColumn("year", "varchar")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);

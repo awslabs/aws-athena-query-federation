@@ -22,7 +22,6 @@ package com.amazonaws.athena.connectors.gcs.filter;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +42,9 @@ public class FilterExpressionBuilder
      */
     private final List<Field> fields;
 
-    public FilterExpressionBuilder(Schema schema)
+    public FilterExpressionBuilder(List<Field> fields)
     {
-        this.fields = schema.getFields();
+        this.fields = fields;
     }
 
     /**

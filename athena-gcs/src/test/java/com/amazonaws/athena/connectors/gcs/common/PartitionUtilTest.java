@@ -61,7 +61,7 @@ public class PartitionUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void testFolderNameRegExPatterExpectException()
     {
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/{day}"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/${day}"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
     }
@@ -69,7 +69,7 @@ public class PartitionUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void testFolderNameRegExPatter()
     {
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         assertFalse("Expression shouldn't contain a '{' character", optionalRegEx.get().contains("{"));
@@ -87,7 +87,7 @@ public class PartitionUtilTest
                 "year=2001/birth_month01/",
                 "month01/"
         );
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year={year}/birth_month{month}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
@@ -113,7 +113,7 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "creation_dt={creation_dt}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "creation_dt=${creation_dt}/"));
         List<Column> columns = List.of(
                 createColumn("creation_dt", "date")
         );
@@ -145,7 +145,7 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state='{stateName}'/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state='${stateName}'/"));
         List<Column> columns = List.of(
                 createColumn("stateName", "string")
         );
@@ -176,7 +176,7 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state={stateName}/"));
+        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state=${stateName}/"));
         List<Column> columns = List.of(
                 createColumn("stateName", "string")
         );
@@ -198,7 +198,7 @@ public class PartitionUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void testGetHivePartitions()
     {
-        String partitionPatten = "year={year}/birth_month{month}/";
+        String partitionPatten = "year=${year}/birth_month${month}/";
         // mock
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten ));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
@@ -224,7 +224,7 @@ public class PartitionUtilTest
         );
         // mock
         when(table.getPartitionKeys()).thenReturn(columns);
-        String partitionPatten = "year={year}/birth_month{month}/{day}";
+        String partitionPatten = "year=${year}/birth_month${month}/${day}";
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten + "/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
@@ -252,7 +252,7 @@ public class PartitionUtilTest
                 createColumn("day", "int")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
-        String partitionPattern = "year={year}/birth_month{month}/{day}";
+        String partitionPattern = "year=${year}/birth_month${month}/${day}";
 
         // list of folders in a bucket
         List<String> bucketFolders = List.of(
@@ -287,7 +287,7 @@ public class PartitionUtilTest
                 createColumn("zipcode", "varchar")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
-        String partitionPattern = "StateName={statename}/ZipCode={zipcode}";
+        String partitionPattern = "StateName=${statename}/ZipCode=${zipcode}";
         // mock
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
         // list of folders in a bucket
@@ -330,7 +330,7 @@ public class PartitionUtilTest
                 createColumn("zipcode", "string")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
-        String partitionPattern = "{statename}/{district}/{zipcode}";
+        String partitionPattern = "${statename}/${district}/${zipcode}";
         // mock
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
         // list of folders in a bucket
@@ -370,7 +370,7 @@ public class PartitionUtilTest
                 createColumn("zipcode", "string")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
-        String partitionPattern = "StateName={statename}/District{district}/{zipcode}";
+        String partitionPattern = "StateName=${statename}/District${district}/${zipcode}";
         // mock
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
         // list of folders in a bucket

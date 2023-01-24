@@ -44,7 +44,7 @@ public class PartitionUtil
     /**
      * Partition pattern regular expression to be used in compiling Pattern
      */
-    private static final String PARTITION_PATTERN_REGEX = "\\{(.*?)}";
+    private static final String PARTITION_PATTERN_REGEX = "\\$\\{(.*?)}";
 
     /**
      * Pattern from a regular expression that identifies a match in a phrases to see if there is any
@@ -177,7 +177,7 @@ public class PartitionUtil
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         if (null != partitionPattern) {
             for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
-                partitionPattern = partitionPattern.replace("{" + field.getKey() + "}", field.getValue().readObject().toString());
+                partitionPattern = partitionPattern.replace("${" + field.getKey() + "}", field.getValue().readObject().toString());
             }
             locationUri = (tableLocation.endsWith("/")
                     ? tableLocation
