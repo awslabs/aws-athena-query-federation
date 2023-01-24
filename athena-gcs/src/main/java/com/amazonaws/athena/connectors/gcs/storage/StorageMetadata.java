@@ -144,11 +144,11 @@ public class StorageMetadata
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
+        // TODO: I'm not sure if this filtering is even necessary.
+        var partitionFieldNames = table.getPartitionKeys().stream().map(Column::getName).collect(Collectors.toSet());
         List<Field> partitionFields = schema.getFields().stream()
-                .filter(field -> table.getPartitionKeys().stream()
-                        .map(Column::getName)
-                        .collect(Collectors.toList()).contains(field.getName()))
-                .collect(Collectors.toList());
+            .filter(field -> partitionFieldNames.contains(field.getName()))
+            .collect(Collectors.toList());
         // Build expression only based on partition keys
         List<AbstractExpression> expressions = new FilterExpressionBuilder(partitionFields).getExpressions(constraints);
         LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);

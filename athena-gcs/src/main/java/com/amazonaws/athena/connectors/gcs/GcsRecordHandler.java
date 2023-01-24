@@ -55,10 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsThrottlingExceptionFilter.EXCEPTION_FILTER;
@@ -126,12 +125,9 @@ public class GcsRecordHandler
         for (String file : fileList) {
             String uri = createUri(file);
             LOGGER.info("Retrieving records from the URL {} for the table {}.{}", uri, tableInfo.getSchemaName(), tableInfo.getTableName());
-            Schema schemaFromSource = getSchemaFromSource(uri, classification);
-            ScanOptions options = schemaFromSource != null
-                    ? new ScanOptions(BATCH_SIZE,
-                    Optional.of(getSelectedColumnNames(recordsRequest.getSchema(), getFieldNameMap(schemaFromSource))))
-                    : new ScanOptions(BATCH_SIZE);
-
+            Optional<String[]> selectedColumns =
+                getSchemaFromSource(uri, classification).map(schemaFromSource -> getSelectedColumnNames(schemaFromSource, recordsRequest.getSchema()));
+            ScanOptions options = new ScanOptions(BATCH_SIZE, selectedColumns);
             try (
                     // DatasetFactory provides a way to inspect a Dataset potential schema before materializing it.
                     // Thus, we can peek the schema for data sources and decide on a unified schema.
@@ -211,40 +207,38 @@ public class GcsRecordHandler
         });
     }
 
-    private String[] getSelectedColumnNames(Schema schema, Map<String, String> fieldMap)
+    private String[] getSelectedColumnNames(Schema sourceSchema, Schema requestSchema)
     {
-        String[] selectedColumns = schema.getFields().stream()
-                .map(field -> fieldMap.get(field.getName().toLowerCase()))
-                .toArray(String[]::new);
-        LOGGER.info("Selected columns {}", (Object) selectedColumns);
+        java.util.Set<String> fieldNamesRequested = caseInsensitiveFieldNameSet(requestSchema);
+        LOGGER.info("fieldNamesRequested: {}", fieldNamesRequested);
+        // We perform column selection using the source schema columns since these are intended to
+        // be used for column selection in the Dataset ScanOptions against the actual source.
+        String[] selectedColumns = sourceSchema.getFields().stream()
+            .map(field -> field.getName())
+            .filter(fieldName -> fieldNamesRequested.contains(fieldName))
+            .toArray(String[]::new);
+        LOGGER.info("Selected columns {}", java.util.Arrays.deepToString(selectedColumns));
         return selectedColumns;
     }
 
-    private Map<String, String> getFieldNameMap(Schema schemaFromSource)
+    private java.util.Set<String> caseInsensitiveFieldNameSet(Schema schema)
     {
-        Map<String, String> fieldMap = new HashMap<>();
-        for (Field field : schemaFromSource.getFields()) {
-            fieldMap.put(field.getName().toLowerCase(), field.getName());
-        }
-        LOGGER.info("Columns from source {}", (Object) fieldMap);
-        return fieldMap;
+        return schema.getFields().stream()
+            .map(field -> field.getName())
+            .collect(Collectors.toCollection(() -> new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
     }
 
-    private Schema getSchemaFromSource(String uri, String tableClassification) throws Exception
+    private Optional<Schema> getSchemaFromSource(String uri, String tableClassification) throws Exception
     {
         FileFormat format = FileFormat.valueOf(tableClassification.toUpperCase());
-        Schema schemaFromSource = null;
         switch (format) {
             case PARQUET:
                 LOGGER.info("Source is PARQUET");
-                schemaFromSource = new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), format, uri).inspect();
-                break;
+                return Optional.of(new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), format, uri).inspect());
             case CSV:
-                // for CSV, it won't work, so return null
-                break;
-            default:
-                throw new IllegalArgumentException("Table classification " + tableClassification + " is not supported by the connector");
+                // for CSV, it won't work, so return none
+                return Optional.empty();
         }
-        return schemaFromSource;
+        throw new IllegalArgumentException("Table classification " + tableClassification + " is not supported by the connector");
     }
 }
