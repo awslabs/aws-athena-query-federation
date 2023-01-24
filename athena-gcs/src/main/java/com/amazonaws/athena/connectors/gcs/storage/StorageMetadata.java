@@ -27,6 +27,7 @@ import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
 import com.amazonaws.athena.connectors.gcs.filter.AbstractExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.services.glue.AWSGlue;
+import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -143,7 +144,13 @@ public class StorageMetadata
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
-        List<AbstractExpression> expressions = new FilterExpressionBuilder(schema).getExpressions(constraints);
+        List<Field> partitionFields = schema.getFields().stream()
+                .filter(field -> table.getPartitionKeys().stream()
+                        .map(Column::getName)
+                        .collect(Collectors.toList()).contains(field.getName()))
+                .collect(Collectors.toList());
+        // Build expression only based on partition keys
+        List<AbstractExpression> expressions = new FilterExpressionBuilder(partitionFields).getExpressions(constraints);
         LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
         URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
         // Generate a map from column name to the expressions that need to be evaluated for that column

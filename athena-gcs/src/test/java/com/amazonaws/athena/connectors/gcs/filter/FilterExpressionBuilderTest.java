@@ -27,7 +27,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.security.FederatedIdentity;
 import com.amazonaws.athena.connectors.gcs.GcsTestUtils;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -35,7 +34,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -58,7 +56,7 @@ public class FilterExpressionBuilderTest
     public void testGetExpressions()
     {
         Schema schema = SchemaBuilder.newBuilder().addField("year", new ArrowType.Utf8()).build();
-        FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema);
+        FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema.getFields());
         List<AbstractExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1")));
         assertNotNull(exp);
     }
