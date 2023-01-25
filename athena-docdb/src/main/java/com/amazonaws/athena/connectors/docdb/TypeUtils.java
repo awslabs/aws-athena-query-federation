@@ -95,7 +95,7 @@ public class TypeUtils
                 }
                 return origVal;
             case BIGINT:
-                BigDecimal coercedVal = new java.math.BigDecimal(origVal.toString());
+                BigDecimal coercedVal = new BigDecimal(origVal.toString());
                 return coercedVal.toBigInteger().longValue();
             default:
                 return origVal;
