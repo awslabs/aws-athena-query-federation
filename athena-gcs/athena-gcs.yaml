@@ -10,7 +10,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['athena-federation', 'GCS', 'Google-Cloud-Storage', 'parquet', 'csv']
     HomePageUrl: https://github.com/awslabs/aws-athena-query-federation
-    SemanticVersion: 2022.42.2
+    SemanticVersion: 2022.47.1
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
@@ -55,7 +55,7 @@ Resources:
 
       FunctionName: !Sub "${AthenaLambdaName}"
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
-      CodeUri: "./target/athena-gcs-2022.47.2.jar"
+      CodeUri: "./target/athena-gcs-2022.47.1.jar"
       Description: "Amazon Athena Gcs Connector"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
