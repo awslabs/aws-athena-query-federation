@@ -1,0 +1,31 @@
+{
+  "connector_name" :  "athena-gcs", /* Connector name */
+  "athena_work_group" : "<Enter athena workgroup>", /* The Athena Workgroup used for running integration tests */
+  "athena_result_location" : "<Enter bucket name>", /* bucket name where athena query result spill*/
+  "secrets_manager_secret" : "<Enter secret", /* Secret name used to retrieve GCS credentials JSON */
+  "schema_name": "<Enter the schema name>", /* Schema name */
+  "table_name": "<Primary table for integration test>", /* Table name */
+  "table_name2": "<Additional table>", /* Table name */
+  "table_name3": "<Additional table>", /* Table name */
+  "table_name4": "<Additional table>", /* Table name */
+  "table_name5": "<Additional table>", /* Table name */
+  "table_name6": "<Additional table>", /* Table name */
+  "environment_vars" : {
+    "aws_account": "<AWS account>", /* AWS account number */
+    "spill_bucket" : "<Enter the spill bucket name>", /* Spill bucket name in S3 */
+    "spill_prefix" : "<Enter spill prefix>", /* Spill prefix, a folder under the spill bucket in S3 */
+    "disable_spill_encryption" : "<true|false>", /* Whether to disable spill encryption */
+    "region" : "<Enter AWS region>", /* AWS region name */
+    "secret_manager_gcp_creds_name": "<Enter secret name in AWS Secrets Manager>", /* Entry secret name in AWS Secrets Manager */
+    "gcs_credential_key": "<Enter the GCS credential key under the gcs_secret_name>", /* The secret name under gcs_secret_name that contains the GCS credentials JSON */
+    "SSL_CERT_FILE": "/tmp/cacert.pem", /* Temp folder location in lambda to place cacert*/
+    "GOOGLE_APPLICATION_CREDENTIALS": "/tmp/service-account.json" /* Temp folder location in lambda to place gcs credentials*/
+  },
+  "vpc_configuration" : {
+    "region" : "<AWS region>", /* AWS region name */
+    "vpc_id": "<Enter VPC Id>", /* AWS VPC Id */
+    "security_group_id": "<Enter security group id>", /* Id of the AWS secuurity group */
+    "subnet_ids": ["<Enter one or more subnet Id separated by comma>"], /* Security group name(s) */
+    "availability_zones": ["<Enter one or more availability zone under the region>"] /* AWS availability zone(s) under the AWS region */
+  }
+}
