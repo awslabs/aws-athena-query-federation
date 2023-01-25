@@ -25,8 +25,10 @@ import com.amazonaws.services.glue.model.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -42,46 +44,42 @@ public class FilterExpressionBuilder
      *
      * @param partitionColumns       partition columns from the Glue table
      * @param constraints            An instance of {@link Constraints} that is a summary of where clauses (if any)
-     * @return A list of {@link EqualsExpression}
+     * @return A map of column names to its value constraint set.
      */
-    public static List<AbstractExpression> getExpressions(List<Column> partitionColumns, Constraints constraints)
+    public static Map<String, Optional<Set<String>>> getConstraintsForPartitionedColumns(List<Column> partitionColumns, Constraints constraints)
     {
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
-        List<AbstractExpression> conjuncts = new ArrayList<>();
-        for (Column column : partitionColumns) {
-            if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
-                ValueSet valueSet = constraints.getSummary().get(column.getName());
-                LOGGER.info("Value set for column {} was {}", column, valueSet);
-                if (valueSet != null) {
-                    conjuncts.add(getFilterExpressions(column.getName(), valueSet));
+        return partitionColumns.stream().collect(Collectors.toMap(
+            column -> column.getName(),
+            column -> singleValuesStringSetFromValueSet(constraints.getSummary().get(column.getName())),
+            // Also we are forced to use Optional here because Collectors.toMap() doesn't allow null values to
+            // be passed into the merge function (it asserts that the values are not null)
+            // We shouldn't have duplicates but just merge the sets if we do.
+            (value1, value2) -> {
+                if (!value1.isPresent() && !value2.isPresent()) {
+                    return Optional.empty();
                 }
-            }
-        }
-        return conjuncts;
+                return Optional.of(
+                  java.util.stream.Stream.concat(value1.stream(), value2.stream()).flatMap(Set::stream).collect(Collectors.toSet()));
+            },
+            () -> new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER)
+        ));
     }
 
     /**
-     * Returns an {@link AbstractExpression} based on {@link ValueSet}
+     * Returns a Set of Strings from the valueSet
      *
-     * @param columnName The name of the column
      * @param valueSet   An instance of {@link ValueSet}
-     * @return {@link AbstractExpression}
+     * @return Set<String> from the valueSet
      */
-    private static AbstractExpression getFilterExpressions(String columnName, ValueSet valueSet)
+    private static Optional<Set<String>> singleValuesStringSetFromValueSet(ValueSet valueSetIn)
     {
-        LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
-        LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
-
-        List<Object> singleValues = valueSet.getRanges().getOrderedRanges().stream()
+        return Optional.ofNullable(valueSetIn).map(valueSet -> valueSet.getRanges().getOrderedRanges().stream()
           .filter(range -> range.isSingleValue())
           .map(range -> range.getLow().getValue())
-          .collect(Collectors.toList());
-
-        if (singleValues.size() == 1) {
-            return new EqualsExpression(columnName.toLowerCase(), singleValues.get(0));
-        }
-
-        return new AnyExpression(columnName.toLowerCase(), singleValues.stream().map(Object::toString).collect(Collectors.toList()));
+          .map(value -> (org.apache.arrow.vector.util.Text) value) // purposefully cast to Text to cause an exception if its not Text
+          .map(value -> value.toString())
+          .collect(Collectors.toSet()));
     }
 
     private FilterExpressionBuilder() {}

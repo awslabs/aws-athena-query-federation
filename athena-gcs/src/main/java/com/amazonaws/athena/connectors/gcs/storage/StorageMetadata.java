@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connectors.gcs.GcsUtil;
 import com.amazonaws.athena.connectors.gcs.common.PartitionUtil;
-import com.amazonaws.athena.connectors.gcs.filter.AbstractExpression;
 import com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
@@ -57,7 +56,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -66,7 +65,6 @@ import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toCollection;
 
 public class StorageMetadata
 {
@@ -146,24 +144,21 @@ public class StorageMetadata
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
         // Build expression only based on partition keys
         List<Column> partitionColumns = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
-        List<AbstractExpression> expressions = FilterExpressionBuilder.getExpressions(partitionColumns, constraints);
-        LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
+        // getConstraintsForPartitionedColumns gives us a case insensitive mapping of column names to their value set
+        Map<String, Optional<Set<String>>> columnValueConstraintMap = FilterExpressionBuilder.getConstraintsForPartitionedColumns(partitionColumns, constraints);
+        LOGGER.info("columnValueConstraintMap for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), columnValueConstraintMap);
         URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
-        // Generate a map from column name to the expressions that need to be evaluated for that column
-        Map<String, List<AbstractExpression>> expressionMap = expressions.stream()
-                .collect(Collectors.groupingBy(AbstractExpression::getColumnName,
-                        () -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER), toCollection(ArrayList::new)));
         LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
         String path = storageLocation.getPath().substring(1);
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
 
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
-                .filter(blob -> !isBlobFile(blob))
-                .map(blob -> blob.getName().replaceFirst("^" + path, ""))
-                 // remove the front-slash, because, the expression generated without it
-                .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
-                .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-                .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstraints(partitionsMap, expressionMap)));
+            .filter(blob -> !isBlobFile(blob))
+            .map(blob -> blob.getName().replaceFirst("^" + path, ""))
+             // remove the front-slash, because, the expression generated without it
+            .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
+            .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
+            .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstraints(partitionsMap, columnValueConstraintMap)));
 
         LOGGER.info("getPartitionFolders results: {}", results);
 
@@ -211,20 +206,20 @@ public class StorageMetadata
         return factory.inspect();
     }
 
-    private boolean checkPartitionWithConstraints(Map<String, String> partitionMap, Map<String, List<AbstractExpression>> expressionMap)
+    private boolean checkPartitionWithConstraints(Map<String, String> partitionMap, Map<String, Optional<Set<String>>> columnValueConstraintMap)
     {
-        if (expressionMap.isEmpty()) {
+        if (columnValueConstraintMap.isEmpty()) {
             return true;
         }
-        boolean expressionFailureExists = partitionMap.entrySet().stream().anyMatch(partitionEntry ->
-            expressionMap.getOrDefault(partitionEntry.getKey(), List.of()).stream()
-                .anyMatch(expr -> {
-                    boolean result = expr.apply(partitionEntry.getValue());
-                    LOGGER.debug("Partition entry: {}, expression: {}, result: {}", partitionEntry, expr, result);
+        boolean constraintViolationExists = partitionMap.entrySet().stream().anyMatch(partitionEntry ->
+            columnValueConstraintMap.getOrDefault(partitionEntry.getKey(), Optional.empty()).stream()
+                .anyMatch(valueConstraintSet -> {
+                    boolean result = valueConstraintSet.contains(partitionEntry.getValue());
+                    LOGGER.debug("Partition entry: {}, valueConstraintSet: {}, result: {}", partitionEntry, valueConstraintSet, result);
                     return !result;
                 })
         );
-        return !expressionFailureExists;
+        return !constraintViolationExists;
     }
 
     /**

@@ -43,7 +43,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 
 @RunWith(PowerMockRunner.class)
@@ -56,10 +56,12 @@ public class FilterExpressionBuilderTest
     @Test
     public void testGetExpressions()
     {
-        List<AbstractExpression> exp = FilterExpressionBuilder.getExpressions(
+        Map<String, java.util.Optional<java.util.Set<String>>> result = FilterExpressionBuilder.getConstraintsForPartitionedColumns(
             List.of(new Column().withName("year")),
             new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1")));
-        assertNotNull(exp);
+        assertEquals(result.size(), 1);
+        assertEquals(result.get("year").get(), java.util.Set.of("1"));
+        assertEquals(result.get("yeAr").get(), java.util.Set.of("1"));
     }
 
     public static Map<String, ValueSet> createSummaryWithLValueRangeEqual(String fieldName, ArrowType fieldType, Object fieldValue)
