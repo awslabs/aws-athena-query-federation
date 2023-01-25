@@ -145,6 +145,7 @@ public class StorageMetadata
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
         // TODO: I'm not sure if this filtering is even necessary.
+        // filtering out only partition columns, as this flow is dealing with only partition
         var partitionFieldNames = table.getPartitionKeys().stream().map(Column::getName).collect(Collectors.toSet());
         List<Field> partitionFields = schema.getFields().stream()
             .filter(field -> partitionFieldNames.contains(field.getName()))
@@ -167,7 +168,7 @@ public class StorageMetadata
                  // remove the front-slash, because, the expression generated without it
                 .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
                 .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-                .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstrains(partitionsMap, expressionMap)));
+                .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstraints(partitionsMap, expressionMap)));
 
         LOGGER.info("getPartitionFolders results: {}", results);
 
@@ -215,7 +216,7 @@ public class StorageMetadata
         return factory.inspect();
     }
 
-    private boolean checkPartitionWithConstrains(Map<String, String> partitionMap, Map<String, List<AbstractExpression>> expressionMap)
+    private boolean checkPartitionWithConstraints(Map<String, String> partitionMap, Map<String, List<AbstractExpression>> expressionMap)
     {
         if (expressionMap.isEmpty()) {
             return true;
