@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.gcs.common;
 
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
-import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.FieldVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,14 +170,15 @@ public class PartitionUtil
      * this method will return a URI that refer to the GCS location: gs://my_table/data/folderName1=asdf
      * @return Gcs location URI
      */
-    public static URI getPartitionsFolderLocationUri(Table table, Map<String, FieldReader> fieldReadersMap) throws URISyntaxException
+    public static URI getPartitionsFolderLocationUri(Table table, List<FieldVector> fieldVectors, int readerPosition) throws URISyntaxException
     {
         String locationUri;
         String tableLocation = table.getStorageDescriptor().getLocation();
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         if (null != partitionPattern) {
-            for (Map.Entry<String, FieldReader> field : fieldReadersMap.entrySet()) {
-                partitionPattern = partitionPattern.replace("${" + field.getKey() + "}", field.getValue().readObject().toString());
+            for (FieldVector fieldVector : fieldVectors) {
+                fieldVector.getReader().setPosition(readerPosition);
+                partitionPattern = partitionPattern.replace("${" + fieldVector.getName() + "}", fieldVector.getReader().readObject().toString());
             }
             locationUri = (tableLocation.endsWith("/")
                     ? tableLocation

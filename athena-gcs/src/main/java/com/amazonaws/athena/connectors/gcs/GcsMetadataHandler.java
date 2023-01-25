@@ -48,7 +48,6 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +55,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -174,11 +172,9 @@ public class GcsMetadataHandler
             //fetch schema from dataset api
             Schema schema = datasource.buildTableSchema(table, allocator);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
-            Set<String> partitionCols = new HashSet<>();
-            if (table.getPartitionKeys() != null) {
-                partitionCols = table.getPartitionKeys()
-                        .stream().map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
-            }
+            List<Column> partitionKeys = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+            Set<String> partitionCols = table.getPartitionKeys().stream()
+                .map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
             return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
         }
     }
@@ -238,22 +234,11 @@ public class GcsMetadataHandler
         Table table = GcsUtil.getGlueTable(request.getTableName(), glueClient);
         String catalogName = request.getCatalogName();
         Set<Split> splits = new HashSet<>();
-        Map<String, FieldReader> fieldReadersMap = new HashMap<>();
         Block partitions = request.getPartitions();
 
-        //setting the readers for each partition column
-        for (Column col : table.getPartitionKeys()) {
-            fieldReadersMap.put(col.getName(), partitions.getFieldReader(col.getName()));
-        }
-
         for (int curPartition = partitionContd; curPartition < partitions.getRowCount(); curPartition++) {
-            //Setting the readers to the partition row we are on
-            for (Column col : table.getPartitionKeys()) {
-                fieldReadersMap.get(col.getName()).setPosition(curPartition);
-            }
-
             //getting the partition folder name with bucket and file type
-            URI locationUri = PartitionUtil.getPartitionsFolderLocationUri(table, fieldReadersMap);
+            URI locationUri = PartitionUtil.getPartitionsFolderLocationUri(table, partitions.getFieldVectors(), curPartition);
             LOGGER.info("Partition location {} ", locationUri);
 
             //getting storage file list
