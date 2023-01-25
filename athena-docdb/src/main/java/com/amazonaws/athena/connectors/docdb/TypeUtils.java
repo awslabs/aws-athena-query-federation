@@ -25,6 +25,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.bson.BsonTimestamp;
 import org.bson.types.ObjectId;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -93,6 +94,9 @@ public class TypeUtils
                     return new Date(((BsonTimestamp) origVal).getTime() * 1_000);
                 }
                 return origVal;
+            case BIGINT:
+                BigDecimal coercedVal = new BigDecimal(origVal.toString());
+                return coercedVal.toBigInteger().longValue();
             default:
                 return origVal;
         }
