@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.gcs.filter;
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import org.apache.arrow.vector.types.pojo.Field;
+import com.amazonaws.services.glue.model.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,26 +38,17 @@ public class FilterExpressionBuilder
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterExpressionBuilder.class);
 
     /**
-     * List of {@link Field} instances
-     */
-    private final List<Field> fields;
-
-    public FilterExpressionBuilder(List<Field> fields)
-    {
-        this.fields = fields;
-    }
-
-    /**
      * Prepares the expressions based on the provided arguments.
      *
+     * @param partitionColumns       partition columns from the Glue table
      * @param constraints            An instance of {@link Constraints} that is a summary of where clauses (if any)
      * @return A list of {@link EqualsExpression}
      */
-    public List<AbstractExpression> getExpressions(Constraints constraints)
+    public static List<AbstractExpression> getExpressions(List<Column> partitionColumns, Constraints constraints)
     {
         LOGGER.info("Constraint summaries: \n{}", constraints.getSummary());
         List<AbstractExpression> conjuncts = new ArrayList<>();
-        for (Field column : fields) {
+        for (Column column : partitionColumns) {
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
                 LOGGER.info("Value set for column {} was {}", column, valueSet);
@@ -76,7 +67,7 @@ public class FilterExpressionBuilder
      * @param valueSet   An instance of {@link ValueSet}
      * @return {@link AbstractExpression}
      */
-    private AbstractExpression getFilterExpressions(String columnName, ValueSet valueSet)
+    private static AbstractExpression getFilterExpressions(String columnName, ValueSet valueSet)
     {
         LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Evaluating and adding expression for col {} with valueSet {}", columnName, valueSet);
         LOGGER.info("FilterExpressionBuilder::getFilterExpressions -> Bound {}", valueSet.getRanges().getSpan().getLow().getBound());
@@ -92,4 +83,6 @@ public class FilterExpressionBuilder
 
         return new AnyExpression(columnName.toLowerCase(), singleValues.stream().map(Object::toString).collect(Collectors.toList()));
     }
+
+    private FilterExpressionBuilder() {}
 }

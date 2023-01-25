@@ -144,14 +144,9 @@ public class StorageMetadata
     {
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
-        // TODO: I'm not sure if this filtering is even necessary.
-        // filtering out only partition columns, as this flow is dealing with only partition
-        var partitionFieldNames = table.getPartitionKeys().stream().map(Column::getName).collect(Collectors.toSet());
-        List<Field> partitionFields = schema.getFields().stream()
-            .filter(field -> partitionFieldNames.contains(field.getName()))
-            .collect(Collectors.toList());
         // Build expression only based on partition keys
-        List<AbstractExpression> expressions = new FilterExpressionBuilder(partitionFields).getExpressions(constraints);
+        List<Column> partitionColumns = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+        List<AbstractExpression> expressions = FilterExpressionBuilder.getExpressions(partitionColumns, constraints);
         LOGGER.info("Expressions for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), expressions);
         URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
         // Generate a map from column name to the expressions that need to be evaluated for that column

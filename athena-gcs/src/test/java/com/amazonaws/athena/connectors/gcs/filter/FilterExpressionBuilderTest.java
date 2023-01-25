@@ -28,6 +28,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connectors.gcs.GcsTestUtils;
+import com.amazonaws.services.glue.model.Column;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -55,9 +56,9 @@ public class FilterExpressionBuilderTest
     @Test
     public void testGetExpressions()
     {
-        Schema schema = SchemaBuilder.newBuilder().addField("year", new ArrowType.Utf8()).build();
-        FilterExpressionBuilder filterExpressionBuilder = new FilterExpressionBuilder(schema.getFields());
-        List<AbstractExpression> exp = filterExpressionBuilder.getExpressions(new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1")));
+        List<AbstractExpression> exp = FilterExpressionBuilder.getExpressions(
+            List.of(new Column().withName("year")),
+            new Constraints(createSummaryWithLValueRangeEqual("year", new ArrowType.Utf8(), "1")));
         assertNotNull(exp);
     }
 
