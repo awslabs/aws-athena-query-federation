@@ -2,7 +2,7 @@ Transform: 'AWS::Serverless-2016-10-31'
 
 Metadata:
   AWS::ServerlessRepo::Application:
-    Name: AthenaGcsConnector
+    Name: AthenaGCSConnector
     Description: 'This connector enables Amazon Athena to communicate with Google Cloud Storage (GCS) and fetch data from Parquet file format'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
@@ -14,7 +14,7 @@ Metadata:
     SourceCodeUrl: https://github.com/awslabs/aws-athena-query-federation
 
 Parameters:
-  AthenaLambdaName:
+  LambdaFunctionName:
     Description: 'The name you will give to this catalog is a Lambda name for Athena. Athena will use this name as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
@@ -37,11 +37,19 @@ Parameters:
     Description: "WARNING: If set to 'true' encryption for spilled data is disabled."
     Default: "false"
     Type: String
-  GcsSecretName:
+  GCSSecretName:
     Description: 'Secret key name in the AWS Secrets Manager.'
     Type: String
+  PermissionsBoundaryARN:
+    Description: "(Optional) An IAM policy ARN to use as the PermissionsBoundary for the created Lambda function's execution role"
+    Default: ''
+    Type: String
+
+Conditions:
+  HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+
 Resources:
-  ConnectorConfig:
+  AthenaGCSConnector:
     Type: 'AWS::Serverless::Function'
     Properties:
       Environment:
@@ -49,17 +57,17 @@ Resources:
           disable_spill_encryption: !Ref DisableSpillEncryption
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
-          secret_manager_gcp_creds_name: !Ref GcsSecretName
+          secret_manager_gcp_creds_name: !Ref GCSSecretName
           SSL_CERT_FILE: '/tmp/cacert.pem'
           GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
-
-      FunctionName: !Sub "${AthenaLambdaName}"
+      FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
       CodeUri: "./target/athena-gcs-2022.47.1.jar"
-      Description: "Amazon Athena Gcs Connector"
+      Description: "Amazon Athena GCS Connector"
       Runtime: java11
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
+      PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
       Policies:
         - Statement:
             - Action:
@@ -87,7 +95,7 @@ Resources:
             - Action:
                 - secretsmanager:GetSecretValue
               Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${GcsSecretName}*'
+              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:*:*:secret:${GCSSecretName}*'
         - S3ReadPolicy:
             BucketName:
               Ref: SpillBucket
