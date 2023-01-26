@@ -36,8 +36,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -99,16 +97,14 @@ public class CompositeHandler
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
             ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator, SerDeVersion.SERDE_VERSION);
             FederationRequest rawReq;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream(inputStream.available());
             byte[] allInputBytes = inputStream.readAllBytes();
-            baos.write(allInputBytes);
 
             try {
-                rawReq = objectMapper.readValue(new ByteArrayInputStream(baos.toByteArray()), FederationRequest.class);
+                rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
             }
             catch (Exception e) { // if client has not upgraded to our latest, fallback to v2
                 objectMapper = VersionedObjectMapperFactory.create(allocator, 2);
-                rawReq = objectMapper.readValue(new ByteArrayInputStream(baos.toByteArray()), FederationRequest.class);
+                rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
             }
             if (rawReq instanceof MetadataRequest) {
                 ((MetadataRequest) rawReq).setContext(context);
