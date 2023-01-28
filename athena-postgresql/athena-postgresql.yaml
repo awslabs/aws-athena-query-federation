@@ -1,8 +1,8 @@
 Transform: 'AWS::Serverless-2016-10-31'
 Metadata:
   'AWS::ServerlessRepo::Application':
-    Name: AthenaPostgreSQLConnector-roles
-    Description: 'This connector enables Amazon Athena to communicate with your PostgreSQL instance(s) using JDBC driver, using a custom role.'
+    Name: AthenaPostgreSQLConnector
+    Description: 'This connector enables Amazon Athena to communicate with your PostgreSQL instance(s) using JDBC driver.'
     Author: 'default author'
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
