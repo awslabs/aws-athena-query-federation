@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,31 +67,28 @@ public class PartitionUtil
      *
      * @param table response of get table from AWS Glue
      * @param partitionFolder      partition folder name
-     * @return Map<String, String> partition column name -> value
+     * @return Map<String, String> case insensitive partition column name -> partition column value
      */
     public static Map<String, String> getPartitionColumnData(Table table, String partitionFolder)
     {
-        Optional<String> optionalFolderRegex = getRegExExpression(table);
-        if (optionalFolderRegex.isPresent()) {
-            String folderNameRegEx = optionalFolderRegex.get();
-            return getStoragePartitions(table.getParameters().get(PARTITION_PATTERN_KEY),
-                partitionFolder, folderNameRegEx, table.getPartitionKeys());
-        }
-        return Map.of();
+        List<Column> partitionKeys = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+        return getRegExExpression(table).map(folderNameRegEx ->
+            getPartitionColumnData(table.getParameters().get(PARTITION_PATTERN_KEY), partitionFolder, folderNameRegEx, partitionKeys))
+            .orElse(Map.of());
     }
 
     /**
      * Return a list of storage partition(column name, column type and value)
      *
      * @param partitionPattern Name of the bucket
-     * @param partitionFolder      partition folder name
+     * @param partitionFolder  partition folder name
      * @param folderNameRegEx  folder name regular expression
      * @param partitionColumns partition column name list
-     * @return List of storage partition(column name, column type and value)
+     * @return Map<String, String> case insensitive partition column name -> partition column value map
      */
-    protected static Map<String, String> getStoragePartitions(String partitionPattern, String partitionFolder, String folderNameRegEx, List<Column> partitionColumns)
+    protected static Map<String, String> getPartitionColumnData(String partitionPattern, String partitionFolder, String folderNameRegEx, List<Column> partitionColumns)
     {
-        Map<String, String> partitions = new HashMap<>();
+        Map<String, String> partitions = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
         Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(partitionFolder);
         var partitionColumnsSet = partitionColumns.stream()
@@ -143,7 +139,7 @@ public class PartitionUtil
      */
     protected static Optional<String> getRegExExpression(Table table)
     {
-        List<Column> partitionColumns = table.getPartitionKeys();
+        List<Column> partitionColumns = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
         validatePartitionColumnTypes(partitionColumns);
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         // Check to see if there is a partition pattern configured for the Table by the user
