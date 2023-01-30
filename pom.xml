@@ -25,7 +25,7 @@
         <jqwik.version>1.7.2</jqwik.version>
         <assertj.version>3.24.2</assertj.version>
         <testng.version>7.7.1</testng.version>
-        <fasterxml.jackson.version>2.14.1</fasterxml.jackson.version>
+        <fasterxml.jackson.version>2.14.2</fasterxml.jackson.version>
         <surefire.failsafe.version>3.0.0-M8</surefire.failsafe.version>
         <log4j2Version>2.19.0</log4j2Version>
         <apache.arrow.version>10.0.1</apache.arrow.version>
