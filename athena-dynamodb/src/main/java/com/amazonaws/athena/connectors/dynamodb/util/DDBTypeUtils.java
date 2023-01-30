@@ -114,17 +114,21 @@ public final class DDBTypeUtils
             }
             else {
                 Iterator iterator = ((Collection) value).iterator();
-                Object firstValue = iterator.next();
-                Class<?> aClass = firstValue.getClass();
+                Object previousValue = iterator.next();
                 boolean allElementsAreSameType = true;
                 while (iterator.hasNext()) {
-                    if (!aClass.equals(iterator.next().getClass())) {
+                    Object currentValue = iterator.next();
+                    // null is considered the same as any prior type
+                    if (previousValue != null && currentValue != null && !previousValue.getClass().equals(currentValue.getClass())) {
                         allElementsAreSameType = false;
                         break;
                     }
+                    // only update the previousValue if the currentValue is not null otherwise we will end
+                    // up inferring the type as null if the currentValue is null and is the last value.
+                    previousValue = (currentValue == null) ? previousValue : currentValue;
                 }
                 if (allElementsAreSameType) {
-                    child = inferArrowField(key + ".element", firstValue);
+                    child = inferArrowField(key + ".element", previousValue);
                 }
                 else {
                     logger.warn("Automatic schema inference encountered List or Set {} containing multiple element types. Falling back to VARCHAR representation of elements", key);
