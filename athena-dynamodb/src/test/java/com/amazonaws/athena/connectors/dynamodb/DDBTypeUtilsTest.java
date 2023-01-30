@@ -75,7 +75,6 @@ public class DDBTypeUtilsTest
         ddbRecordMetadata = mock(DDBRecordMetadata.class);
     }
 
-
     @Test
     public void makeDecimalExtractorTest()
             throws Exception
@@ -165,7 +164,21 @@ public class DDBTypeUtilsTest
         assertEquals("Extracted results are not as expected!", expectedResults, extractedResults);
         logger.info("makeBitExtractorTest - exit");
     }
+    
+    @Test
+    public void inferArrowFieldListWithNullTest() throws Exception
+    {
+        var inputArray = new java.util.ArrayList<String>();
+        inputArray.add("value1");
+        inputArray.add(null);
+        inputArray.add("value3");
 
+        Field testField = DDBTypeUtils.inferArrowField("asdf", inputArray);
+
+        assertEquals("Type does not match!", ArrowType.List.INSTANCE, testField.getType());
+        assertEquals("Children Length Off!", 1, testField.getChildren().size());
+        assertEquals("Wrong Child Type!", ArrowType.Utf8.INSTANCE, testField.getChildren().get(0).getType());
+    }
 
     private Map<String, Object> testField(Schema mapping, Map<String, AttributeValue> values)
             throws Exception
