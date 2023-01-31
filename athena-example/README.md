@@ -92,6 +92,20 @@ public class MyMetadataHandler extends MetadataHandler
      */
     @Override
     protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) {}
+
+    /**
+     * Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+     * portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+     * predicate will be pushed down.
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details about the catalog being used.
+     * @return A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+     * the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.
+     */
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), Collections.emptyMap());
+    }
 }
 ```
 
@@ -109,13 +123,19 @@ public class MyRecordHandler
 {
     /**
      * Used to read the row data associated with the provided Split.
-     * @param constraints A ConstraintEvaluator capable of applying constraints form the query that request this read.
+     * @param constraints A ConstraintEvaluator capable of applying constraints form the query that request this read. The engine will push down whatever
+     *          your MetadataHandler says the connector supports via the doGetDataSourceCapabilities method.
      * @param spiller A BlockSpiller that should be used to write the row data associated with this Split.
      *                The BlockSpiller automatically handles chunking the response, encrypting, and spilling to S3.
      * @param recordsRequest Details of the read request, including:
      *                           1. The Split
      *                           2. The Catalog, Database, and Table the read request is for.
-     *                           3. The filtering predicate (if any)
+     *                           3. The Constraints (if any), which include:
+                                        - simple filtering predicates
+                                        - complex expressions
+                                        - aggregation clauses
+                                        - order by clauses
+                                        - limit clause
      *                           4. The columns required for projection.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
