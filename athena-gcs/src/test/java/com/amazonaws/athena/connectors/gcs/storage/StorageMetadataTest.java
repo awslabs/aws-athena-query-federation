@@ -131,7 +131,7 @@ public class StorageMetadataTest
         storageMetadata = mock(StorageMetadata.class);
         storageMock();
         when(storageMetadata.buildTableSchema(any(), any())).thenCallRealMethod();
-        when(storageMetadata.getStorageFiles(any(),any())).thenCallRealMethod();
+        when(storageMetadata.getAnyFilenameInPath(any(),any())).thenCallRealMethod();
         Field field = new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "parquet");

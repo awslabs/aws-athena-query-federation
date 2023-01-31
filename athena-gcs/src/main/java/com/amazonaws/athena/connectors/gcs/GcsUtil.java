@@ -28,8 +28,6 @@ import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.Field;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -69,12 +67,6 @@ public class GcsUtil
 
     private GcsUtil()
     {
-    }
-
-    public static boolean isFieldTypeNull(Field field)
-    {
-        return field.getType() == null
-                || field.getType().equals(Types.MinorType.NULL.getType());
     }
 
     /**
@@ -139,7 +131,7 @@ public class GcsUtil
      */
     public static String createUri(String path)
     {
-        return GCS_LOCATION_PREFIX  + path;
+        return GCS_LOCATION_PREFIX + path;
     }
 
     /**

@@ -173,7 +173,7 @@ public class GcsMetadataHandler
             Schema schema = datasource.buildTableSchema(table, allocator);
             Map<String, String> columnNameMapping = getColumnNameMapping(table);
             List<Column> partitionKeys = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
-            Set<String> partitionCols = table.getPartitionKeys().stream()
+            Set<String> partitionCols = partitionKeys.stream()
                 .map(next -> columnNameMapping.getOrDefault(next.getName(), next.getName())).collect(Collectors.toSet());
             return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema, partitionCols);
         }

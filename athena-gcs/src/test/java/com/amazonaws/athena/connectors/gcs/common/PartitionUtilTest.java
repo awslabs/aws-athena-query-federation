@@ -203,7 +203,7 @@ public class PartitionUtilTest
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten ));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        Map<String, String> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
+        Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
         assertFalse("Map of partition values is empty", partitions.isEmpty());
         assertEquals("Partitions map size is more than 2", 2, partitions.size());
         // Assert partition 1
@@ -228,7 +228,7 @@ public class PartitionUtilTest
         when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten + "/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
-        Map<String, String> partitions = PartitionUtil.getStoragePartitions(partitionPatten, "year=2000/birth_month09/12/",
+        Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPatten, "year=2000/birth_month09/12/",
                 optionalRegEx.get(), table.getPartitionKeys());
         assertFalse("List of column prefix is empty", partitions.isEmpty());
         assertEquals("Partition size is more than 3", 3, partitions.size());
@@ -271,7 +271,7 @@ public class PartitionUtilTest
         Pattern folderMatchingPattern = Pattern.compile(optionalRegEx.get());
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                Map<String, String> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
             }
@@ -311,7 +311,7 @@ public class PartitionUtilTest
                 folder = folder.substring(1);
             }
             if (folderMatchingPattern.matcher(folder).matches()) {
-                Map<String, String> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 2", 2, partitions.size());
                 matchCount++;
@@ -351,7 +351,7 @@ public class PartitionUtilTest
         int matchCount = 0;
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                Map<String, String> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
                 matchCount++;
@@ -391,7 +391,7 @@ public class PartitionUtilTest
         int matchCount = 0;
         for (String folder : bucketFolders) {
             if (folderMatchingPattern.matcher(folder).matches()) {
-                Map<String, String> partitions = PartitionUtil.getStoragePartitions(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
+                Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPattern, folder, optionalRegEx.get(), table.getPartitionKeys());
                 assertFalse("List of storage partitions is empty", partitions.isEmpty());
                 assertEquals("Partition size is more than 3", 3, partitions.size());
                 matchCount++;

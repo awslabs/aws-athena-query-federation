@@ -41,6 +41,7 @@ import org.apache.arrow.dataset.source.DatasetFactory;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -52,7 +53,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,7 +62,6 @@ import java.util.stream.StreamSupport;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsUtil.createUri;
-import static com.amazonaws.athena.connectors.gcs.GcsUtil.isFieldTypeNull;
 import static com.google.cloud.storage.Storage.BlobListOption.prefix;
 import static java.util.Objects.requireNonNull;
 
@@ -97,12 +96,10 @@ public class StorageMetadata
     private List<Field> getFields(String bucketName, String prefix, String format, BufferAllocator allocator)
     {
         LOGGER.info("Getting table fields for object {}.{}", bucketName, prefix);
-        Optional<String> file = getStorageFiles(bucketName, prefix);
-        if (file.isPresent()) {
-            return getFileSchema(bucketName, file.get(), FileFormat.valueOf(format.toUpperCase()), allocator).getFields();
-        }
-
-        throw new IllegalArgumentException("No object found for the table name '" + prefix + "' under bucket " + bucketName);
+        Optional<String> file = getAnyFilenameInPath(bucketName, prefix);
+        // file.get() is purposefully being called without checking here to cause an exception to be thrown because we
+        // don't handle the situation where the file is not present.
+        return getFileSchema(bucketName, file.get(), FileFormat.valueOf(format.toUpperCase()), allocator).getFields();
     }
 
     /**
@@ -113,16 +110,13 @@ public class StorageMetadata
      */
     public List<String> getStorageSplits(URI locationUri)
     {
-        List<String> fileList = new ArrayList<>();
         String bucketName = locationUri.getAuthority();
         String path = locationUri.getPath().startsWith("/") ? locationUri.getPath().substring(1) : locationUri.getPath();
         Page<Blob> blobs = storage.list(bucketName, prefix(path));
-        for (Blob blob : blobs.iterateAll()) {
-            if (isBlobFile(blob)) {
-                fileList.add(bucketName + "/" + blob.getName());
-            }
-        }
-        return fileList;
+        return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
+            .filter(blob -> isBlobFile(blob))
+            .map(blob -> bucketName + "/" + blob.getName())
+            .collect(Collectors.toList());
     }
 
     /**
@@ -158,7 +152,7 @@ public class StorageMetadata
              // remove the front-slash, because, the expression generated without it
             .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
             .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-            .collect(Collectors.partitioningBy(partitionsMap -> checkPartitionWithConstraints(partitionsMap, columnValueConstraintMap)));
+            .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
 
         LOGGER.info("getPartitionFolders results: {}", results);
 
@@ -166,22 +160,20 @@ public class StorageMetadata
     }
 
     /**
-     * Retrieves a first of file has non-zero size
+     * Retrieves the filename of any file that has a non-zero size within the bucket/prefix
      *
      * @param bucket Name of the bucket
      * @param prefix Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
      * @return A single file name under the prefix
      */
-    protected Optional<String> getStorageFiles(String bucket, String prefix)
+    protected Optional<String> getAnyFilenameInPath(String bucket, String prefix)
     {
         LOGGER.info("Listing nested files for prefix {} under the bucket {}", prefix, bucket);
         Page<Blob> blobPage = storage.list(bucket, prefix(prefix.substring(1)));
-        for (Blob blob : blobPage.iterateAll()) {
-            if (isBlobFile(blob)) {
-               return Optional.of(blob.getName());
-            }
-        }
-        return Optional.empty();
+        return StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
+            .filter(blob -> isBlobFile(blob))
+            .map(blob -> blob.getName())
+            .findAny();
     }
 
     // helpers
@@ -200,26 +192,22 @@ public class StorageMetadata
         requireNonNull(path, "fileName was null");
         LOGGER.info("Retrieving field schema from file {}, under the bucket {}", path, bucketName);
         String uri = createUri(bucketName, path);
-        DatasetFactory factory = new FileSystemDatasetFactory(allocator,
-                NativeMemoryPool.getDefault(), format, uri);
+        DatasetFactory factory = new FileSystemDatasetFactory(allocator, NativeMemoryPool.getDefault(), format, uri);
         // inspect schema
         return factory.inspect();
     }
 
-    private boolean checkPartitionWithConstraints(Map<String, String> partitionMap, Map<String, Optional<Set<String>>> columnValueConstraintMap)
+    private boolean partitionConstraintsSatisfied(Map<String, String> partitionMap, Map<String, Optional<Set<String>>> columnValueConstraintMap)
     {
-        if (columnValueConstraintMap.isEmpty()) {
-            return true;
-        }
-        boolean constraintViolationExists = partitionMap.entrySet().stream().anyMatch(partitionEntry ->
-            columnValueConstraintMap.getOrDefault(partitionEntry.getKey(), Optional.empty()).stream()
-                .anyMatch(valueConstraintSet -> {
-                    boolean result = valueConstraintSet.contains(partitionEntry.getValue());
-                    LOGGER.debug("Partition entry: {}, valueConstraintSet: {}, result: {}", partitionEntry, valueConstraintSet, result);
-                    return !result;
-                })
-        );
-        return !constraintViolationExists;
+        // For all constraints (column name -> set of valid values), validate that any partition column being
+        // constrained has a value that is within the constrained value set.
+        return columnValueConstraintMap.entrySet().stream()
+            .filter(constraintEntry -> partitionMap.containsKey(constraintEntry.getKey()))
+            .allMatch(constraintEntry ->
+                constraintEntry.getValue()
+                    .map(validValues -> validValues.contains(partitionMap.get(constraintEntry.getKey())))
+                    .orElse(true) // If the optional constraint value set is not present, then this constraint is satisfied
+            );
     }
 
     /**
@@ -237,21 +225,21 @@ public class StorageMetadata
 
         LOGGER.debug("Schema Fields\n{}", fieldList);
         for (Field field : fieldList) {
-            if (isFieldTypeNull(field)) {
+            if (isArrowTypeNull(field.getType())) {
                 field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
             }
             else {
-                field = new Field(field.getName().toLowerCase(), new FieldType(field.isNullable(), field.getType(), field.getDictionary(), field.getMetadata()), field.getChildren());
+                ArrowType arrowType = getCompatibleFieldType(field.getType());
+                field = new Field(field.getName().toLowerCase(), new FieldType(field.isNullable(), arrowType, field.getDictionary(), field.getMetadata()), field.getChildren());
             }
-            schemaBuilder.addField(getCompatibleField(field));
+            schemaBuilder.addField(field);
         }
         return schemaBuilder.build();
     }
 
-    private Field getCompatibleField(Field field)
+    private static ArrowType getCompatibleFieldType(ArrowType arrowType)
     {
-        String fieldName = field.getName().toLowerCase();
-        Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(arrowType);
         switch (fieldType) {
             case TIMESTAMPNANO:
             case TIMESTAMPSEC:
@@ -259,20 +247,19 @@ public class StorageMetadata
             case TIMEMICRO:
             case TIMESTAMPMICRO:
             case TIMENANO:
-                    return new Field(fieldName,
-                            new FieldType(field.isNullable(), Types.MinorType.DATEMILLI.getType(), field.getDictionary(),
-                                    field.getMetadata()), field.getChildren());
+                return Types.MinorType.DATEMILLI.getType();
             case TIMESTAMPMICROTZ:
-                return new Field(fieldName,
-                        new FieldType(field.isNullable(), Types.MinorType.TIMESTAMPMILLITZ.getType(), field.getDictionary(),
-                                field.getMetadata()), field.getChildren());
+                return Types.MinorType.TIMESTAMPMILLITZ.getType();
             case FIXEDSIZEBINARY:
             case LARGEVARBINARY:
-                    return new Field(fieldName,
-                            new FieldType(field.isNullable(), Types.MinorType.VARCHAR.getType(), field.getDictionary(),
-                                    field.getMetadata()), field.getChildren());
+                return Types.MinorType.VARCHAR.getType();
             default:
-                return field;
+                return arrowType;
         }
+    }
+
+    private static boolean isArrowTypeNull(ArrowType arrowType)
+    {
+        return arrowType == null || arrowType.equals(Types.MinorType.NULL.getType());
     }
 }
