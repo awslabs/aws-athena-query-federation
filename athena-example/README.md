@@ -92,6 +92,20 @@ public class MyMetadataHandler extends MetadataHandler
      */
     @Override
     protected GetSplitsResponse doGetSplits(BlockAllocator allocator, GetSplitsRequest request) {}
+
+    /**
+     * Used to describe the types of capabilities supported by a data source. An engine can use this to determine what
+     * portions of the query to push down. A connector that returns any optimization will guarantee that the associated
+     * predicate will be pushed down.
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
+     * @param request Provides details about the catalog being used.
+     * @return A GetDataSourceCapabilitiesResponse object which returns a map of supported optimizations that
+     * the connector is advertising to the consumer. The connector assumes all responsibility for whatever is passed here.
+     */
+    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
+    {
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), Collections.emptyMap());
+    }
 }
 ```
 
