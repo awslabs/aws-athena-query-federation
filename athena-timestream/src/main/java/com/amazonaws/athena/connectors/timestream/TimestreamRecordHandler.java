@@ -62,7 +62,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +76,12 @@ public class TimestreamRecordHandler
         extends RecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(TimestreamRecordHandler.class);
-    private static final SimpleDateFormat TIMESTAMP_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
+    //Time stream `yyyy-MM-dd HH:mm:ss` doesn't contain zone information, treat everything as UTC
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss.")
+            .appendFraction(ChronoField.MILLI_OF_SECOND, 0, 9, false)
+            .toFormatter()
+            .withZone(ZoneId.of("UTC"));
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "timestream";
@@ -188,7 +197,7 @@ public class TimestreamRecordHandler
                         String dateMilliValue = ((Row) context).getData().get(curFieldNum).getScalarValue();
                         if (dateMilliValue != null) {
                             value.isSet = 1;
-                            value.value = TIMESTAMP_FORMATTER.parse(dateMilliValue).getTime();
+                            value.value = Instant.from(TIMESTAMP_FORMATTER.parse(dateMilliValue)).toEpochMilli();
                         }
                         else {
                             value.isSet = 0;
@@ -224,7 +233,7 @@ public class TimestreamRecordHandler
                                 for (TimeSeriesDataPoint nextDatum : datum.getTimeSeriesValue()) {
                                     Map<String, Object> eventMap = new HashMap<>();
 
-                                    eventMap.put(timeField.getName(), TIMESTAMP_FORMATTER.parse(nextDatum.getTime()).getTime());
+                                    eventMap.put(timeField.getName(), Instant.from(TIMESTAMP_FORMATTER.parse(nextDatum.getTime())).toEpochMilli());
 
                                     switch (Types.getMinorTypeForArrowType(valueField.getType())) {
                                         case FLOAT8:
