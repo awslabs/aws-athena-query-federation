@@ -51,6 +51,7 @@ import com.amazonaws.services.timestreamquery.AmazonTimestreamQuery;
 import com.amazonaws.services.timestreamquery.model.QueryRequest;
 import com.amazonaws.services.timestreamquery.model.QueryResult;
 import com.google.common.io.ByteStreams;
+import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
@@ -69,6 +70,8 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -435,5 +438,66 @@ public class TimestreamRecordHandlerTest
         }
 
         logger.info("readRecordsTimeSeriesView - exit");
+    }
+
+    @Test
+    public void doReadRecordsNoSpillValidateTimeStamp()
+            throws Exception
+    {
+
+        int numRows = 10;
+        String expectedQuery = "SELECT measure_name, measure_value::double, az, time, hostname, region FROM \"my_schema\".\"my_table\" WHERE (\"az\" IN ('us-east-1a'))";
+
+        QueryResult mockResult = makeMockQueryResult(schemaForRead, numRows, numRows, false);
+        when(mockClient.query(nullable(QueryRequest.class)))
+                .thenAnswer((Answer<QueryResult>) invocationOnMock -> {
+                            QueryRequest request = (QueryRequest) invocationOnMock.getArguments()[0];
+                            assertEquals(expectedQuery, request.getQueryString().replace("\n", ""));
+                            return mockResult;
+                        }
+                );
+
+        Map<String, ValueSet> constraintsMap = new HashMap<>();
+        constraintsMap.put("az", EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, true)
+                .add("us-east-1a").build());
+
+        S3SpillLocation splitLoc = S3SpillLocation.newBuilder()
+                .withBucket(UUID.randomUUID().toString())
+                .withSplitId(UUID.randomUUID().toString())
+                .withQueryId(UUID.randomUUID().toString())
+                .withIsDirectory(true)
+                .build();
+
+        Split.Builder splitBuilder = Split.newBuilder(splitLoc, keyFactory.create());
+
+        ReadRecordsRequest request = new ReadRecordsRequest(IDENTITY,
+                DEFAULT_CATALOG,
+                "queryId-" + System.currentTimeMillis(),
+                new TableName(DEFAULT_SCHEMA, TEST_TABLE),
+                schemaForRead,
+                splitBuilder.build(),
+                new Constraints(constraintsMap),
+                100_000_000_000L, //100GB don't expect this to spill
+                100_000_000_000L
+        );
+
+        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
+
+        assertTrue(rawResponse instanceof ReadRecordsResponse);
+
+        ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
+        logger.info("doReadRecordsNoSpill: rows[{}]", response.getRecordCount());
+
+        assertTrue(response.getRecords().getRowCount() > 0);
+
+        Block block = response.getRecords();
+        FieldReader time = block.getFieldReader("time");
+        for (int i = 0; i < response.getRecordCount() && i < numRows; i++) {
+            time.setPosition(i);
+            assertTrue(time.readObject() instanceof LocalDateTime);
+            assertEquals(TestUtils.startDate.plusDays(i).truncatedTo(ChronoUnit.MILLIS), time.readObject());
+        }
+
+        logger.info("doReadRecordsNoSpill: {}", BlockUtils.rowToString(response.getRecords(), 0));
     }
 }

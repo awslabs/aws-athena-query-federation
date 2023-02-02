@@ -35,6 +35,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.mockito.stubbing.Answer;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -52,7 +53,7 @@ public class TestUtils
 {
     private TestUtils() {}
 
-    private static final SimpleDateFormat TIMESTAMP_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
+    static final LocalDateTime startDate = LocalDateTime.now();
 
     private static final Random RAND = new Random();
 
@@ -60,16 +61,21 @@ public class TestUtils
 
     public static QueryResult makeMockQueryResult(Schema schemaForRead, int numRows)
     {
+        return makeMockQueryResult(schemaForRead, numRows, 100, true);
+    }
+
+    public static QueryResult makeMockQueryResult(Schema schemaForRead, int numRows, int maxDataGenerationRow, boolean isRandomAZ)
+    {
         QueryResult mockResult = mock(QueryResult.class);
         final AtomicLong nextToken = new AtomicLong(0);
 
         when(mockResult.getRows()).thenAnswer((Answer<List<Row>>) invocationOnMock -> {
                     List<Row> rows = new ArrayList<>();
-                    for (int i = 0; i < 100; i++) {
+                    for (int i = 0; i < maxDataGenerationRow; i++) {
                         nextToken.incrementAndGet();
                         List<Datum> columnData = new ArrayList<>();
                         for (Field nextField : schemaForRead.getFields()) {
-                            columnData.add(makeValue(nextField));
+                            columnData.add(makeValue(nextField, i, isRandomAZ));
                         }
 
                         Row row = new Row();
@@ -91,13 +97,13 @@ public class TestUtils
         return mockResult;
     }
 
-    public static Datum makeValue(Field field)
+    public static Datum makeValue(Field field, int num, boolean isRandomAZ)
     {
         Datum datum = new Datum();
         switch (Types.getMinorTypeForArrowType(field.getType())) {
             case VARCHAR:
                 if (field.getName().equals("az")) {
-                    datum.setScalarValue(AZS[RAND.nextInt(4)]);
+                    datum.setScalarValue(isRandomAZ ? AZS[RAND.nextInt(4)] : "us-east-1a");
                 }
                 else {
                     datum.setScalarValue(field.getName() + "_" + RAND.nextInt(10_000_000));
@@ -116,10 +122,10 @@ public class TestUtils
                 datum.setScalarValue(String.valueOf(RAND.nextLong()));
                 break;
             case DATEMILLI:
-                datum.setScalarValue(TIMESTAMP_FORMATTER.format(new Date(System.currentTimeMillis())));
+                datum.setScalarValue(startDate.plusDays(num).toString().replace('T', ' '));
                 break;
             case LIST:
-                buildTimeSeries(field, datum);
+                buildTimeSeries(field, datum, num);
                 break;
             default:
                 throw new RuntimeException("Unsupported field type[" + field.getType() + "] for field[" + field.getName() + "]");
@@ -128,14 +134,14 @@ public class TestUtils
         return datum;
     }
 
-    private static void buildTimeSeries(Field field, Datum datum)
+    private static void buildTimeSeries(Field field, Datum datum, int num)
     {
         List<TimeSeriesDataPoint> dataPoints = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             TimeSeriesDataPoint dataPoint = new TimeSeriesDataPoint();
             Datum dataPointValue = new Datum();
 
-            dataPoint.setTime(TIMESTAMP_FORMATTER.format(new Date(System.currentTimeMillis() - RAND.nextInt(1_000_000))));
+            dataPoint.setTime(startDate.plusDays(num).toString().replace('T', ' '));
 
             /**
              * Presently we only support TimeSeries as LIST<STRUCT<DATEMILLISECONDS, DOUBLE|INT|FLOAT8|BIT|BIGINT>>
