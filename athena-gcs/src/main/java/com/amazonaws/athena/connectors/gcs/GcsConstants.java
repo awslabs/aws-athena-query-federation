@@ -45,6 +45,7 @@ public class GcsConstants
      * to retrieve ssl certificate location
      */
     public static final String SSL_CERT_FILE_LOCATION = "SSL_CERT_FILE";
+    public static final String SSL_CERT_FILE_LOCATION_VALUE = "/tmp/cacert.pem";
 
     /**
      * A file name constant to store the GCP service account's credential JSON
@@ -52,6 +53,7 @@ public class GcsConstants
      * to retrieve metadata and fetch data
      */
     public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION = "GOOGLE_APPLICATION_CREDENTIALS";
+    public static final String GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE = "/tmp/service-account.json";
 
     /**
      * Glue Table classification to specify type of the data a Glue Table represents.

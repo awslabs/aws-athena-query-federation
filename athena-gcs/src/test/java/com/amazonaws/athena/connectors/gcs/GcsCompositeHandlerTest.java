@@ -68,8 +68,6 @@ public class GcsCompositeHandlerTest {
     public void setUp()
     {
         environmentVariables.set("gcs_credential_key", "gcs_credential_keys");
-        environmentVariables.set("SSL_CERT_FILE", "/tmp/cacert.pem");
-        environmentVariables.set("GOOGLE_APPLICATION_CREDENTIALS","/tmp/service-account.json");
     }
 
     @Test

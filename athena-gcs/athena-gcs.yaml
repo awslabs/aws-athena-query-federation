@@ -58,8 +58,6 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           secret_manager_gcp_creds_name: !Ref GCSSecretName
-          SSL_CERT_FILE: '/tmp/cacert.pem'
-          GOOGLE_APPLICATION_CREDENTIALS: '/tmp/service-account.json'
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.gcs.GcsCompositeHandler"
       CodeUri: "./target/athena-gcs.zip"
