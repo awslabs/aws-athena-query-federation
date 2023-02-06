@@ -111,7 +111,8 @@ public class StorageMetadata
     public List<String> getStorageSplits(URI locationUri)
     {
         String bucketName = locationUri.getAuthority();
-        String path = locationUri.getPath().startsWith("/") ? locationUri.getPath().substring(1) : locationUri.getPath();
+        // Trim leading /
+        String path = locationUri.getPath().replaceFirst("^/", "");
         Page<Blob> blobs = storage.list(bucketName, prefix(path));
         return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
             .filter(blob -> isBlobFile(blob))
@@ -143,14 +144,15 @@ public class StorageMetadata
         LOGGER.info("columnValueConstraintMap for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), columnValueConstraintMap);
         URI storageLocation = new URI(table.getStorageDescriptor().getLocation());
         LOGGER.info("Listing object in location {} under the bucket {}", storageLocation.getAuthority(), storageLocation.getPath());
-        String path = storageLocation.getPath().substring(1);
+        // Trim leading /
+        String path = storageLocation.getPath().replaceFirst("^/", "");
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
 
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
             .filter(blob -> !isBlobFile(blob))
             .map(blob -> blob.getName().replaceFirst("^" + path, ""))
              // remove the front-slash, because, the expression generated without it
-            .map(folderPath -> folderPath.startsWith("/") ? folderPath.substring(1) : folderPath)
+            .map(folderPath -> folderPath.replaceFirst("^/", ""))
             .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
             .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
 
@@ -166,10 +168,12 @@ public class StorageMetadata
      * @param prefix Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
      * @return A single file name under the prefix
      */
-    protected Optional<String> getAnyFilenameInPath(String bucket, String prefix)
+    protected Optional<String> getAnyFilenameInPath(String bucket, String prefixPath)
     {
-        LOGGER.info("Listing nested files for prefix {} under the bucket {}", prefix, bucket);
-        Page<Blob> blobPage = storage.list(bucket, prefix(prefix.substring(1)));
+        LOGGER.info("Listing nested files for prefix {} under the bucket {}", prefixPath, bucket);
+        // Trim leading /
+        prefixPath = prefixPath.replaceFirst("^/", "");
+        Page<Blob> blobPage = storage.list(bucket, prefix(prefixPath));
         return StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
             .filter(blob -> isBlobFile(blob))
             .map(blob -> blob.getName())
