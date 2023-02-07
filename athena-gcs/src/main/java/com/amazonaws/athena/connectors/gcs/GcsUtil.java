@@ -27,7 +27,10 @@ import com.amazonaws.services.glue.model.GetTableRequest;
 import com.amazonaws.services.glue.model.GetTableResult;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
+import com.sun.jna.platform.unix.LibC;
 import org.apache.arrow.vector.FieldVector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -57,10 +60,14 @@ import static com.amazonaws.athena.connector.lambda.data.BlockUtils.UTC_ZONE_ID;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.SSL_CERT_FILE_LOCATION_VALUE;
 
 public class GcsUtil
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(GcsUtil.class);
+
     private static final String BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
     private static final String END_CERT = "-----END CERTIFICATE-----";
     private static final String LINE_SEPARATOR = System.getProperty("line.separator");
@@ -75,7 +82,7 @@ public class GcsUtil
      */
     public static void installCaCertificate() throws IOException, NoSuchAlgorithmException, KeyStoreException, CertificateEncodingException
     {
-        FileWriter caBundleWriter = new FileWriter(System.getenv(SSL_CERT_FILE_LOCATION));
+        FileWriter caBundleWriter = new FileWriter(SSL_CERT_FILE_LOCATION_VALUE);
         try {
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             trustManagerFactory.init((KeyStore) null);
@@ -100,7 +107,7 @@ public class GcsUtil
     {
         CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         String gcsCredentialsJsonString = secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
-        File destination = new File(System.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION));
+        File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();
         if (!destinationDirExists && destination.exists()) {
             return;
@@ -202,5 +209,16 @@ public class GcsUtil
         String encodedCertText = new String(encoder.encode(rawCrtText));
         String prettifiedCert = BEGIN_CERT + LINE_SEPARATOR + encodedCertText + LINE_SEPARATOR + END_CERT;
         return prettifiedCert;
+    }
+
+    public static void setupNativeEnvironmentVariables()
+    {
+        LibC.INSTANCE.setenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION, GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE, 1);
+        LibC.INSTANCE.setenv(SSL_CERT_FILE_LOCATION, SSL_CERT_FILE_LOCATION_VALUE, 1);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Set native environment variables: {}: {} ; {}: {}",
+                GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION, LibC.INSTANCE.getenv(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION),
+                SSL_CERT_FILE_LOCATION, LibC.INSTANCE.getenv(SSL_CERT_FILE_LOCATION));
+        }
     }
 }
