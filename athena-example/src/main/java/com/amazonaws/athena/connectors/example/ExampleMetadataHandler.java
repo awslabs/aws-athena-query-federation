@@ -361,13 +361,17 @@ public class ExampleMetadataHandler
         Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
 
         /*
-         * TODO: Add capabilities which your connector will support. See DataSourceOptimizations for options.
+         * TODO: Add capabilities which your connector will support.
          * The capabilities you return here will cause Athena to fill the Constraints object in the RecordHandler's
          * readWithConstraint method's ReadRecordsRequest parameter with the specific pushdowns your connector supports
          * and expect your record handler to correctly evaluate the pushdowns present.
-         * 
+         *
          * Example: capabilities.putAll(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(FilterPushdownSubType.ALL));
-         *  This tells Athena your connector can handle simple associative filters, like colA > 10.
+         * This tells Athena your connector can handle simple associative filters, like colA > 10.
+         *
+         * See athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/metadata/optimizations/DataSourceOptimizations.java for options.
+         * Pushdown subtypes are found in athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/metadata/optimizations/pushdown/
+         * 
          */
 
         return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);
