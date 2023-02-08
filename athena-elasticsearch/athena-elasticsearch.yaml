@@ -17,7 +17,7 @@ Metadata:
 # to your template when you create a stack
 Parameters:
   AthenaCatalogName:
-    Description: 'The name you will give to this catalog in Athena. It will also be used as the function name. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
+    Description: 'This is the name of the lambda function that will be created. This name must satisfy the pattern ^[a-z0-9-_]{1,64}$'
     Type: String
     AllowedPattern: ^[a-z0-9-_]{1,64}$
   SecretNamePrefix:
