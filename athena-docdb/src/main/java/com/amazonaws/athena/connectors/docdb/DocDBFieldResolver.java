@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.docdb;
 
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
+import com.mongodb.DBRef;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.bson.Document;
@@ -45,6 +46,19 @@ public class DocDBFieldResolver
         }
         else if (value instanceof Document) {
             Object rawVal = ((Document) value).get(field.getName());
+            return TypeUtils.coerce(field, rawVal);
+        }
+        else if (value instanceof DBRef) {
+            Object rawVal = null;
+            if (field.getName().equals("_id")) {
+                rawVal = ((DBRef) value).getId();
+            }
+            if (field.getName().equals("_db")) {
+                rawVal = ((DBRef) value).getDatabaseName();
+            }
+            if (field.getName().equals("_ref")) {
+                rawVal = ((DBRef) value).getCollectionName();
+            }
             return TypeUtils.coerce(field, rawVal);
         }
         throw new RuntimeException("Expected LIST or Document type but found " + minorType);
