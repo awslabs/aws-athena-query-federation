@@ -25,6 +25,9 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.bson.Document;
 
+import java.util.Map;
+import java.util.function.Function;
+
 /**
  * Used to resolve DocDB complex structures to Apache Arrow Types.
  *
@@ -36,6 +39,12 @@ public class DocDBFieldResolver
     protected static final FieldResolver DEFAULT_FIELD_RESOLVER = new DocDBFieldResolver();
 
     private DocDBFieldResolver() {}
+
+    static final Map<String, Function<DBRef, String>> dbRefExtractor = Map.of(
+            "_id", dbRef -> dbRef.getId().toString(),
+            "_db", DBRef::getDatabaseName,
+            "_ref", DBRef::getCollectionName
+    );
 
     @Override
     public Object getFieldValue(Field field, Object value)
@@ -49,17 +58,7 @@ public class DocDBFieldResolver
             return TypeUtils.coerce(field, rawVal);
         }
         else if (value instanceof DBRef) {
-            Object rawVal = null;
-            if (field.getName().equals("_id")) {
-                rawVal = ((DBRef) value).getId();
-            }
-            if (field.getName().equals("_db")) {
-                rawVal = ((DBRef) value).getDatabaseName();
-            }
-            if (field.getName().equals("_ref")) {
-                rawVal = ((DBRef) value).getCollectionName();
-            }
-            return TypeUtils.coerce(field, rawVal);
+            return TypeUtils.coerce(field, dbRefExtractor.get(field.getName()).apply((DBRef) value));
         }
         throw new RuntimeException("Expected LIST or Document type but found " + minorType);
     }
