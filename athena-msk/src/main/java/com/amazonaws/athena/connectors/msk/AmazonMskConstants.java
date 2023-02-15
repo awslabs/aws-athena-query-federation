@@ -21,7 +21,7 @@ package com.amazonaws.athena.connectors.msk;
 
 public class AmazonMskConstants
 {
-    public static final String KAFKA_SOURCE = "kafka";
+    public static final String MSK_SOURCE = "msk";
     /**
      * For SSL authentication, user need to give S3 bucket reference where the client truststore and keystore
      * files are uploaded.

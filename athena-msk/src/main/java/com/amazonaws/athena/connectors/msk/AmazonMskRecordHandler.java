@@ -64,7 +64,7 @@ public class AmazonMskRecordHandler
     @VisibleForTesting
     public AmazonMskRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
     {
-        super(amazonS3, secretsManager, athena, AmazonMskConstants.KAFKA_SOURCE);
+        super(amazonS3, secretsManager, athena, AmazonMskConstants.MSK_SOURCE);
     }
 
     /**
