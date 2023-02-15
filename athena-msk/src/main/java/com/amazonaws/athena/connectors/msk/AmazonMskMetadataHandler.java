@@ -79,7 +79,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     @VisibleForTesting
     public AmazonMskMetadataHandler(Consumer<String, String> kafkaConsumer)
     {
-        super(AmazonMskConstants.KAFKA_SOURCE);
+        super(AmazonMskConstants.MSK_SOURCE);
         this.kafkaConsumer = kafkaConsumer;
     }
 
