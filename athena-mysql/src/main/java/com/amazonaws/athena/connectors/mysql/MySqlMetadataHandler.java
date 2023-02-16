@@ -136,7 +136,6 @@ public class MySqlMetadataHandler
             FilterPushdownSubType.ALL
         ));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
-            ComplexExpressionPushdownSubType.SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN,
             ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                     .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
                             .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
