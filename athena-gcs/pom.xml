@@ -152,8 +152,8 @@
                             </descriptors>
                             <finalName>${project.artifactId}</finalName>
                         </configuration>
-                     </execution>
-                 </executions>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

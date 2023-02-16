@@ -128,34 +128,12 @@
         }
       } ]
     } ],
-    "aggregateFunctionClause" : [ {
-      "aggregateFunctions" : [ {
-        "@type" : "FunctionCallExpression",
-        "type" : {
-          "@type" : "FloatingPoint",
-          "precision" : "DOUBLE"
-        },
-        "functionName" : {
-          "functionName" : "$sum"
-        },
-        "arguments" : [ {
-          "@type" : "VariableExpression",
-          "columnName" : "col1",
-          "type" : {
-            "@type" : "FloatingPoint",
-            "precision" : "DOUBLE"
-          }
-        } ]
-      } ],
-      "columnNames" : [ "col1" ],
-      "groupingSets" : [ [ "col2" ] ]
-    } ],
     "orderByClause" : [ {
       "columnName" : "col3",
-      "direction" : "ASC"
+      "direction" : "ASC_NULLS_FIRST"
     }, {
       "columnName" : "col2",
-      "direction" : "DESC"
+      "direction" : "DESC_NULLS_FIRST"
     } ],
     "limit" : -1
   },

@@ -26,7 +26,6 @@ import java.util.List;
 public enum ComplexExpressionPushdownSubType
         implements PushdownSubTypes
 {
-    NONE("none"),
     SUPPORTED_FUNCTION_EXPRESSION_TYPES("supported_function_expression_types")
     {
         @Override
@@ -37,8 +36,7 @@ public enum ComplexExpressionPushdownSubType
             }
             return new SubTypeProperties(getSubType(), Arrays.asList(properties));
         }
-    },
-    SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN("supports_function_call_expression_pushdown");
+    };
 
     private String subType;
 

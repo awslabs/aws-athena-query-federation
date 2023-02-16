@@ -34,7 +34,6 @@ import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
@@ -127,11 +126,6 @@ public class PostGreSqlMetadataHandler
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
         Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_AGGREGATE_FUNCTIONS.withSupportedSubTypes(
-            AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN,
-            AggregationPushdownSubType.SUPPORTS_MIN_PUSHDOWN,
-            AggregationPushdownSubType.SUPPORTS_SUM_PUSHDOWN
-            ));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
             LimitPushdownSubType.ALL
         ));
@@ -139,7 +133,6 @@ public class PostGreSqlMetadataHandler
             FilterPushdownSubType.ALL
         ));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
-            ComplexExpressionPushdownSubType.SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN,
             ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
             .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
                     .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())

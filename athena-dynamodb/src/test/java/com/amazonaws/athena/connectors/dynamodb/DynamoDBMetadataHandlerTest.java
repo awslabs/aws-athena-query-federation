@@ -296,7 +296,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 new TableName(TEST_CATALOG_NAME, TEST_TABLE),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET);
 
@@ -342,7 +342,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -374,7 +374,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that only the upper bound is present
@@ -407,7 +407,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             // Verify that only the upper bound is present
@@ -441,7 +441,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0)"));
@@ -455,7 +455,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0)"));
@@ -469,7 +469,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
@@ -483,7 +483,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
             assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
@@ -542,7 +542,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
 
@@ -657,7 +657,7 @@ public class DynamoDBMetadataHandlerTest
                 TEST_QUERY_ID,
                 TEST_CATALOG_NAME,
                 tableName,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
                 getTableResponse.getSchema(),
                 Collections.EMPTY_SET);
 

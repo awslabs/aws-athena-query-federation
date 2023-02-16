@@ -66,7 +66,24 @@ public class OrderByFieldSerDeV4
         {
             String columnName = getNextStringField(jparser, COLUMN_NAME_FIELD);
             String direction = getNextStringField(jparser, DIRECTION_FIELD);
-            return new OrderByField(columnName, direction);
+            OrderByField.Direction directionEnum;
+            switch (direction) {
+                case "ASC_NULLS_FIRST":
+                    directionEnum = OrderByField.Direction.ASC_NULLS_FIRST;
+                    break;
+                case "ASC_NULLS_LAST":
+                    directionEnum = OrderByField.Direction.ASC_NULLS_LAST;
+                    break;
+                case "DESC_NULLS_FIRST":
+                    directionEnum = OrderByField.Direction.DESC_NULLS_FIRST;
+                    break;
+                case "DESC_NULLS_LAST":
+                    directionEnum = OrderByField.Direction.DESC_NULLS_LAST;
+                    break;
+                default:
+                    throw new IllegalStateException("Unexpected value: " + direction);
+            }
+            return new OrderByField(columnName, directionEnum);
         }
     }
     

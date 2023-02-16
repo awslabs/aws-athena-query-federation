@@ -31,8 +31,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
-import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
@@ -107,16 +105,12 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
                                         new ArrowType.Int(32, true)))),
                         new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
 
-        FunctionCallExpression functionCallExpression = new FunctionCallExpression(Types.MinorType.FLOAT8.getType(),
-                                                       AggregationFunctions.SUM.getFunctionName(),
-                                                       List.of(new VariableExpression("col1", Types.MinorType.FLOAT8.getType())));
-        AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(List.of(functionCallExpression), List.of("col1"), List.of(List.of("col2")));
         List<OrderByField> orderByClause = List.of(
-            new OrderByField("col3", "ASC"),
-            new OrderByField("col2", "DESC")
+            new OrderByField("col3", OrderByField.Direction.ASC_NULLS_FIRST),
+            new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
         );
 
-        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), List.of(aggregateFunctionClause), orderByClause, -1);
+        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), orderByClause, -1);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

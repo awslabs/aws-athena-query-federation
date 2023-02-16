@@ -22,7 +22,6 @@ package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 public enum LimitPushdownSubType
         implements PushdownSubTypes
 {
-    NONE("none"),
     ALL("all");
 
     private String subType;
