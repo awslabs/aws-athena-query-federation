@@ -21,8 +21,8 @@ Parameters:
     Description: 'The default connection string is used when catalog is "lambda:${LambdaFunctionName}". Catalog specific Connection Strings can be added later. Format: ${DatabaseType}://${NativeJdbcConnectionString}.'
     Type: String
   SecretNamePrefix:
-      Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena MySQL Federation secret names can be prefixed with "AthenaMySQLFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaJdbcFederation*". Parameter value in this case should be "AthenaMySQLFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
-      Type: String
+    Description: 'Used to create resource-based authorization policy for "secretsmanager:GetSecretValue" action. E.g. All Athena MySQL Federation secret names can be prefixed with "AthenaMySQLFederation" and authorization policy will allow "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:AthenaJdbcFederation*". Parameter value in this case should be "AthenaMySQLFederation". If you do not have a prefix, you can manually update the IAM policy to add allow any secret names.'
+    Type: String
   SpillBucket:
     Description: 'The name of the bucket where this function can spill data.'
     Type: String
@@ -38,6 +38,10 @@ Parameters:
     Description: 'Lambda memory in MB (min 128 - 3008 max).'
     Default: 3008
     Type: Number
+  LambdaRoleARN:
+    Description: "(Optional) A custom role to be used by the Connector lambda"
+    Type: String
+    Default: ""
   DisableSpillEncryption:
     Description: 'If set to ''false'' data spilled to S3 is encrypted with AES GCM'
     Default: 'false'
@@ -54,6 +58,7 @@ Parameters:
     Type: String
 Conditions:
   HasPermissionsBoundary: !Not [ !Equals [ !Ref PermissionsBoundaryARN, "" ] ]
+  NotHasLambdaRole: !Equals [!Ref LambdaRoleARN, ""]
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -72,39 +77,77 @@ Resources:
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       PermissionsBoundary: !If [ HasPermissionsBoundary, !Ref PermissionsBoundaryARN, !Ref "AWS::NoValue" ]
-      Policies:
-        - Statement:
-            - Action:
-                - secretsmanager:GetSecretValue
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
-          Version: '2012-10-17'
-        - Statement:
-            - Action:
-                - logs:CreateLogGroup
-              Effect: Allow
-              Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
-          Version: '2012-10-17'
-        - Statement:
-          - Action:
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Effect: Allow
-            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
-          Version: '2012-10-17'
-        - Statement:
-          - Action:
-              - athena:GetQueryExecution
-              - s3:ListAllMyBuckets
-            Effect: Allow
-            Resource: '*'
-          Version: '2012-10-17'
-        #S3CrudPolicy allows our connector to spill large responses to S3. You can optionally replace this pre-made policy
-        #with one that is more restrictive and can only 'put' but not read,delete, or overwrite files.
-        - S3CrudPolicy:
-            BucketName: !Ref SpillBucket
-        #VPCAccessPolicy allows our connector to run in a VPC so that it can access your data source.
-        - VPCAccessPolicy: {}
+      Role: !If [NotHasLambdaRole, !GetAtt FunctionRole.Arn, !Ref LambdaRoleARN]
       VpcConfig:
         SecurityGroupIds: !Ref SecurityGroupIds
         SubnetIds: !Ref SubnetIds
+  FunctionRole:
+    Condition: NotHasLambdaRole
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+                - "sts:AssumeRole"
+  FunctionExecutionPolicy:
+    Condition: NotHasLambdaRole
+    Type: "AWS::IAM::Policy"
+    Properties:
+      Roles:
+        - !Ref FunctionRole
+      PolicyName: FunctionExecutionPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SecretNamePrefix}*'
+          - Action:
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*'
+          - Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunctionName}:*'
+          - Action:
+            - athena:GetQueryExecution
+            - s3:ListAllMyBuckets
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - ec2:CreateNetworkInterface
+            - ec2:DeleteNetworkInterface
+            - ec2:DescribeNetworkInterfaces
+            - ec2:DetachNetworkInterface
+            Effect: Allow
+            Resource: '*'
+          - Action:
+             - s3:GetObject
+             - s3:ListBucket
+             - s3:GetBucketLocation
+             - s3:GetObjectVersion
+             - s3:PutObject
+             - s3:PutObjectAcl
+             - s3:GetLifecycleConfiguration
+             - s3:PutLifecycleConfiguration
+             - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}
+                - bucketName:
+                    Ref: SpillBucket
+              - Fn::Sub:
+                - arn:${AWS::Partition}:s3:::${bucketName}/*
+                - bucketName:
+                    Ref: SpillBucket
