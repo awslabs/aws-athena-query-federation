@@ -63,22 +63,22 @@ public class SortedRangeSet
         this.nullAllowed = nullAllowed;
     }
 
-    static SortedRangeSet none(ArrowType type)
+    public static SortedRangeSet none(ArrowType type)
     {
         return copyOf(type, Collections.emptyList(), false);
     }
 
-    static SortedRangeSet all(BlockAllocator allocator, ArrowType type)
+    public static SortedRangeSet all(BlockAllocator allocator, ArrowType type)
     {
         return copyOf(type, Collections.singletonList(Range.all(allocator, type)), true);
     }
 
-    static SortedRangeSet onlyNull(ArrowType type)
+    public static SortedRangeSet onlyNull(ArrowType type)
     {
         return copyOf(type, Collections.emptyList(), true);
     }
 
-    static SortedRangeSet notNull(BlockAllocator allocator, ArrowType type)
+    public static SortedRangeSet notNull(BlockAllocator allocator, ArrowType type)
     {
         return copyOf(type, Collections.singletonList(Range.all(allocator, type)), false);
     }
