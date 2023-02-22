@@ -30,6 +30,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.Aggreg
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -121,6 +122,9 @@ public abstract class JdbcSplitQueryBuilder
                         .stream()
                         .map(Field::getName)
                         .filter(c -> !split.getProperties().containsKey(c))
+                        .filter(c -> constraints.getAggregateFunctionClause()
+                                .stream()
+                                .noneMatch(aggregateFunctionClause -> aggregateFunctionClause.getAggregateFunctions().containsKey(c)))
                         .map(this::quote),
                 extractAggregateSelectClauses(constraints)
                         .stream()
@@ -219,32 +223,34 @@ public abstract class JdbcSplitQueryBuilder
     private List<String> extractAggregateSelectClauses(Constraints constraints)
     {
         List<String> clauses = new ArrayList<>();
-        List<AggregateFunctionClause> aggregateFunctionClauses = constraints.getAggregateFunctionClause();
-        for (AggregateFunctionClause aggregateFunctionClause : aggregateFunctionClauses) {
-            List<FederationExpression> aggregateFunctions = aggregateFunctionClause.getAggregateFunctions();
-            FunctionCallExpression aggregateFunction = (FunctionCallExpression) aggregateFunctions.get(0); // should have exactly 1 function call
-            List<String> aggColumnNames = aggregateFunctionClause.getColumnNames();
-            String aggColumnName = aggColumnNames.get(0); // aggregate functions always have exactly 1 argument
+        for (AggregateFunctionClause aggregateFunctionClause : constraints.getAggregateFunctionClause()) {
+            Map<String, FederationExpression> aggregateFunctions = aggregateFunctionClause.getAggregateFunctions();
+            for (Map.Entry<String, FederationExpression> aggregate : aggregateFunctions.entrySet()) {
+                String aggColumnName = aggregate.getKey(); // aggregate functions always have exactly 1 argument
+                FunctionCallExpression functionCallExpression = (FunctionCallExpression) aggregate.getValue();
+                VariableExpression variableExpression = (VariableExpression) functionCallExpression.getArguments().get(0);
+                String aggFieldName = variableExpression.getColumnName();
 
-            AggregationFunctions functionEnum = AggregationFunctions.fromFunctionName(aggregateFunction.getFunctionName());
+                AggregationFunctions functionEnum = AggregationFunctions.fromFunctionName(functionCallExpression.getFunctionName());
 
-            String formatted;
-            switch (functionEnum) {
-                case SUM:
-                    formatted = "SUM(" + quote(aggColumnName) + ")";
-                    break;
-                case MAX:
-                    formatted = "MAX(" + quote(aggColumnName) + ")";
-                    break;
-                case MIN:
-                    formatted = "MIN(" + quote(aggColumnName) + ")";
-                    break;
-                case COUNT:
-                case AVG:
-                default:
-                    throw new IllegalArgumentException("Aggregate function " + functionEnum.getFunctionName() + " is not yet supported.");
+                String formatted;
+                switch (functionEnum) {
+                    case SUM:
+                        formatted = "SUM(" + quote(aggFieldName) + ")" + " AS " + aggColumnName;
+                        break;
+                    case MAX:
+                        formatted = "MAX(" + quote(aggFieldName) + ")" + " AS " + aggColumnName;
+                        break;
+                    case MIN:
+                        formatted = "MIN(" + quote(aggFieldName) + ")" + " AS " + aggColumnName;
+                        break;
+                    case COUNT:
+                    case AVG:
+                    default:
+                        throw new IllegalArgumentException("Aggregate function " + functionEnum.getFunctionName() + " is not yet supported.");
+                }
+                clauses.add(formatted);
             }
-            clauses.add(formatted);
         }
         return clauses;
     }
@@ -279,7 +285,11 @@ public abstract class JdbcSplitQueryBuilder
             return "";
         }
         return "ORDER BY " + orderByClause.stream()
-            .map(orderByField -> quote(orderByField.getColumnName()) + " " + orderByField.getDirection())
+            .map(orderByField -> {
+                String ordering = orderByField.getDirection().isAscending() ? "ASC" : "DESC";
+                String nullsHandling = orderByField.getDirection().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST";
+                return quote(orderByField.getColumnName()) + " " + ordering + " " + nullsHandling;
+            })
             .collect(Collectors.joining(", "));
     }
 

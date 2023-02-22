@@ -25,6 +25,8 @@ import com.google.common.base.Objects;
 
 import java.util.StringJoiner;
 
+import static java.lang.String.format;
+
 public class OrderByField
 {
     private final String columnName;
@@ -32,10 +34,10 @@ public class OrderByField
 
     @JsonCreator
     public OrderByField(@JsonProperty("columnName") String columnName,
-                        @JsonProperty("direction") String direction)
+                        @JsonProperty("direction") Direction direction)
     {
         this.columnName = columnName;
-        this.direction = Direction.valueOf(direction);
+        this.direction = direction;
     }
 
     @JsonProperty("columnName")
@@ -50,9 +52,39 @@ public class OrderByField
         return this.direction;
     }
 
-    public enum Direction {
-        ASC,
-        DESC;
+    public enum Direction
+    {
+        ASC_NULLS_FIRST(true, true),
+        ASC_NULLS_LAST(true, false),
+        DESC_NULLS_FIRST(false, true),
+        DESC_NULLS_LAST(false, false);
+
+        private final boolean ascending;
+        private final boolean nullsFirst;
+
+        Direction(boolean ascending, boolean nullsFirst)
+        {
+            this.ascending = ascending;
+            this.nullsFirst = nullsFirst;
+        }
+
+        public boolean isAscending()
+        {
+            return ascending;
+        }
+
+        public boolean isNullsFirst()
+        {
+            return nullsFirst;
+        }
+
+        @Override
+        public String toString()
+        {
+            return format("%s %s",
+                    ascending ? "ASC" : "DESC",
+                    nullsFirst ? "NULLS FIRST" : "NULLS LAST");
+        }
     }
 
     @Override

@@ -33,6 +33,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField.Direc
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
 import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
+import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
@@ -56,6 +57,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static com.amazonaws.athena.connectors.mysql.MySqlConstants.MYSQL_NAME;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -127,14 +129,13 @@ public class MySqlRecordHandlerTest
         ValueSet valueSet8 = getSingleValueSet(true);
 
         AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(
-                List.of(
+                Map.of("testCol3",
                         new FunctionCallExpression(
                                 Types.MinorType.VARCHAR.getType(),
                                 AggregationFunctions.SUM.getFunctionName(),
-                                new ArrayList<>()
+                                List.of(new VariableExpression("testCol3", Types.MinorType.VARCHAR.getType()))
                         )
                 ),
-                List.of("testCol3"),
                 List.of(
                         List.of("testCol1", "testCol2")
                 )
@@ -154,13 +155,13 @@ public class MySqlRecordHandlerTest
             List.of(),
             List.of(aggregateFunctionClause),
             List.of(
-                new OrderByField("testCol1", Direction.DESC.name()),
-                new OrderByField("testCol3", Direction.ASC.name())
+                new OrderByField("testCol1", Direction.ASC_NULLS_FIRST),
+                new OrderByField("testCol3", Direction.ASC_NULLS_FIRST)
             ),
             100L
         );
 
-        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol3`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8`, SUM(`testCol3`) FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) GROUP BY `testCol1`, `testCol2` ORDER BY `testCol1` DESC, `testCol3` ASC LIMIT 100";
+        String expectedSql = "SELECT `testCol1`, `testCol2`, `testCol4`, `testCol5`, `testCol6`, `testCol7`, `testCol8`, SUM(`testCol3`) AS testCol3 FROM `testSchema`.`testTable` PARTITION(p0)  WHERE (`testCol1` IN (?,?)) AND ((`testCol2` >= ? AND `testCol2` < ?)) AND ((`testCol3` > ? AND `testCol3` <= ?)) AND (`testCol4` = ?) AND (`testCol5` = ?) AND (`testCol6` = ?) AND (`testCol7` = ?) AND (`testCol8` = ?) GROUP BY `testCol1`, `testCol2` ORDER BY `testCol1` ASC NULLS FIRST, `testCol3` ASC NULLS FIRST LIMIT 100";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 

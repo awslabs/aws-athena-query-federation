@@ -26,35 +26,27 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 
 public class AggregateFunctionClause
 {
-    private final List<FederationExpression> aggregateFunctions;
-    private final List<String> columnNames;
+    private final Map<String, FederationExpression> aggregateFunctions;
     private final List<List<String>> groupingSets;
 
     @JsonCreator
-    public AggregateFunctionClause(@JsonProperty("aggregateFunctions") List<FederationExpression> aggregateFunctions,
-                                   @JsonProperty("columnNames") List<String> columnNames,
+    public AggregateFunctionClause(@JsonProperty("aggregateFunctions") Map<String, FederationExpression> aggregateFunctions,
                                    @JsonProperty("groupingSets") List<List<String>> groupingSets)
     {
         this.aggregateFunctions = aggregateFunctions;
-        this.columnNames = columnNames;
         this.groupingSets = groupingSets;
     }
 
     @JsonProperty("aggregateFunctions")
-    public List<FederationExpression> getAggregateFunctions()
+    public Map<String, FederationExpression> getAggregateFunctions()
     {
         return aggregateFunctions;
-    }
-
-    @JsonProperty("columnNames")
-    public List<String> getColumnNames()
-    {
-        return columnNames;
     }
 
     @JsonProperty("groupingSets")
@@ -79,14 +71,13 @@ public class AggregateFunctionClause
         }
         AggregateFunctionClause call = (AggregateFunctionClause) o;
         return Objects.equals(aggregateFunctions, call.aggregateFunctions) &&
-                Objects.equals(columnNames, call.columnNames) &&
                 Objects.equals(groupingSets, call.groupingSets);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(aggregateFunctions, columnNames, groupingSets);
+        return Objects.hash(aggregateFunctions, groupingSets);
     }
 
     @Override
@@ -95,7 +86,6 @@ public class AggregateFunctionClause
         StringJoiner stringJoiner = new StringJoiner(", ", FunctionCallExpression.class.getSimpleName() + "[", "]");
         return stringJoiner
                 .add("aggregateFunctions=" + aggregateFunctions)
-                .add("columnNames=" + columnNames)
                 .add("groupingSets=" + groupingSets)
                 .toString();
     }

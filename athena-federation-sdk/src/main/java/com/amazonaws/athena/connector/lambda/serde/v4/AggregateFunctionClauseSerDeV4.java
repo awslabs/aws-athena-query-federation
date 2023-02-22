@@ -30,17 +30,18 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 public class AggregateFunctionClauseSerDeV4
 {
     private static final String AGGREGATE_FUNCTIONS_FIELD = "aggregateFunctions";
-    private static final String COLUMN_NAMES_FIELD = "columnNames";
     private static final String GROUPING_SETS_FIELD = "groupingSets";
 
     private AggregateFunctionClauseSerDeV4() {}
@@ -59,13 +60,12 @@ public class AggregateFunctionClauseSerDeV4
         public void doSerialize(AggregateFunctionClause aggregateFunctionClause, JsonGenerator jgen, SerializerProvider provider)
                 throws IOException
         {
-            jgen.writeArrayFieldStart(AGGREGATE_FUNCTIONS_FIELD);
-            for (FederationExpression expression : aggregateFunctionClause.getAggregateFunctions()) {
-                federationExpressionSerializer.serialize(expression, jgen, provider);
+            jgen.writeObjectFieldStart(AGGREGATE_FUNCTIONS_FIELD);
+            for (Map.Entry<String, FederationExpression> expression : aggregateFunctionClause.getAggregateFunctions().entrySet()) {
+                jgen.writeFieldName(expression.getKey());
+                federationExpressionSerializer.serialize(expression.getValue(), jgen, provider);
             }
-            jgen.writeEndArray();
-
-            writeStringArray(jgen, COLUMN_NAMES_FIELD, aggregateFunctionClause.getColumnNames());
+            jgen.writeEndObject();
 
             jgen.writeArrayFieldStart(GROUPING_SETS_FIELD);
             for (List<String> groups : aggregateFunctionClause.getGroupingSets()) {
@@ -90,19 +90,24 @@ public class AggregateFunctionClauseSerDeV4
         }
 
         @Override
+        public AggregateFunctionClause deserialize(JsonParser jparser, DeserializationContext ctxt)
+                throws IOException
+        {
+            // Schema should be deserialized inline and not unwrapped
+            return doDeserialize(jparser, ctxt);
+        }
+
+        @Override
         public AggregateFunctionClause doDeserialize(JsonParser jparser, DeserializationContext ctxt)
                 throws IOException
         {
             assertFieldName(jparser, AGGREGATE_FUNCTIONS_FIELD);
-            validateArrayStart(jparser);
-            ImmutableList.Builder<FederationExpression> federationExpressionList = ImmutableList.builder();
-            while (jparser.nextToken() != JsonToken.END_ARRAY) {
-                validateObjectStart(jparser.getCurrentToken());
-                federationExpressionList.add(federationExpressionDeserializer.doDeserialize(jparser, ctxt));
-                validateObjectEnd(jparser);
+            validateObjectStart(jparser.nextToken());
+            ImmutableMap.Builder<String, FederationExpression> federationExpressionBuilder = ImmutableMap.builder();
+            while (jparser.nextToken() != JsonToken.END_OBJECT) {
+                String column = jparser.getCurrentName();
+                federationExpressionBuilder.put(column, federationExpressionDeserializer.deserialize(jparser, ctxt));
             }
-
-            List<String> columnNames = getNextStringArray(jparser, COLUMN_NAMES_FIELD);
 
             assertFieldName(jparser, GROUPING_SETS_FIELD);
             validateArrayStart(jparser);
@@ -115,7 +120,7 @@ public class AggregateFunctionClauseSerDeV4
                 groupingSetsBuilder.add(group);
             }
 
-            return new AggregateFunctionClause(federationExpressionList.build(), columnNames, groupingSetsBuilder.build());
+            return new AggregateFunctionClause(federationExpressionBuilder.build(), groupingSetsBuilder.build());
         }
     }
 }

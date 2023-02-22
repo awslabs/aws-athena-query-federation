@@ -23,11 +23,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.functions.Function
 
 public enum AggregationFunctions
 {
-    SUM(new FunctionName("$sum")),
-    MAX(new FunctionName("$max")),
-    MIN(new FunctionName("$min")),
-    COUNT(new FunctionName("$count")), // not yet supported, just for the future
-    AVG(new FunctionName("$avg")); // not yet supported, just for the future
+    SUM(new FunctionName("sum")),
+    MAX(new FunctionName("max")),
+    MIN(new FunctionName("min")),
+    COUNT(new FunctionName("count")), // not yet supported, just for the future
+    AVG(new FunctionName("avg")); // not yet supported, just for the future
 
     FunctionName functionName;
 

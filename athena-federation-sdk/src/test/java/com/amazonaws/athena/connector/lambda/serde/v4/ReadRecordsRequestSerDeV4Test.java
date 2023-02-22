@@ -110,10 +110,10 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
         FunctionCallExpression functionCallExpression = new FunctionCallExpression(Types.MinorType.FLOAT8.getType(),
                                                        AggregationFunctions.SUM.getFunctionName(),
                                                        List.of(new VariableExpression("col1", Types.MinorType.FLOAT8.getType())));
-        AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(List.of(functionCallExpression), List.of("col1"), List.of(List.of("col2")));
+        AggregateFunctionClause aggregateFunctionClause = new AggregateFunctionClause(Map.of("col1", functionCallExpression), List.of(List.of("col2")));
         List<OrderByField> orderByClause = List.of(
-            new OrderByField("col3", "ASC"),
-            new OrderByField("col2", "DESC")
+            new OrderByField("col3", OrderByField.Direction.ASC_NULLS_FIRST),
+            new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
         );
 
         Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), List.of(aggregateFunctionClause), orderByClause, -1);
