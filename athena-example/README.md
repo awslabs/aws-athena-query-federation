@@ -133,7 +133,6 @@ public class MyRecordHandler
      *                           3. The Constraints (if any), which include:
                                         - simple filtering predicates
                                         - complex expressions
-                                        - aggregation clauses
                                         - order by clauses
                                         - limit clause
      *                           4. The columns required for projection.

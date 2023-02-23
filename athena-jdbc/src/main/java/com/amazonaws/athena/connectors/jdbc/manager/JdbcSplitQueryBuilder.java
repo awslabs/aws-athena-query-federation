@@ -26,11 +26,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.OrderByField;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregateFunctionClause;
-import com.amazonaws.athena.connector.lambda.domain.predicate.aggregation.AggregationFunctions;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
-import com.amazonaws.athena.connector.lambda.domain.predicate.expression.VariableExpression;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -58,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Query builder for database table split.
@@ -117,18 +111,11 @@ public abstract class JdbcSplitQueryBuilder
     {
         StringBuilder sql = new StringBuilder();
 
-        String columnNames = Stream.concat(
-                tableSchema.getFields()
-                        .stream()
-                        .map(Field::getName)
-                        .filter(c -> !split.getProperties().containsKey(c))
-                        .filter(c -> constraints.getAggregateFunctionClause()
-                                .stream()
-                                .noneMatch(aggregateFunctionClause -> aggregateFunctionClause.getAggregateFunctions().containsKey(c)))
-                        .map(this::quote),
-                extractAggregateSelectClauses(constraints)
-                        .stream()
-                ).collect(Collectors.joining(", "));
+        String columnNames = tableSchema.getFields().stream()
+                .map(Field::getName)
+                .filter(c -> !split.getProperties().containsKey(c))
+                .map(this::quote)
+                .collect(Collectors.joining(", "));
 
         sql.append("SELECT ");
         sql.append(columnNames);
@@ -147,11 +134,6 @@ public abstract class JdbcSplitQueryBuilder
                     .append(Joiner.on(" AND ").join(clauses));
         }
 
-        String aggregateGroupByClause = extractAggregateGroupByClause(constraints);
-        if (!Strings.isNullOrEmpty(aggregateGroupByClause)) {
-            sql.append(" ").append(aggregateGroupByClause);
-        }
-
         String orderByClause = extractOrderByClause(constraints);
 
         if (!Strings.isNullOrEmpty(orderByClause)) {
@@ -166,7 +148,6 @@ public abstract class JdbcSplitQueryBuilder
         }
         LOGGER.info("Generated SQL : {}", sql.toString());
         PreparedStatement statement = jdbcConnection.prepareStatement(sql.toString());
-
         // TODO all types, converts Arrow values to JDBC.
         for (int i = 0; i < accumulator.size(); i++) {
             TypeAndValue typeAndValue = accumulator.get(i);
@@ -218,64 +199,6 @@ public abstract class JdbcSplitQueryBuilder
         }
 
         return statement;
-    }
-
-    private List<String> extractAggregateSelectClauses(Constraints constraints)
-    {
-        List<String> clauses = new ArrayList<>();
-        for (AggregateFunctionClause aggregateFunctionClause : constraints.getAggregateFunctionClause()) {
-            Map<String, FederationExpression> aggregateFunctions = aggregateFunctionClause.getAggregateFunctions();
-            for (Map.Entry<String, FederationExpression> aggregate : aggregateFunctions.entrySet()) {
-                String aggColumnName = aggregate.getKey(); // aggregate functions always have exactly 1 argument
-                FunctionCallExpression functionCallExpression = (FunctionCallExpression) aggregate.getValue();
-                VariableExpression variableExpression = (VariableExpression) functionCallExpression.getArguments().get(0);
-                String aggFieldName = variableExpression.getColumnName();
-
-                AggregationFunctions functionEnum = AggregationFunctions.fromFunctionName(functionCallExpression.getFunctionName());
-
-                String formatted;
-                switch (functionEnum) {
-                    case SUM:
-                        formatted = "SUM(" + quote(aggFieldName) + ")" + " AS " + aggColumnName;
-                        break;
-                    case MAX:
-                        formatted = "MAX(" + quote(aggFieldName) + ")" + " AS " + aggColumnName;
-                        break;
-                    case MIN:
-                        formatted = "MIN(" + quote(aggFieldName) + ")" + " AS " + aggColumnName;
-                        break;
-                    case COUNT:
-                    case AVG:
-                    default:
-                        throw new IllegalArgumentException("Aggregate function " + functionEnum.getFunctionName() + " is not yet supported.");
-                }
-                clauses.add(formatted);
-            }
-        }
-        return clauses;
-    }
-
-    /**
-     * The order of the group by clauses matters.
-     * @param constraints
-     * @return
-     */
-    private String extractAggregateGroupByClause(Constraints constraints)
-    {
-        List<AggregateFunctionClause> aggregateFunctionClauses = constraints.getAggregateFunctionClause();
-        if (aggregateFunctionClauses == null || aggregateFunctionClauses.size() == 0) {
-            return "";
-        }
-        AggregateFunctionClause aggregateFunctionClause = aggregateFunctionClauses.get(0);
-
-        // all aggregate functions will have the same grouping set. So just read the first clause's first grouping set.
-        List<String> uniqueColNames = aggregateFunctionClause.getGroupingSets().get(0);
-        if (uniqueColNames.size() > 0) {
-            return "GROUP BY " + uniqueColNames.stream()
-                    .map(this::quote)
-                    .collect(Collectors.joining(", "));
-        }
-        return "";
     }
 
     private String extractOrderByClause(Constraints constraints)

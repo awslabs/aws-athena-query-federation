@@ -19,7 +19,6 @@
  */
 package com.amazonaws.athena.connector.lambda.metadata.optimizations;
 
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
@@ -33,16 +32,6 @@ import java.util.stream.Collectors;
 
 public enum DataSourceOptimizations
 {
-    SUPPORTS_AGGREGATE_FUNCTIONS("supports_aggregate_functions") 
-    {
-        public Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
-        {
-            if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof AggregationPushdownSubType)) {
-                throw new IllegalArgumentException("Aggregation Pushdown Optimization must contain valid pushdown subtypes.");
-            }
-            return Map.of(SUPPORTS_AGGREGATE_FUNCTIONS.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
-        }
-    },
     SUPPORTS_LIMIT_PUSHDOWN("supports_limit_pushdown")
     {
         public Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)

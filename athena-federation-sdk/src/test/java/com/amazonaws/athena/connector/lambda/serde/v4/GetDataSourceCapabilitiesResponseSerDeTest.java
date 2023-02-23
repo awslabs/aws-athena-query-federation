@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.functions.Standard
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
 import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
@@ -54,7 +53,6 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
             throws IOException
     {
         Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_AGGREGATE_FUNCTIONS.withSupportedSubTypes(AggregationPushdownSubType.SUPPORTS_AVG_PUSHDOWN, AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN));
         capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
                 ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                         .withSubTypeProperties(
