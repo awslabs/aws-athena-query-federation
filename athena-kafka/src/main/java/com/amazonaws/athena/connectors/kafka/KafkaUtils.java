@@ -65,11 +65,12 @@ public class KafkaUtils
 {
     // Parameters.AuthType.AllowedValues from athena-kafka.yaml
     enum AuthType {
-      SASL_SSL_SCRAM_SHA512,
-      SASL_SSL_PLAIN,
-      SASL_PLAINTEXT_PLAIN,
-      SSL,
-      NO_AUTH
+        SASL_SSL_SCRAM_SHA512,
+        SASL_PLAINTEXT_SCRAM_SHA512,
+        SASL_SSL_PLAIN,
+        SASL_PLAINTEXT_PLAIN,
+        SSL,
+        NO_AUTH
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
@@ -177,7 +178,10 @@ public class KafkaUtils
 
         switch (authType) {
             case SASL_SSL_SCRAM_SHA512:
-                setScramAuthKafkaProperties(properties);
+                setScramSSLAuthKafkaProperties(properties);
+                break;
+            case SASL_PLAINTEXT_SCRAM_SHA512:
+                setScramPlainTextAuthKafkaProperties(properties);
                 break;
             case SASL_SSL_PLAIN:
                 setSaslSslAuthKafkaProperties(properties);
@@ -229,9 +233,27 @@ public class KafkaUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties setScramAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setScramSSLAuthKafkaProperties(Properties properties) throws Exception
     {
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_SSL");
+        properties.setProperty(KAFKA_SASL_MECHANISM, "SCRAM-SHA-512");
+        Map<String, Object> cred = getCredentialsAsKeyValue();
+        String username = cred.get(KafkaConstants.AWS_SECRET_USERNAME).toString();
+        String password = cred.get(KafkaConstants.AWS_SECRET_PWD).toString();
+        String s3uri = System.getenv(KafkaConstants.CERTIFICATES_S3_REFERENCE);
+        if (StringUtils.isNotBlank(s3uri)) {
+            //Download certificates for kafka connection from S3 and save to temp directory
+            Path tempDir = copyCertificatesFromS3ToTempFolder();
+            properties.setProperty(KAFKA_TRUSTSTORE_LOCATION, tempDir + File.separator + TRUSTSTORE);
+            properties.setProperty(KAFKA_TRUSTSTORE_PASSWORD, cred.get(KafkaConstants.TRUSTSTORE_PASSWORD).toString());
+        }
+        properties.put(KAFKA_SASL_JAAS_CONFIG, "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username + "\" password=\"" + password + "\";");
+        return properties;
+    }
+
+    protected static Properties setScramPlainTextAuthKafkaProperties(Properties properties) throws Exception
+    {
+        properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_PLAINTEXT");
         properties.setProperty(KAFKA_SASL_MECHANISM, "SCRAM-SHA-512");
         Map<String, Object> cred = getCredentialsAsKeyValue();
         String username = cred.get(KafkaConstants.AWS_SECRET_USERNAME).toString();
@@ -239,7 +261,6 @@ public class KafkaUtils
         properties.put(KAFKA_SASL_JAAS_CONFIG, "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username + "\" password=\"" + password + "\";");
         return properties;
     }
-
     /**
      * Creates the required SASL based settings for kafka consumer.
      *
