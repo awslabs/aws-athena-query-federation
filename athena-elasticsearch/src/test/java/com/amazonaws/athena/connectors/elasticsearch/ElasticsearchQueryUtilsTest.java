@@ -56,7 +56,6 @@ public class ElasticsearchQueryUtilsTest
     private final BlockAllocatorImpl allocator = new BlockAllocatorImpl();
     Schema mapping;
     Map<String, ValueSet> constraintsMap = new HashMap<>();
-    FederationExpressionParser complexExpressionParser = new ElasticsearchFederationExpressionParser();
 
     @Before
     public void setUp()
@@ -129,7 +128,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "(_exists_:year) AND year:([* TO 1950} OR {1955 TO 1972] OR [2010 TO *] OR 1952 OR 1996)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints, complexExpressionParser);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -149,7 +148,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints, complexExpressionParser);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -169,7 +168,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "NOT age:(20 OR 25 OR 30 OR 35)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints, complexExpressionParser);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -188,7 +187,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "(_exists_:number)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints, complexExpressionParser);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);
@@ -207,7 +206,7 @@ public class ElasticsearchQueryUtilsTest
         String expectedPredicate = "(NOT _exists_:number)";
 
         // Get the actual predicate and compare to the expected one.
-        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints, complexExpressionParser);
+        QueryBuilder builder = ElasticsearchQueryUtils.getQuery(constraints);
         String actualPredicate = builder.queryName();
 
         logger.info("Predicates - Expected: {}, Actual: {}", expectedPredicate, actualPredicate);

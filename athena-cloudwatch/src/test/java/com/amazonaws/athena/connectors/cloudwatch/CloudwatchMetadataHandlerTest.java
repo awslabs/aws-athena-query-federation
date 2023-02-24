@@ -73,6 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -333,7 +334,7 @@ public class CloudwatchMetadataHandlerTest
                 "queryId",
                 "default",
                 new TableName("schema-1", "all_log_streams"),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 schema,
                 Collections.singleton("log_stream"));
 
@@ -378,7 +379,7 @@ public class CloudwatchMetadataHandlerTest
                 new TableName("schema", "all_log_streams"),
                 partitions,
                 Collections.singletonList(CloudwatchMetadataHandler.LOG_STREAM_FIELD),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 continuationToken);
         int numContinuations = 0;
         do {

@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.VIEW_METADATA_FIELD;
 import static org.junit.Assert.*;
 
@@ -94,7 +95,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);
@@ -129,7 +130,7 @@ public class SelectQueryBuilderTest
                 .withDatabaseName("myDatabase")
                 .withTableName("myTable")
                 .withProjection(schema)
-                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1))
+                .withConjucts(new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT))
                 .build().replace("\n", "");
 
         logger.info("build: actual[{}]", actual);

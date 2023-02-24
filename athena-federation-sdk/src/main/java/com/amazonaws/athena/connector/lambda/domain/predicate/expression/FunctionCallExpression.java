@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -44,7 +45,7 @@ public final class FunctionCallExpression
     {
         super(type);
         this.functionName = requireNonNull(functionName, "functionName is null");
-        this.arguments = List.copyOf(requireNonNull(arguments, "arguments is null"));
+        this.arguments = new ArrayList<>(requireNonNull(arguments, "arguments is null"));
     }
 
     @JsonProperty("functionName")

@@ -80,6 +80,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_COLUMN_NAME;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_PREFIX_TABLE_PROP;
 import static com.amazonaws.athena.connectors.redis.RedisMetadataHandler.KEY_TYPE;
@@ -248,7 +249,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -347,7 +348,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -461,7 +462,7 @@ public class RedisRecordHandlerTest
                 TABLE_NAME,
                 schemaForRead,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );

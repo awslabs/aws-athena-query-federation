@@ -55,6 +55,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 
 public class ReadRecordsRequestSerDeTest extends TypedSerDeTest<FederationRequest>
@@ -84,7 +85,7 @@ public class ReadRecordsRequestSerDeTest extends TypedSerDeTest<FederationReques
                 ImmutableList.of(Range.greaterThan(allocator, Types.MinorType.FLOAT8.getType(), -10000D)), false));
         constraintsMap.put("col4", EquatableValueSet.newBuilder(allocator, Types.MinorType.FLOAT8.getType(), false, true).add(1.1D).build());
         constraintsMap.put("col5", new AllOrNoneValueSet(Types.MinorType.FLOAT8.getType(), false, true));
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
 
         Block partitions = allocator.createBlock(schema);
         int num_partitions = 10;

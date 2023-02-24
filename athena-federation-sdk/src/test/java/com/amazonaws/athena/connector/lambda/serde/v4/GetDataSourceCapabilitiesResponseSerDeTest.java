@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.Lim
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
 import com.fasterxml.jackson.core.JsonEncoding;
+import com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -52,8 +53,8 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
     public void beforeTest()
             throws IOException
     {
-        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
                 ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
                         .withSubTypeProperties(
                                 StandardFunctions.ADD_FUNCTION_NAME.getFunctionName().getFunctionName(),
@@ -61,7 +62,7 @@ public class GetDataSourceCapabilitiesResponseSerDeTest extends TypedSerDeTest<F
 
 
 
-        expected = new GetDataSourceCapabilitiesResponse("test-catalog", capabilities);
+        expected = new GetDataSourceCapabilitiesResponse("test-catalog", capabilities.build());
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v4", "GetDataSourceCapabilitiesResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();

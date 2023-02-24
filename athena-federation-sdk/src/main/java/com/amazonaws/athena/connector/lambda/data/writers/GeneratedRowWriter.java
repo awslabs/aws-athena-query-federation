@@ -75,6 +75,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+
 public class GeneratedRowWriter
 {
     private static final Logger logger = LoggerFactory.getLogger(GeneratedRowWriter.class);
@@ -104,7 +106,7 @@ public class GeneratedRowWriter
 
     public static RowWriterBuilder newBuilder()
     {
-        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), -1));
+        return new RowWriterBuilder(new Constraints(ImmutableMap.of(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
     }
 
     public boolean writeRow(Block block, int rowNum, Object context)

@@ -41,6 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 
 public class BigQuerySqlUtilsTest
@@ -91,7 +92,7 @@ public class BigQuerySqlUtilsTest
                 QueryParameterValue.bool(true),
                 QueryParameterValue.int64(10), QueryParameterValue.int64(1000000));
 
-        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), -1)) {
+        try (Constraints constraints = new Constraints(constraintMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT)) {
             List<QueryParameterValue> parameterValues = new ArrayList<>();
             String sql = BigQuerySqlUtils.buildSqlFromSplit(tableName, makeSchema(constraintMap), constraints, split, parameterValues);
             assertEquals(expectedParameterValues, parameterValues);

@@ -84,6 +84,7 @@ import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.ME
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.NAMESPACE_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.PERIOD_FIELD;
 import static com.amazonaws.athena.connectors.cloudwatch.metrics.tables.Table.STATISTIC_FIELD;
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -215,7 +216,7 @@ public class MetricsRecordHandlerTest
                 METRICS_TABLE_NAME,
                 METRIC_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );
@@ -291,7 +292,7 @@ public class MetricsRecordHandlerTest
                 METRIC_SAMPLES_TABLE_NAME,
                 METRIC_DATA_TABLE.getSchema(),
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L,
                 100_000_000_000L//100GB don't expect this to spill
         );

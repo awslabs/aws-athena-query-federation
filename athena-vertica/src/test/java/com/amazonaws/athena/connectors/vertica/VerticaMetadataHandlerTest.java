@@ -59,6 +59,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotNull;
@@ -267,7 +268,7 @@ public class VerticaMetadataHandlerTest extends TestBase
         try {
             req = new GetTableLayoutRequest(this.federatedIdentity, "queryId", "default",
                     new TableName("schema1", "table1"),
-                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                    new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                     tableSchema,
                     partitionCols);
 
@@ -361,7 +362,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 new TableName("schema", "table_name"),
                 partitions,
                 partitionCols,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
         GetSplitsRequest req = new GetSplitsRequest(originalReq, null);
 

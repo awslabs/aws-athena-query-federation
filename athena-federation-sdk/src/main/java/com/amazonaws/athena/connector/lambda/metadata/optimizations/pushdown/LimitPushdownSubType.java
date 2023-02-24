@@ -22,7 +22,7 @@ package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 public enum LimitPushdownSubType
         implements PushdownSubTypes
 {
-    ALL("all");
+    INTEGER_CONSTANT("integer_constant");
 
     private String subType;
 

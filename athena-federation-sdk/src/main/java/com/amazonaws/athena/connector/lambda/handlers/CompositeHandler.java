@@ -97,12 +97,12 @@ public class CompositeHandler
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
             ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator, SerDeVersion.SERDE_VERSION);
             FederationRequest rawReq;
-            byte[] allInputBytes = inputStream.readAllBytes();
+            byte[] allInputBytes = com.google.common.io.ByteStreams.toByteArray(inputStream);
 
             try {
                 rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
             }
-            catch (Exception e) { // if client has not upgraded to our latest, fallback to v2
+            catch (IllegalStateException e) { // if client has not upgraded to our latest, fallback to v2
                 objectMapper = VersionedObjectMapperFactory.create(allocator, 2);
                 rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
             }

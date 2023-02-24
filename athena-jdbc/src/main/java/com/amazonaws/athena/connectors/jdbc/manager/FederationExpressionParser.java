@@ -17,10 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.domain.predicate;
+package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
@@ -28,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Variabl
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,6 +39,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
 
 public abstract class FederationExpressionParser 
 {
@@ -52,17 +56,14 @@ public abstract class FederationExpressionParser
 
     public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
     {
-        List<String> complexExpressionConjuncts = new ArrayList<>();
         if (constraints.getExpression() == null || constraints.getExpression().isEmpty()) {
-            return complexExpressionConjuncts;
+            return ImmutableList.of();
         }
 
         List<FederationExpression> federationExpressions = constraints.getExpression();
-        for (FederationExpression federationExpression : federationExpressions) {
-            FunctionCallExpression functionCallExpression = (FunctionCallExpression) federationExpression;
-            complexExpressionConjuncts.add(parseFunctionCallExpression(functionCallExpression));
-        }
-        return complexExpressionConjuncts;
+        return federationExpressions.stream()
+                    .map(federationExpression -> parseFunctionCallExpression((FunctionCallExpression) federationExpression))
+                    .collect(Collectors.toList());
     }
 
     /**
@@ -79,24 +80,23 @@ public abstract class FederationExpressionParser
     {
         FunctionName functionName = functionCallExpression.getFunctionName();
         List<FederationExpression> functionArguments = functionCallExpression.getArguments();
-        List<String> arguments = new ArrayList<>();
 
-        for (FederationExpression argument : functionArguments) {
-            if (argument instanceof FunctionCallExpression) { // recursive case
-                arguments.add(parseFunctionCallExpressionHelper((FunctionCallExpression) argument));
-            } 
-            else if (argument instanceof ConstantExpression) { // base case
-                ConstantExpression constantExpression = (ConstantExpression) argument;
-                arguments.add(parseConstantExpression(constantExpression));
-            }
-            else if (argument instanceof VariableExpression) { // base case
-                VariableExpression variableExpression = (VariableExpression) argument;
-                arguments.add(parseVariableExpression(variableExpression));
-            } 
-            else {
+        List<String> arguments = functionArguments.stream()
+            .map(argument -> {
+                // base cases
+                if (argument instanceof ConstantExpression) {
+                    return parseConstantExpression((ConstantExpression) argument);
+                }
+                else if (argument instanceof VariableExpression) {
+                    return parseVariableExpression((VariableExpression) argument);
+                // recursive case
+                }
+                else if (argument instanceof FunctionCallExpression) {
+                    return parseFunctionCallExpressionHelper((FunctionCallExpression) argument);
+                }
                 throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
-            }
-        }
+            }).collect(Collectors.toList());
+
         return mapFunctionToDataSourceSyntax(functionName, functionCallExpression.getType(), arguments);
     }
     
@@ -105,8 +105,7 @@ public abstract class FederationExpressionParser
     public String parseConstantExpression(ConstantExpression constantExpression)
     {
         Block values = constantExpression.getValues();
-        String dummyColumn = values.getSchema().getFields().get(0).getName();
-        FieldReader fieldReader = values.getFieldReader(dummyColumn);
+        FieldReader fieldReader = values.getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
         
         List<String> constants = new ArrayList<>();
         

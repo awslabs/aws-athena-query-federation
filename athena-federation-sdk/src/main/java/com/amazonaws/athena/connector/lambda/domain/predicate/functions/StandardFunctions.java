@@ -19,6 +19,7 @@ package com.amazonaws.athena.connector.lambda.domain.predicate.functions;
  * limitations under the License.
  * #L%
  */
+//Based on https://github.com/trinodb/trino/blob/master/core/trino-spi/src/main/java/io/trino/spi/expression/StandardFunctions.java
 public enum StandardFunctions
 {
 /**

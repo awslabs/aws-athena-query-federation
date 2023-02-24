@@ -27,7 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
@@ -35,6 +35,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Variabl
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 
 import java.util.Collection;
 import java.util.List;
@@ -44,6 +45,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Before;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
 import static org.junit.Assert.assertEquals;
 
 // TODO in the future - create a base FederationExpressionParser test class.
@@ -65,7 +67,7 @@ public class MySqlFederationExpressionParserTest {
 
     private ConstantExpression buildIntConstantExpression()
     {
-        Block b = BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Int(32, true), List.of(10));
+        Block b = BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Int(32, true), ImmutableList.of(10));
         ConstantExpression intConstantExpression = new ConstantExpression(b, new ArrowType.Int(32, true));
         return intConstantExpression;
     }
@@ -82,8 +84,8 @@ public class MySqlFederationExpressionParserTest {
     public void testParseConstantListOfInts()
     {
         ConstantExpression listOfNums = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Int(32, true),
-            List.of(25, 10, 5, 1)), new ArrowType.Int(32, true)
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Int(32, true),
+            ImmutableList.of(25, 10, 5, 1)), new ArrowType.Int(32, true)
         );
         assertEquals(federationExpressionParser.parseConstantExpression(listOfNums), "25,10,5,1");
     }
@@ -91,9 +93,9 @@ public class MySqlFederationExpressionParserTest {
     @Test
     public void testParseConstantListOfStrings()
     {
-        Collection<Object> rawStrings = List.of("fed", "er", "ation");
+        Collection<Object> rawStrings = ImmutableList.of("fed", "er", "ation");
         ConstantExpression listOfStrings = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Utf8(),
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(),
             rawStrings), new ArrowType.Utf8()
         );
 
@@ -115,14 +117,14 @@ public class MySqlFederationExpressionParserTest {
     public void testCreateSqlForComplexExpressionContent_InvalidUnaryInput()
     {
         FunctionName functionName = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
-        federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, List.of("1", "2"));
+        federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, ImmutableList.of("1", "2"));
     }
 
     @Test
     public void testCreateSqlForComplexExpressionContent_UnaryFunction()
     {
         FunctionName negateFunction = StandardFunctions.NEGATE_FUNCTION_NAME.getFunctionName();
-        String negateClause = federationExpressionParser.mapFunctionToDataSourceSyntax(negateFunction, intType, List.of("110"));
+        String negateClause = federationExpressionParser.mapFunctionToDataSourceSyntax(negateFunction, intType, ImmutableList.of("110"));
         assertEquals(negateClause, "(-110)");
     }
 
@@ -130,14 +132,14 @@ public class MySqlFederationExpressionParserTest {
     public void testCreateSqlForComplexExpressionContent_InvalidBinaryInput()
     {
         FunctionName functionName = StandardFunctions.ADD_FUNCTION_NAME.getFunctionName();
-        federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, List.of("1"));
+        federationExpressionParser.mapFunctionToDataSourceSyntax(functionName, intType, ImmutableList.of("1"));
     }
 
     @Test
     public void testCreateSqlForComplexExpressionContent_BinaryFunction()
     {
         FunctionName subFunction = StandardFunctions.SUBTRACT_FUNCTION_NAME.getFunctionName();
-        String subClause = federationExpressionParser.mapFunctionToDataSourceSyntax(subFunction, intType, List.of("`col1`", "10"));
+        String subClause = federationExpressionParser.mapFunctionToDataSourceSyntax(subFunction, intType, ImmutableList.of("`col1`", "10"));
         assertEquals(subClause, "(`col1` - 10)");
     }
 
@@ -145,7 +147,7 @@ public class MySqlFederationExpressionParserTest {
     public void testCreateSqlForComplexExpressionContent_VarargFunction()
     {
         FunctionName inFunction = StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName();
-        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, List.of("`coinValueColumn`", "25,10,5,1"));
+        String inClause = federationExpressionParser.mapFunctionToDataSourceSyntax(inFunction, intType, ImmutableList.of("`coinValueColumn`", "25,10,5,1"));
         assertEquals(inClause, "(`coinValueColumn` IN (25,10,5,1))");
     }
     
@@ -155,14 +157,14 @@ public class MySqlFederationExpressionParserTest {
         // colOne + colThree < 10
         VariableExpression colOne = new VariableExpression("colOne", intType);
         VariableExpression colThree = new VariableExpression("colThree", intType);
-        List<FederationExpression> addArguments = List.of(colOne, colThree);
+        List<FederationExpression> addArguments = ImmutableList.of(colOne, colThree);
         FederationExpression addFunctionCall = new FunctionCallExpression(
             Types.MinorType.FLOAT8.getType(),
             StandardFunctions.ADD_FUNCTION_NAME.getFunctionName(),
             addArguments);
         
         ConstantExpression ten = buildIntConstantExpression();
-        List<FederationExpression> ltArguments = List.of(addFunctionCall, ten);
+        List<FederationExpression> ltArguments = ImmutableList.of(addFunctionCall, ten);
 
         FederationExpression fullExpression = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
@@ -184,7 +186,7 @@ public class MySqlFederationExpressionParserTest {
         FederationExpression addFunction = new FunctionCallExpression(
             Types.MinorType.INT.getType(),
             StandardFunctions.ADD_FUNCTION_NAME.getFunctionName(),
-            List.of(colOne, colTwo)
+            ImmutableList.of(colOne, colTwo)
             );
 
         // (colOne + colTwo) > colThree
@@ -192,43 +194,43 @@ public class MySqlFederationExpressionParserTest {
         FederationExpression gtFunction = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
             StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
-            List.of(addFunction, colThree)
+            ImmutableList.of(addFunction, colThree)
         );
         
 
         // colFour IN ("banana", "dragonfruit")
         FederationExpression colFour = new VariableExpression("colFour", new ArrowType.Utf8());
         FederationExpression fruitList = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Utf8(),
-            List.of("banana", "dragonfruit")), new ArrowType.Utf8()
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(),
+            ImmutableList.of("banana", "dragonfruit")), new ArrowType.Utf8()
         );
         FederationExpression inFunction = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
             StandardFunctions.IN_PREDICATE_FUNCTION_NAME.getFunctionName(),
-            List.of(colFour, fruitList)
+            ImmutableList.of(colFour, fruitList)
         );
 
         // (colOne + colTwo > colThree) AND (colFour IN ("banana", "dragonfruit"))
         FederationExpression andFunction = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
             StandardFunctions.AND_FUNCTION_NAME.getFunctionName(),
-            List.of(gtFunction, inFunction)
+            ImmutableList.of(gtFunction, inFunction)
         );
 
         FederationExpression fruitConstant = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "anotherDummyColumn", new ArrowType.Utf8(), List.of("fruit")),
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(), ImmutableList.of("fruit")),
             new ArrowType.Utf8()
         );
         FederationExpression notFunction = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
             StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME.getFunctionName(),
-            List.of(colFour, fruitConstant)
+            ImmutableList.of(colFour, fruitConstant)
         );
 
         FederationExpression orFunction = new FunctionCallExpression(
             ArrowType.Bool.INSTANCE,
             StandardFunctions.OR_FUNCTION_NAME.getFunctionName(),
-            List.of(andFunction, notFunction)
+            ImmutableList.of(andFunction, notFunction)
         );
 
         String fullClause = federationExpressionParser.parseFunctionCallExpression((FunctionCallExpression) orFunction);
