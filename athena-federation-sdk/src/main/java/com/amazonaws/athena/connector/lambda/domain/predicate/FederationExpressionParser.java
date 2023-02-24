@@ -52,17 +52,14 @@ public abstract class FederationExpressionParser
 
     public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
     {
-        List<String> complexExpressionConjuncts = new ArrayList<>();
         if (constraints.getExpression() == null || constraints.getExpression().isEmpty()) {
-            return complexExpressionConjuncts;
+            return List.of();
         }
 
         List<FederationExpression> federationExpressions = constraints.getExpression();
-        for (FederationExpression federationExpression : federationExpressions) {
-            FunctionCallExpression functionCallExpression = (FunctionCallExpression) federationExpression;
-            complexExpressionConjuncts.add(parseFunctionCallExpression(functionCallExpression));
-        }
-        return complexExpressionConjuncts;
+        return federationExpressions.stream()
+                    .map(federationExpression -> parseFunctionCallExpression((FunctionCallExpression) federationExpression))
+                    .collect(Collectors.toList());
     }
 
     /**
@@ -79,24 +76,23 @@ public abstract class FederationExpressionParser
     {
         FunctionName functionName = functionCallExpression.getFunctionName();
         List<FederationExpression> functionArguments = functionCallExpression.getArguments();
-        List<String> arguments = new ArrayList<>();
 
-        for (FederationExpression argument : functionArguments) {
-            if (argument instanceof FunctionCallExpression) { // recursive case
-                arguments.add(parseFunctionCallExpressionHelper((FunctionCallExpression) argument));
-            } 
-            else if (argument instanceof ConstantExpression) { // base case
-                ConstantExpression constantExpression = (ConstantExpression) argument;
-                arguments.add(parseConstantExpression(constantExpression));
-            }
-            else if (argument instanceof VariableExpression) { // base case
-                VariableExpression variableExpression = (VariableExpression) argument;
-                arguments.add(parseVariableExpression(variableExpression));
-            } 
-            else {
+        List<String> arguments = functionArguments.stream()
+            .map(argument -> {
+                // base cases
+                if (argument instanceof ConstantExpression) {
+                    return parseConstantExpression((ConstantExpression) argument);
+                }
+                else if (argument instanceof VariableExpression) {
+                    return parseVariableExpression((VariableExpression) argument);
+                // recursive case
+                }
+                else if (argument instanceof FunctionCallExpression) {
+                    return parseFunctionCallExpressionHelper((FunctionCallExpression) argument);
+                }
                 throw new RuntimeException("Should not reach this case - a new subclass was introduced and is not handled.");
-            }
-        }
+            }).collect(Collectors.toList());
+
         return mapFunctionToDataSourceSyntax(functionName, functionCallExpression.getType(), arguments);
     }
     
