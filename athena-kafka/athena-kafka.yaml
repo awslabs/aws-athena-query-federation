@@ -20,6 +20,7 @@ Parameters:
     Default: NO_AUTH
     AllowedValues:
       - SASL_SSL_SCRAM_SHA512
+      - SASL_PLAINTEXT_SCRAM_SHA512
       - SASL_SSL_PLAIN
       - SASL_PLAINTEXT_PLAIN
       - SSL
@@ -67,7 +68,7 @@ Parameters:
     Default: ""
     Type: String
   LambdaRoleARN:
-    Description: "(Must for auth type IAM) A custom role to be used by the Connector lambda"
+    Description: "(Optional) A custom role to be used by the Connector lambda"
     Default: ""
     Type: String
   PermissionsBoundaryARN:
