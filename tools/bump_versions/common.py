@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup
 def get_new_version():
     # Get latest release version
     previous_release_version = subprocess.check_output(['''
-        curl -s https://api.github.com/repos/awslabs/aws-athena-query-federation/releases/latest |
-        grep "tag_name" | sed 's/.*"v\(.*\)".*/\\1/g'
+        gh release -R awslabs/aws-athena-query-federation list --exclude-drafts --exclude-pre-releases -L 1 |
+        sed 's/.*\s\+Latest\s\+v\(.*\)\s\+.*/\\1/g'
     '''], shell=True).decode("utf-8")
 
     # Generate the version without iteration for this week
