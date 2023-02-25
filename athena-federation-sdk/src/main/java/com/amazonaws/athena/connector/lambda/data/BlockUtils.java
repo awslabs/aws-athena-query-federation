@@ -285,9 +285,8 @@ public class BlockUtils
                     break;
                 case DATEDAY:
                     if (value instanceof Date) {
-                        org.joda.time.Days days = org.joda.time.Days.daysBetween(EPOCH,
-                                new org.joda.time.DateTime(((Date) value).getTime()));
-                        ((DateDayVector) vector).setSafe(pos, days.getDays());
+                        var days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
+                        ((DateDayVector) vector).setSafe(pos, new Long(days).intValue());
                     }
                     else if (value instanceof LocalDate) {
                         int days = (int) ((LocalDate) value).toEpochDay();
@@ -831,9 +830,8 @@ public class BlockUtils
                         dateDayWriter.writeNull();
                     }
                     else if (value instanceof Date) {
-                        org.joda.time.Days days = org.joda.time.Days.daysBetween(EPOCH,
-                                new org.joda.time.DateTime(((Date) value).getTime()));
-                        dateDayWriter.writeDateDay(days.getDays());
+                        var days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
+                        dateDayWriter.writeDateDay(new Long(days).intValue());
                     }
                     else if (value instanceof LocalDate) {
                         int days = (int) ((LocalDate) value).toEpochDay();
@@ -1225,12 +1223,6 @@ public class BlockUtils
             default:
                 throw new IllegalArgumentException("Unknown type " + minorType);
         }
-    }
-
-    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime();
-
-    static {
-        EPOCH.setDate(0);
     }
 
     private BlockUtils() {}
