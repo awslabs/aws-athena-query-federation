@@ -132,11 +132,12 @@ public class BlockUtilsTest
     }
 
     @Test
-    public void fieldToString()
+    public void fieldToString() throws java.text.ParseException
     {
         Schema schema = SchemaBuilder.newBuilder()
                 .addField("col1", new ArrowType.Int(32, true))
                 .addField("col2", new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "UTC"))
+                .addField("col3", new ArrowType.Date(org.apache.arrow.vector.types.DateUnit.DAY))
                 .build();
 
         LocalDateTime ldt = LocalDateTime.of(2020, 03, 18, 12,54,29);
@@ -145,18 +146,17 @@ public class BlockUtilsTest
         Block block = allocator.createBlock(schema);
         BlockUtils.setValue(block.getFieldVector("col1"), 0, 10);
         BlockUtils.setValue(block.getFieldVector("col2"), 0, ldt);
+        BlockUtils.setValue(block.getFieldVector("col3"), 0, java.sql.Timestamp.valueOf(ldt));
 
         BlockUtils.setValue(block.getFieldVector("col1"), 1, 11);
         BlockUtils.setValue(block.getFieldVector("col2"), 1, ZonedDateTime.of(ldt, ZoneId.of("-05:00")));
+        BlockUtils.setValue(block.getFieldVector("col3"), 1, new java.text.SimpleDateFormat("yyyy-MM-dd").parse("2019-12-29"));
         block.setRowCount(2);
 
-        String expectedRows = "rows=2";
-        String expectedCol1 = "[10, 11]";
-        String expectedCol2 = "[2020-03-18T12:54:29Z[UTC], 2020-03-18T12:54:29-05:00]";
         String actual = block.toString();
-        assertTrue(actual.contains(expectedRows));
-        assertTrue(actual.contains(expectedCol1));
-        assertTrue(actual.contains(expectedCol2));
+        assertEquals(
+            "Block{rows=2, col1=[10, 11], col2=[2020-03-18T12:54:29Z[UTC], 2020-03-18T12:54:29-05:00], col3=[18339, 18259]}",
+            actual);
     }
 
     @Test
