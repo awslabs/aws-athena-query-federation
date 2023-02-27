@@ -60,6 +60,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -110,7 +111,7 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
             new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
         );
 
-        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), orderByClause, -1);
+        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

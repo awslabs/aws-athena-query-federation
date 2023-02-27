@@ -78,6 +78,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotNull;
@@ -354,7 +355,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L, //100GB don't expect this to spill
                 100_000_000_000L
         );
@@ -420,7 +421,7 @@ public class ElasticsearchRecordHandlerTest
                 new TableName("movies", "mishmash"),
                 mapping,
                 split,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 10_000L, //10KB Expect this to spill
                 0L
         );

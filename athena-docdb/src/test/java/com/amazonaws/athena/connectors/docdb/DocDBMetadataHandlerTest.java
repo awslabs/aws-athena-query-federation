@@ -67,6 +67,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -249,7 +250,7 @@ public class DocDBMetadataHandlerTest
                 QUERY_ID,
                 DEFAULT_CATALOG,
                 TABLE_NAME,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 schema,
                 Collections.EMPTY_SET);
 
@@ -278,7 +279,7 @@ public class DocDBMetadataHandlerTest
                 TABLE_NAME,
                 partitions,
                 partitionCols,
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 null);
 
         GetSplitsRequest req = new GetSplitsRequest(originalReq, continuationToken);

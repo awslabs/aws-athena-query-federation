@@ -73,6 +73,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_NUMBER_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_SCALE_FACTOR_FIELD;
 import static com.amazonaws.athena.connectors.tpcds.TPCDSMetadataHandler.SPLIT_TOTAL_NUMBER_FIELD;
@@ -188,7 +189,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "1000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000_000_000L,
                 100_000_000_000L //100GB don't expect this to spill
         );
@@ -232,7 +233,7 @@ public class TPCDSRecordHandlerTest
                         .add(SPLIT_TOTAL_NUMBER_FIELD, "10000")
                         .add(SPLIT_SCALE_FACTOR_FIELD, "1")
                         .build(),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 1_500_000L, //~1.5MB so we should see some spill
                 0
         );

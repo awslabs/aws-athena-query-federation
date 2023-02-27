@@ -71,6 +71,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -187,7 +188,7 @@ public abstract class AbstractTableProviderTest
                 EquatableValueSet.newBuilder(allocator, Types.MinorType.VARCHAR.getType(), true, false)
                         .add(idValue).build());
 
-        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1);
+        Constraints constraints = new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
 
         ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator, response.getSchema(), constraints);
 

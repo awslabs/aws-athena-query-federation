@@ -45,6 +45,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.util.Collections;
 import java.util.UUID;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -114,7 +115,7 @@ public class AwsCmdbRecordHandlerTest
                         .withQueryId(UUID.randomUUID().toString())
                         .withIsDirectory(true)
                         .build(), keyFactory.create()).build(),
-                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), -1),
+                new Constraints(Collections.EMPTY_MAP, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                 100_000,
                 100_000);
 

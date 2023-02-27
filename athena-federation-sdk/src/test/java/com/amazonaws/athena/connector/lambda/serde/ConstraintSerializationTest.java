@@ -42,6 +42,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+
 public class ConstraintSerializationTest
 {
     private static final Logger logger = LoggerFactory.getLogger(ConstraintSerializationTest.class);
@@ -85,7 +87,7 @@ public class ConstraintSerializationTest
                         "queryId",
                         "default",
                         new TableName("schema1", "table1"),
-                        new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), -1),
+                        new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
                         SchemaBuilder.newBuilder().build(),
                         new HashSet<>())
         ) {

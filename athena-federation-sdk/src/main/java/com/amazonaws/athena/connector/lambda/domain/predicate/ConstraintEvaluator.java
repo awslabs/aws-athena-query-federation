@@ -33,6 +33,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.Constraints.DEFAULT_NO_LIMIT;
+
 /**
  * Used to apply predicates to values inside your connector. Ideally you would also be able to push
  * constraints into your source system (e.g. RDBMS via SQL). For each value you'd like to write for a given row,
@@ -82,7 +84,7 @@ public class ConstraintEvaluator
      */
     public static ConstraintEvaluator emptyEvaluator()
     {
-        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), -1));
+        return new ConstraintEvaluator(null, SchemaBuilder.newBuilder().build(), new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT));
     }
 
     /**

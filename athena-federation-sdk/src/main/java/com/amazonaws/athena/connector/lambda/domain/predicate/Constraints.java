@@ -43,6 +43,8 @@ import java.util.Map;
 public class Constraints
         implements AutoCloseable
 {
+    public static final long DEFAULT_NO_LIMIT = -1;
+
     private Map<String, ValueSet> summary;
     private List<FederationExpression> expression;
     private final List<OrderByField> orderByClause;
@@ -51,7 +53,7 @@ public class Constraints
     @Deprecated
     public Constraints(Map<String, ValueSet> summary) 
     {
-        this(summary, Collections.emptyList(), Collections.emptyList(), -1);
+        this(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
     }
 
     @JsonCreator
@@ -88,7 +90,7 @@ public class Constraints
 
     public boolean hasLimit()
     {
-        return this.limit > -1;
+        return this.limit > DEFAULT_NO_LIMIT;
     }
 
     public List<OrderByField> getOrderByClause()
