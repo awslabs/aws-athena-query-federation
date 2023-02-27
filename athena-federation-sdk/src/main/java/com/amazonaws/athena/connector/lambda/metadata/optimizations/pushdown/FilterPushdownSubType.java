@@ -22,7 +22,10 @@ package com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown;
 public enum FilterPushdownSubType
         implements PushdownSubTypes
 {
-    ALL("all");
+    SORTED_RANGE_SET("sorted_range_set"),
+    EQUATABLE_VALUE_SET("equatable_range_set"),
+    ALL_OR_NONE_VALUE_SET("all_or_none_value_set"),
+    NULLABLE_COMPARISON("nullable_comparison");
 
     private String subType;
 
