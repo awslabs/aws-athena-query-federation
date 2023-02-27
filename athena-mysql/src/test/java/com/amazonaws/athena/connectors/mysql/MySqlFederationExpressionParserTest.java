@@ -44,6 +44,7 @@ import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Before;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
 import static org.junit.Assert.assertEquals;
 
 // TODO in the future - create a base FederationExpressionParser test class.
@@ -65,7 +66,7 @@ public class MySqlFederationExpressionParserTest {
 
     private ConstantExpression buildIntConstantExpression()
     {
-        Block b = BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Int(32, true), List.of(10));
+        Block b = BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Int(32, true), List.of(10));
         ConstantExpression intConstantExpression = new ConstantExpression(b, new ArrowType.Int(32, true));
         return intConstantExpression;
     }
@@ -82,7 +83,7 @@ public class MySqlFederationExpressionParserTest {
     public void testParseConstantListOfInts()
     {
         ConstantExpression listOfNums = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Int(32, true),
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Int(32, true),
             List.of(25, 10, 5, 1)), new ArrowType.Int(32, true)
         );
         assertEquals(federationExpressionParser.parseConstantExpression(listOfNums), "25,10,5,1");
@@ -93,7 +94,7 @@ public class MySqlFederationExpressionParserTest {
     {
         Collection<Object> rawStrings = List.of("fed", "er", "ation");
         ConstantExpression listOfStrings = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Utf8(),
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(),
             rawStrings), new ArrowType.Utf8()
         );
 
@@ -199,7 +200,7 @@ public class MySqlFederationExpressionParserTest {
         // colFour IN ("banana", "dragonfruit")
         FederationExpression colFour = new VariableExpression("colFour", new ArrowType.Utf8());
         FederationExpression fruitList = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "dummyColumn", new ArrowType.Utf8(),
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(),
             List.of("banana", "dragonfruit")), new ArrowType.Utf8()
         );
         FederationExpression inFunction = new FunctionCallExpression(
@@ -216,7 +217,7 @@ public class MySqlFederationExpressionParserTest {
         );
 
         FederationExpression fruitConstant = new ConstantExpression(
-            BlockUtils.newBlock(blockAllocator, "anotherDummyColumn", new ArrowType.Utf8(), List.of("fruit")),
+            BlockUtils.newBlock(blockAllocator, DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME, new ArrowType.Utf8(), List.of("fruit")),
             new ArrowType.Utf8()
         );
         FederationExpression notFunction = new FunctionCallExpression(

@@ -38,6 +38,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression.DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME;
+
 public abstract class FederationExpressionParser 
 {
     static final Logger LOGGER = LoggerFactory.getLogger(FederationExpressionParser.class);
@@ -101,8 +103,7 @@ public abstract class FederationExpressionParser
     public String parseConstantExpression(ConstantExpression constantExpression)
     {
         Block values = constantExpression.getValues();
-        String dummyColumn = values.getSchema().getFields().get(0).getName();
-        FieldReader fieldReader = values.getFieldReader(dummyColumn);
+        FieldReader fieldReader = values.getFieldReader(DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME);
         
         List<String> constants = new ArrayList<>();
         

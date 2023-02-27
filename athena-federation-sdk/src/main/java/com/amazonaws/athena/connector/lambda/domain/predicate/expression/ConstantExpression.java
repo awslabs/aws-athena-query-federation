@@ -33,6 +33,8 @@ import static java.util.Collections.emptyList;
 public class ConstantExpression
         extends FederationExpression
 {
+    public static final String DEFAULT_CONSTANT_EXPRESSION_BLOCK_NAME = "col1";
+    
     private final Block valueBlock;
 
     /**
