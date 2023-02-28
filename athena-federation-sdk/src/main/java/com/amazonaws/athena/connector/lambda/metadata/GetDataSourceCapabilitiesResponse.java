@@ -90,6 +90,6 @@ public class GetDataSourceCapabilitiesResponse
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(capabilities, getRequestType(), getRequestType());
+        return Objects.hashCode(capabilities, getRequestType(), getCatalogName());
     }
 }

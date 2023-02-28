@@ -58,7 +58,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -123,18 +122,18 @@ public class PostGreSqlMetadataHandler
     @Override
     public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
     {
-        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
+        ImmutableMap.Builder<String, List<OptimizationSubType>> capabilities = ImmutableMap.builder();
+        capabilities.put(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
             FilterPushdownSubType.values()
         ));
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
+        capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
             ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
             .withSubTypeProperties(Arrays.stream(StandardFunctions.values())
                     .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
                     .toArray(String[]::new))
         ));
 
-        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);
+        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities.build());
     }
 
     @Override

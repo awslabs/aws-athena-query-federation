@@ -34,42 +34,42 @@ public enum DataSourceOptimizations
 {
     SUPPORTS_LIMIT_PUSHDOWN("supports_limit_pushdown")
     {
-        public Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof LimitPushdownSubType)) {
                 throw new IllegalArgumentException("Limit Pushdown Optimization must contain valid pushdown subtypes.");
             }
-            return Map.of(SUPPORTS_LIMIT_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
+            return Map.entry(SUPPORTS_LIMIT_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
     },
     SUPPORTS_TOP_N_PUSHDOWN("supports_top_n_pushdown")
     {
-        public Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof TopNPushdownSubType)) {
                 throw new IllegalArgumentException("TopN Pushdown Optimization must contain valid pushdown subtypes.");
             }
-            return Map.of(SUPPORTS_TOP_N_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
+            return Map.entry(SUPPORTS_TOP_N_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
     },
     SUPPORTS_FILTER_PUSHDOWN("supports_filter_pushdown")
     {
-        public Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownSubTypes -> pushdownSubTypes instanceof FilterPushdownSubType)) {
                 throw new IllegalArgumentException("Filter Pushdown Optimization must contain valid pushdown subtypes.");
             }
-            return Map.of(SUPPORTS_FILTER_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
+            return Map.entry(SUPPORTS_FILTER_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
     },
     SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN("supports_complex_expression_pushdown")
     {
-        public Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
+        public Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList)
         {
             if (!Arrays.stream(subTypesList).allMatch(pushdownsubTypes -> pushdownsubTypes instanceof ComplexExpressionPushdownSubType || pushdownsubTypes instanceof ComplexExpressionPushdownSubType.SubTypeProperties)) {
                 throw new IllegalArgumentException("Complex Expression Pushdown Optimization must contain valid pushdown subtypes.");
             }
-            return Map.of(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
+            return Map.entry(SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.getOptimization(), Arrays.stream(subTypesList).map(pushdownSubTypes -> new OptimizationSubType(pushdownSubTypes.getSubType(), pushdownSubTypes.getProperties())).collect(Collectors.toList()));
         }
     };
 
@@ -85,5 +85,5 @@ public enum DataSourceOptimizations
         return optimization;
     }
 
-    public abstract Map<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList);
+    public abstract Map.Entry<String, List<OptimizationSubType>> withSupportedSubTypes(PushdownSubTypes... subTypesList);
 }
