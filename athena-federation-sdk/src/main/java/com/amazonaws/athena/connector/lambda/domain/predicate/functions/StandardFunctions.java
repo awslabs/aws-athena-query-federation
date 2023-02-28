@@ -98,9 +98,7 @@ public enum StandardFunctions
     /**
      * $array creates instance of {@link Array Type}
      */
-    ARRAY_CONSTRUCTOR_FUNCTION_NAME(new FunctionName("$array")),
-
-    MOD_FUNCTION_NAME(new FunctionName("mod"), OperatorType.BINARY);
+    ARRAY_CONSTRUCTOR_FUNCTION_NAME(new FunctionName("$array"));
 
     final FunctionName functionName;
     final OperatorType operatorType;
