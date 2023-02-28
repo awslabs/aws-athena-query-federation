@@ -106,7 +106,7 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
                 clause = Joiner.on(" >= ").join(arguments);
                 break;
             case IN_PREDICATE_FUNCTION_NAME:
-                clause = arguments.get(0) + " IN (" + arguments.get(1) + ")";
+                clause = arguments.get(0) + " IN " + arguments.get(1);
                 break;
             case IS_DISTINCT_FROM_OPERATOR_FUNCTION_NAME:
                 String argZero = arguments.get(0);
@@ -148,6 +148,9 @@ public abstract class JdbcFederationExpressionParser extends FederationExpressio
                 break;
             case SUBTRACT_FUNCTION_NAME:
                 clause = Joiner.on(" - ").join(arguments);
+                break;
+            case MOD_FUNCTION_NAME:
+                clause = "MOD(" + arguments.get(0) + "," + arguments.get(1) + ")";
                 break;
             default:
                 throw new NotImplementedException("The function " + functionName.getFunctionName() + " does not have an implementation");
