@@ -248,7 +248,8 @@ public class AllOrNoneValueSet
         }
         final AllOrNoneValueSet other = (AllOrNoneValueSet) obj;
         return Objects.equals(this.type, other.type)
-                && this.all == other.all;
+                && this.all == other.all
+                && this.nullAllowed == other.nullAllowed;
     }
 
     private AllOrNoneValueSet checkCompatibility(ValueSet other)

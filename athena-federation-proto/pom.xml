@@ -1,0 +1,76 @@
+<!--
+Adapted from https://github.com/apache/avro/blob/master/doc/examples/java-example/pom.xml
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+      <artifactId>aws-athena-query-federation</artifactId>
+      <groupId>com.amazonaws</groupId>
+      <version>2022.47.1</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>athena-federation-proto</artifactId>
+  <version>2022.47.1</version>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>3.22.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+      <version>3.22.0</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+      <plugin> <!-- https://github.com/os72/protoc-jar-maven-plugin  -->
+        <groupId>com.github.os72</groupId>
+        <artifactId>protoc-jar-maven-plugin</artifactId>
+        <version>3.11.4</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+              <goals>
+                <goal>run</goal>
+              </goals>
+              <configuration>
+                <protocVersion>3.22.0</protocVersion>
+                <inputDirectories>
+                  <include>src/proto</include>
+                </inputDirectories>
+                <outputTargets>
+                  <outputTarget>
+                    <type>java</type>
+                    <addSources>none</addSources>
+                    <outputDirectory>src/main/java</outputDirectory>
+                  </outputTarget>
+                </outputTargets>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <configuration>
+              <skip>true</skip>
+          </configuration>
+      </plugin>
+    </plugins>
+    <pluginManagement>
+      <plugins>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.metadata;
+
+import 'TableName.proto';
+
+option java_multiple_files = true;
+
+message GetTableResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  optional com.amazonaws.athena.connector.lambda.proto.domain.TableName tableName = 3;
+  optional bytes schema = 4;
+  repeated string partitionColumns = 5;
+}

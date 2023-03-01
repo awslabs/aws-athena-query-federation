@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -27,20 +28,20 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
@@ -175,7 +176,7 @@ public class DynamoDBMetadataHandler
         Set<String> combinedSchemas = new LinkedHashSet<>();
         if (glueClient != null) {
             try {
-                combinedSchemas.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemas());
+                combinedSchemas.addAll(super.doListSchemaNames(allocator, request, DB_FILTER).getSchemasList());
             }
             catch (RuntimeException e) {
                 logger.warn("doListSchemaNames: Unable to retrieve schemas from AWSGlue.", e);
@@ -183,7 +184,7 @@ public class DynamoDBMetadataHandler
         }
 
         combinedSchemas.add(DEFAULT_SCHEMA);
-        return new ListSchemasResponse(request.getCatalogName(), combinedSchemas);
+        return ListSchemasResponse.newBuilder().setType("ListSchemasResponse").setCatalogName(request.getCatalogName()).addAllSchemas(combinedSchemas).build();
     }
 
     /**
@@ -202,14 +203,23 @@ public class DynamoDBMetadataHandler
             throws Exception
     {
         // LinkedHashSet for consistent ordering
-        Set<TableName> combinedTables = new LinkedHashSet<>();
+        Set<com.amazonaws.athena.connector.lambda.proto.domain.TableName> combinedTables = new LinkedHashSet<>();
         if (glueClient != null) {
             try {
                 // does not validate that the tables are actually DDB tables
-                combinedTables.addAll(super.doListTables(allocator,
-                        new ListTablesRequest(request.getIdentity(), request.getQueryId(), request.getCatalogName(),
-                                request.getSchemaName(), null, UNLIMITED_PAGE_SIZE_VALUE),
-                        TABLE_FILTER).getTables());
+                combinedTables.addAll(
+                    super.doListTables(
+                        allocator,
+                        ListTablesRequest.newBuilder()
+                            .setIdentity(request.getIdentity())
+                            .setQueryId(request.getQueryId())
+                            .setCatalogName(request.getCatalogName())
+                            .setSchemaName(request.getSchemaName())
+                            .setPageSize(UNLIMITED_PAGE_SIZE_VALUE)
+                            .build(),
+                        TABLE_FILTER
+                    ).getTablesList()
+                );
             }
             catch (RuntimeException e) {
                 logger.warn("doListTables: Unable to retrieve tables from AWSGlue in database/schema {}", request.getSchemaName(), e);
@@ -218,9 +228,18 @@ public class DynamoDBMetadataHandler
 
         // add tables that may not be in Glue (if listing the default schema)
         if (DynamoDBConstants.DEFAULT_SCHEMA.equals(request.getSchemaName())) {
-            combinedTables.addAll(tableResolver.listTables());
+            combinedTables.addAll(
+                tableResolver.listTables()
+                    .stream()
+                    .map(ProtoUtils::toTableName)
+                    .collect(Collectors.toList())
+            );
         }
-        return new ListTablesResponse(request.getCatalogName(), new ArrayList<>(combinedTables), null);
+        return ListTablesResponse.newBuilder()
+            .setType("ListTablesResponse")
+            .setCatalogName(request.getCatalogName())
+            .addAllTables(combinedTables)
+            .build();
     }
 
     /**
@@ -248,7 +267,12 @@ public class DynamoDBMetadataHandler
 
         // ignore database/schema name since there are no databases/schemas in DDB
         Schema schema = tableResolver.getTableSchema(request.getTableName().getTableName());
-        return new GetTableResponse(request.getCatalogName(), request.getTableName(), schema);
+        return GetTableResponse.newBuilder()
+            .setType("GetTableResponse")
+            .setCatalogName(request.getCatalogName())
+            .setTableName(request.getTableName())
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+            .build();
     }
 
     /**
@@ -259,10 +283,11 @@ public class DynamoDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    public void enhancePartitionSchema(BlockAllocator allocator, SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         // use the source table name from the schema if available (in case Glue table name != actual table name)
-        String tableName = getSourceTableName(request.getSchema());
+        Schema requestSchema = ProtoUtils.fromProtoSchema(allocator, request.getSchema());
+        String tableName = getSourceTableName(requestSchema);
         if (tableName == null) {
             tableName = request.getTableName().getTableName();
         }
@@ -275,15 +300,15 @@ public class DynamoDBMetadataHandler
         }
         // add table name so we don't have to do case insensitive resolution again
         partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
-        Map<String, ValueSet> summary = request.getConstraints().getSummary();
-        List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
+        Map<String, ValueSet> summary = ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()).getSummary();
+        List<String> requestedCols = requestSchema.getFields().stream().map(Field::getName).collect(Collectors.toList());
         DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
         logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
         ValueSet hashKeyValueSet = summary.get(hashKeyName);
         List<Object> hashKeyValues = (hashKeyValueSet != null) ? DDBPredicateUtils.getHashKeyAttributeValues(hashKeyValueSet) : Collections.emptyList();
 
-        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(request.getSchema());
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(requestSchema);
 
         Set<String> columnsToIgnore = new HashSet<>();
         List<AttributeValue> valueAccumulator = new ArrayList<>();
@@ -331,18 +356,19 @@ public class DynamoDBMetadataHandler
      * @see GlueMetadataHandler
      */
     @Override
-    public void getPartitions(BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
+    public void getPartitions(BlockAllocator allocator, BlockWriter blockWriter, GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception
     {
         // TODO consider caching this repeated work in #enhancePartitionSchema
         // use the source table name from the schema if available (in case Glue table name != actual table name)
-        String tableName = getSourceTableName(request.getSchema());
+        Schema requestSchema = ProtoUtils.fromProtoSchema(allocator, request.getSchema());
+        String tableName = getSourceTableName(requestSchema);
         if (tableName == null) {
             tableName = request.getTableName().getTableName();
         }
         DynamoDBTable table = tableResolver.getTableMetadata(tableName);
-        Map<String, ValueSet> summary = request.getConstraints().getSummary();
-        List<String> requestedCols = request.getSchema().getFields().stream().map(Field::getName).collect(Collectors.toList());
+        Map<String, ValueSet> summary = ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()).getSummary();
+        List<String> requestedCols = requestSchema.getFields().stream().map(Field::getName).collect(Collectors.toList());
         DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
         logger.info("using index: {}", index.getName());
         String hashKeyName = index.getHashKey();
@@ -408,7 +434,7 @@ public class DynamoDBMetadataHandler
     {
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
-        Block partitions = request.getPartitions();
+        Block partitions = ProtoUtils.fromProtoBlock(allocator, request.getPartitions());
         Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
         String partitionType = partitionMetadata.get(PARTITION_TYPE_METADATA);
         if (partitionType == null) {
@@ -422,7 +448,7 @@ public class DynamoDBMetadataHandler
                 hashKeyValueReader.setPosition(curPartition);
 
                 //Every split must have a unique location if we wish to spill to avoid failures
-                SpillLocation spillLocation = makeSpillLocation(request);
+                SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
 
                 // copy all partition metadata to the split
                 Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
@@ -436,19 +462,48 @@ public class DynamoDBMetadataHandler
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != partitions.getRowCount() - 1) {
                     // We've reached max page size and this is not the last partition
                     // so send the page back
-                    return new GetSplitsResponse(request.getCatalogName(),
-                            splits,
-                            encodeContinuationToken(curPartition));
+                    return GetSplitsResponse.newBuilder()
+                        .setType("GetSplitsResponse")
+                        .setCatalogName(request.getCatalogName())
+                        .addAllSplits(splits.stream()
+                            .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
+                                .setEncryptionKey(
+                                    com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
+                                        .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
+                                        .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
+                                    .build()
+                                ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                                .putAllProperties(s.getProperties())
+                                .build()
+                            ).collect(Collectors.toList())
+                        )
+                        .setContinuationToken(encodeContinuationToken(curPartition))
+                        .build();
                 }
             }
-            return new GetSplitsResponse(request.getCatalogName(), splits, null);
+            return GetSplitsResponse.newBuilder()
+                .setType("GetSplitsResponse")
+                .setCatalogName(request.getCatalogName())
+                .addAllSplits(splits.stream()
+                    .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
+                        .setEncryptionKey(
+                            com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
+                                .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
+                                .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
+                            .build()
+                        ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                        .putAllProperties(s.getProperties())
+                        .build()
+                    ).collect(Collectors.toList())
+                )
+                .build();
         }
         else if (SCAN_PARTITION_TYPE.equals(partitionType)) {
             FieldReader segmentCountReader = partitions.getFieldReader(SEGMENT_COUNT_METADATA);
             int segmentCount = segmentCountReader.readInteger();
             for (int curPartition = partitionContd; curPartition < segmentCount; curPartition++) {
                 //Every split must have a unique location if we wish to spill to avoid failures
-                SpillLocation spillLocation = makeSpillLocation(request);
+                SpillLocation spillLocation = makeSpillLocation(request.getQueryId());
 
                 // copy all partition metadata to the split
                 Map<String, String> splitMetadata = new HashMap<>(partitionMetadata);
@@ -461,12 +516,41 @@ public class DynamoDBMetadataHandler
                 if (splits.size() == MAX_SPLITS_PER_REQUEST && curPartition != segmentCount - 1) {
                     // We've reached max page size and this is not the last partition
                     // so send the page back
-                    return new GetSplitsResponse(request.getCatalogName(),
-                            splits,
-                            encodeContinuationToken(curPartition));
+                    return GetSplitsResponse.newBuilder()
+                        .setType("GetSplitsResponse")
+                        .setCatalogName(request.getCatalogName())
+                        .addAllSplits(splits.stream()
+                            .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
+                                .setEncryptionKey(
+                                    com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
+                                        .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
+                                        .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
+                                    .build()
+                                ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                                .putAllProperties(s.getProperties())
+                                .build()
+                            ).collect(Collectors.toList())
+                        )
+                        .setContinuationToken(encodeContinuationToken(curPartition))
+                        .build();
                 }
             }
-            return new GetSplitsResponse(request.getCatalogName(), splits, null);
+            return GetSplitsResponse.newBuilder()
+                        .setType("GetSplitsResponse")
+                        .setCatalogName(request.getCatalogName())
+                        .addAllSplits(splits.stream()
+                            .map(s -> com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
+                                .setEncryptionKey(
+                                    com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey.newBuilder()
+                                        .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
+                                        .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
+                                    .build()
+                                ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                                .putAllProperties(s.getProperties())
+                                .build()
+                            ).collect(Collectors.toList())
+                        )
+                        .build();
         }
         else {
             throw new IllegalStateException("Unexpected partition type " + partitionType);

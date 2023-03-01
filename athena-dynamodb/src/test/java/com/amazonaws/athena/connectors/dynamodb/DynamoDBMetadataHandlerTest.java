@@ -20,6 +20,8 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
+import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
@@ -30,18 +32,19 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.dynamodbv2.document.ItemUtils;
@@ -161,12 +164,16 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getDatabases(any())).thenThrow(new AmazonServiceException(""));
 
-        ListSchemasRequest req = new ListSchemasRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
+        ListSchemasRequest req = ListSchemasRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
 
-        logger.info("doListSchemas - {}", res.getSchemas());
+        logger.info("doListSchemas - {}", res.getSchemasList());
 
-        assertThat(new ArrayList<>(res.getSchemas()), equalTo(Collections.singletonList(DEFAULT_SCHEMA)));
+        assertThat(new ArrayList<>(res.getSchemasList()), equalTo(Collections.singletonList(DEFAULT_SCHEMA)));
     }
 
     @Test
@@ -180,14 +187,18 @@ public class DynamoDBMetadataHandlerTest
 
         when(glueClient.getDatabases(any())).thenReturn(result);
 
-        ListSchemasRequest req = new ListSchemasRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME);
+        ListSchemasRequest req = ListSchemasRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .build();
         ListSchemasResponse res = handler.doListSchemaNames(allocator, req);
 
-        logger.info("doListSchemas - {}", res.getSchemas());
+        logger.info("doListSchemas - {}", res.getSchemasList());
 
-        assertThat(res.getSchemas().size(), equalTo(2));
-        assertThat(res.getSchemas().contains("default"), is(true));
-        assertThat(res.getSchemas().contains("ddb"), is(true));
+        assertThat(res.getSchemasList().size(), equalTo(2));
+        assertThat(res.getSchemasList().contains("default"), is(true));
+        assertThat(res.getSchemasList().contains("ddb"), is(true));
     }
 
     @Test
@@ -219,24 +230,33 @@ public class DynamoDBMetadataHandlerTest
         mockResult.setTableList(tableList);
         when(glueClient.getTables(any())).thenReturn(mockResult);
 
-        ListTablesRequest req = new ListTablesRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, DEFAULT_SCHEMA,
-                null, UNLIMITED_PAGE_SIZE_VALUE);
+        ListTablesRequest req = ListTablesRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setSchemaName(DEFAULT_SCHEMA)
+            .setPageSize(UNLIMITED_PAGE_SIZE_VALUE)
+            .build();
         ListTablesResponse res = handler.doListTables(allocator, req);
 
-        logger.info("doListTables - {}", res.getTables());
+        logger.info("doListTables - {}", res.getTablesList());
 
-        List<TableName> expectedTables = tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).collect(Collectors.toList());
-        expectedTables.add(TEST_TABLE_NAME);
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table2"));
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table3"));
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table4"));
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table5"));
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table6"));
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table7"));
-        expectedTables.add(new TableName(DEFAULT_SCHEMA, "test_table8"));
+        List<com.amazonaws.athena.connector.lambda.proto.domain.TableName> expectedTables = 
+            tableNames.stream().map(table -> new TableName(DEFAULT_SCHEMA, table)).map(ProtoUtils::toTableName).collect(Collectors.toList());
+        expectedTables.add(ProtoUtils.toTableName(TEST_TABLE_NAME));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table2")));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table3")));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table4")));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table5")));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table6")));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table7")));
+        expectedTables.add(ProtoUtils.toTableName(new TableName(DEFAULT_SCHEMA, "test_table8")));
 
-
-        assertThat(new HashSet<>(res.getTables()), equalTo(new HashSet<>(expectedTables)));
+        // there was a bug in these tests before - the ExampleMetadataHandler doesn't actually sort the tables if it has no pagination,
+        // but the tests implied they were supposed to by comparing the objects. However, the equals method defined in the old Response class
+        // just checked if the two lists had all the same values (unordered). Because the equals method is now more refined for the generated
+        // protobuf class, we have to manually do the same checks.
+        assertThat(new HashSet<>(res.getTablesList()), equalTo(new HashSet<>(expectedTables)));
     }
 
     @Test
@@ -245,14 +265,19 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_NAME);
+        GetTableRequest req = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+            .build();
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetTable - {}", res.getSchema());
 
         assertThat(res.getTableName().getSchemaName(), equalTo(DEFAULT_SCHEMA));
         assertThat(res.getTableName().getTableName(), equalTo(TEST_TABLE));
-        assertThat(res.getSchema().getFields().size(), equalTo(11));
+        assertThat(ProtoUtils.fromProtoSchema(allocator, res.getSchema()).getFields().size(), equalTo(11));
     }
 
     @Test
@@ -261,13 +286,18 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
+        GetTableRequest req = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_2_NAME))
+            .build();
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetEmptyTable - {}", res.getSchema());
 
-        assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
-        assertThat(res.getSchema().getFields().size(), equalTo(2));
+        assertThat(res.getTableName(), equalTo(ProtoUtils.toTableName(TEST_TABLE_2_NAME)));
+        assertThat(ProtoUtils.fromProtoSchema(allocator, res.getSchema()).getFields().size(), equalTo(2));
     }
 
     @Test
@@ -276,12 +306,17 @@ public class DynamoDBMetadataHandlerTest
     {
         when(glueClient.getTable(any())).thenThrow(new AmazonServiceException(""));
 
-        GetTableRequest req = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, TEST_TABLE_2_NAME);
+        GetTableRequest req = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_2_NAME))
+            .build();
         GetTableResponse res = handler.doGetTable(allocator, req);
 
         logger.info("doGetTable - {}", res.getSchema());
 
-        assertThat(res.getTableName(), equalTo(TEST_TABLE_2_NAME));
+        assertThat(res.getTableName(), equalTo(ProtoUtils.toTableName(TEST_TABLE_2_NAME)));
     }
 
     @Test
@@ -293,31 +328,33 @@ public class DynamoDBMetadataHandlerTest
                 EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, true)
                         .add(true).build());
 
-        GetTableLayoutRequest req = new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                new TableName(TEST_CATALOG_NAME, TEST_TABLE),
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET);
+        GetTableLayoutRequest req = GetTableLayoutRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(new TableName(TEST_CATALOG_NAME, TEST_TABLE)))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+            .build();
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, req);
+        Block partitionsBlock = ProtoUtils.fromProtoBlock(allocator, res.getPartitions());
 
-        logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
-        logger.info("doGetTableLayout partitions - {}", res.getPartitions());
+        logger.info("doGetTableLayout schema - {}", partitionsBlock.getSchema());
+        logger.info("doGetTableLayout partitions - {}", partitionsBlock);
 
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
         // no hash key constraints, so look for segment count column
-        assertThat(res.getPartitions().getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
-        assertThat(res.getPartitions().getRowCount(), equalTo(1));
+        assertThat(partitionsBlock.getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
+        assertThat(partitionsBlock.getRowCount(), equalTo(1));
 
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_3 = :v0 OR attribute_not_exists(#col_3) OR #col_3 = :v1)"));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_3 = :v0 OR attribute_not_exists(#col_3) OR #col_3 = :v1)"));
 
         ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_3", "col_3");
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(true), ":v1", ItemUtils.toAttributeValue(null));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
     }
 
     @Test
@@ -339,30 +376,32 @@ public class DynamoDBMetadataHandlerTest
         constraintsMap.put("col_4", dateValueSet.build());
         constraintsMap.put("col_5", timeValueSet.build());
 
-        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+        GetTableLayoutResponse res = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
+        Block partitionsBlock = ProtoUtils.fromProtoBlock(allocator, res.getPartitions());
 
-        logger.info("doGetTableLayout schema - {}", res.getPartitions().getSchema());
-        logger.info("doGetTableLayout partitions - {}", res.getPartitions());
+        logger.info("doGetTableLayout schema - {}", partitionsBlock.getSchema());
+        logger.info("doGetTableLayout partitions - {}", partitionsBlock);
 
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(QUERY_PARTITION_TYPE));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().containsKey(INDEX_METADATA), is(true));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(INDEX_METADATA), equalTo("test_index"));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(HASH_KEY_NAME_METADATA), equalTo("col_4"));
-        assertThat(res.getPartitions().getRowCount(), equalTo(2));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_NAME_METADATA), equalTo("col_5"));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 BETWEEN :v0 AND :v1)"));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(QUERY_PARTITION_TYPE));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().containsKey(INDEX_METADATA), is(true));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(INDEX_METADATA), equalTo("test_index"));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(HASH_KEY_NAME_METADATA), equalTo("col_4"));
+        assertThat(partitionsBlock.getRowCount(), equalTo(2));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(RANGE_KEY_NAME_METADATA), equalTo("col_5"));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 BETWEEN :v0 AND :v1)"));
 
         ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col_4", "col_4", "#col_5", "col_5");
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(startTime), ":v1", ItemUtils.toAttributeValue(endTime));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
 
         // Tests to validate that we correctly generate predicates that avoid this error:
         //    "KeyConditionExpressions must only contain one condition per key"
@@ -371,15 +410,17 @@ public class DynamoDBMetadataHandlerTest
             timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
                 true /* inclusive lowerbound */, endTime, false /* exclusive upperbound */));
             constraintsMap.put("col_5", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
+            
             // Verify that only the upper bound is present
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
         }
 
         // For the same filters that we applied above, validate that we still get two conditions for non sort keys
@@ -388,15 +429,16 @@ public class DynamoDBMetadataHandlerTest
             timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
                 true /* inclusive lowerbound */, endTime, false /* exclusive upperbound */));
             constraintsMap.put("col_6", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
             // Verify that both bounds are present for col_6 which is not a sort key
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 < :v1 AND #col_6 >= :v2)"));
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 < :v1 AND #col_6 >= :v2)"));
         }
 
         {
@@ -404,15 +446,16 @@ public class DynamoDBMetadataHandlerTest
             timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
               false /* exclusive lowerbound */, endTime, true /* inclusive upperbound*/));
             constraintsMap.put("col_5", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
             // Verify that only the upper bound is present
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
         }
 
         // For the same filters that we applied above, validate that we still get two conditions for non sort keys
@@ -421,15 +464,16 @@ public class DynamoDBMetadataHandlerTest
             timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
                 false /* exclusive lowerbound */, endTime, true /* inclusive upperbound */));
             constraintsMap.put("col_6", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
             // Verify that both bounds are present for col_6 which is not a sort key
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 <= :v1 AND #col_6 > :v2)"));
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 <= :v1 AND #col_6 > :v2)"));
         }
 
         // -------------------------------------------------------------------------
@@ -438,56 +482,60 @@ public class DynamoDBMetadataHandlerTest
             SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
             timeValueSet2.add(Range.greaterThan(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
             constraintsMap.put("col_5", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0)"));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0)"));
         }
 
         {
             SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
             timeValueSet2.add(Range.greaterThanOrEqual(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
             constraintsMap.put("col_5", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0)"));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0)"));
         }
 
         {
             SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
             timeValueSet2.add(Range.lessThan(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
             constraintsMap.put("col_5", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
         }
 
         {
             SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
             timeValueSet2.add(Range.lessThanOrEqual(allocator, Types.MinorType.DATEMILLI.getType(), startTime));
             constraintsMap.put("col_5", timeValueSet2.build());
-            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
+            assertThat(ProtoUtils.fromProtoBlock(allocator, res2.getPartitions()).getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
         }
     }
 
@@ -495,36 +543,42 @@ public class DynamoDBMetadataHandlerTest
     public void doGetSplitsScan()
             throws Exception
     {
-        GetTableLayoutResponse layoutResponse = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(ImmutableMap.of()),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+        GetTableLayoutResponse layoutResponse = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
 
-        GetSplitsRequest req = new GetSplitsRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                layoutResponse.getPartitions(),
-                ImmutableList.of(),
-                new Constraints(new HashMap<>()),
-                null);
+        GetSplitsRequest req = GetSplitsRequest.newBuilder()
+            .setIdentity(FederatedIdentity.newBuilder()
+                .setAccount(TEST_IDENTITY.getAccount())
+                .setArn(TEST_IDENTITY.getArn())
+                .build())
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(
+                com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder()
+                .setSchemaName(TEST_TABLE_NAME.getSchemaName())
+                .setTableName(TEST_TABLE_NAME.getTableName())
+                .build())
+            .setPartitions(layoutResponse.getPartitions())
+            .build();
+
         logger.info("doGetSplits: req[{}]", req);
 
-        MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
-        assertThat(rawResponse.getRequestType(), equalTo(MetadataRequestType.GET_SPLITS));
-
-        GetSplitsResponse response = (GetSplitsResponse) rawResponse;
+        GetSplitsResponse response = handler.doGetSplits(allocator, req);
+        assertThat(response.getType(), equalTo("GetSplitsResponse"));
         String continuationToken = response.getContinuationToken();
 
-        logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
 
-        assertThat(continuationToken == null, is(true));
+        assertThat(response.hasContinuationToken(), is(false));
 
-        Split split = Iterables.getOnlyElement(response.getSplits());
-        assertThat(split.getProperty(SEGMENT_ID_PROPERTY), equalTo("0"));
+        com.amazonaws.athena.connector.lambda.proto.domain.Split split = Iterables.getOnlyElement(response.getSplitsList());
+        assertThat(split.getPropertiesMap().get(SEGMENT_ID_PROPERTY), equalTo("0"));
 
         logger.info("doGetSplitsScan: exit");
     }
@@ -539,42 +593,69 @@ public class DynamoDBMetadataHandlerTest
             valueSet.add("test_str_" + i);
         }
         constraintsMap.put("col_0", valueSet.build());
-        GetTableLayoutResponse layoutResponse = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                SchemaBuilder.newBuilder().build(),
-                Collections.EMPTY_SET));
+        GetTableLayoutResponse layoutResponse = handler.doGetTableLayout(allocator, GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().build()))
+                .build());
 
-        GetSplitsRequest req = new GetSplitsRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                TEST_TABLE_NAME,
-                layoutResponse.getPartitions(),
-                ImmutableList.of("col_0"),
-                new Constraints(new HashMap<>()),
-                null);
+
+        GetSplitsRequest req = GetSplitsRequest.newBuilder()
+        .setIdentity(FederatedIdentity.newBuilder()
+            .setAccount(TEST_IDENTITY.getAccount())
+            .setArn(TEST_IDENTITY.getArn())
+            .build())
+        .setCatalogName(TEST_CATALOG_NAME)
+        .setQueryId(TEST_QUERY_ID)
+        .setTableName(
+            com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder()
+            .setSchemaName(TEST_TABLE_NAME.getSchemaName())
+            .setTableName(TEST_TABLE_NAME.getTableName())
+            .build())
+        .setPartitions(layoutResponse.getPartitions())
+        .addAllPartitionCols(List.of("col_0"))
+        .build();
+
         logger.info("doGetSplits: req[{}]", req);
 
         GetSplitsResponse response = handler.doGetSplits(allocator, req);
-        assertThat(response.getRequestType(), equalTo(MetadataRequestType.GET_SPLITS));
+        assertThat(response.getType(), equalTo("GetSplitsResponse"));
 
         String continuationToken = response.getContinuationToken();
 
-        logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
 
         assertThat(continuationToken, equalTo(String.valueOf(MAX_SPLITS_PER_REQUEST - 1)));
-        assertThat(response.getSplits().size(), equalTo(MAX_SPLITS_PER_REQUEST));
-        assertThat(response.getSplits().stream().map(split -> split.getProperty("col_0")).distinct().count(), equalTo((long) MAX_SPLITS_PER_REQUEST));
+        assertThat(response.getSplitsList().size(), equalTo(MAX_SPLITS_PER_REQUEST));
+        assertThat(response.getSplitsList().stream().map(split -> split.getPropertiesMap().get("col_0")).distinct().count(), equalTo((long) MAX_SPLITS_PER_REQUEST));
 
-        response = handler.doGetSplits(allocator, new GetSplitsRequest(req, continuationToken));
+        GetSplitsRequest nextReq = GetSplitsRequest.newBuilder()
+        .setIdentity(FederatedIdentity.newBuilder()
+            .setAccount(TEST_IDENTITY.getAccount())
+            .setArn(TEST_IDENTITY.getArn())
+            .build())
+        .setCatalogName(TEST_CATALOG_NAME)
+        .setQueryId(TEST_QUERY_ID)
+        .setTableName(
+            com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder()
+            .setSchemaName(TEST_TABLE_NAME.getSchemaName())
+            .setTableName(TEST_TABLE_NAME.getTableName())
+            .build())
+        .setPartitions(layoutResponse.getPartitions())
+        .addAllPartitionCols(List.of("col_0"))
+        .setContinuationToken(continuationToken)
+        .build();
 
-        logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplits().size());
+        response = handler.doGetSplits(allocator, nextReq);
 
-        assertThat(response.getContinuationToken(), equalTo(null));
-        assertThat(response.getSplits().size(), equalTo(MAX_SPLITS_PER_REQUEST));
-        assertThat(response.getSplits().stream().map(split -> split.getProperty("col_0")).distinct().count(), equalTo((long) MAX_SPLITS_PER_REQUEST));
+        logger.info("doGetSplits: continuationToken[{}] - numSplits[{}]", continuationToken, response.getSplitsList().size());
+
+        assertThat(response.hasContinuationToken(), equalTo(false));
+        assertThat(response.getSplitsList().size(), equalTo(MAX_SPLITS_PER_REQUEST));
+        assertThat(response.getSplitsList().stream().map(split -> split.getPropertiesMap().get("col_0")).distinct().count(), equalTo((long) MAX_SPLITS_PER_REQUEST));
     }
 
     @Test
@@ -598,24 +679,32 @@ public class DynamoDBMetadataHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
-        Map<String, String> customMetadata = getTableResponse.getSchema().getCustomMetadata();
+        Map<String, String> customMetadata = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema()).getCustomMetadata();
         assertThat(customMetadata.get(SOURCE_TABLE_PROPERTY), equalTo(TEST_TABLE));
         assertThat(customMetadata.get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), equalTo("Col1=datetime1,Col3=datetime3"));
 
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                tableName,
-                new Constraints(ImmutableMap.of()),
-                getTableResponse.getSchema(),
-                Collections.EMPTY_SET);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setSchema(getTableResponse.getSchema())
+            .build();
+
+                
 
         GetTableLayoutResponse getTableLayoutResponse = handler.doGetTableLayout(allocator, getTableLayoutRequest);
         logger.info("validateSourceTableNamePropagation: GetTableLayoutResponse[{}]", getTableLayoutResponse);
-        assertThat(getTableLayoutResponse.getPartitions().getSchema().getCustomMetadata().get(TABLE_METADATA), equalTo(TEST_TABLE));
+        assertThat(ProtoUtils.fromProtoBlock(allocator, getTableLayoutResponse.getPartitions()).getSchema().getCustomMetadata().get(TABLE_METADATA), equalTo(TEST_TABLE));
     }
 
     @Test
@@ -639,10 +728,15 @@ public class DynamoDBMetadataHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, "glueTableForTestTable");
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = handler.doGetTable(allocator, getTableRequest);
         logger.info("validateSourceTableNamePropagation: GetTableResponse[{}]", getTableResponse);
-        Map<String, String> customMetadata = getTableResponse.getSchema().getCustomMetadata();
+        Map<String, String> customMetadata = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema()).getCustomMetadata();
         assertThat(customMetadata.get(SOURCE_TABLE_PROPERTY), equalTo(TEST_TABLE));
         assertThat(customMetadata.get(DATETIME_FORMAT_MAPPING_PROPERTY_NORMALIZED), equalTo("Col1=datetime1,col3=datetime3"));
 
@@ -654,31 +748,33 @@ public class DynamoDBMetadataHandlerTest
                 EquatableValueSet.newBuilder(allocator, new ArrowType.Bool(), true, true)
                         .add(true).build());
 
-        GetTableLayoutRequest getTableLayoutRequest = new GetTableLayoutRequest(TEST_IDENTITY,
-                TEST_QUERY_ID,
-                TEST_CATALOG_NAME,
-                tableName,
-                new Constraints(constraintsMap, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                getTableResponse.getSchema(),
-                Collections.EMPTY_SET);
+        GetTableLayoutRequest getTableLayoutRequest = GetTableLayoutRequest.newBuilder()
+                .setIdentity(PROTO_TEST_IDENTITY)
+                .setCatalogName(TEST_CATALOG_NAME)
+                .setQueryId(TEST_QUERY_ID)
+                .setTableName(ProtoUtils.toTableName(tableName))
+                .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(constraintsMap)))
+                .setSchema(getTableResponse.getSchema())
+                .build();
 
 
         GetTableLayoutResponse res = handler.doGetTableLayout(allocator, getTableLayoutRequest);
+        Block partitionsBlock = ProtoUtils.fromProtoBlock(allocator, res.getPartitions());
 
-        logger.info("doGetTableLayoutScanWithTypeOverride schema - {}", res.getPartitions().getSchema());
-        logger.info("doGetTableLayoutScanWithTypeOverride partitions - {}", res.getPartitions());
+        logger.info("doGetTableLayoutScanWithTypeOverride schema - {}", partitionsBlock.getSchema());
+        logger.info("doGetTableLayoutScanWithTypeOverride partitions - {}", partitionsBlock);
 
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(PARTITION_TYPE_METADATA), equalTo(SCAN_PARTITION_TYPE));
         // no hash key constraints, so look for segment count column
-        assertThat(res.getPartitions().getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
-        assertThat(res.getPartitions().getRowCount(), equalTo(1));
+        assertThat(partitionsBlock.getSchema().findField(SEGMENT_COUNT_METADATA) != null, is(true));
+        assertThat(partitionsBlock.getRowCount(), equalTo(1));
 
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col3 = :v0 OR attribute_not_exists(#col3) OR #col3 = :v1)"));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col3 = :v0 OR attribute_not_exists(#col3) OR #col3 = :v1)"));
 
         ImmutableMap<String, String> expressionNames = ImmutableMap.of("#col3", "col3", "#col2", "col2");
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(EXPRESSION_NAMES_METADATA), equalTo(Jackson.toJsonString(expressionNames)));
 
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(true), ":v1", ItemUtils.toAttributeValue(null));
-        assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
+        assertThat(partitionsBlock.getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
     }
 }

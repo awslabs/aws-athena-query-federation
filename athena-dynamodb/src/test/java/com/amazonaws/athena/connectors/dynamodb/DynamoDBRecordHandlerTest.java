@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.dynamodb;
 
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
@@ -29,11 +30,11 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
@@ -49,6 +50,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.AbstractMessage;
+
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -155,26 +158,26 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+                    .setIdentity(PROTO_TEST_IDENTITY)
+                    .setCatalogName(TEST_CATALOG_NAME)
+                    .setQueryId(TEST_QUERY_ID)
+                    .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                    .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+                    .setSplit(ProtoUtils.toProtoSplit(split))
+                    .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+                    .setMaxBlockSize(100_000_000_000L)
+                    .setMaxInlineBlockSize(100_000_000_000L)
+                    .build();
+                
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadScanSplit: rows[{}]", response.getRecordCount());
+        
+        logger.info("testReadScanSplit: rows[{}]", ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(1000, response.getRecords().getRowCount());
-        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(1000, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("testReadScanSplit: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -256,26 +259,24 @@ public class DynamoDBRecordHandlerTest
                 .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+                    .setIdentity(PROTO_TEST_IDENTITY)
+                    .setCatalogName(TEST_CATALOG_NAME)
+                    .setQueryId(TEST_QUERY_ID)
+                    .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                    .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+                    .setSplit(ProtoUtils.toProtoSplit(split))
+                    .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+                    .setMaxBlockSize(100_000_000_000L)
+                    .setMaxInlineBlockSize(100_000_000_000L)
+                    .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadScanSplitFiltered: rows[{}]", response.getRecordCount());
+        logger.info("testReadScanSplitFiltered: rows[{}]", ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(992, response.getRecords().getRowCount());
-        logger.info("testReadScanSplitFiltered: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(992, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("testReadScanSplitFiltered: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -293,26 +294,24 @@ public class DynamoDBRecordHandlerTest
                 .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+                    .setIdentity(PROTO_TEST_IDENTITY)
+                    .setCatalogName(TEST_CATALOG_NAME)
+                    .setQueryId(TEST_QUERY_ID)
+                    .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                    .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+                    .setSplit(ProtoUtils.toProtoSplit(split))
+                    .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+                    .setMaxBlockSize(100_000_000_000L)
+                    .setMaxInlineBlockSize(100_000_000_000L)
+                    .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testReadQuerySplit: rows[{}]", response.getRecordCount());
+        logger.info("testReadQuerySplit: rows[{}]", ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(2, response.getRecords().getRowCount());
-        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals(2, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        logger.info("testReadQuerySplit: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -367,25 +366,23 @@ public class DynamoDBRecordHandlerTest
                 .add(EXPRESSION_VALUES_METADATA, toJsonString(expressionValues))
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+                    .setIdentity(PROTO_TEST_IDENTITY)
+                    .setCatalogName(TEST_CATALOG_NAME)
+                    .setQueryId(TEST_QUERY_ID)
+                    .setTableName(ProtoUtils.toTableName(TEST_TABLE_NAME))
+                    .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+                    .setSplit(ProtoUtils.toProtoSplit(split))
+                    .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+                    .setMaxBlockSize(100_000_000_000L)
+                    .setMaxInlineBlockSize(100_000_000_000L)
+                    .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
-
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testZeroRowQuery: rows[{}]", response.getRecordCount());
+        logger.info("testZeroRowQuery: rows[{}]", ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
 
-        assertEquals(0, response.getRecords().getRowCount());
+        assertEquals(0, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
     }
 
     @Test
@@ -415,12 +412,18 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE3);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
+
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testDateTimeSupportFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testDateTimeSupportFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema3 = getTableResponse.getSchema();
+        Schema schema3 = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE3)
@@ -428,31 +431,32 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_3_NAME,
-                schema3,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_3_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema3))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+                
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
 
         LocalDate expectedDate = LocalDate.of(2020, 02, 27);
         LocalDateTime expectedDateTime = LocalDateTime.of(2020, 2, 27, 9, 12, 27);
-        assertEquals(1, response.getRecords().getRowCount());
-        assertEquals(expectedDateTime, response.getRecords().getFieldReader("Col1").readLocalDateTime());
-        assertEquals(expectedDateTime, response.getRecords().getFieldReader("Col2").readLocalDateTime());
-        assertEquals(expectedDate, LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col3").readInteger()));
-        assertEquals(expectedDate, LocalDate.ofEpochDay(response.getRecords().getFieldReader("Col4").readInteger()));
-        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34-05:00"), response.getRecords().getFieldReader("Col5").readLong().longValue());
-        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34Z"), response.getRecords().getFieldReader("Col6").readLong().longValue());
-        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34Z"), response.getRecords().getFieldReader("Col7").readLong().longValue());
+        assertEquals(1, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getRowCount());
+        assertEquals(expectedDateTime, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col1").readLocalDateTime());
+        assertEquals(expectedDateTime, ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col2").readLocalDateTime());
+        assertEquals(expectedDate, LocalDate.ofEpochDay(ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col3").readInteger()));
+        assertEquals(expectedDate, LocalDate.ofEpochDay(ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col4").readInteger()));
+        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34-05:00"), ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col5").readLong().longValue());
+        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34Z"), ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col6").readLong().longValue());
+        assertEquals(getPackedDateTimeWithZone("2015-12-21T17:42:34Z"), ProtoUtils.fromProtoBlock(allocator, response.getRecords()).getFieldReader("Col7").readLong().longValue());
     }
 
     @Test
@@ -472,12 +476,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema4 = getTableResponse.getSchema();
+        Schema schema4 = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         for (Field f : schema4.getFields()) {
             if (f.getName().equals("Col2")) {
@@ -492,25 +501,26 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_4_NAME,
-                schema4,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_4_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema4))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+
+        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema4, result.getSchema());
-        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1],[field2 : null]}]", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1],[field2 : null]}]", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -519,12 +529,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenThrow(new EntityNotFoundException(""));
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE4);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testStructWithNullFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema4 = getTableResponse.getSchema();
+        Schema schema4 = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
         for (Field f : schema4.getFields()) {
             if (f.getName().equals("Col2")) {
                 assertEquals(1, f.getChildren().size());
@@ -537,25 +552,25 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_4_NAME,
-                schema4,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_4_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema4))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+        logger.info("testStructWithNullFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema4, result.getSchema());
-        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals("[Col0 : hashVal], [Col1 : {[field1 : someField1]}]", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -582,12 +597,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE5);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testMapWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema5 = getTableResponse.getSchema();
+        Schema schema5 = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE5)
@@ -595,25 +615,25 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_5_NAME,
-                schema5,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_5_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema5))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testMapWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+        logger.info("testMapWithSchemaFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema5, result.getSchema());
-        assertEquals("[Col0 : hashVal], [outermap : {[key : list],[value : {list1,list2}]}], [structcol : {[key : structKey],[value : {[key1 : str1],[key2 : str2]}]}]", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals("[Col0 : hashVal], [outermap : {[key : list],[value : {list1,list2}]}], [structcol : {[key : structKey],[value : {[key1 : str1],[key2 : str2]}]}]", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -635,12 +655,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE6);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testStructWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema = getTableResponse.getSchema();
+        Schema schema = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE6)
@@ -648,26 +673,26 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_6_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_6_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testStructWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+        logger.info("testStructWithSchemaFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema, result.getSchema());
 
-        assertEquals("[Col0 : hashVal], [outermap : {[list : {list1,list2}]}], [structcol : {[structKey : {[key1 : str1],[key2 : str2]}]}]", BlockUtils.rowToString(response.getRecords(), 0));
+        assertEquals("[Col0 : hashVal], [outermap : {[list : {list1,list2}]}], [structcol : {[structKey : {[key1 : str1],[key2 : str2]}]}]", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
     }
 
     @Test
@@ -690,12 +715,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE7);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testListWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testListWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema = getTableResponse.getSchema();
+        Schema schema = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE7)
@@ -703,22 +733,22 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_7_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_7_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testListWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+        logger.info("testListWithSchemaFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema, result.getSchema());
 
@@ -770,12 +800,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testNumMapWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testNumMapWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema = getTableResponse.getSchema();
+        Schema schema = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE8)
@@ -783,22 +818,22 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_8_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_8_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testNumMapWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+        logger.info("testNumMapWithSchemaFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema, result.getSchema());
         FieldReader numMapReader = result.getFieldReader("nummap");
@@ -834,12 +869,17 @@ public class DynamoDBRecordHandlerTest
         when(glueClient.getTable(any())).thenReturn(mockResult);
 
         TableName tableName = new TableName(DEFAULT_SCHEMA, TEST_TABLE8);
-        GetTableRequest getTableRequest = new GetTableRequest(TEST_IDENTITY, TEST_QUERY_ID, TEST_CATALOG_NAME, tableName);
+        GetTableRequest getTableRequest = GetTableRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setQueryId(TEST_QUERY_ID)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setTableName(ProtoUtils.toTableName(tableName))
+            .build();
         GetTableResponse getTableResponse = metadataHandler.doGetTable(allocator, getTableRequest);
         logger.info("testNumStructWithSchemaFromGlueTable: GetTableResponse[{}]", getTableResponse);
         logger.info("testNumStructWithSchemaFromGlueTable: GetTableResponse Schema[{}]", getTableResponse.getSchema());
 
-        Schema schema = getTableResponse.getSchema();
+        Schema schema = ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema());
 
         Split split = Split.newBuilder(SPILL_LOCATION, keyFactory.create())
                 .add(TABLE_METADATA, TEST_TABLE8)
@@ -847,22 +887,22 @@ public class DynamoDBRecordHandlerTest
                 .add(SEGMENT_COUNT_METADATA, "1")
                 .build();
 
-        ReadRecordsRequest request = new ReadRecordsRequest(
-                TEST_IDENTITY,
-                TEST_CATALOG_NAME,
-                TEST_QUERY_ID,
-                TEST_TABLE_8_NAME,
-                schema,
-                split,
-                new Constraints(ImmutableMap.of()),
-                100_000_000_000L, // too big to spill
-                100_000_000_000L);
+        ReadRecordsRequest request = ReadRecordsRequest.newBuilder()
+            .setIdentity(PROTO_TEST_IDENTITY)
+            .setCatalogName(TEST_CATALOG_NAME)
+            .setQueryId(TEST_QUERY_ID)
+            .setTableName(ProtoUtils.toTableName(TEST_TABLE_8_NAME))
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+            .setSplit(ProtoUtils.toProtoSplit(split))
+            .setConstraints(ProtoUtils.toProtoConstraints(new Constraints(ImmutableMap.of())))
+            .setMaxBlockSize(100_000_000_000L)
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
 
-        RecordResponse rawResponse = handler.doReadRecords(allocator, request);
-        assertTrue(rawResponse instanceof ReadRecordsResponse);
+        AbstractMessage rawResponse = handler.doReadRecords(allocator, request);
         ReadRecordsResponse response = (ReadRecordsResponse) rawResponse;
-        logger.info("testNumStructWithSchemaFromGlueTable: {}", BlockUtils.rowToString(response.getRecords(), 0));
-        Block result = response.getRecords();
+        logger.info("testNumStructWithSchemaFromGlueTable: {}", BlockUtils.rowToString(ProtoUtils.fromProtoBlock(allocator, response.getRecords()), 0));
+        Block result = ProtoUtils.fromProtoBlock(allocator, response.getRecords());
         assertEquals(1, result.getRowCount());
         assertEquals(schema, result.getSchema());
         FieldReader numMapReader = result.getFieldReader("nummap");

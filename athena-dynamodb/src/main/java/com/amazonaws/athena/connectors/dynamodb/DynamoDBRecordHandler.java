@@ -21,16 +21,18 @@ package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.writers.GeneratedRowWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.Extractor;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.handlers.RecordHandler;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connectors.dynamodb.resolver.DynamoDBFieldResolver;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBPredicateUtils;
 import com.amazonaws.athena.connectors.dynamodb.util.DDBRecordMetadata;
@@ -145,14 +147,14 @@ public class DynamoDBRecordHandler
      * @see RecordHandler
      */
     @Override
-    protected void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    protected void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws ExecutionException
     {
-        Split split = recordsRequest.getSplit();
+        Split split = ProtoUtils.fromProtoSplit(recordsRequest.getSplit());
         // use the property instead of the request table name because of case sensitivity
         String tableName = split.getProperty(TABLE_METADATA);
         invokerCache.get(tableName).setBlockSpiller(spiller);
-        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
+        DDBRecordMetadata recordMetadata = new DDBRecordMetadata(ProtoUtils.fromProtoSchema(allocator, recordsRequest.getSchema()));
 
         String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
         logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
@@ -188,12 +190,12 @@ public class DynamoDBRecordHandler
             logger.info("Resolving disableProjectionAndCasing to: " + disableProjectionAndCasing);
         }
 
-        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, recordsRequest.getSchema(), recordsRequest.getConstraints(), disableProjectionAndCasing);
+        Iterator<Map<String, AttributeValue>> itemIterator = getIterator(split, tableName, ProtoUtils.fromProtoSchema(allocator, recordsRequest.getSchema()), disableProjectionAndCasing);
         DynamoDBFieldResolver resolver = new DynamoDBFieldResolver(recordMetadata);
 
-        GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(recordsRequest.getConstraints());
+        GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(ProtoUtils.fromProtoConstraints(allocator, recordsRequest.getConstraints()));
         //register extract and field writer factory for each field.
-        for (Field next : recordsRequest.getSchema().getFields()) {
+        for (Field next : ProtoUtils.fromProtoSchema(allocator, recordsRequest.getSchema()).getFields()) {
             Optional<Extractor> extractor = DDBTypeUtils.makeExtractor(next, recordMetadata, disableProjectionAndCasing);
             //generate extractor for supported data types
             if (extractor.isPresent()) {

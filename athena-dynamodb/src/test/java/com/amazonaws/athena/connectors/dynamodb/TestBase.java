@@ -62,6 +62,8 @@ import static com.amazonaws.services.dynamodbv2.document.ItemUtils.toItem;
 public class TestBase
 {
     protected FederatedIdentity TEST_IDENTITY = new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+    protected com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity PROTO_TEST_IDENTITY = 
+        com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity.newBuilder().setArn("arn").setAccount("account").build();
     protected static final String TEST_QUERY_ID = "queryId";
     protected static final String TEST_CATALOG_NAME = "default";
     protected static final String TEST_TABLE = "test_table";

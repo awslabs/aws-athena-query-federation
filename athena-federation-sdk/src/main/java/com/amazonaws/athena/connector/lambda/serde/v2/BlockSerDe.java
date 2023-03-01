@@ -161,7 +161,7 @@ public final class BlockSerDe
             return deserializeRecordBatch(getOrCreateAllocator(allocatorId), batchBytes);
         }
 
-        private ArrowRecordBatch deserializeRecordBatch(BlockAllocator allocator, byte[] in)
+        public static ArrowRecordBatch deserializeRecordBatch(BlockAllocator allocator, byte[] in)
         {
             AtomicReference<ArrowRecordBatch> batch = new AtomicReference<>();
             try {

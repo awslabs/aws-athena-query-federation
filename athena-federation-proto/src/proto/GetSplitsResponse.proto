@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.metadata;
+
+import 'Split.proto';
+
+option java_multiple_files = true;
+
+message GetSplitsResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  repeated com.amazonaws.athena.connector.lambda.proto.domain.Split splits = 3;
+  optional string continuationToken = 4;
+}

@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.types;
+
+option java_multiple_files = true;
+
+// inspired by google's wrappers.proto. was having trouble importing so just wrote this.
+message NullableString {
+  string value = 1;
+}

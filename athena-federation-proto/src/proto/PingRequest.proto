@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.request;
+import "FederatedIdentity.proto";
+
+option java_multiple_files = true;
+
+message PingRequest {
+  optional string type = 1 [json_name="@type"];
+  optional com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity identity = 2;
+  optional string catalogName = 3;
+  optional string queryId = 4;
+}

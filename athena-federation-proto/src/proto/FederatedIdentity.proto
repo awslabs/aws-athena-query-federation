@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.security;
+
+option java_multiple_files = true;
+
+message FederatedIdentity {
+ optional string principal = 1;
+ optional string account = 2;
+ optional string arn = 3;
+ map<string, string> tags = 4;
+ repeated string groups = 5;
+}

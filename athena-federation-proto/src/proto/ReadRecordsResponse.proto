@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.records;
+
+import 'Block.proto';
+import 'SpillLocation.proto';
+import 'EncryptionKey.proto';
+
+option java_multiple_files = true;
+
+message ReadRecordsResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  optional com.amazonaws.athena.connector.lambda.proto.data.Block records = 3;
+}

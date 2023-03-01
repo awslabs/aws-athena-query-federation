@@ -19,15 +19,16 @@ package com.amazonaws.athena.connector.lambda.security;
  * limitations under the License.
  * #L%
  */
-
-import java.util.Collections;
-
 public class IdentityUtil
 {
     private IdentityUtil() {}
 
-    public static FederatedIdentity fakeIdentity()
+    public static com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity fakeIdentity()
     {
-        return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
+        return com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity.newBuilder()
+            .setArn("arn")
+            .setAccount("account")
+            .build();
+        // return new FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList());
     }
 }

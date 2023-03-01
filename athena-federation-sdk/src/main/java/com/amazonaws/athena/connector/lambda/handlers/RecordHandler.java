@@ -19,7 +19,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * limitations under the License.
  * #L%
  */
-
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -28,12 +28,11 @@ import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.records.RecordRequest;
 import com.amazonaws.athena.connector.lambda.records.RecordRequestType;
-import com.amazonaws.athena.connector.lambda.records.RecordResponse;
-import com.amazonaws.athena.connector.lambda.records.RemoteReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
@@ -49,12 +48,15 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
@@ -150,6 +152,20 @@ public abstract class RecordHandler
         }
     }
 
+    // protobuf handler
+    protected final void doHandleRequest(BlockAllocator allocator,
+            ReadRecordsRequest readRecordsRequest,
+            OutputStream outputStream)
+            throws Exception
+    {
+        logger.info("doHandleRequest: request[{}]", JsonFormat.printer().print(readRecordsRequest));
+        AbstractMessage response = doReadRecords(allocator, readRecordsRequest);
+        String jsonOut = JsonFormat.printer().print(response);
+        logger.debug("ReadRecordsResponse json - {}", jsonOut);
+        outputStream.write(jsonOut.getBytes());
+    }
+
+    @Deprecated
     protected final void doHandleRequest(BlockAllocator allocator,
             ObjectMapper objectMapper,
             RecordRequest req,
@@ -159,13 +175,13 @@ public abstract class RecordHandler
         logger.info("doHandleRequest: request[{}]", req);
         RecordRequestType type = req.getRequestType();
         switch (type) {
-            case READ_RECORDS:
-                try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
+            // case READ_RECORDS:
+            //     try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
+            //         logger.info("doHandleRequest: response[{}]", response);
+            //         assertNotNull(response);
+            //         objectMapper.writeValue(outputStream, response);
+            //     }
+            //     return;
             default:
                 throw new IllegalArgumentException("Unknown request type " + type);
         }
@@ -183,27 +199,34 @@ public abstract class RecordHandler
      * @return A RecordResponse which either a ReadRecordsResponse or a RemoteReadRecordsResponse containing the row
      * data for the requested Split.
      */
-    public RecordResponse doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
+    public AbstractMessage doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
             throws Exception
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
         SpillConfig spillConfig = getSpillConfig(request);
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
-                request.getSchema(),
-                request.getConstraints());
-                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator, configOptions);
+                ProtoUtils.fromProtoSchema(allocator, request.getSchema()),
+                ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()));
+                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, ProtoUtils.fromProtoSchema(allocator, request.getSchema()), evaluator, configOptions);
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
-            readWithConstraint(spiller, request, queryStatusChecker);
+            readWithConstraint(allocator, spiller, request, queryStatusChecker);
 
             if (!spiller.spilled()) {
-                return new ReadRecordsResponse(request.getCatalogName(), spiller.getBlock());
+                return ReadRecordsResponse.newBuilder()
+                    .setType("ReadRecordsResponse")
+                    .setCatalogName(request.getCatalogName())
+                    .setRecords(ProtoUtils.toProtoBlock(spiller.getBlock()))
+                    .build();
             }
             else {
-                return new RemoteReadRecordsResponse(request.getCatalogName(),
-                        request.getSchema(),
-                        spiller.getSpillLocations(),
-                        spillConfig.getEncryptionKey());
+                return RemoteReadRecordsResponse.newBuilder()
+                    .setType("RemoteReadRecordsResponse")
+                    .setCatalogName(request.getCatalogName())
+                    .setSchema(request.getSchema())
+                    .addAllRemoteBlocks(spiller.getSpillLocations().stream().map(ProtoUtils::toProtoSpillLocation).collect(Collectors.toList()))
+                    .setEncryptionKey(ProtoUtils.toProtoEncryptionKey(spillConfig.getEncryptionKey()))
+                    .build();
             }
         }
     }
@@ -224,7 +247,7 @@ public abstract class RecordHandler
      * @note Avoid writing >10 rows per-call to BlockSpiller.writeRow(...) because this will limit the BlockSpiller's
      * ability to control Block size. The resulting increase in Block size may cause failures and reduced performance.
      */
-    protected abstract void readWithConstraint(BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
+    protected abstract void readWithConstraint(BlockAllocator allocator, BlockSpiller spiller, ReadRecordsRequest recordsRequest, QueryStatusChecker queryStatusChecker)
             throws Exception;
 
     protected SpillConfig getSpillConfig(ReadRecordsRequest request)
@@ -235,11 +258,11 @@ public abstract class RecordHandler
         }
 
         return SpillConfig.newBuilder()
-                .withSpillLocation(request.getSplit().getSpillLocation())
+                .withSpillLocation(ProtoUtils.fromProtoSplit(request.getSplit()).getSpillLocation())
                 .withMaxBlockBytes(maxBlockSize)
                 .withMaxInlineBlockBytes(request.getMaxInlineBlockSize())
                 .withRequestId(request.getQueryId())
-                .withEncryptionKey(request.getSplit().getEncryptionKey())
+                .withEncryptionKey(ProtoUtils.fromProtoSplit(request.getSplit()).getEncryptionKey())
                 .withNumSpillThreads(NUM_SPILL_THREADS)
                 .build();
     }

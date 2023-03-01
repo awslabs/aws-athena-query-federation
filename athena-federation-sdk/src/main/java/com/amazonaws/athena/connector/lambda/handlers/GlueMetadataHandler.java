@@ -21,17 +21,19 @@ package com.amazonaws.athena.connector.lambda.handlers;
  */
 
 import com.amazonaws.ClientConfiguration;
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -213,10 +215,25 @@ public abstract class GlueMetadataHandler
 
     /**
      * Provides access to the current AWS Glue DataCatalog being used by this class.
-     *
-     * @param request The request for which we'd like to resolve the catalog.
-     * @return The glue catalog to use for the request.
      */
+    protected String getCatalog(FederatedIdentity identity)
+    {
+        String override = configOptions.get(CATALOG_NAME_ENV_OVERRIDE);
+        if (override == null) {
+            if (configOptions.get(FUNCTION_ARN_CONFIG_KEY) != null) {
+                String functionArn = configOptions.get(FUNCTION_ARN_CONFIG_KEY);
+                String functionOwner = getFunctionOwner(functionArn).orElse(null);
+                if (functionOwner != null) {
+                    logger.debug("Function Owner: " + functionOwner);
+                    return functionOwner;
+                }
+            }
+            return identity.getAccount();
+        }
+        return override;
+    }
+
+    // TODO: Deprecate this old logic once it is not needed (after adding in all remaining metadata proto requests)
     protected String getCatalog(MetadataRequest request)
     {
         String override = configOptions.get(CATALOG_NAME_ENV_OVERRIDE);
@@ -260,7 +277,7 @@ public abstract class GlueMetadataHandler
             throws Exception
     {
         GetDatabasesRequest getDatabasesRequest = new GetDatabasesRequest();
-        getDatabasesRequest.setCatalogId(getCatalog(request));
+        getDatabasesRequest.setCatalogId(getCatalog(request.getIdentity()));
 
         List<String> schemas = new ArrayList<>();
         String nextToken = null;
@@ -278,7 +295,11 @@ public abstract class GlueMetadataHandler
         }
         while (nextToken != null);
 
-        return new ListSchemasResponse(request.getCatalogName(), schemas);
+        return ListSchemasResponse.newBuilder()
+            .setType("ListSchemasResponse")
+            .setCatalogName(request.getCatalogName())
+            .addAllSchemas(schemas)
+            .build();
     }
 
     /**
@@ -310,7 +331,7 @@ public abstract class GlueMetadataHandler
             throws Exception
     {
         GetTablesRequest getTablesRequest = new GetTablesRequest();
-        getTablesRequest.setCatalogId(getCatalog(request));
+        getTablesRequest.setCatalogId(getCatalog(request.getIdentity()));
         getTablesRequest.setDatabaseName(request.getSchemaName());
 
         Set<TableName> tables = new HashSet<>();
@@ -337,7 +358,14 @@ public abstract class GlueMetadataHandler
         }
         while (nextToken != null && (pageSize == UNLIMITED_PAGE_SIZE_VALUE || pageSize > 0));
 
-        return new ListTablesResponse(request.getCatalogName(), tables, nextToken);
+        ListTablesResponse.Builder listTablesResponseBuilder = ListTablesResponse.newBuilder()
+            .setType("ListTablesResponse")
+            .setCatalogName(request.getCatalogName())
+            .addAllTables(tables.stream().map(ProtoUtils::toTableName).collect(Collectors.toList()));
+        if (nextToken != null) {
+            listTablesResponseBuilder.setNextToken(nextToken);
+        }
+        return listTablesResponseBuilder.build();
     }
 
     /**
@@ -386,9 +414,9 @@ public abstract class GlueMetadataHandler
     protected GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest request, TableFilter filter)
             throws Exception
     {
-        TableName tableName = request.getTableName();
+        com.amazonaws.athena.connector.lambda.proto.domain.TableName tableName = request.getTableName();
         com.amazonaws.services.glue.model.GetTableRequest getTableRequest = new com.amazonaws.services.glue.model.GetTableRequest();
-        getTableRequest.setCatalogId(getCatalog(request));
+        getTableRequest.setCatalogId(getCatalog(request.getIdentity()));
         getTableRequest.setDatabaseName(tableName.getSchemaName());
         getTableRequest.setName(tableName.getTableName());
 
@@ -455,10 +483,13 @@ public abstract class GlueMetadataHandler
 
         schemaBuilder.addMetadata(GLUE_TABLE_CONTAINS_PREVIOUSLY_UNSUPPORTED_TYPE, String.valueOf(glueTableContainsPreviouslyUnsupportedType));
 
-        return new GetTableResponse(request.getCatalogName(),
-                request.getTableName(),
-                schemaBuilder.build(),
-                partitionCols);
+        return GetTableResponse.newBuilder()
+            .setType("GetTableResponse")
+            .setCatalogName(request.getCatalogName())
+            .setTableName(request.getTableName())
+            .addAllPartitionColumns(partitionCols)
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schemaBuilder.build()))
+            .build();
     }
 
     /**

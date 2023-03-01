@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.metadata;
+
+option java_multiple_files = true;
+
+message ListSchemasResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  repeated string schemas = 3;
+}

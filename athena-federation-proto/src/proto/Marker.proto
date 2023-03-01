@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.domain.predicate;
+import 'Block.proto';
+option java_multiple_files = true;
+
+enum Bound{
+  BELOW = 0;
+  EXACTLY = 1;
+  ABOVE = 2;
+}
+
+message Marker {
+  optional com.amazonaws.athena.connector.lambda.proto.data.Block valueBlock = 1;
+  optional Bound bound = 2;
+  optional bool nullValue = 3;
+}

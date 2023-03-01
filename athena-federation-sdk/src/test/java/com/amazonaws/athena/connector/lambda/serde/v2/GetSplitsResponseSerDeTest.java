@@ -87,6 +87,7 @@ public class GetSplitsResponseSerDeTest extends TypedSerDeTest<FederationRespons
 
         String expectedSerDeFile = utils.getResourceOrFail("serde/v2", "GetSplitsResponse.json");
         expectedSerDeText = utils.readAllAsString(expectedSerDeFile).trim();
+        logger.info("EXPECTED SERDE IS {}", expectedSerDeText);
     }
 
     @Test

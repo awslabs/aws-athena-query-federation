@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.domain.spill;
+
+option java_multiple_files = true;
+
+message SpillLocation {
+ optional string type = 1 [json_name="@type"];
+ optional string bucket = 2;
+ optional string key = 3;
+ optional bool directory = 4;
+}

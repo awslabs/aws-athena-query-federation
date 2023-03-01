@@ -63,6 +63,18 @@ public class BlockSerializationTest
     }
 
     @Test
+    public void emptyBlockTest() throws IOException
+    {
+        Block empty = BlockUtils.newEmptyBlock(otherAllocator, "col1", Types.MinorType.INT.getType());
+        ObjectMapper serializer = ObjectMapperFactory.create(new BlockAllocatorImpl());
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        serializer.writeValue(out, empty);
+
+        Block actual = serializer.readValue(new ByteArrayInputStream(out.toByteArray()), Block.class);
+        assertEquals(empty, actual);
+    }
+
+    @Test
     public void serializationTest()
             throws IOException
     {

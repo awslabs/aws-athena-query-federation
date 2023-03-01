@@ -20,7 +20,9 @@ package com.amazonaws.athena.connector.lambda.records;
  * #L%
  */
 
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.services.lambda.invoke.LambdaFunction;
+import com.google.protobuf.AbstractMessage;
 
 /**
  * Lambda functions intended for <code>Record</code> operations associate with this interface.
@@ -34,5 +36,5 @@ public interface RecordService
      * @return The data/records.
      */
     @LambdaFunction(functionName = "record")
-    RecordResponse readRecords(final RecordRequest request);
+    AbstractMessage readRecords(final ReadRecordsRequest request);
 }

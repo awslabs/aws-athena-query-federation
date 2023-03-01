@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.records;
+
+import 'FederatedIdentity.proto';
+import 'TableName.proto';
+import 'Block.proto';
+import 'Constraints.proto';
+import 'Split.proto';
+
+option java_multiple_files = true;
+
+message ReadRecordsRequest {
+  optional string type = 1 [json_name="@type"];
+  optional com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity identity = 2;
+  optional string catalogName = 3;
+  optional string queryId = 4;
+  optional com.amazonaws.athena.connector.lambda.proto.domain.TableName tableName = 5;
+  optional bytes schema = 6;
+  optional com.amazonaws.athena.connector.lambda.proto.domain.Split split = 7;
+  optional com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints constraints = 8;
+  optional int64 maxBlockSize = 9;
+  optional int64 maxInlineBlockSize = 10;
+}

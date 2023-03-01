@@ -19,3 +19,4 @@ node_modules
 package-lock.json
 cdk.out
 .env
+athena-federation-proto/src/main

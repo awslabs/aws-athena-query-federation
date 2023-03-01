@@ -83,7 +83,7 @@ public class ConstraintSerializationTest
                         Range.equal(allocator, Types.MinorType.VARCHAR.getType(), "9")), false));
 
         try (
-                GetTableLayoutRequest req = new GetTableLayoutRequest(IdentityUtil.fakeIdentity(),
+                GetTableLayoutRequest req = new GetTableLayoutRequest(new com.amazonaws.athena.connector.lambda.security.FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList()),
                         "queryId",
                         "default",
                         new TableName("schema1", "table1"),

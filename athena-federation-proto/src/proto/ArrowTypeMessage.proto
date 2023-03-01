@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.arrowtype;
+
+option java_multiple_files = true;
+
+// the Arrow enum follows this unconventional casing.
+enum UnionMode { // constructor arg for ArrowType.Union
+  Dense = 0;
+  Sparse = 1;
+}
+
+// TODO: All of the subclasses (we support) need to have their constructor fields as optional fields in this message
+// refer to athena-federation-sdk/src/main/java/com/amazonaws/athena/connector/lambda/serde/v2/ArrowTypeSerDe.java for those types
+// all types to support: Null, Struct, List, FixedSizeList, Map, Union,
+// Int, FloatingPoint, Utf8, Binary, FixedSizeBinary, Bool, Decimal, Date, Time, Timestamp, Interval
+// Types with no-arg constructors will have no fields set outside of the type. These include:
+//  - Utf8, Null, Struct, List, Binary, Bool, Map
+
+// remaining types: Interval
+message ArrowTypeMessage {
+  optional string type = 1 [json_name="@type"];
+  optional string precision = 2; // FloatingPoint, arg0, of type FloatingPointPrecision with vales DOUBLE, HALF, and SINGLE, and also int32 field for Decimal arg0. We therefore just use a string.
+  optional int32 bitWidth = 3; // Int, arg0 and Time, arg1
+  optional bool isSigned = 4; // Int, arg1
+  optional int32 listSize = 5; // FixedSizeList, arg0
+  optional int32 byteWidth = 6; // FixedSizeBinary, arg0
+  optional UnionMode mode = 7; // Union, arg0
+  repeated int32 typeIds = 8; // Union, arg1
+  optional int32 scale = 9; // Deceimal, arg1  
+  optional string unit = 10; // Date, arg0, has type DateUnit and is an enum of DAY and MILLISECOND. Also Time, arg0. Also Timestamp, arg0. Also Interval arg0 which is of type IntervalUnit with values DAY_TIME, MONTH_DAY_NANO, YEAR_MONTH
+  optional string timezone = 11; // Timestamp arg1
+}

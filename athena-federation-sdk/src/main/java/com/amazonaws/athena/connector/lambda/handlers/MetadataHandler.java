@@ -19,7 +19,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * limitations under the License.
  * #L%
  */
-
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -36,22 +36,23 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
@@ -67,6 +68,7 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -118,6 +120,7 @@ public abstract class MetadataHandler
     protected static final String SPILL_PREFIX_ENV = "spill_prefix";
     protected static final String KMS_KEY_ID_ENV = "kms_key_id";
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
+    protected static final String FUNCTION_ARN_CONFIG_KEY = "FUNCTION_ARN";
     private final CachableSecretsManager secretsManager;
     private final AmazonAthena athena;
     private final ThrottlingInvoker athenaInvoker;
@@ -203,6 +206,16 @@ public abstract class MetadataHandler
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
     }
 
+    protected SpillLocation makeSpillLocation(String queryId)
+    {
+        return S3SpillLocation.newBuilder()
+                .withBucket(spillBucket)
+                .withPrefix(spillPrefix)
+                .withQueryId(queryId)
+                .withSplitId(UUID.randomUUID().toString())
+                .build();
+    }
+
     /**
      * Used to make a spill location for a split. Each split should have a unique spill location, so be sure
      * to call this method once per split!
@@ -223,15 +236,17 @@ public abstract class MetadataHandler
             throws IOException
     {
         try (BlockAllocator allocator = new BlockAllocatorImpl()) {
+            byte[] allInputBytes = inputStream.readAllBytes();
+          // behavior before protobuf
             ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
-                if (rawReq instanceof PingRequest) {
-                    try (PingResponse response = doPing((PingRequest) rawReq)) {
-                        assertNotNull(response);
-                        objectMapper.writeValue(outputStream, response);
-                    }
-                    return;
-                }
+            try (FederationRequest rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class)) {
+                // if (rawReq instanceof PingRequest) {
+                //     try (PingResponse response = doPing((PingRequest) rawReq)) {
+                //         assertNotNull(response);
+                //         objectMapper.writeValue(outputStream, response);
+                //     }
+                //     return;
+                // }
 
                 if (!(rawReq instanceof MetadataRequest)) {
                     throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
@@ -246,6 +261,81 @@ public abstract class MetadataHandler
         }
     }
 
+    // for protobuf
+    protected final void doHandleRequest(BlockAllocator allocator,
+            TypeHeader typeHeader,
+            String inputJson,
+            OutputStream outputStream)
+            throws Exception
+    {
+        logger.info("doHandleRequest: request[{}]", inputJson);
+        switch(typeHeader.getType()) {
+            case "ListSchemasRequest":
+                ListSchemasRequest.Builder listSchemasBuilder = ListSchemasRequest.newBuilder();
+                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, listSchemasBuilder);
+                ListSchemasResponse listSchemasResponse = doListSchemaNames(allocator, listSchemasBuilder.build());
+                String listSchemasResponseJson = JsonFormat.printer().print(listSchemasResponse);
+                logger.debug("ListSchemasResponse json - {}", listSchemasResponseJson);
+                outputStream.write(listSchemasResponseJson.getBytes());
+                return;
+            case "ListTablesRequest":
+                ListTablesRequest.Builder listTablesBuilder = ListTablesRequest.newBuilder();
+                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, listTablesBuilder);
+                ListTablesResponse listTablesResponse = doListTables(allocator, listTablesBuilder.build());
+
+                // primitive fields are omitted by default - set next token to empty string first, because we can't set it to null.
+                if (!listTablesResponse.hasNextToken()) {
+                    listTablesResponse = listTablesResponse.toBuilder().setNextToken("").build();
+                }
+
+                // after converting to a json string, replace the empty string for next token with an explicit null.
+                // right now, we are not using the includingDefaultValueFields() option because we assume all non-primitives are set.
+                String listTablesResponseJson = JsonFormat.printer().print(listTablesResponse);
+                listTablesResponseJson = listTablesResponseJson.replace("\"nextToken\": \"\"", "\"nextToken\": null");
+                logger.debug("ListTablesResponse json - {}", listTablesResponseJson);
+                outputStream.write(listTablesResponseJson.getBytes());
+                return;
+            case "GetTableRequest":
+                GetTableRequest.Builder getTableBuilder = GetTableRequest.newBuilder();
+                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, getTableBuilder);
+                GetTableResponse getTableResponse = doGetTable(allocator, getTableBuilder.build());
+                assertTypes(ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema()));
+                String getTableResponseJson = JsonFormat.printer().includingDefaultValueFields().print(getTableResponse);
+                logger.debug("GetTableResponse json - {}", getTableResponseJson);
+                outputStream.write(getTableResponseJson.getBytes());
+                return;
+            case "GetTableLayoutRequest":
+                GetTableLayoutRequest.Builder getTableLayoutRequestBuilder = GetTableLayoutRequest.newBuilder();
+                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, getTableLayoutRequestBuilder);
+                GetTableLayoutResponse getTableLayoutResponse = doGetTableLayout(allocator, getTableLayoutRequestBuilder.build());
+                String getTableLayoutResponseJson = JsonFormat.printer().includingDefaultValueFields().print(getTableLayoutResponse);
+                logger.debug("GetTableLayoutResopnse json - {}", getTableLayoutResponseJson);
+                outputStream.write(getTableLayoutResponseJson.getBytes());
+                return;
+            case "GetSplitsRequest":
+                GetSplitsRequest.Builder getSplitsBuilder = GetSplitsRequest.newBuilder();
+                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, getSplitsBuilder);
+                GetSplitsResponse response = doGetSplits(allocator, getSplitsBuilder.build());
+
+                // primitive fields are omitted by default - set continuation token to empty string first, becuase we can't set it to null.
+                if (!response.hasContinuationToken()) {
+                    response = response.toBuilder().setContinuationToken("").build();
+                }
+
+                // after converting to a json string, replace the empty string for continuation token with explicit null.
+                // right now, we are not using the includingDefaultValueFields() option becuase we assume all non-primitives are set.
+                String responseJson = JsonFormat.printer().print(response);
+                responseJson = responseJson.replace("\"continuationToken\": \"\"", "\"continuationToken\": null");
+                logger.info("GetSplitsResponse json - {}", responseJson);
+                outputStream.write(responseJson.getBytes());
+                return;
+            default:
+              logger.error("Input type {} is not yet supported.", typeHeader.getType()); 
+              throw new UnsupportedOperationException("Input type is not yet supported - " + typeHeader.getType());
+        }
+    }
+
+    @Deprecated
     protected final void doHandleRequest(BlockAllocator allocator,
             ObjectMapper objectMapper,
             MetadataRequest req,
@@ -255,43 +345,6 @@ public abstract class MetadataHandler
         logger.info("doHandleRequest: request[{}]", req);
         MetadataRequestType type = req.getRequestType();
         switch (type) {
-            case LIST_SCHEMAS:
-                try (ListSchemasResponse response = doListSchemaNames(allocator, (ListSchemasRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
-            case LIST_TABLES:
-                try (ListTablesResponse response = doListTables(allocator, (ListTablesRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
-            case GET_TABLE:
-                try (GetTableResponse response = doGetTable(allocator, (GetTableRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    assertTypes(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
-            case GET_TABLE_LAYOUT:
-                try (GetTableLayoutResponse response = doGetTableLayout(allocator, (GetTableLayoutRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
-            case GET_SPLITS:
-                verifier.checkBucketAuthZ(spillBucket);
-                try (GetSplitsResponse response = doGetSplits(allocator, (GetSplitsRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
             case GET_DATASOURCE_CAPABILITIES:
                 try (GetDataSourceCapabilitiesResponse response = doGetDataSourceCapabilities(allocator, (GetDataSourceCapabilitiesRequest) req)) {
                     logger.info("doHandleRequest: response[{}]", response);
@@ -363,20 +416,26 @@ public abstract class MetadataHandler
          * Add our partition columns to the response schema so the engine knows how to interpret the list of
          * partitions we are going to return.
          */
-        for (String nextPartCol : request.getPartitionCols()) {
-            Field partitionCol = request.getSchema().findField(nextPartCol);
+        Schema requestSchema = ProtoUtils.fromProtoSchema(allocator, request.getSchema());
+        for (String nextPartCol : request.getPartitionColsList()) {
+            Field partitionCol = requestSchema.findField(nextPartCol);
             partitionSchemaBuilder.addField(nextPartCol, partitionCol.getType());
             constraintSchema.addField(nextPartCol, partitionCol.getType());
         }
 
-        enhancePartitionSchema(partitionSchemaBuilder, request);
+        enhancePartitionSchema(allocator, partitionSchemaBuilder, request);
         Schema partitionSchema = partitionSchemaBuilder.build();
 
         if (partitionSchema.getFields().isEmpty() && partitionSchema.getCustomMetadata().isEmpty()) {
             //Even though our table doesn't support complex layouts, partitioning or metadata, we need to convey that there is at least
             //1 partition to read as part of the query or Athena will assume partition pruning found no candidate layouts to read.
             Block partitions = BlockUtils.newBlock(allocator, PARTITION_ID_COL, Types.MinorType.INT.getType(), 1);
-            return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);
+            return GetTableLayoutResponse.newBuilder()
+                .setType("GetTableLayoutResponse")
+                .setCatalogName(request.getCatalogName())
+                .setTableName(request.getTableName())
+                .setPartitions(ProtoUtils.toProtoBlock(partitions))
+                .build();
         }
 
         /**
@@ -386,14 +445,19 @@ public abstract class MetadataHandler
          */
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
                 constraintSchema.build(),
-                request.getConstraints());
+                ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()));
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
             partitions.constrain(constraintEvaluator);
             SimpleBlockWriter blockWriter = new SimpleBlockWriter(partitions);
-            getPartitions(blockWriter, request, queryStatusChecker);
-            return new GetTableLayoutResponse(request.getCatalogName(), request.getTableName(), partitions);
+            getPartitions(allocator, blockWriter, request, queryStatusChecker);
+            return GetTableLayoutResponse.newBuilder()
+                .setType("GetTableLayoutResponse")
+                .setCatalogName(request.getCatalogName())
+                .setTableName(request.getTableName())
+                .setPartitions(ProtoUtils.toProtoBlock(partitions))
+                .build();
         }
     }
 
@@ -403,11 +467,12 @@ public abstract class MetadataHandler
      * You can choose to add additional columns to that response which Athena will ignore but will pass
      * on to you when it call GetSplits(...) for each partition.
      *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param partitionSchemaBuilder The SchemaBuilder you can use to add additional columns and metadata to the
      * partitions response.
      * @param request The GetTableLayoutResquest that triggered this call.
      */
-    public void enhancePartitionSchema(SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
+    public void enhancePartitionSchema(BlockAllocator allocator, SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         //You can add additional fields to the partition schema which are ignored by Athena
         //but will be passed on to called to GetSplits(...). This can be handy when you
@@ -422,6 +487,7 @@ public abstract class MetadataHandler
     /**
      * Used to get the partitions that must be read from the request table in order to satisfy the requested predicate.
      *
+     * @param allocator Tool for creating and managing Apache Arrow Blocks.
      * @param blockWriter Used to write rows (partitions) into the Apache Arrow response.
      * @param request Provides details of the catalog, database, and table being queried as well as any filter predicate.
      * @param queryStatusChecker A QueryStatusChecker that you can use to stop doing work for a query that has already terminated
@@ -433,7 +499,7 @@ public abstract class MetadataHandler
      * your own need to apply filtering in Lambda. Otherwise you can get the actual preducate from the request object
      * for pushing down into the source you are querying.
      */
-    public abstract void getPartitions(final BlockWriter blockWriter,
+    public abstract void getPartitions(final BlockAllocator allocator, final BlockWriter blockWriter,
             final GetTableLayoutRequest request, QueryStatusChecker queryStatusChecker)
             throws Exception;
 
@@ -476,7 +542,14 @@ public abstract class MetadataHandler
      */
     public PingResponse doPing(PingRequest request)
     {
-        PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES, SERDE_VERSION);
+        PingResponse response = PingResponse.newBuilder()
+            .setType("PingResponse")
+            .setCatalogName(request.getCatalogName())
+            .setQueryId(request.getQueryId())
+            .setSourceType(sourceType)
+            .setCapabilities(CAPABILITIES)
+            .setSerDeVersion(SERDE_VERSION)
+            .build();
         try {
             onPing(request);
         }
@@ -516,9 +589,9 @@ public abstract class MetadataHandler
      * discover valid (supported) schemas, then it follows that it would be difficult to develop a connector
      * which unknowingly returns unsupported types.
      */
-    private void assertTypes(GetTableResponse response)
+    private void assertTypes(Schema schema)
     {
-        for (Field next : response.getSchema().getFields()) {
+        for (Field next : schema.getFields()) {
             SupportedTypes.assertSupported(next);
         }
     }

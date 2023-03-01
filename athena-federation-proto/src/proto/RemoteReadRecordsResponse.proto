@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.records;
+
+import 'Block.proto';
+import 'SpillLocation.proto';
+import 'EncryptionKey.proto';
+
+option java_multiple_files = true;
+
+message RemoteReadRecordsResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  optional bytes schema = 3;
+  repeated com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation remoteBlocks = 4; 
+  optional com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey encryptionKey = 5;
+}

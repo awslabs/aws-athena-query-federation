@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.request;
+
+option java_multiple_files = true;
+
+message PingResponse {
+  optional string type = 1 [json_name="@type"];
+  optional string catalogName = 2;
+  optional string queryId = 3;
+  optional string sourceType = 4;
+  optional int32 capabilities = 5;
+  optional int32 serDeVersion = 6;
+}

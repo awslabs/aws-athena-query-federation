@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.domain;
+
+import 'SpillLocation.proto';
+import 'EncryptionKey.proto';
+option java_multiple_files = true;
+
+message Split {
+  optional com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation spillLocation = 1;
+  optional com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey encryptionKey = 2;
+  map<string, string> properties = 3;
+}

@@ -158,7 +158,7 @@ public class S3BlockSpiller
         this.spillConfig = requireNonNull(spillConfig, "spillConfig was null");
         this.allocator = requireNonNull(allocator, "allocator was null");
         this.schema = requireNonNull(schema, "schema was null");
-        this.blockCrypto = (spillConfig.getEncryptionKey() != null) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
+        this.blockCrypto = (spillConfig.getEncryptionKey() != null && spillConfig.getEncryptionKey().getNonce().length > 0 && spillConfig.getEncryptionKey().getKey().length > 0) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
         asyncSpillPool = (spillConfig.getNumSpillThreads() <= 0) ? null : makeAsyncSpillPool(spillConfig);
         this.maxRowsPerCall = maxRowsPerCall;
         this.constraintEvaluator = constraintEvaluator;

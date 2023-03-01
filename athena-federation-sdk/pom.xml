@@ -311,6 +311,19 @@
             <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-proto</artifactId>
+            <version>2022.47.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>3.22.0</version>
+            <scope>runtime</scope>
+        </dependency>
+
+    
     </dependencies>
     <build>
         <plugins>

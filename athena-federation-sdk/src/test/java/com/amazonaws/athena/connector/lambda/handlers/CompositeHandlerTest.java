@@ -1,5 +1,7 @@
 package com.amazonaws.athena.connector.lambda.handlers;
 
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
+
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -29,24 +31,28 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutResponse;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsRequest;
-import com.amazonaws.athena.connector.lambda.records.ReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
+import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
+import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
+import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
+import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.util.JsonFormat;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -60,6 +66,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.UUID;
@@ -103,31 +110,59 @@ public class CompositeHandlerTest
                 .build();
 
         when(mockMetadataHandler.doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class)))
-                .thenReturn(new GetTableLayoutResponse("catalog",
-                        new TableName("schema", "table"),
-                        BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)));
+                .thenReturn(GetTableLayoutResponse.newBuilder()
+                    .setType("GetTableLayoutResponse")
+                    .setCatalogName("catalog")
+                    .setTableName(com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder()
+                        .setSchemaName("schema")
+                        .setTableName("table")
+                        .build()
+                    ).setPartitions(ProtoUtils.toProtoBlock(BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)))
+                    .build());
 
         when(mockMetadataHandler.doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class)))
-                .thenReturn(new ListTablesResponse("catalog",
-                        Collections.singletonList(new TableName("schema", "table")), null));
+                .thenReturn(ListTablesResponse.newBuilder()
+                    .setCatalogName("catalog")
+                    .addTables(
+                        com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder()
+                            .setSchemaName("schema")
+                            .setTableName("table")
+                            .build()
+                    )
+                    .build());
 
         when(mockMetadataHandler.doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class)))
-                .thenReturn(new GetTableResponse("catalog",
-                        new TableName("schema", "table"),
-                        SchemaBuilder.newBuilder().addStringField("col1").build()));
+                .thenReturn(GetTableResponse.newBuilder()
+                    .setCatalogName("catalog")
+                    .setTableName(
+                        com.amazonaws.athena.connector.lambda.proto.domain.TableName.newBuilder()
+                            .setSchemaName("schema")
+                            .setTableName("table")
+                            .build()
+                    ).setSchema(
+                        ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().addStringField("col1").build())
+                    )
+                    .build()
+                );
 
         when(mockMetadataHandler.doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class)))
-                .thenReturn(new ListSchemasResponse("catalog", Collections.singleton("schema1")));
+                .thenReturn(ListSchemasResponse.newBuilder()
+                    .setCatalogName("catalog")
+                    .addSchemas("schema1")
+                    .build()
+                );
 
         when(mockMetadataHandler.doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class)))
-                .thenReturn(new GetSplitsResponse("catalog", Split.newBuilder(null, null).build()));
+                .thenReturn(GetSplitsResponse.newBuilder().setCatalogName("catalog").addSplits(com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder().build()).build());
 
         when(mockMetadataHandler.doPing(nullable(PingRequest.class)))
-                .thenReturn(new PingResponse("catalog", "queryId", "type", 23, 2));
+                .thenReturn(PingResponse.newBuilder().setCatalogName("catalog").setQueryId("queryId").setSourceType("type").setCapabilities(23).setSerDeVersion(2).build());
 
         when(mockRecordHandler.doReadRecords(nullable(BlockAllocatorImpl.class), nullable(ReadRecordsRequest.class)))
-                .thenReturn(new ReadRecordsResponse("catalog",
-                        BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))));
+                .thenReturn(ReadRecordsResponse.newBuilder()
+                    .setCatalogName("catalog")
+                    .setRecords(ProtoUtils.toProtoBlock(BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))))
+                    .build());
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
     }
@@ -143,23 +178,35 @@ public class CompositeHandlerTest
     public void doReadRecords()
             throws Exception
     {
-        ReadRecordsRequest req = new ReadRecordsRequest(IdentityUtil.fakeIdentity(),
-                "catalog",
-                "queryId-" + System.currentTimeMillis(),
-                new TableName("schema", "table"),
-                schemaForRead,
-                Split.newBuilder(S3SpillLocation.newBuilder()
-                        .withBucket("athena-virtuoso-test")
-                        .withPrefix("lambda-spill")
-                        .withQueryId(UUID.randomUUID().toString())
-                        .withSplitId(UUID.randomUUID().toString())
-                        .withIsDirectory(true)
-                        .build(), null).build(),
-                new Constraints(new HashMap<>(), Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT),
-                100_000_000_000L, //100GB don't expect this to spill
-                100_000_000_000L
-        );
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+
+        ReadRecordsRequest req = ReadRecordsRequest.newBuilder()
+            .setIdentity(FederatedIdentity.newBuilder()
+                .setArn("arn")
+                .setAccount("account")
+                .build())
+            .setCatalogName("catalog")
+            .setQueryId("queryId-" + System.currentTimeMillis())
+            .setSchema(ProtoUtils.toProtoSchemaBytes(schemaForRead))
+            .setSplit(
+                com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
+                .setSpillLocation(
+                    com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation.newBuilder()
+                    .setBucket("athena-virtuoso-test")
+                    .setKey("lambda-spill/" + UUID.randomUUID().toString() + "/" + UUID.randomUUID().toString()) // String key = prefix + SEPARATOR + queryId + SEPARATOR + splitId;
+                    .setDirectory(true)
+                    .build())
+                // TODO - does null encryption key serialize properly?
+                .build()
+            ).setConstraints(
+                com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints.newBuilder()
+                    .putAllSummary(new HashMap<>())
+                    .build()
+            ).setMaxBlockSize(100_000_000_000L) // 100GB don't expect this to spill
+            .setMaxInlineBlockSize(100_000_000_000L)
+            .build();
+        TypeHeader typeHeader = TypeHeader.newBuilder().setType("ReadRecordsRequest").build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockRecordHandler, times(1))
                 .doReadRecords(nullable(BlockAllocator.class), nullable(ReadRecordsRequest.class));
     }
@@ -168,9 +215,10 @@ public class CompositeHandlerTest
     public void doListSchemaNames()
             throws Exception
     {
-        ListSchemasRequest req = mock(ListSchemasRequest.class);
-        when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_SCHEMAS);
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        ListSchemasRequest req = ListSchemasRequest.newBuilder().setType("ListSchemasRequest").build();
+        TypeHeader typeHeader = TypeHeader.newBuilder().setType("ListSchemasRequest").build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class));
     }
 
@@ -178,9 +226,10 @@ public class CompositeHandlerTest
     public void doListTables()
             throws Exception
     {
-        ListTablesRequest req = mock(ListTablesRequest.class);
-        when(req.getRequestType()).thenReturn(MetadataRequestType.LIST_TABLES);
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        ListTablesRequest req = ListTablesRequest.newBuilder().setType("ListTablesRequest").build();
+        TypeHeader typeHeader = TypeHeader.newBuilder().setType("ListTablesRequest").build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class));
     }
 
@@ -188,9 +237,10 @@ public class CompositeHandlerTest
     public void doGetTable()
             throws Exception
     {
-        GetTableRequest req = mock(GetTableRequest.class);
-        when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE);
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        GetTableRequest req = GetTableRequest.newBuilder().setType("GetTableRequest").build();
+        TypeHeader typeHeader = TypeHeader.newBuilder().setType("GetTableRequest").build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class));
     }
 
@@ -198,9 +248,15 @@ public class CompositeHandlerTest
     public void doGetTableLayout()
             throws Exception
     {
-        GetTableLayoutRequest req = mock(GetTableLayoutRequest.class);
-        when(req.getRequestType()).thenReturn(MetadataRequestType.GET_TABLE_LAYOUT);
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        TypeHeader typeHeader = TypeHeader.newBuilder()
+            .setType("GetTableLayoutRequest")
+            .build();
+        GetTableLayoutRequest request = GetTableLayoutRequest.newBuilder()
+            .setType("GetTableLayoutRequest")
+            .build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(request);
+
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class));
     }
 
@@ -208,12 +264,19 @@ public class CompositeHandlerTest
     public void doGetSplits()
             throws Exception
     {
-        GetSplitsRequest req = mock(GetSplitsRequest.class);
-        when(req.getRequestType()).thenReturn(MetadataRequestType.GET_SPLITS);
         SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
         doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
-        FieldUtils.writeField(mockMetadataHandler, "verifier", mockVerifier, true);
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        Whitebox.setInternalState(mockMetadataHandler, "verifier", mockVerifier);
+        
+        TypeHeader typeHeader = TypeHeader.newBuilder()
+            .setType("GetSplitsRequest")
+            .build();
+        GetSplitsRequest request = GetSplitsRequest.newBuilder()
+            .setType("GetSplitsRequest")
+            .build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(request);
+
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class));
     }
 
@@ -221,10 +284,16 @@ public class CompositeHandlerTest
     public void doPing()
             throws Exception
     {
-        PingRequest req = mock(PingRequest.class);
-        when(req.getCatalogName()).thenReturn("catalog");
-        when(req.getQueryId()).thenReturn("queryId");
-        compositeHandler.handleRequest(allocator, req, new ByteArrayOutputStream(), objectMapper);
+        TypeHeader typeHeader = TypeHeader.newBuilder()
+            .setType("PingRequest")
+            .build();
+        PingRequest req = PingRequest.newBuilder()
+            .setCatalogName("catalog")
+            .setQueryId("queryId")
+            .setType("PingRequest")
+            .build();
+        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doPing(nullable(PingRequest.class));
     }
 }

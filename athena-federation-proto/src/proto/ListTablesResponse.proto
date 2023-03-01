@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.metadata;
+
+import 'TableName.proto';
+
+option java_multiple_files = true;
+
+message ListTablesResponse {
+  optional string type = 1 [json_name="@type"];
+  repeated com.amazonaws.athena.connector.lambda.proto.domain.TableName tables = 2;
+  optional string catalogName = 3;
+  optional string nextToken = 4;
+}

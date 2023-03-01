@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.data;
+
+option java_multiple_files = true;
+
+message Block {
+  optional string aId = 1;
+  optional bytes schema = 2;
+  optional bytes records = 3;
+}

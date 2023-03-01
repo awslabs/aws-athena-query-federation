@@ -48,7 +48,7 @@ public class NoOpBlockCrypto
 
     public byte[] encrypt(EncryptionKey key, Block block)
     {
-        if (key != null) {
+        if (key != null && key.getKey().length > 0 && key.getNonce().length > 0) {
             throw new RuntimeException("Real key provided to NoOpBlockCrypto, likely indicates you wanted real crypto.");
         }
         try {

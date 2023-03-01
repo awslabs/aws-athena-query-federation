@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.request;
+
+option java_multiple_files = true;
+
+message TypeHeader {
+  optional string type = 1 [json_name="@type"];
+}

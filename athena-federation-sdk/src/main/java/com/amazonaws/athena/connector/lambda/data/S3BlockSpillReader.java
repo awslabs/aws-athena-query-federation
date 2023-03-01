@@ -64,7 +64,7 @@ public class S3BlockSpillReader
             logger.debug("read: Started reading block from S3");
             fullObject = amazonS3.getObject(spillLocation.getBucket(), spillLocation.getKey());
             logger.debug("read: Completed reading block from S3");
-            BlockCrypto blockCrypto = (key != null) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
+            BlockCrypto blockCrypto = (key != null && key.getKey().length > 0 && key.getNonce().length > 0) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
             Block block = blockCrypto.decrypt(key, ByteStreams.toByteArray(fullObject.getObjectContent()), schema);
             logger.debug("read: Completed decrypting block of size.");
             return block;

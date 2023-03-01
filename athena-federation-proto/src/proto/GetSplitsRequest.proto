@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.metadata;
+
+import 'FederatedIdentity.proto';
+import 'TableName.proto';
+import 'Block.proto';
+import 'Constraints.proto';
+
+option java_multiple_files = true;
+
+message GetSplitsRequest {
+  optional string type = 1 [json_name="@type"];
+  optional com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity identity = 2;
+  optional string catalogName = 3;
+  optional string queryId = 4;
+  optional com.amazonaws.athena.connector.lambda.proto.domain.TableName tableName = 5;
+  optional com.amazonaws.athena.connector.lambda.proto.data.Block partitions = 6;
+  repeated string partitionCols = 7;
+  optional com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints constraints = 8;
+  optional string continuationToken = 9;
+}
