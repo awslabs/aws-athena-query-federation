@@ -50,7 +50,7 @@ public class HiveCompositeHandlerTest
                 "hdphive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}","testSecret");
         PowerMockito.mockStatic(JDBCUtil.class);
         JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME)).thenReturn(databaseConnectionConfig);
+        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         new HiveCompositeHandler();
         }catch(Exception e) {
             ex =e;

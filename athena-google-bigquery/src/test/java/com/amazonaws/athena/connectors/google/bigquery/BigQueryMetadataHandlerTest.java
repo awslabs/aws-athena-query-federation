@@ -71,11 +71,13 @@ public class BigQueryMetadataHandlerTest
     private Job job;
     private JobStatus jobStatus;
 
+    private java.util.HashMap<String, String> configOptions = new HashMap();
+
     @Before
     public void setUp() throws InterruptedException {
         System.setProperty("aws.region", "us-east-1");
         MockitoAnnotations.initMocks(this);
-        bigQueryMetadataHandler = new BigQueryMetadataHandler();
+        bigQueryMetadataHandler = new BigQueryMetadataHandler(configOptions);
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
         job = mock(Job.class);
@@ -90,6 +92,7 @@ public class BigQueryMetadataHandlerTest
     @After
     public void tearDown()
     {
+        configOptions.clear();
         blockAllocator.close();
     }
 
@@ -189,9 +192,9 @@ public class BigQueryMetadataHandlerTest
     @Test
     public void testDoGetSplits() throws Exception
     {
-        BlockAllocator blockAllocator = new BlockAllocatorImpl();
         PowerMockito.mockStatic(BigQueryUtils.class);
-        when(BigQueryUtils.getEnvVar("concurrencyLimit")).thenReturn("10");
+        BlockAllocator blockAllocator = new BlockAllocatorImpl();
+        configOptions.put("concurrencyLimit", "10");
 
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,

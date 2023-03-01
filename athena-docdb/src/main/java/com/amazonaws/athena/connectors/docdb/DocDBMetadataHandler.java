@@ -71,9 +71,6 @@ public class DocDBMetadataHandler
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "documentdb";
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
     //Field name used to store the connection string as a property on Split objects.
     protected static final String DOCDB_CONN_STR = "connStr";
     //The Env variable name used to store the default DocDB connection string if no catalog specific
@@ -90,24 +87,25 @@ public class DocDBMetadataHandler
     private final AWSGlue glue;
     private final DocDBConnectionFactory connectionFactory;
 
-    public DocDBMetadataHandler()
+    public DocDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        //Disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         glue = getAwsGlue();
         connectionFactory = new DocDBConnectionFactory();
     }
 
     @VisibleForTesting
-    protected DocDBMetadataHandler(AWSGlue glue,
-            DocDBConnectionFactory connectionFactory,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected DocDBMetadataHandler(
+        AWSGlue glue,
+        DocDBConnectionFactory connectionFactory,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(glue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(glue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glue = glue;
         this.connectionFactory = connectionFactory;
     }
@@ -124,11 +122,11 @@ public class DocDBMetadataHandler
      */
     private String getConnStr(MetadataRequest request)
     {
-        String conStr = System.getenv(request.getCatalogName());
+        String conStr = configOptions.get(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
                     request.getCatalogName(), DEFAULT_DOCDB);
-            conStr = System.getenv(DEFAULT_DOCDB);
+            conStr = configOptions.get(DEFAULT_DOCDB);
         }
         return conStr;
     }

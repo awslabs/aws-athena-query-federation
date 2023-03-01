@@ -118,11 +118,11 @@ public class ExampleRecordHandler
     /**
      * Default constructor used by Lambda.
      */
-    public ExampleRecordHandler()
+    public ExampleRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
-        if (System.getenv(NUM_ROWS_PER_SPLIT) != null) {
-            numRowsPerSplit = Integer.parseInt(System.getenv(NUM_ROWS_PER_SPLIT));
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), configOptions);
+        if (configOptions.get(NUM_ROWS_PER_SPLIT) != null) {
+            numRowsPerSplit = Integer.parseInt(configOptions.get(NUM_ROWS_PER_SPLIT));
         }
     }
 
@@ -134,10 +134,10 @@ public class ExampleRecordHandler
      * @param athena The Athena client that can be used to fetch query termination status to fast-fail this handler.
      */
     @VisibleForTesting
-    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
+    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
-        this.simulateThrottle = (System.getenv(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(System.getenv(SIMULATE_THROTTLES));
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
+        this.simulateThrottle = (configOptions.get(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(configOptions.get(SIMULATE_THROTTLES));
     }
 
     /**

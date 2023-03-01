@@ -97,28 +97,29 @@ public class MetricsRecordHandler
     private static final long THROTTLING_INCREMENTAL_INCREASE = 20;
 
     //Used to handle throttling events by applying AIMD congestion control
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER)
-            .withInitialDelayMs(THROTTLING_INITIAL_DELAY)
-            .withIncrease(THROTTLING_INCREMENTAL_INCREASE)
-            .build();
+    private final ThrottlingInvoker invoker;
 
     private final AmazonS3 amazonS3;
     private final AmazonCloudWatch metrics;
 
-    public MetricsRecordHandler()
+    public MetricsRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(),
-                AmazonCloudWatchClientBuilder.standard().build());
+                AmazonCloudWatchClientBuilder.standard().build(), configOptions);
     }
 
     @VisibleForTesting
-    protected MetricsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AmazonCloudWatch metrics)
+    protected MetricsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AmazonCloudWatch metrics, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
         this.metrics = metrics;
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions)
+            .withInitialDelayMs(THROTTLING_INITIAL_DELAY)
+            .withIncrease(THROTTLING_INCREMENTAL_INCREASE)
+            .build();
     }
 
     /**

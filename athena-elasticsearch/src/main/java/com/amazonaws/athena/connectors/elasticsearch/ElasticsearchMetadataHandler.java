@@ -69,10 +69,6 @@ public class ElasticsearchMetadataHandler
     // Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "elasticsearch";
 
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
-
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
     // is external to Amazon (false), and the domain_mapping environment variable should be used instead.
@@ -107,49 +103,38 @@ public class ElasticsearchMetadataHandler
 
     private ElasticsearchGlueTypeMapper glueTypeMapper;
 
-    public ElasticsearchMetadataHandler()
+    public ElasticsearchMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        //Disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
-        this.autoDiscoverEndpoint = getEnv(AUTO_DISCOVER_ENDPOINT).equalsIgnoreCase("true");
+        this.autoDiscoverEndpoint = configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true");
         this.domainMapProvider = new ElasticsearchDomainMapProvider(this.autoDiscoverEndpoint);
-        this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(getEnv(DOMAIN_MAPPING)));
+        this.domainMap = domainMapProvider.getDomainMap(resolveSecrets(configOptions.getOrDefault(DOMAIN_MAPPING, "")));
         this.clientFactory = new AwsRestHighLevelClientFactory(this.autoDiscoverEndpoint);
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
-        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_CLUSTER));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_CLUSTER, ""));
     }
 
     @VisibleForTesting
-    protected ElasticsearchMetadataHandler(AWSGlue awsGlue,
-                                           EncryptionKeyFactory keyFactory,
-                                           AWSSecretsManager awsSecretsManager,
-                                           AmazonAthena athena,
-                                           String spillBucket,
-                                           String spillPrefix,
-                                           ElasticsearchDomainMapProvider domainMapProvider,
-                                           AwsRestHighLevelClientFactory clientFactory,
-                                           long queryTimeout)
+    protected ElasticsearchMetadataHandler(
+        AWSGlue awsGlue,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        ElasticsearchDomainMapProvider domainMapProvider,
+        AwsRestHighLevelClientFactory clientFactory,
+        long queryTimeout,
+        java.util.Map<String, String> configOptions)
     {
-        super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.domainMapProvider = domainMapProvider;
         this.domainMap = this.domainMapProvider.getDomainMap(null);
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = queryTimeout;
-    }
-
-    /**
-     * Get an environment variable using System.getenv().
-     * @param var is the environment variable.
-     * @return the contents of the environment variable or an empty String if it's not defined.
-     */
-    protected final String getEnv(String var)
-    {
-        String result = System.getenv(var);
-
-        return result == null ? "" : result;
     }
 
     /**

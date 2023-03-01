@@ -115,27 +115,31 @@ public class CloudwatchMetadataHandler
     }
 
     private final AWSLogs awsLogs;
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
     private final CloudwatchTableResolver tableResolver;
 
-    public CloudwatchMetadataHandler()
+    public CloudwatchMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsLogs = AWSLogsClientBuilder.standard().build();
-        tableResolver = new CloudwatchTableResolver(invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+        this.tableResolver = new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
     }
 
     @VisibleForTesting
-    protected CloudwatchMetadataHandler(AWSLogs awsLogs,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected CloudwatchMetadataHandler(
+        AWSLogs awsLogs,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsLogs = awsLogs;
-        tableResolver = new CloudwatchTableResolver(invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+        this.tableResolver = new CloudwatchTableResolver(this.invoker, awsLogs, MAX_RESULTS, MAX_RESULTS);
     }
 
     /**

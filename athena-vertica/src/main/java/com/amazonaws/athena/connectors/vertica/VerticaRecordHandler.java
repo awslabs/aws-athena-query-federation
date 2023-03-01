@@ -67,17 +67,17 @@ public class VerticaRecordHandler
     private static final String QUERY = "select * from S3Object s";
     private AmazonS3 amazonS3;
 
-    public VerticaRecordHandler()
+    public VerticaRecordHandler(java.util.Map<String, String> configOptions)
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient());
+                AmazonAthenaClientBuilder.defaultClient(), configOptions);
     }
 
     @VisibleForTesting
-    protected VerticaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected VerticaRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
     }
 

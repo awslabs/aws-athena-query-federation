@@ -85,29 +85,33 @@ public class OracleMetadataHandler
      *
      * Recommend using {@link OracleMuxCompositeHandler} instead.
      */
-    public OracleMetadataHandler()
+    public OracleMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(OracleConstants.ORACLE_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(OracleConstants.ORACLE_NAME, configOptions), configOptions);
     }
 
     /**
      * Used by Mux.
      */
-    public OracleMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new OracleJdbcConnectionFactory(databaseConnectionConfig, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)));
+        this(databaseConnectionConfig, new OracleJdbcConnectionFactory(databaseConnectionConfig, new DatabaseConnectionInfo(OracleConstants.ORACLE_DRIVER_CLASS, OracleConstants.ORACLE_DEFAULT_PORT)), configOptions);
     }
 
-    public OracleMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public OracleMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @VisibleForTesting
-    protected OracleMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                    AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected OracleMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
 
     @Override
@@ -284,7 +288,8 @@ public class OracleMetadataHandler
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                             resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS"));
+                            resultSet.getInt("DECIMAL_DIGITS"),
+                            configOptions);
                     String columnName = resultSet.getString(COLUMN_NAME);
                     /** Handling TIMESTAMP,DATE, 0 Precesion**/
                     if (columnType != null && columnType.getTypeID().equals(ArrowType.ArrowTypeID.Decimal)) {

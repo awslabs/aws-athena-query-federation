@@ -101,7 +101,7 @@ public class S3BlockSpillerTest
                 .withRequestId(requestId)
                 .build();
 
-        blockWriter = new S3BlockSpiller(mockS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator());
+        blockWriter = new S3BlockSpiller(mockS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), java.util.Map.of());
 
         expected = allocator.createBlock(schema);
         BlockUtils.setValue(expected.getFieldVector("col1"), 1, 100);

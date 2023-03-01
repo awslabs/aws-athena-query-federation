@@ -123,7 +123,7 @@ public class TPCDSRecordHandlerTest
 
         mockS3Storage = new ArrayList<>();
         allocator = new BlockAllocatorImpl();
-        handler = new TPCDSRecordHandler(mockS3, mockSecretsManager, mockAthena);
+        handler = new TPCDSRecordHandler(mockS3, mockSecretsManager, mockAthena, java.util.Map.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
         when(mockS3.putObject(any()))

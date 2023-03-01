@@ -43,24 +43,24 @@ class PostGreSqlMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new PostGreSqlMetadataHandler(config);
+        return new PostGreSqlMetadataHandler(config, configOptions);
     }
 }
 
 public class PostGreSqlMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public PostGreSqlMuxMetadataHandler()
+    public PostGreSqlMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new PostGreSqlMetadataHandlerFactory());
+        super(new PostGreSqlMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected PostGreSqlMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected PostGreSqlMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+          Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

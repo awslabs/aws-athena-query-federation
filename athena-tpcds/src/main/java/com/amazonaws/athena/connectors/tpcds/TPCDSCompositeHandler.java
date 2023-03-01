@@ -26,6 +26,6 @@ public class TPCDSCompositeHandler
 {
     public TPCDSCompositeHandler()
     {
-        super(new TPCDSMetadataHandler(), new TPCDSRecordHandler());
+        super(new TPCDSMetadataHandler(System.getenv()), new TPCDSRecordHandler(System.getenv()));
     }
 }

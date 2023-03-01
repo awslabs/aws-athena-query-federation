@@ -40,24 +40,24 @@ class Db2MetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new Db2MetadataHandler(config);
+        return new Db2MetadataHandler(config, configOptions);
     }
 }
 
 public class Db2MuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public Db2MuxMetadataHandler()
+    public Db2MuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new Db2MetadataHandlerFactory());
+        super(new Db2MetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected Db2MuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                           final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected Db2MuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                         Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

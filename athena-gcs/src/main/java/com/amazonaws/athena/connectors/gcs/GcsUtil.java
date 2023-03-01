@@ -103,10 +103,10 @@ public class GcsUtil
      * Install/place Google cloud platform credentials from AWS secret manager to temp location
      * This is required for dataset api
      */
-    public static void installGoogleCredentialsJsonFile() throws IOException
+    public static void installGoogleCredentialsJsonFile(java.util.Map<String, String> configOptions) throws IOException
     {
         CachableSecretsManager secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
-        String gcsCredentialsJsonString = secretsManager.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
+        String gcsCredentialsJsonString = secretsManager.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
         File destination = new File(GOOGLE_SERVICE_ACCOUNT_JSON_TEMP_FILE_LOCATION_VALUE);
         boolean destinationDirExists = new File(destination.getParent()).mkdirs();
         if (!destinationDirExists && destination.exists()) {

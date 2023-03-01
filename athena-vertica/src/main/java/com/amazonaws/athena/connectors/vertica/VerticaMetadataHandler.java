@@ -77,48 +77,45 @@ public class VerticaMetadataHandler
     private final VerticaSchemaUtils verticaSchemaUtils;
     private AmazonS3 amazonS3;
 
-
-    public VerticaMetadataHandler()
+    public VerticaMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         amazonS3 = AmazonS3ClientBuilder.defaultClient();
         connectionFactory = new VerticaConnectionFactory();
         verticaSchemaUtils = new VerticaSchemaUtils();
-
-
     }
 
     @VisibleForTesting
-    protected VerticaMetadataHandler(EncryptionKeyFactory keyFactory,
-                                     VerticaConnectionFactory connectionFactory,
-                                     AWSSecretsManager awsSecretsManager,
-                                     AmazonAthena athena,
-                                     String spillBucket,
-                                     String spillPrefix,
-                                     VerticaSchemaUtils verticaSchemaUtils,
-                                     AmazonS3 amazonS3
-                                     )
+    protected VerticaMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        VerticaConnectionFactory connectionFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        VerticaSchemaUtils verticaSchemaUtils,
+        AmazonS3 amazonS3,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.connectionFactory = connectionFactory;
         this.verticaSchemaUtils = verticaSchemaUtils;
         this.amazonS3 = amazonS3;
-
     }
-
 
     private Connection getConnection(MetadataRequest request) {
         String endpoint = resolveSecrets(getConnStr(request));
         return connectionFactory.getOrCreateConn(endpoint);
 
     }
+
     private String getConnStr(MetadataRequest request)
     {
-        String conStr = System.getenv(request.getCatalogName());
+        String conStr = configOptions.get(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
                     request.getCatalogName(), DEFAULT_VERTICA);
-            conStr = System.getenv(DEFAULT_VERTICA);
+            conStr = configOptions.get(DEFAULT_VERTICA);
         }
         logger.info("exit getConnStr in VerticaMetadataHandler with conStr as {}",conStr);
         return conStr;
@@ -412,7 +409,7 @@ public class VerticaMetadataHandler
 
     public String getS3ExportBucket()
     {
-       return System.getenv(EXPORT_BUCKET_KEY);
+       return configOptions.get(EXPORT_BUCKET_KEY);
     }
 
 }

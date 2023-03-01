@@ -53,10 +53,10 @@ public class DatabaseConnectionConfigBuilder
      * @param databaseEngine canonical name of engine (e.g. "postgres", "redshift", "mysql")
      * @return List of database connection configurations. See {@link DatabaseConnectionConfig}.
      */
-    public static List<DatabaseConnectionConfig> buildFromSystemEnv(String databaseEngine)
+    public static List<DatabaseConnectionConfig> buildFromSystemEnv(String databaseEngine, java.util.Map<String, String> configOptions)
     {
         return new DatabaseConnectionConfigBuilder()
-                .properties(System.getenv())
+                .properties(configOptions)
                 .engine(databaseEngine)
                 .build();
     }

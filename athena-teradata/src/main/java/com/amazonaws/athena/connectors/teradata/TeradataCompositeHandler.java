@@ -33,6 +33,6 @@ public class TeradataCompositeHandler
 {
     public TeradataCompositeHandler()
     {
-        super(new TeradataMetadataHandler(), new TeradataRecordHandler());
+        super(new TeradataMetadataHandler(System.getenv()), new TeradataRecordHandler(System.getenv()));
     }
 }

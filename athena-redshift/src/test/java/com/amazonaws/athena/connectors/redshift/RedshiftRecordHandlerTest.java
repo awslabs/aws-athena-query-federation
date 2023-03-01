@@ -88,7 +88,7 @@ public class RedshiftRecordHandlerTest
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", REDSHIFT_NAME,
                 "redshift://jdbc:redshift://hostname/user=A&password=B");
 
-        this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.redshiftRecordHandler = new RedshiftRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, java.util.Map.of());
     }
 
     @Test

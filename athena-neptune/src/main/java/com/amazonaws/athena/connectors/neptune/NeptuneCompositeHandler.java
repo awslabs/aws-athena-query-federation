@@ -30,6 +30,6 @@ public class NeptuneCompositeHandler
 {
     public NeptuneCompositeHandler()
     {
-        super(new NeptuneMetadataHandler(), new NeptuneRecordHandler());
+        super(new NeptuneMetadataHandler(System.getenv()), new NeptuneRecordHandler(System.getenv()));
     }
 }

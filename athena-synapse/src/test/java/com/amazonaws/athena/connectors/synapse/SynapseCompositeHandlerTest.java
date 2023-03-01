@@ -52,7 +52,7 @@ public class SynapseCompositeHandlerTest {
                     "synapse://jdbc:sqlserver://hostname;databaseName=fakedatabase;");
             PowerMockito.mockStatic(JDBCUtil.class);
             JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME)).thenReturn(databaseConnectionConfig);
+            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             synapseCompositeHandler = new SynapseCompositeHandler();
             logger.info("synapseCompositeHandler: {}", synapseCompositeHandler);
         } catch (Exception e){

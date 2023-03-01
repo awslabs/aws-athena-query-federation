@@ -31,6 +31,6 @@ public class ExampleCompositeHandler
 {
     public ExampleCompositeHandler()
     {
-        super(new ExampleMetadataHandler(), new ExampleRecordHandler(), new ExampleUserDefinedFunctionHandler());
+        super(new ExampleMetadataHandler(System.getenv()), new ExampleRecordHandler(System.getenv()), new ExampleUserDefinedFunctionHandler());
     }
 }

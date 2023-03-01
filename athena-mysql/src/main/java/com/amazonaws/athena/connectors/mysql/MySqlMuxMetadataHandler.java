@@ -43,24 +43,24 @@ class MySqlMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new MySqlMetadataHandler(config);
+        return new MySqlMetadataHandler(config, configOptions);
     }
 }
 
 public class MySqlMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public MySqlMuxMetadataHandler()
+    public MySqlMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new MySqlMetadataHandlerFactory());
+        super(new MySqlMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected MySqlMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected MySqlMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+          Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

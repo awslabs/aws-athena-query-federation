@@ -122,7 +122,7 @@ public class ElasticsearchMetadataHandlerTest
                 "domain2", "endpoint2","domain3", "endpoint3"));
 
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, java.util.Map.of());
 
         ListSchemasRequest req = new ListSchemasRequest(fakeIdentity(), "queryId", "elasticsearch");
         ListSchemasResponse realDomains = handler.doListSchemaNames(allocator, req);
@@ -184,7 +184,7 @@ public class ElasticsearchMetadataHandlerTest
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, java.util.Map.of());
         when(mockClient.getAliases()).thenReturn(ImmutableSet.of("movies", ".kibana_1", "customer"));
 
         ListTablesRequest req = new ListTablesRequest(fakeIdentity(),
@@ -356,7 +356,7 @@ public class ElasticsearchMetadataHandlerTest
         when(domainMapProvider.getDomainMap(null)).thenReturn(ImmutableMap.of("movies",
                 "https://search-movies-ne3fcqzfipy6jcrew2wca6kyqu.us-east-1.es.amazonaws.com"));
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory,10);
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, java.util.Map.of());
         GetTableRequest req = new GetTableRequest(fakeIdentity(), "queryId", "elasticsearch",
                 new TableName("movies", "mishmash"));
         GetTableResponse res = handler.doGetTable(allocator, req);
@@ -410,7 +410,7 @@ public class ElasticsearchMetadataHandlerTest
 
         // Instantiate handler
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, java.util.Map.of());
 
         // Call doGetSplits()
         MetadataResponse rawResponse = handler.doGetSplits(allocator, req);
@@ -455,7 +455,7 @@ public class ElasticsearchMetadataHandlerTest
         logger.info("convertFieldTest: enter");
 
         handler = new ElasticsearchMetadataHandler(awsGlue, new LocalKeyFactory(), awsSecretsManager, amazonAthena,
-                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10);
+                "spill-bucket", "spill-prefix", domainMapProvider, clientFactory, 10, java.util.Map.of());
 
         Field field = handler.convertField("myscaled", "SCALED_FLOAT(10.51)");
 

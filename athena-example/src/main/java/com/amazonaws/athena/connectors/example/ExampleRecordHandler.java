@@ -79,15 +79,15 @@ public class ExampleRecordHandler
 
     private AmazonS3 amazonS3;
 
-    public ExampleRecordHandler()
+    public ExampleRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient());
+        this(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(), configOptions);
     }
 
     @VisibleForTesting
-    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected ExampleRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
         this.amazonS3 = amazonS3;
     }
 
@@ -131,7 +131,7 @@ public class ExampleRecordHandler
         /**
          * TODO: Get the data bucket from the env variable set by athena-example.yaml
          *
-         dataBucket = System.getenv("data_bucket");
+         dataBucket = configOptions.get("data_bucket");
          *
          */
 

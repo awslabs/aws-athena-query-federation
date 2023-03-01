@@ -49,7 +49,7 @@ public class TeradataCompositeHandlerTest {
                     "teradata://jdbc:teradata://hostname/user=dbc&password=dbc");
             PowerMockito.mockStatic(JDBCUtil.class);
             JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME)).thenReturn(databaseConnectionConfig);
+            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             teradataCompositeHandler = new TeradataCompositeHandler();
             assertEquals(teradataCompositeHandler.getClass(),TeradataCompositeHandler.class);
         }catch (Exception e){

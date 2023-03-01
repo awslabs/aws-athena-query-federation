@@ -96,9 +96,6 @@ public class HbaseMetadataHandler
     private static final String HBASE_METADATA_FLAG = "hbase-metadata-flag";
     //Used to filter out Glue tables which lack HBase metadata flag.
     private static final TableFilter TABLE_FILTER = (Table table) -> table.getParameters().containsKey(HBASE_METADATA_FLAG);
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "hbase";
     //The number of rows to scan when attempting to infer schema from an HBase table.
@@ -106,24 +103,25 @@ public class HbaseMetadataHandler
     private final AWSGlue awsGlue;
     private final HbaseConnectionFactory connectionFactory;
 
-    public HbaseMetadataHandler()
+    public HbaseMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        //Disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
         this.connectionFactory = new HbaseConnectionFactory();
     }
 
     @VisibleForTesting
-    protected HbaseMetadataHandler(AWSGlue awsGlue,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            HbaseConnectionFactory connectionFactory,
-            String spillBucket,
-            String spillPrefix)
+    protected HbaseMetadataHandler(
+        AWSGlue awsGlue,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        HbaseConnectionFactory connectionFactory,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.connectionFactory = connectionFactory;
     }
@@ -140,11 +138,11 @@ public class HbaseMetadataHandler
      */
     private String getConnStr(MetadataRequest request)
     {
-        String conStr = System.getenv(request.getCatalogName());
+        String conStr = configOptions.get(request.getCatalogName());
         if (conStr == null) {
             logger.info("getConnStr: No environment variable found for catalog {} , using default {}",
                     request.getCatalogName(), DEFAULT_HBASE);
-            conStr = System.getenv(DEFAULT_HBASE);
+            conStr = configOptions.get(DEFAULT_HBASE);
         }
         return conStr;
     }

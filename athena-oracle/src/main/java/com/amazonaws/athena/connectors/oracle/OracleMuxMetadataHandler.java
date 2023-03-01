@@ -41,24 +41,24 @@ class OracleMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new OracleMetadataHandler(config);
+        return new OracleMetadataHandler(config, configOptions);
     }
 }
 
 public class OracleMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public OracleMuxMetadataHandler()
+    public OracleMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new OracleMetadataHandlerFactory());
+        super(new OracleMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected OracleMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                       final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected OracleMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

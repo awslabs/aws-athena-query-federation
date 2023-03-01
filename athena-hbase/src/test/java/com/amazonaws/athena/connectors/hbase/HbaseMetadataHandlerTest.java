@@ -118,7 +118,8 @@ public class HbaseMetadataHandlerTest
                 athena,
                 mockConnFactory,
                 "spillBucket",
-                "spillPrefix");
+                "spillPrefix",
+                java.util.Map.of());
 
         when(mockConnFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 

@@ -85,9 +85,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * <p>
      * Recommend using {@link Db2MuxCompositeHandler} instead.
      */
-    public Db2MetadataHandler()
+    public Db2MetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(Db2Constants.NAME, configOptions), configOptions);
     }
 
     /**
@@ -95,9 +95,9 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      *
      * @param databaseConnectionConfig
      */
-    public Db2MetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public Db2MetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(Db2Constants.DRIVER_CLASS, Db2Constants.DEFAULT_PORT)));
+        this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(Db2Constants.DRIVER_CLASS, Db2Constants.DEFAULT_PORT)), configOptions);
     }
 
     /**
@@ -106,16 +106,23 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
      * @param databaseConnectionConfig
      * @param jdbcConnectionFactory
      */
-    public Db2MetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public Db2MetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @VisibleForTesting
-    protected Db2MetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                 AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected Db2MetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
 
     /**
@@ -418,7 +425,8 @@ public class Db2MetadataHandler extends JdbcMetadataHandler
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                             resultSet.getInt("DATA_TYPE"),
                             resultSet.getInt("COLUMN_SIZE"),
-                            resultSet.getInt("DECIMAL_DIGITS")
+                            resultSet.getInt("DECIMAL_DIGITS"),
+                            configOptions
                     );
                     columnName = resultSet.getString("COLUMN_NAME");
                     typeName = columnNameMap.get(columnName);

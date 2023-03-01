@@ -65,23 +65,25 @@ public class AwsCmdbMetadataHandler
     //Map of available fully qualified TableNames to their respective TableProviders.
     private Map<TableName, TableProvider> tableProviders;
 
-    public AwsCmdbMetadataHandler()
+    public AwsCmdbMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
-        TableProviderFactory tableProviderFactory = new TableProviderFactory();
+        super(SOURCE_TYPE, configOptions);
+        TableProviderFactory tableProviderFactory = new TableProviderFactory(configOptions);
         schemas = tableProviderFactory.getSchemas();
         tableProviders = tableProviderFactory.getTableProviders();
     }
 
     @VisibleForTesting
-    protected AwsCmdbMetadataHandler(TableProviderFactory tableProviderFactory,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected AwsCmdbMetadataHandler(
+        TableProviderFactory tableProviderFactory,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         schemas = tableProviderFactory.getSchemas();
         tableProviders = tableProviderFactory.getTableProviders();
     }

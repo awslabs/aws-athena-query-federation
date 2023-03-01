@@ -98,28 +98,40 @@ public class DynamoDBRecordHandler
     private static final TypeReference<HashMap<String, String>> STRING_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, String>>() {};
     private static final TypeReference<HashMap<String, AttributeValue>> ATTRIBUTE_VALUE_MAP_TYPE_REFERENCE = new TypeReference<HashMap<String, AttributeValue>>() {};
 
-    private final LoadingCache<String, ThrottlingInvoker> invokerCache = CacheBuilder.newBuilder().build(
-        new CacheLoader<String, ThrottlingInvoker>() {
-            @Override
-            public ThrottlingInvoker load(String tableName)
-                    throws Exception
-            {
-                return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
-            }
-        });
+    private final LoadingCache<String, ThrottlingInvoker> invokerCache;
     private final AmazonDynamoDB ddbClient;
 
-    public DynamoDBRecordHandler()
+    public DynamoDBRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
+        super(sourceType, configOptions);
         this.ddbClient = AmazonDynamoDBClientBuilder.standard().build();
+        this.invokerCache = CacheBuilder.newBuilder().build(
+            new CacheLoader<String, ThrottlingInvoker>() {
+                @Override
+                public ThrottlingInvoker load(String tableName)
+                        throws Exception
+                {
+                    return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+                }
+            }
+        );
     }
 
     @VisibleForTesting
-    DynamoDBRecordHandler(AmazonDynamoDB ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType)
+    DynamoDBRecordHandler(AmazonDynamoDB ddbClient, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, sourceType);
+        super(amazonS3, secretsManager, athena, sourceType, configOptions);
         this.ddbClient = ddbClient;
+        this.invokerCache = CacheBuilder.newBuilder().build(
+            new CacheLoader<String, ThrottlingInvoker>() {
+                @Override
+                public ThrottlingInvoker load(String tableName)
+                        throws Exception
+                {
+                    return ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+                }
+            }
+        );
     }
 
     /**
@@ -138,7 +150,7 @@ public class DynamoDBRecordHandler
         invokerCache.get(tableName).setBlockSpiller(spiller);
         DDBRecordMetadata recordMetadata = new DDBRecordMetadata(recordsRequest.getSchema());
 
-        String disableProjectionAndCasingEnvValue = System.getenv().getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
+        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "auto").toLowerCase();
         logger.info(DISABLE_PROJECTION_AND_CASING_ENV + " environment variable set to: " + disableProjectionAndCasingEnvValue);
 
         boolean disableProjectionAndCasing = false;

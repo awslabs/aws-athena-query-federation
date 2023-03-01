@@ -56,13 +56,14 @@ public class ImagesTableProvider
     private static final int MAX_IMAGES = 1000;
     //Sets a default owner filter (when not null) to reduce the number of irrelevant AMIs returned when you do not
     //query for a specific owner.
-    private static final String DEFAULT_OWNER = System.getenv(DEFAULT_OWNER_ENV);
+    private final String defaultOwner;
     private static final Schema SCHEMA;
     private AmazonEC2 ec2;
 
-    public ImagesTableProvider(AmazonEC2 ec2)
+    public ImagesTableProvider(AmazonEC2 ec2, java.util.Map<String, String> configOptions)
     {
         this.ec2 = ec2;
+        this.defaultOwner = configOptions.get(DEFAULT_OWNER_ENV);
     }
 
     /**
@@ -113,8 +114,8 @@ public class ImagesTableProvider
         else if (ownerConstraint != null && ownerConstraint.isSingleValue()) {
             request.setOwners(Collections.singletonList(ownerConstraint.getSingleValue().toString()));
         }
-        else if (DEFAULT_OWNER != null) {
-            request.setOwners(Collections.singletonList(DEFAULT_OWNER));
+        else if (defaultOwner != null) {
+            request.setOwners(Collections.singletonList(defaultOwner));
         }
         else {
             throw new RuntimeException("A default owner account must be set or the query must have owner" +

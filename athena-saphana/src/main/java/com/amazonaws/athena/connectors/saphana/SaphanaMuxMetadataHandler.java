@@ -31,7 +31,7 @@ import org.apache.arrow.util.VisibleForTesting;
 
 import java.util.Map;
 
-class SnowflakeMetadataHandlerFactory
+class SaphanaMetadataHandlerFactory
         implements JdbcMetadataHandlerFactory
 {
     @Override
@@ -41,24 +41,24 @@ class SnowflakeMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SaphanaMetadataHandler(config);
+        return new SaphanaMetadataHandler(config, configOptions);
     }
 }
 
 public class SaphanaMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public SaphanaMuxMetadataHandler()
+    public SaphanaMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SnowflakeMetadataHandlerFactory());
+        super(new SaphanaMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected SaphanaMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                        final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected SaphanaMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                      Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

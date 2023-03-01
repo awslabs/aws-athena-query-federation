@@ -42,7 +42,11 @@ public class MultiplexingJdbcCompositeHandler
         Class<? extends JdbcRecordHandler> recordHandlerClass) throws java.lang.ReflectiveOperationException
     {
         super(
-            hasCatalogConnections ? muxMetadataHandlerClass.getConstructor().newInstance() : metadataHandlerClass.getConstructor().newInstance(),
-            hasCatalogConnections ? muxRecordHandlerClass.getConstructor().newInstance() : recordHandlerClass.getConstructor().newInstance());
+            hasCatalogConnections ?
+                muxMetadataHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()) :
+                metadataHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()),
+            hasCatalogConnections ?
+                muxRecordHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()) :
+                recordHandlerClass.getConstructor(java.util.Map.class).newInstance(System.getenv()));
     }
 }

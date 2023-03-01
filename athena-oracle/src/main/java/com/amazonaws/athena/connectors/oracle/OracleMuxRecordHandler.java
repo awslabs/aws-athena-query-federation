@@ -43,23 +43,23 @@ class OracleMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new OracleRecordHandler(config);
+        return new OracleRecordHandler(config, configOptions);
     }
 }
 
 public class OracleMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public OracleMuxRecordHandler()
+    public OracleMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new OracleMuxRecordHandlerFactory());
+        super(new OracleMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    OracleMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                           final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    OracleMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                           DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

@@ -66,6 +66,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static io.lettuce.core.ScanCursor.INITIAL;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Handles metadata requests for the Athena Redis Connector using Glue for schema.
@@ -124,23 +125,26 @@ public class RedisMetadataHandler
     private final AWSGlue awsGlue;
     private final RedisConnectionFactory redisConnectionFactory;
 
-    public RedisMetadataHandler()
+    public RedisMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(false, SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         this.awsGlue = getAwsGlue();
+        requireNonNull(this.awsGlue);
         this.redisConnectionFactory = new RedisConnectionFactory();
     }
 
     @VisibleForTesting
-    protected RedisMetadataHandler(AWSGlue awsGlue,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            RedisConnectionFactory redisConnectionFactory,
-            String spillBucket,
-            String spillPrefix)
+    protected RedisMetadataHandler(
+        AWSGlue awsGlue,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        RedisConnectionFactory redisConnectionFactory,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(awsGlue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
         this.redisConnectionFactory = redisConnectionFactory;
     }

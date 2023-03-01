@@ -30,6 +30,6 @@ public class VerticaCompositeHandler
 {
     public VerticaCompositeHandler()
     {
-        super(new VerticaMetadataHandler(), new VerticaRecordHandler());
+        super(new VerticaMetadataHandler(System.getenv()), new VerticaRecordHandler(System.getenv()));
     }
 }

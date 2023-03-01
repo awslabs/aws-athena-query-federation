@@ -26,6 +26,6 @@ public class KafkaCompositeHandler
 {
     public KafkaCompositeHandler() throws Exception
     {
-        super(new KafkaMetadataHandler(), new KafkaRecordHandler());
+        super(new KafkaMetadataHandler(System.getenv()), new KafkaRecordHandler(System.getenv()));
     }
 }

@@ -48,8 +48,10 @@ public class AmazonMskCompositeHandlerTest {
         System.setProperty("aws.region", "us-west-2");
     }
 
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
+    private java.util.Map<String, String> configOptions = java.util.Map.of(
+        "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
+        "bootstrap.servers", "test"
+    );
 
     @Mock
     KafkaConsumer<String, String> kafkaConsumer;
@@ -59,19 +61,12 @@ public class AmazonMskCompositeHandlerTest {
     @Mock
     private AWSSecretsManager secretsManager;
 
-    @Before
-    public void setUp() {
-        environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-MSK");
-    }
-
     @Test
     public void amazonMskCompositeHandlerTest() throws Exception {
         mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        mockStatic(System.class);
-        PowerMockito.when(System.getenv(nullable(String.class))).thenReturn("test");
         mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer()).thenReturn(kafkaConsumer);
+        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(configOptions)).thenReturn(kafkaConsumer);
         amazonMskCompositeHandler = new AmazonMskCompositeHandler();
         Assert.assertTrue(amazonMskCompositeHandler instanceof AmazonMskCompositeHandler);
     }

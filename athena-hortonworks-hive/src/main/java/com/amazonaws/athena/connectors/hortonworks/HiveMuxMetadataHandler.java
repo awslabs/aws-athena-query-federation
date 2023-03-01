@@ -41,24 +41,24 @@ class HiveMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new HiveMetadataHandler(config);
+        return new HiveMetadataHandler(config, configOptions);
     }
 }
 
 public class HiveMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public HiveMuxMetadataHandler()
+    public HiveMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new HiveMetadataHandlerFactory());
+        super(new HiveMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected HiveMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                       final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected HiveMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

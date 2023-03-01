@@ -79,19 +79,21 @@ public class ExampleMetadataHandler
      */
     private static final String SOURCE_TYPE = "example";
 
-    public ExampleMetadataHandler()
+    public ExampleMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
     }
 
     @VisibleForTesting
-    protected ExampleMetadataHandler(EncryptionKeyFactory keyFactory,
-            AWSSecretsManager awsSecretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected ExampleMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
     }
 
     /**

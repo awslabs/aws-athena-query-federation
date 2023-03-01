@@ -74,7 +74,7 @@ public class ImpalaMuxMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
                 "impala://jdbc:impala://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new ImpalaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig);
+        this.jdbcMetadataHandler = new ImpalaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, java.util.Map.of());
     }
 
     @Test
@@ -117,7 +117,7 @@ public class ImpalaMuxMetadataHandlerTest
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
         try {
             new ImpalaMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory,
-                    metadataHandlersMap, databaseConnectionConfig);
+                    metadataHandlersMap, databaseConnectionConfig, java.util.Map.of());
         } catch (Exception e) {
             e.getMessage();
             Assert.assertTrue(e.getMessage().contains("Max 100 catalogs supported in multiplexer."));

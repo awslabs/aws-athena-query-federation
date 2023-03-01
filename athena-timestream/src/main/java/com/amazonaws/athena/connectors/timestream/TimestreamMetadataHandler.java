@@ -68,9 +68,6 @@ public class TimestreamMetadataHandler
 
     //Used to denote the 'type' of this connector for diagnostic purposes.
     private static final String SOURCE_TYPE = "timestream";
-    //The Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    //metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
     //The Glue table property that indicates that a table matching the name of an TimeStream table
     //is indeed enabled for use by this connector.
     private static final String METADATA_FLAG = "timestream-metadata-flag";
@@ -83,26 +80,27 @@ public class TimestreamMetadataHandler
     private final AmazonTimestreamQuery tsQuery;
     private final AmazonTimestreamWrite tsMeta;
 
-    public TimestreamMetadataHandler()
+    public TimestreamMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        //Disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
+        super(SOURCE_TYPE, configOptions);
         glue = getAwsGlue();
         tsQuery = TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE);
         tsMeta = TimestreamClientBuilder.buildWriteClient(SOURCE_TYPE);
     }
 
     @VisibleForTesting
-    protected TimestreamMetadataHandler(AmazonTimestreamQuery tsQuery,
-            AmazonTimestreamWrite tsMeta,
-            AWSGlue glue,
-            EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected TimestreamMetadataHandler(
+        AmazonTimestreamQuery tsQuery,
+        AmazonTimestreamWrite tsMeta,
+        AWSGlue glue,
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(glue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(glue, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glue = glue;
         this.tsQuery = tsQuery;
         this.tsMeta = tsMeta;

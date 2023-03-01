@@ -134,16 +134,16 @@ public class ThrottlingInvoker
      * @param filter The exception filter to apply to any exception when attemtping to identify congestion.
      * @return The new Builder with default values.
      */
-    public static Builder newDefaultBuilder(ExceptionFilter filter)
+    public static Builder newDefaultBuilder(ExceptionFilter filter, java.util.Map<String, String> configOptions)
     {
-        long initialDelayMs = (System.getenv(THROTTLE_INITIAL_DELAY_MS) != null) ?
-                Long.parseLong(System.getenv(THROTTLE_INITIAL_DELAY_MS)) : DEFAULT_INITIAL_DELAY_MS;
-        long maxDelayMs = (System.getenv(THROTTLE_MAX_DELAY_MS) != null) ?
-                Long.parseLong(System.getenv(THROTTLE_MAX_DELAY_MS)) : DEFAULT_MAX_DELAY_MS;
-        double decreaseFactor = (System.getenv(THROTTLE_DECREASE_FACTOR) != null) ?
-                Long.parseLong(System.getenv(THROTTLE_DECREASE_FACTOR)) : DEFAULT_DECREASE_FACTOR;
-        long increase = (System.getenv(THROTTLE_INCREASE_MS) != null) ?
-                Long.parseLong(System.getenv(THROTTLE_INCREASE_MS)) : DEFAULT_INCREASE_MS;
+        long initialDelayMs = (configOptions.get(THROTTLE_INITIAL_DELAY_MS) != null) ?
+                Long.parseLong(configOptions.get(THROTTLE_INITIAL_DELAY_MS)) : DEFAULT_INITIAL_DELAY_MS;
+        long maxDelayMs = (configOptions.get(THROTTLE_MAX_DELAY_MS) != null) ?
+                Long.parseLong(configOptions.get(THROTTLE_MAX_DELAY_MS)) : DEFAULT_MAX_DELAY_MS;
+        double decreaseFactor = (configOptions.get(THROTTLE_DECREASE_FACTOR) != null) ?
+                Long.parseLong(configOptions.get(THROTTLE_DECREASE_FACTOR)) : DEFAULT_DECREASE_FACTOR;
+        long increase = (configOptions.get(THROTTLE_INCREASE_MS) != null) ?
+                Long.parseLong(configOptions.get(THROTTLE_INCREASE_MS)) : DEFAULT_INCREASE_MS;
 
         return newBuilder()
                 .withInitialDelayMs(initialDelayMs)

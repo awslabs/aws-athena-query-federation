@@ -30,6 +30,6 @@ public class DynamoDBCompositeHandler
 {
     public DynamoDBCompositeHandler()
     {
-        super(new DynamoDBMetadataHandler(), new DynamoDBRecordHandler());
+        super(new DynamoDBMetadataHandler(System.getenv()), new DynamoDBRecordHandler(System.getenv()));
     }
 }

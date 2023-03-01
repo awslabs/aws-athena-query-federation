@@ -43,23 +43,23 @@ class HiveMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new HiveRecordHandler(config);
+        return new HiveRecordHandler(config, configOptions);
     }
 }
 
 public class HiveMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public HiveMuxRecordHandler()
+    public HiveMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new HiveMuxRecordHandlerFactory());
+        super(new HiveMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    HiveMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                           final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    HiveMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                           DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

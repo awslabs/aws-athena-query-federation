@@ -118,10 +118,10 @@ public class ExampleMetadataHandler
     /**
      * Default constructor used by Lambda.
      */
-    public ExampleMetadataHandler()
+    public ExampleMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(SOURCE_TYPE);
-        this.simulateThrottle = (System.getenv(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(System.getenv(SIMULATE_THROTTLES));
+        super(SOURCE_TYPE, configOptions);
+        this.simulateThrottle = (configOptions.get(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(configOptions.get(SIMULATE_THROTTLES));
     }
 
     /**
@@ -132,17 +132,20 @@ public class ExampleMetadataHandler
      * @param athena The Athena client that can be used to fetch query termination status to fast-fail this handler.
      * @param spillBucket The S3 Bucket to use when spilling results.
      * @param spillPrefix The S3 prefix to use when spilling results.
+     * @param configOptions The configOptions for this MetadataHandler.
      */
     @VisibleForTesting
-    protected ExampleMetadataHandler(EncryptionKeyFactory keyFactory,
-            AWSSecretsManager awsSecretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix)
+    protected ExampleMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         //Read the Lambda environment variable for controlling simulated throttles.
-        this.simulateThrottle = (System.getenv(SIMULATE_THROTTLES) == null) ? 0 : Integer.parseInt(System.getenv(SIMULATE_THROTTLES));
+        this.simulateThrottle = Integer.parseInt(configOptions.getOrDefault(SIMULATE_THROTTLES, "0"));
     }
 
     /**

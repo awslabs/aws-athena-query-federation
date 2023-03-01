@@ -120,7 +120,7 @@ public class AmazonMskMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
-        amazonMskMetadataHandler = new AmazonMskMetadataHandler(consumer);
+        amazonMskMetadataHandler = new AmazonMskMetadataHandler(consumer, java.util.Map.of());
     }
 
     @After

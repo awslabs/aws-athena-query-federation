@@ -118,9 +118,6 @@ public class DynamoDBMetadataHandler
     private static final Logger logger = LoggerFactory.getLogger(DynamoDBMetadataHandler.class);
     static final String DYNAMODB = "dynamodb";
     private static final String SOURCE_TYPE = "ddb";
-    // Env variable name used to indicate that we want to disable the use of Glue DataCatalog for supplemental
-    // metadata and instead rely solely on the connector's schema inference capabilities.
-    private static final String GLUE_ENV = "disable_glue";
     // defines the value that should be present in the Glue Database URI to enable the DB for DynamoDB.
     static final String DYNAMO_DB_FLAG = "dynamo-db-flag";
     // used to filter out Glue tables which lack indications of being used for DDB.
@@ -130,32 +127,35 @@ public class DynamoDBMetadataHandler
     // used to filter out Glue databases which lack the DYNAMO_DB_FLAG in the URI.
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(DYNAMO_DB_FLAG));
 
-    private final ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
     private final AmazonDynamoDB ddbClient;
     private final AWSGlue glueClient;
     private final DynamoDBTableResolver tableResolver;
 
-    public DynamoDBMetadataHandler()
+    public DynamoDBMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        // disable Glue if the env var is present and not explicitly set to "false"
-        super((System.getenv(GLUE_ENV) != null && !"false".equalsIgnoreCase(System.getenv(GLUE_ENV))), SOURCE_TYPE);
-        ddbClient = AmazonDynamoDBClientBuilder.standard().build();
-        glueClient = getAwsGlue();
-        tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
+        super(SOURCE_TYPE, configOptions);
+        this.ddbClient = AmazonDynamoDBClientBuilder.standard().build();
+        this.glueClient = getAwsGlue();
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
+        this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
     }
 
     @VisibleForTesting
-    DynamoDBMetadataHandler(EncryptionKeyFactory keyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String spillBucket,
-            String spillPrefix,
-            AmazonDynamoDB ddbClient,
-            AWSGlue glueClient)
+    DynamoDBMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        AmazonDynamoDB ddbClient,
+        AWSGlue glueClient,
+        java.util.Map<String, String> configOptions)
     {
-        super(glueClient, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
+        super(glueClient, keyFactory, secretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
         this.glueClient = glueClient;
         this.ddbClient = ddbClient;
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
         this.tableResolver = new DynamoDBTableResolver(invoker, ddbClient);
     }
 

@@ -25,6 +25,6 @@ public class SqlServerCompositeHandler extends CompositeHandler
 {
     public SqlServerCompositeHandler()
     {
-        super(new SqlServerMetadataHandler(), new SqlServerRecordHandler());
+        super(new SqlServerMetadataHandler(System.getenv()), new SqlServerRecordHandler(System.getenv()));
     }
 }

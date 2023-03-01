@@ -48,7 +48,7 @@ public class SnowflakeCompositeHandlerTest
                 "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");
         PowerMockito.mockStatic(JDBCUtil.class);
         JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SnowflakeConstants.SNOWFLAKE_NAME)).thenReturn(databaseConnectionConfig);
+        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SnowflakeConstants.SNOWFLAKE_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         snowflakeCompositeHandler = new SnowflakeCompositeHandler();
         assertEquals(snowflakeCompositeHandler.getClass(),SnowflakeCompositeHandler.class);
         }catch (Exception e){

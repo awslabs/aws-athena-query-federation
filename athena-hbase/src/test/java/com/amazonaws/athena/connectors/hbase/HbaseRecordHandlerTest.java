@@ -169,7 +169,7 @@ public class HbaseRecordHandlerTest
 
         schemaForRead = TestUtils.makeSchema().addStringField(HbaseSchemaUtils.ROW_COLUMN_NAME).build();
 
-        handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory);
+        handler = new HbaseRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockConnFactory, java.util.Map.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
 

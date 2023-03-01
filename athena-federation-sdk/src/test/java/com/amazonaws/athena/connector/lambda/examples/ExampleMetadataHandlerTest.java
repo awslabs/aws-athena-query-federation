@@ -86,7 +86,8 @@ public class ExampleMetadataHandlerTest
                 mock(AWSSecretsManager.class),
                 mock(AmazonAthena.class),
                 "spill-bucket",
-                "spill-prefix");
+                "spill-prefix",
+                java.util.Map.of());
         logger.info("setUpBefore - exit");
     }
 

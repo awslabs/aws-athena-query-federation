@@ -86,7 +86,7 @@ public class NeptuneMetadataHandlerTest extends TestBase {
         allocator = new BlockAllocatorImpl();
         handler = new NeptuneMetadataHandler(glue,neptuneConnection,
                 new LocalKeyFactory(), mock(AWSSecretsManager.class), mock(AmazonAthena.class), "spill-bucket",
-                "spill-prefix");
+                "spill-prefix", java.util.Map.of());
         logger.info("setUpBefore - exit");
     }
 
