@@ -31,6 +31,6 @@ public class DataLakeGen2CompositeHandler extends CompositeHandler
 {
     public DataLakeGen2CompositeHandler()
     {
-        super(new DataLakeGen2MetadataHandler(), new DataLakeGen2RecordHandler());
+        super(new DataLakeGen2MetadataHandler(System.getenv()), new DataLakeGen2RecordHandler(System.getenv()));
     }
 }

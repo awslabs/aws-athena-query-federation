@@ -97,7 +97,7 @@ public class JdbcRecordHandlerTest
         Mockito.when(this.connection.prepareStatement("someSql")).thenReturn(this.preparedStatement);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, databaseConnectionConfig, this.jdbcConnectionFactory)
+        this.jdbcRecordHandler = new JdbcRecordHandler(this.amazonS3, this.secretsManager, this.athena, databaseConnectionConfig, this.jdbcConnectionFactory, java.util.Map.of())
         {
             @Override
             public PreparedStatement buildSplitSql(Connection jdbcConnection, String catalogName, TableName tableName, Schema schema, Constraints constraints, Split split)
@@ -140,7 +140,7 @@ public class JdbcRecordHandlerTest
 
         SpillConfig spillConfig = Mockito.mock(SpillConfig.class);
         Mockito.when(spillConfig.getSpillLocation()).thenReturn(s3SpillLocation);
-        BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator);
+        BlockSpiller s3Spiller = new S3BlockSpiller(this.amazonS3, spillConfig, allocator, fieldSchema, constraintEvaluator, java.util.Map.of());
         ReadRecordsRequest readRecordsRequest = new ReadRecordsRequest(this.federatedIdentity, "testCatalog", "testQueryId", inputTableName, fieldSchema, splitBuilder.build(), constraints, 1024, 1024);
 
         Mockito.when(amazonS3.putObject(any())).thenAnswer((Answer<PutObjectResult>) invocation -> {

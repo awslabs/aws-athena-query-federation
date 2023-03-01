@@ -40,24 +40,24 @@ class TeradataMetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new TeradataMetadataHandler(config);
+        return new TeradataMetadataHandler(config, configOptions);
     }
 }
 
 public class TeradataMuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public TeradataMuxMetadataHandler()
+    public TeradataMuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new TeradataMetadataHandlerFactory());
+        super(new TeradataMetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected TeradataMuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                       final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected TeradataMuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

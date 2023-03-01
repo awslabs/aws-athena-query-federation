@@ -98,8 +98,11 @@ public class PropertyGraphHandler
      *       performance.
      */
 
-    public void executeQuery(ReadRecordsRequest recordsRequest, final QueryStatusChecker queryStatusChecker,
-            final BlockSpiller spiller) throws Exception 
+    public void executeQuery(
+        ReadRecordsRequest recordsRequest,
+        QueryStatusChecker queryStatusChecker,
+        BlockSpiller spiller,
+        java.util.Map<String, String> configOptions) throws Exception
     {
         logger.debug("readWithConstraint: enter - " + recordsRequest.getSplit());
         long numRows = 0;
@@ -127,7 +130,7 @@ public class PropertyGraphHandler
                     graphTraversal = graphTraversal.valueMap().with(WithOptions.tokens);
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                        VertexRowWriter.writeRowTemplate(builder, nextField);
+                        VertexRowWriter.writeRowTemplate(builder, nextField, configOptions);
                     }
 
                     break;
@@ -138,7 +141,7 @@ public class PropertyGraphHandler
                     graphTraversal = graphTraversal.elementMap();
 
                     for (final Field nextField : recordsRequest.getSchema().getFields()) {
-                        EdgeRowWriter.writeRowTemplate(builder, nextField);
+                        EdgeRowWriter.writeRowTemplate(builder, nextField, configOptions);
                     }
 
                     break;

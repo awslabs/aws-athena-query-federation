@@ -47,7 +47,7 @@ public class SaphanaCompositeHandlerTest {
                     "saphana://jdbc:sap://hostname/?${trianz-saphana-athena-jdbc}");
             PowerMockito.mockStatic(JDBCUtil.class);
             JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SaphanaConstants.SAPHANA_NAME)).thenReturn(databaseConnectionConfig);
+            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SaphanaConstants.SAPHANA_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             saphanaCompositeHandler = new SaphanaCompositeHandler();
             assertEquals(saphanaCompositeHandler.getClass(),SaphanaCompositeHandler.class);
         }catch (Exception e){

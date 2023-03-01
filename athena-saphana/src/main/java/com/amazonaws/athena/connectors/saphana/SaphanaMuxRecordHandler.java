@@ -41,23 +41,23 @@ class SaphanaMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SaphanaRecordHandler(config);
+        return new SaphanaRecordHandler(config, configOptions);
     }
 }
 
 public class SaphanaMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public SaphanaMuxRecordHandler()
+    public SaphanaMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SaphanaMuxRecordHandlerFactory());
+        super(new SaphanaMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    SaphanaMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                           final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    SaphanaMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                           DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

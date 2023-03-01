@@ -53,18 +53,19 @@ public class AmazonMskRecordHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskRecordHandler.class);
     private static final int MAX_EMPTY_RESULT_FOUND_COUNT = 3;
 
-    AmazonMskRecordHandler()
+    AmazonMskRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient()
-        );
+        this(
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            configOptions);
     }
 
     @VisibleForTesting
-    public AmazonMskRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
+    public AmazonMskRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, AmazonMskConstants.MSK_SOURCE);
+        super(amazonS3, secretsManager, athena, AmazonMskConstants.MSK_SOURCE, configOptions);
     }
 
     /**
@@ -82,7 +83,7 @@ public class AmazonMskRecordHandler
         LOGGER.info("[kafka] {} RecordHandler running", splitParameters);
 
         // Initiate new KafkaConsumer that MUST not belong to any consumer group.
-        try (Consumer<String, TopicResultSet> kafkaConsumer = AmazonMskUtils.getKafkaConsumer(recordsRequest.getSchema())) {
+        try (Consumer<String, TopicResultSet> kafkaConsumer = AmazonMskUtils.getKafkaConsumer(recordsRequest.getSchema(), configOptions)) {
             // Set which topic and partition we are going to read.
             TopicPartition partition = new TopicPartition(splitParameters.topic, splitParameters.partition);
             Collection<TopicPartition> partitions = List.of(partition);

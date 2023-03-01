@@ -20,7 +20,6 @@
  */
 package com.amazonaws.athena.connectors.google.bigquery;
 
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
@@ -59,12 +58,12 @@ public class BigQueryUtils
     private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryUtils.class);
     private BigQueryUtils() {}
 
-    public static Credentials getCredentialsFromSecretsManager()
+    public static Credentials getCredentialsFromSecretsManager(java.util.Map<String, String> configOptions)
             throws IOException
     {
         AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
         GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
-        getSecretValueRequest.setSecretId(getEnvBigQueryCredsSmId());
+        getSecretValueRequest.setSecretId(getEnvBigQueryCredsSmId(configOptions));
         GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
         return ServiceAccountCredentials.fromStream(new ByteArrayInputStream(response.getSecretString().getBytes())).createScoped(
             ImmutableSet.of(
@@ -72,30 +71,25 @@ public class BigQueryUtils
                     "https://www.googleapis.com/auth/drive"));
     }
 
-    public static BigQuery getBigQueryClient(String projectId) throws IOException
+    public static BigQuery getBigQueryClient(String projectId, java.util.Map<String, String> configOptions) throws IOException
     {
         BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
-        String endpoint = System.getenv(BigQueryConstants.BIG_QUERY_ENDPOINT);
+        String endpoint = configOptions.get(BigQueryConstants.BIG_QUERY_ENDPOINT);
         if (StringUtils.isNotEmpty(endpoint)) {
             bigqueryBuilder.setHost(endpoint);
         }
         bigqueryBuilder.setProjectId(projectId);
-        bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager());
+        bigqueryBuilder.setCredentials(getCredentialsFromSecretsManager(configOptions));
         return bigqueryBuilder.build().getService();
     }
 
-    public static String getEnvBigQueryCredsSmId()
+    public static String getEnvBigQueryCredsSmId(java.util.Map<String, String> configOptions)
     {
-        return getEnvVar(BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID);
-    }
-
-    public static String getEnvVar(String envVar)
-    {
-        String envVariable = System.getenv(envVar);
-        if (envVariable == null || envVariable.length() == 0) {
-            throw new IllegalArgumentException("Lambda Environment Variable " + envVar + " has not been populated! ");
+        var smid = configOptions.getOrDefault(BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "");
+        if (smid.isEmpty()) {
+            throw new RuntimeException(String.format("Configuration variable: %s not set", BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID));
         }
-        return envVariable;
+        return smid;
     }
 
     /**
@@ -103,28 +97,13 @@ public class BigQueryUtils
      * The Lambda environment variables are first inspected and if it does not exist, then we take it from the catalog
      * name in the request.
      *
-     * @param catalogNameFromRequest The Catalog Name from the request that is passed in from the Athena Connector framework.
+     * @param catalogName The catalogName from the request that is passed in from the Athena Connector framework.
+     * @param configOptions The configOptions contains the fallback value for the project id.
      * @return The project name.
      */
-    public static String getProjectName(String catalogNameFromRequest)
+    static String getProjectName(String catalogName, java.util.Map<String, String> configOptions)
     {
-        if (System.getenv(BigQueryConstants.GCP_PROJECT_ID) != null) {
-            return System.getenv(BigQueryConstants.GCP_PROJECT_ID);
-        }
-        return catalogNameFromRequest;
-    }
-
-    /**
-     * Gets the project name that exists within Google Cloud Platform that contains the datasets that we wish to query.
-     * The Lambda environment variables are first inspected and if it does not exist, then we take it from the catalog
-     * name in the request.
-     *
-     * @param request The {@link MetadataRequest} from the request that is passed in from the Athena Connector framework.
-     * @return The project name.
-     */
-    static String getProjectName(MetadataRequest request)
-    {
-        return getProjectName(request.getCatalogName());
+        return configOptions.getOrDefault(BigQueryConstants.GCP_PROJECT_ID, catalogName);
     }
 
     /**

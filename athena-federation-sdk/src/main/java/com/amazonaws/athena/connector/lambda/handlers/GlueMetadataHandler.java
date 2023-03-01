@@ -104,6 +104,10 @@ public abstract class GlueMetadataHandler
      * The maximum number of tables returned in a single response (as defined in the Glue API docs).
      */
     protected static final int GET_TABLES_REQUEST_MAX_RESULTS = 100;
+
+    // configOption to control whether or not glue is disabled
+    private static final String DISABLE_GLUE = "disable_glue";
+
     //name of the environment variable that can be used to set which Glue catalog to use (e.g. setting this to
     //a different aws account id allows you to use cross-account catalogs)
     private static final String CATALOG_NAME_ENV_OVERRIDE = "glue_catalog";
@@ -138,21 +142,23 @@ public abstract class GlueMetadataHandler
     /**
      * Basic constructor which is recommended when extending this class.
      *
-     * @param disable Whether to disable Glue usage. Useful for users that wish to rely on their handlers' schema inference.
      * @param sourceType The source type, used in diagnostic logging.
+     * @param configOptions The configOptions for this MetadataHandler.
      */
-    public GlueMetadataHandler(boolean disable, String sourceType)
+    public GlueMetadataHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
-        if (disable) {
-            //The current instance does not want to leverage Glue for metadata
-            awsGlue = null;
-        }
-        else {
-            awsGlue = AWSGlueClientBuilder.standard()
-                    .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT))
-                    .build();
-        }
+        super(sourceType, configOptions);
+
+        // This logic is messy with a double negatives but this is how it was done before so
+        // we need to maintain backwards compatibility.
+        //
+        // Original comment: "Disable Glue if the env var is present and not explicitly set to "false""
+        var disabled = configOptions.get(DISABLE_GLUE) != null && !"false".equalsIgnoreCase(configOptions.get(DISABLE_GLUE));
+
+        // null if the current instance does not want to leverage Glue for metadata
+        awsGlue = disabled ? null : (AWSGlueClientBuilder.standard()
+                .withClientConfiguration(new ClientConfiguration().withConnectionTimeout(CONNECT_TIMEOUT))
+                .build());
     }
 
     /**
@@ -160,10 +166,11 @@ public abstract class GlueMetadataHandler
      *
      * @param awsGlue The glue client to use.
      * @param sourceType The source type, used in diagnostic logging.
+     * @param configOptions The configOptions for this MetadataHandler.
      */
-    public GlueMetadataHandler(AWSGlue awsGlue, String sourceType)
+    public GlueMetadataHandler(AWSGlue awsGlue, String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
+        super(sourceType, configOptions);
         this.awsGlue = awsGlue;
     }
 
@@ -176,17 +183,20 @@ public abstract class GlueMetadataHandler
      * @param athena The Athena client that can be used to fetch query termination status to fast-fail this handler.
      * @param spillBucket The S3 Bucket to use when spilling results.
      * @param spillPrefix The S3 prefix to use when spilling results.
+     * @param configOptions The configOptions for this MetadataHandler.
      */
     @VisibleForTesting
-    protected GlueMetadataHandler(AWSGlue awsGlue,
-            EncryptionKeyFactory encryptionKeyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String sourceType,
-            String spillBucket,
-            String spillPrefix)
+    protected GlueMetadataHandler(
+        AWSGlue awsGlue,
+        EncryptionKeyFactory encryptionKeyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String sourceType,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
-        super(encryptionKeyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix);
+        super(encryptionKeyFactory, secretsManager, athena, sourceType, spillBucket, spillPrefix, configOptions);
         this.awsGlue = awsGlue;
     }
 
@@ -209,7 +219,7 @@ public abstract class GlueMetadataHandler
      */
     protected String getCatalog(MetadataRequest request)
     {
-        String override = System.getenv(CATALOG_NAME_ENV_OVERRIDE);
+        String override = configOptions.get(CATALOG_NAME_ENV_OVERRIDE);
         if (override == null) {
             if (request.getContext() != null) {
                 String functionArn = request.getContext().getInvokedFunctionArn();

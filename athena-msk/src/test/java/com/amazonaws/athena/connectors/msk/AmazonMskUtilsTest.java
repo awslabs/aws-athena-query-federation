@@ -115,17 +115,18 @@ public class AmazonMskUtilsTest {
     @Mock
     AWSGlue awsGlue;
 
+    final java.util.Map<String, String> configOptions = Map.of(
+        "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
+        "secret_manager_kafka_creds_name", "testSecret",
+        "kafka_endpoint", "12.207.18.179:9092",
+        "certificates_s3_reference", "s3://kafka-connector-test-bucket/kafkafiles/",
+        "secrets_manager_secret", "Kafka_afq");
 
     @Before
     public void init() throws Exception {
         System.setProperty("aws.region", "us-west-2");
         System.setProperty("aws.accessKeyId", "xxyyyioyuu");
         System.setProperty("aws.secretKey", "vamsajdsjkl");
-        environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-MSK");
-        environmentVariables.set("secret_manager_msk_creds_name", "testSecret");
-        environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
-        environmentVariables.set("certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/");
-        environmentVariables.set("secrets_manager_secret", "AmazonMSK_afq");
         PowerMockito.whenNew(ObjectMapper.class).withNoArguments().thenReturn(objectMapper);
         String json = "{}";
         Mockito.when(objectMapper.writeValueAsString(nullable(Map.class))).thenReturn(json);
@@ -166,9 +167,10 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetScramAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
+        var testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
         String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"admin\" password=\"test\";";
-        Properties properties = getKafkaProperties();
+        Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SASL_SSL", properties.get("security.protocol"));
         assertEquals("SCRAM-SHA-512", properties.get("sasl.mechanism"));
         assertEquals(sasljaasconfig, properties.get("sasl.jaas.config"));
@@ -177,7 +179,9 @@ public class AmazonMskUtilsTest {
     @Test
     public void testGetIAMAuthKafkaProperties() throws Exception {
         environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
-        Properties properties = getKafkaProperties();
+        var testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SASL_SSL_AWS_MSK_IAM.toString());
+        Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SASL_SSL", properties.get("security.protocol"));
         assertEquals("AWS_MSK_IAM", properties.get("sasl.mechanism"));
         assertEquals("software.amazon.msk.auth.iam.IAMLoginModule required;", properties.get("sasl.jaas.config"));
@@ -186,8 +190,9 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetSSLAuthKafkaProperties() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SSL.toString());
-        Properties properties = getKafkaProperties();
+        var testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.SSL.toString());
+        Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SSL", properties.get("security.protocol"));
         assertEquals("keypass", properties.get("ssl.keystore.password"));
         assertEquals("sslpass", properties.get("ssl.key.password"));
@@ -212,19 +217,21 @@ public class AmazonMskUtilsTest {
 
     @Test
     public void testGetKafkaConsumerWithSchema() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
+        var testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
         Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
         metadataSchema.put("dataFormat", "json");
         Schema schema= new Schema(asList(field), metadataSchema);
-        Consumer<String, TopicResultSet> consumer = AmazonMskUtils.getKafkaConsumer(schema);
+        Consumer<String, TopicResultSet> consumer = AmazonMskUtils.getKafkaConsumer(schema, testConfigOptions);
         assertNotNull(consumer);
     }
 
     @Test
     public void testGetKafkaConsumer() throws Exception {
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
-        Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer();
+        var testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", AmazonMskUtils.AuthType.NO_AUTH.toString());
+        Consumer<String, String> consumer = AmazonMskUtils.getKafkaConsumer(testConfigOptions);
         assertNotNull(consumer);
     }
 
@@ -243,13 +250,13 @@ public class AmazonMskUtilsTest {
 
     @Test(expected = RuntimeException.class)
     public void testGetKafkaPropertiesForRuntimeException() throws Exception {
-        environmentVariables.set("auth_type", "UNKNOWN");
-        getKafkaProperties();
+        var testConfigOptions = new java.util.HashMap(configOptions);
+        testConfigOptions.put("auth_type", "UNKNOWN");
+        getKafkaProperties(testConfigOptions);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetKafkaPropertiesForIllegalArgumentException() throws Exception {
-        environmentVariables = new EnvironmentVariables();
-        getKafkaProperties();
+        getKafkaProperties(java.util.Map.of());
     }
 }

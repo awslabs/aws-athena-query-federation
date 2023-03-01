@@ -75,18 +75,20 @@ public class DocDBRecordHandler
 
     private final DocDBConnectionFactory connectionFactory;
 
-    public DocDBRecordHandler()
+    public DocDBRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                new DocDBConnectionFactory());
+        this(
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            new DocDBConnectionFactory(),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected DocDBRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, DocDBConnectionFactory connectionFactory)
+    protected DocDBRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, DocDBConnectionFactory connectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.connectionFactory = connectionFactory;
     }
 
@@ -145,7 +147,7 @@ public class DocDBRecordHandler
 
         Document query = QueryUtils.makeQuery(recordsRequest.getSchema(), constraintSummary);
 
-        String disableProjectionAndCasingEnvValue = System.getenv().getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
+        String disableProjectionAndCasingEnvValue = configOptions.getOrDefault(DISABLE_PROJECTION_AND_CASING_ENV, "false").toLowerCase();
         boolean disableProjectionAndCasing = disableProjectionAndCasingEnvValue.equals("true");
         logger.info("{} environment variable set to: {}. Resolved to: {}",
             DISABLE_PROJECTION_AND_CASING_ENV, disableProjectionAndCasingEnvValue, disableProjectionAndCasing);

@@ -150,7 +150,8 @@ public class GlueMetadataHandlerTest
                 mock(AmazonAthena.class),
                 "glue-test",
                 "spill-bucket",
-                "spill-prefix")
+                "spill-prefix",
+                java.util.Map.of())
         {
             @Override
             public GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)

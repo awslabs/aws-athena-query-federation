@@ -30,6 +30,6 @@ public class RedisCompositeHandler
 {
     public RedisCompositeHandler()
     {
-        super(new RedisMetadataHandler(), new RedisRecordHandler());
+        super(new RedisMetadataHandler(System.getenv()), new RedisRecordHandler(System.getenv()));
     }
 }

@@ -86,26 +86,30 @@ public class PostGreSqlMetadataHandler
      *
      * Recommend using {@link PostGreSqlMuxCompositeHandler} instead.
      */
-    public PostGreSqlMetadataHandler()
+    public PostGreSqlMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(POSTGRES_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(POSTGRES_NAME, configOptions), configOptions);
     }
 
-    public PostGreSqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)));
+        super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
-    protected PostGreSqlMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-            final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected PostGreSqlMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
 
-    protected PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory genericJdbcConnectionFactory)
+    protected PostGreSqlMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory genericJdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, genericJdbcConnectionFactory);
+        super(databaseConnectionConfig, genericJdbcConnectionFactory, configOptions);
     }
 
     @Override

@@ -61,10 +61,15 @@ public class MultiplexingJdbcMetadataHandler
     /**
      * @param metadataHandlerMap catalog -> JdbcMetadataHandler
      */
-    protected MultiplexingJdbcMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected MultiplexingJdbcMetadataHandler(
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        Map<String, JdbcMetadataHandler> metadataHandlerMap,
+        DatabaseConnectionConfig databaseConnectionConfig,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
         this.metadataHandlerMap = Validate.notEmpty(metadataHandlerMap, "metadataHandlerMap must not be empty");
 
         if (this.metadataHandlerMap.size() > MAX_CATALOGS_TO_MULTIPLEX) {
@@ -75,10 +80,10 @@ public class MultiplexingJdbcMetadataHandler
     /**
      * Initializes mux routing map. Creates a reverse index of Athena catalogs supported by a database instance. Max 100 catalogs supported currently.
      */
-    protected MultiplexingJdbcMetadataHandler(JdbcMetadataHandlerFactory jdbcMetadataHandlerFactory)
+    protected MultiplexingJdbcMetadataHandler(JdbcMetadataHandlerFactory jdbcMetadataHandlerFactory, java.util.Map<String, String> configOptions)
     {
-        super(jdbcMetadataHandlerFactory.getEngine());
-        this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(System.getenv(), jdbcMetadataHandlerFactory), "Could not find any delegatee.");
+        super(jdbcMetadataHandlerFactory.getEngine(), configOptions);
+        this.metadataHandlerMap = Validate.notEmpty(JDBCUtil.createJdbcMetadataHandlerMap(configOptions, jdbcMetadataHandlerFactory), "Could not find any delegatee.");
     }
 
     private void validateMultiplexer(final String catalogName)

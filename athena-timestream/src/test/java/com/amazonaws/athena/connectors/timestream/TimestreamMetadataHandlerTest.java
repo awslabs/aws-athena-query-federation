@@ -118,7 +118,8 @@ public class TimestreamMetadataHandlerTest
                 mockSecretsManager,
                 mockAthena,
                 "spillBucket",
-                "spillPrefix");
+                "spillPrefix",
+                java.util.Map.of());
 
         allocator = new BlockAllocatorImpl();
     }

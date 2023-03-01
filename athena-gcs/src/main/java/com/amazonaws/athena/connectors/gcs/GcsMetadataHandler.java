@@ -77,8 +77,6 @@ public class GcsMetadataHandler
      * to correlate relevant query errors.
      */
     private static final String SOURCE_TYPE = "gcs";
-    // used to disable Glue. As connector mandatory required glue database and table metadata, so it is always false
-    private static final boolean DISABLE_GLUE = false;
     private static final CharSequence GCS_FLAG = "google-cloud-storage-flag";
     private static final DatabaseFilter DB_FILTER = (Database database) -> (database.getLocationUri() != null && database.getLocationUri().contains(GCS_FLAG));
     // used to filter out Glue tables which lack indications of being used for GCS.
@@ -87,10 +85,10 @@ public class GcsMetadataHandler
     private final AWSGlue glueClient;
     private final BufferAllocator allocator;
 
-    public GcsMetadataHandler(BufferAllocator allocator) throws IOException
+    public GcsMetadataHandler(BufferAllocator allocator, java.util.Map<String, String> configOptions) throws IOException
     {
-        super(DISABLE_GLUE, SOURCE_TYPE);
-        String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
+        super(SOURCE_TYPE, configOptions);
+        String gcsCredentialsJsonString = this.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
         this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");
@@ -98,15 +96,17 @@ public class GcsMetadataHandler
     }
 
     @VisibleForTesting
-    protected GcsMetadataHandler(EncryptionKeyFactory keyFactory,
-                                 AWSSecretsManager awsSecretsManager,
-                                 AmazonAthena athena,
-                                 String spillBucket,
-                                 String spillPrefix,
-                                 AWSGlue glueClient, BufferAllocator allocator) throws IOException
+    protected GcsMetadataHandler(
+        EncryptionKeyFactory keyFactory,
+        AWSSecretsManager awsSecretsManager,
+        AmazonAthena athena,
+        String spillBucket,
+        String spillPrefix,
+        AWSGlue glueClient, BufferAllocator allocator,
+        java.util.Map<String, String> configOptions) throws IOException
     {
-        super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix);
-        String gcsCredentialsJsonString = this.getSecret(System.getenv(GCS_SECRET_KEY_ENV_VAR));
+        super(glueClient, keyFactory, awsSecretsManager, athena, SOURCE_TYPE, spillBucket, spillPrefix, configOptions);
+        String gcsCredentialsJsonString = this.getSecret(configOptions.get(GCS_SECRET_KEY_ENV_VAR));
         this.datasource = new StorageMetadata(gcsCredentialsJsonString);
         this.glueClient = getAwsGlue();
         requireNonNull(glueClient, "Glue Client is null");

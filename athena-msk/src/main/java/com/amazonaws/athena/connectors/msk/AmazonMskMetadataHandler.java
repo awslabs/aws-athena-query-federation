@@ -71,15 +71,15 @@ public class AmazonMskMetadataHandler extends MetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskMetadataHandler.class);
     private final Consumer<String, String> kafkaConsumer;
 
-    public AmazonMskMetadataHandler() throws Exception
+    public AmazonMskMetadataHandler(java.util.Map<String, String> configOptions) throws Exception
     {
-        this(AmazonMskUtils.getKafkaConsumer());
+        this(AmazonMskUtils.getKafkaConsumer(configOptions), configOptions);
     }
 
     @VisibleForTesting
-    public AmazonMskMetadataHandler(Consumer<String, String> kafkaConsumer)
+    public AmazonMskMetadataHandler(Consumer<String, String> kafkaConsumer, java.util.Map<String, String> configOptions)
     {
-        super(AmazonMskConstants.MSK_SOURCE);
+        super(AmazonMskConstants.MSK_SOURCE, configOptions);
         this.kafkaConsumer = kafkaConsumer;
     }
 

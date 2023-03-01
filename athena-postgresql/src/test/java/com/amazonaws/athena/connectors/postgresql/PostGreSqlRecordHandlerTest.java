@@ -86,7 +86,7 @@ public class PostGreSqlRecordHandlerTest extends TestBase
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", POSTGRES_NAME,
                 "postgres://jdbc:postgresql://hostname/user=A&password=B");
 
-        this.postGreSqlRecordHandler = new PostGreSqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.postGreSqlRecordHandler = new PostGreSqlRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, java.util.Map.of());
     }
 
     @Test

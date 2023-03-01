@@ -74,7 +74,8 @@ public class ExampleMetadataHandlerTest
             mock(AWSSecretsManager.class),
             mock(AmazonAthena.class),
             "spill-bucket",
-            "spill-prefix");
+            "spill-prefix",
+            java.util.Map.of());
 
     private boolean enableTests = System.getenv("publishing") != null &&
             System.getenv("publishing").equalsIgnoreCase("true");

@@ -41,23 +41,23 @@ class SnowflakeMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SnowflakeRecordHandler(config);
+        return new SnowflakeRecordHandler(config, configOptions);
     }
 }
 
 public class SnowflakeMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public SnowflakeMuxRecordHandler()
+    public SnowflakeMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SnowflakeMuxRecordHandlerFactory());
+        super(new SnowflakeMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    SnowflakeMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                     final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    SnowflakeMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

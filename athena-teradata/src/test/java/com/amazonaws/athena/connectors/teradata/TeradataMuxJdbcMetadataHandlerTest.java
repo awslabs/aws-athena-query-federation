@@ -62,7 +62,7 @@ public class TeradataMuxJdbcMetadataHandlerTest {
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "fakedatabase",
                 "fakedatabase://jdbc:fakedatabase://hostname/${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new TeradataMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig);
+        this.jdbcMetadataHandler = new TeradataMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, java.util.Map.of());
     }
     @Test
     public void doListSchemaNames()

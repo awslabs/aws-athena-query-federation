@@ -84,7 +84,7 @@ public class ImpalaRecordHandlerTest
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ImpalaConstants.IMPALA_NAME,
                 "impala://jdbc:impala://54.89.6.2:10000/authena;{testSecret}","testSecret");
 
-        this.impalaRecordHandler = new ImpalaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.impalaRecordHandler = new ImpalaRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, java.util.Map.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {

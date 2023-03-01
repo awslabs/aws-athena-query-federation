@@ -30,6 +30,6 @@ public class ElasticsearchCompositeHandler
 {
     public ElasticsearchCompositeHandler()
     {
-        super(new ElasticsearchMetadataHandler(), new ElasticsearchRecordHandler());
+        super(new ElasticsearchMetadataHandler(System.getenv()), new ElasticsearchRecordHandler(System.getenv()));
     }
 }

@@ -206,9 +206,9 @@ public class DocDBRecordHandlerTest
                     return mockObject;
                 });
 
-        handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory);
+        handler = new DocDBRecordHandler(amazonS3, mockSecretsManager, mockAthena, connectionFactory, java.util.Map.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
-        mdHandler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix");
+        mdHandler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", java.util.Map.of());
     }
 
     @After

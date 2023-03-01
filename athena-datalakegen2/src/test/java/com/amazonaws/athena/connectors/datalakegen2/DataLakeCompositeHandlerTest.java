@@ -52,7 +52,7 @@ public class DataLakeCompositeHandlerTest {
                     "datalakegentwo://jdbc:sqlserver://hostname;databaseName=fakedatabase;");
             PowerMockito.mockStatic(JDBCUtil.class);
             JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(DataLakeGen2Constants.NAME)).thenReturn(databaseConnectionConfig);
+            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(DataLakeGen2Constants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             dataLakeGen2CompositeHandler = new DataLakeGen2CompositeHandler();
             logger.info("dataLakeGen2CompositeHandler: {}", dataLakeGen2CompositeHandler);
         } catch (Exception e){

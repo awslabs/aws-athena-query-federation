@@ -75,29 +75,33 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SaphanaMetadataHandler.class);
 
-    public SaphanaMetadataHandler()
+    public SaphanaMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SaphanaConstants.SAPHANA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SaphanaConstants.SAPHANA_NAME, configOptions), configOptions);
     }
     /**
      * Used by Mux.
      */
-    public SaphanaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig,
                 SaphanaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(SaphanaConstants.SAPHANA_DRIVER_CLASS,
-                SaphanaConstants.SAPHANA_DEFAULT_PORT)));
+                SaphanaConstants.SAPHANA_DEFAULT_PORT)), configOptions);
     }
     @VisibleForTesting
-    protected SaphanaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                     AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected SaphanaMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
 
-    public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory)
+    public SaphanaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, GenericJdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-            super(databaseConnectionConfig, jdbcConnectionFactory);
+            super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @Override
@@ -277,7 +281,8 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
-                        resultSet.getInt("DECIMAL_DIGITS"));
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
 
                 LOGGER.debug("SaphanaMetadataHandler:getSchema column type of column {} is {}",
                         columnName, columnType);

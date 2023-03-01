@@ -31,6 +31,6 @@ public class Db2CompositeHandler extends CompositeHandler
 {
     public Db2CompositeHandler()
     {
-        super(new Db2MetadataHandler(), new Db2RecordHandler());
+        super(new Db2MetadataHandler(System.getenv()), new Db2RecordHandler(System.getenv()));
     }
 }

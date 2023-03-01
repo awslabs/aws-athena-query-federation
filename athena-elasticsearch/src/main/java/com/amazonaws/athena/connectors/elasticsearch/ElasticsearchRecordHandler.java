@@ -39,7 +39,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollRequest;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchHit;
@@ -85,40 +84,33 @@ public class ElasticsearchRecordHandler
     private final AwsRestHighLevelClientFactory clientFactory;
     private final ElasticsearchTypeUtils typeUtils;
 
-    public ElasticsearchRecordHandler()
+    public ElasticsearchRecordHandler(java.util.Map<String, String> configOptions)
     {
         super(AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE);
+                AmazonAthenaClientBuilder.defaultClient(), SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
-        this.clientFactory = new AwsRestHighLevelClientFactory(getEnv(AUTO_DISCOVER_ENDPOINT)
-                .equalsIgnoreCase("true"));
-        this.queryTimeout = Long.parseLong(getEnv(QUERY_TIMEOUT_SEARCH));
-        this.scrollTimeout = Strings.isNullOrEmpty(getEnv(SCROLL_TIMEOUT)) ? 60L : Long.parseLong(getEnv(SCROLL_TIMEOUT));
+        this.clientFactory = new AwsRestHighLevelClientFactory(configOptions.getOrDefault(AUTO_DISCOVER_ENDPOINT, "").equalsIgnoreCase("true"));
+        this.queryTimeout = Long.parseLong(configOptions.getOrDefault(QUERY_TIMEOUT_SEARCH, ""));
+        this.scrollTimeout = Long.parseLong(configOptions.getOrDefault(SCROLL_TIMEOUT, "60"));
     }
 
     @VisibleForTesting
-    protected ElasticsearchRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena,
-                                         AwsRestHighLevelClientFactory clientFactory, long queryTimeout, long scrollTimeout)
+    protected ElasticsearchRecordHandler(
+        AmazonS3 amazonS3,
+        AWSSecretsManager secretsManager,
+        AmazonAthena amazonAthena,
+        AwsRestHighLevelClientFactory clientFactory,
+        long queryTimeout,
+        long scrollTimeout,
+        java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
 
         this.typeUtils = new ElasticsearchTypeUtils();
         this.clientFactory = clientFactory;
         this.queryTimeout = queryTimeout;
         this.scrollTimeout = scrollTimeout;
-    }
-
-    /**
-     * Get an environment variable using System.getenv().
-     * @param var is the environment variable.
-     * @return the contents of the environment variable or an empty String if it's not defined.
-     */
-    protected final String getEnv(String var)
-    {
-        String result = System.getenv(var);
-
-        return result == null ? "" : result;
     }
 
     /**

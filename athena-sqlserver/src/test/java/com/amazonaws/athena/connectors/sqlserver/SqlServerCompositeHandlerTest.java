@@ -52,7 +52,7 @@ public class SqlServerCompositeHandlerTest {
                     "sqlserver://jdbc:sqlserver://hostname;databaseName=fakedatabase;");
             PowerMockito.mockStatic(JDBCUtil.class);
             JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME)).thenReturn(databaseConnectionConfig);
+            PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME, System.getenv())).thenReturn(databaseConnectionConfig);
             sqlServerCompositeHandler = new SqlServerCompositeHandler();
             logger.info("sqlServerCompositeHandler: {}", sqlServerCompositeHandler);
         } catch (Exception e){

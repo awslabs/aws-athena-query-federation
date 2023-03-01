@@ -56,16 +56,18 @@ public class TableProviderFactory
     private Map<String, List<TableName>> schemas = new HashMap<>();
     private Map<TableName, TableProvider> tableProviders = new HashMap<>();
 
-    public TableProviderFactory()
+    public TableProviderFactory(java.util.Map<String, String> configOptions)
     {
-        this(AmazonEC2ClientBuilder.standard().build(),
-                AmazonElasticMapReduceClientBuilder.standard().build(),
-                AmazonRDSClientBuilder.standard().build(),
-                AmazonS3ClientBuilder.standard().build());
+        this(
+            AmazonEC2ClientBuilder.standard().build(),
+            AmazonElasticMapReduceClientBuilder.standard().build(),
+            AmazonRDSClientBuilder.standard().build(),
+            AmazonS3ClientBuilder.standard().build(),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected TableProviderFactory(AmazonEC2 ec2, AmazonElasticMapReduce emr, AmazonRDS rds, AmazonS3 amazonS3)
+    protected TableProviderFactory(AmazonEC2 ec2, AmazonElasticMapReduce emr, AmazonRDS rds, AmazonS3 amazonS3, java.util.Map<String, String> configOptions)
     {
         addProvider(new Ec2TableProvider(ec2));
         addProvider(new EbsTableProvider(ec2));
@@ -73,7 +75,7 @@ public class TableProviderFactory
         addProvider(new SecurityGroupsTableProvider(ec2));
         addProvider(new RouteTableProvider(ec2));
         addProvider(new SubnetTableProvider(ec2));
-        addProvider(new ImagesTableProvider(ec2));
+        addProvider(new ImagesTableProvider(ec2, configOptions));
         addProvider(new EmrClusterTableProvider(emr));
         addProvider(new RdsTableProvider(rds));
         addProvider(new S3ObjectsTableProvider(amazonS3));

@@ -81,7 +81,7 @@ public class SnowflakeMetadataHandlerTest
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        this.snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, java.util.Map.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = Mockito.mock(BlockAllocator.class);
     }
@@ -249,7 +249,7 @@ public class SnowflakeMetadataHandlerTest
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        SnowflakeMetadataHandler snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory);
+        SnowflakeMetadataHandler snowflakeMetadataHandler = new SnowflakeMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, java.util.Map.of());
 
         snowflakeMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }

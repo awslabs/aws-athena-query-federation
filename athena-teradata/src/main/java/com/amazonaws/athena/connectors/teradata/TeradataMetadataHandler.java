@@ -86,30 +86,44 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
      *
      * Recommend using {@link TeradataMuxCompositeHandler} instead.
      */
-    public TeradataMetadataHandler()
+    public TeradataMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(TeradataConstants.TERADATA_NAME, configOptions), configOptions);
     }
 
     /**
      * Used by Mux.
      */
-    public TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public TeradataMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-       this(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, null, new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS, TeradataConstants.TERADATA_DEFAULT_PORT)));
+        this(
+            databaseConnectionConfig,
+            new GenericJdbcConnectionFactory(databaseConnectionConfig,
+            null,
+            new DatabaseConnectionInfo(TeradataConstants.TERADATA_DRIVER_CLASS,
+            TeradataConstants.TERADATA_DEFAULT_PORT)),
+            configOptions);
     }
 
-    public TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public TeradataMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
 
     @VisibleForTesting
-    protected TeradataMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                      AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected TeradataMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
+
     @Override
     public Schema getPartitionSchema(final String catalogName)
     {
@@ -193,7 +207,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
     {
         final String getPartitionsCountQuery = "Select  count(distinct partition ) as partition_count FROM " + getTableLayoutRequest.getTableName().getSchemaName() + "." +
                 getTableLayoutRequest.getTableName().getTableName() + " where 1= ?";
-        String partitioncount = System.getenv().get("partitioncount");
+        String partitioncount = configOptions.get("partitioncount");
         int totalPartitionCount = Integer.parseInt(partitioncount);
         int  partitionCount = 0;
         boolean nonPartitionApproach = false;

@@ -119,26 +119,30 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
             "and schema_id = (select schema_id from sys.schemas s where s.name = ?))";
     static final String VIEW_CHECK_QUERY = "select TYPE_DESC from sys.objects where name = ? and schema_id = (select schema_id from sys.schemas s where s.name = ?)";
 
-    public SqlServerMetadataHandler()
+    public SqlServerMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SqlServerConstants.NAME, configOptions), configOptions);
     }
     /**
      * Used by Mux.
      */
-    public SqlServerMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SqlServerMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new SqlServerJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)));
+        this(databaseConnectionConfig, new SqlServerJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(SqlServerConstants.DRIVER_CLASS, SqlServerConstants.DEFAULT_PORT)), configOptions);
     }
-    public SqlServerMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public SqlServerMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, jdbcConnectionFactory);
+        super(databaseConnectionConfig, jdbcConnectionFactory, configOptions);
     }
     @VisibleForTesting
-    protected SqlServerMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-                                       AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected SqlServerMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory, configOptions);
     }
     @Override
     public Schema getPartitionSchema(String catalogName)
@@ -370,7 +374,8 @@ public class SqlServerMetadataHandler extends JdbcMetadataHandler
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
-                        resultSet.getInt("DECIMAL_DIGITS"));
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
                 columnName = resultSet.getString("COLUMN_NAME");
 
                 dataType = hashMap.get(columnName);

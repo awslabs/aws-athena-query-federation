@@ -52,23 +52,23 @@ import static com.amazonaws.athena.connectors.hortonworks.HiveConstants.JDBC_PRO
 public class HiveRecordHandler extends JdbcRecordHandler
 {
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public HiveRecordHandler()
+    public HiveRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(HIVE_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(HIVE_NAME, configOptions), configOptions);
     }
-    public HiveRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public HiveRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        this(databaseConnectionConfig, new HiveJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(HIVE_DRIVER_CLASS, HIVE_DEFAULT_PORT)));
+        this(databaseConnectionConfig, new HiveJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES, new DatabaseConnectionInfo(HIVE_DRIVER_CLASS, HIVE_DEFAULT_PORT)), configOptions);
     }
-    public HiveRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    public HiveRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, JdbcConnectionFactory jdbcConnectionFactory, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
-                jdbcConnectionFactory, new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER));
+                jdbcConnectionFactory, new HiveQueryStringBuilder(HIVE_QUOTE_CHARACTER), configOptions);
     }
     @VisibleForTesting
-    HiveRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    HiveRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
     @Override

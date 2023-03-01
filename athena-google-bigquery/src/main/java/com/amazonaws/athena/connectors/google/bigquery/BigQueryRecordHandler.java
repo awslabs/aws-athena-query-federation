@@ -68,20 +68,21 @@ public class BigQueryRecordHandler
         extends RecordHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(BigQueryRecordHandler.class);
-    ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
 
-    BigQueryRecordHandler()
+    BigQueryRecordHandler(java.util.Map<String, String> configOptions)
             throws IOException
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient());
+                AmazonAthenaClientBuilder.defaultClient(), configOptions);
     }
 
     @VisibleForTesting
-    public BigQueryRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
+    public BigQueryRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, BigQueryConstants.SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, BigQueryConstants.SOURCE_TYPE, configOptions);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     @Override
@@ -91,8 +92,8 @@ public class BigQueryRecordHandler
         List<QueryParameterValue> parameterValues = new ArrayList<>();
         String sqlToExecute = "";
         invoker.setBlockSpiller(spiller);
-        final String projectName = BigQueryUtils.getProjectName(recordsRequest.getCatalogName());
-        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(projectName);
+        final String projectName = BigQueryUtils.getProjectName(recordsRequest.getCatalogName(), configOptions);
+        BigQuery bigQueryClient = BigQueryUtils.getBigQueryClient(projectName, configOptions);
         final String datasetName = fixCaseForDatasetName(projectName, recordsRequest.getTableName().getSchemaName(), bigQueryClient);
         final String tableName = fixCaseForTableName(projectName, datasetName, recordsRequest.getTableName().getTableName(),
                 bigQueryClient);

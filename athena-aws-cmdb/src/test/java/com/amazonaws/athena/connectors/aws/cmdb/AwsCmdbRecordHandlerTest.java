@@ -93,7 +93,7 @@ public class AwsCmdbRecordHandlerTest
         when(mockTableProviderFactory.getTableProviders())
                 .thenReturn(Collections.singletonMap(new TableName("schema", "table"), mockTableProvider));
 
-        handler = new AwsCmdbRecordHandler(mockS3, mockSecretsManager, mockAthena, mockTableProviderFactory);
+        handler = new AwsCmdbRecordHandler(mockS3, mockSecretsManager, mockAthena, mockTableProviderFactory, java.util.Map.of());
 
         verify(mockTableProviderFactory, times(1)).getTableProviders();
         verifyNoMoreInteractions(mockTableProviderFactory);

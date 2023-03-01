@@ -32,6 +32,6 @@ public class MySqlCompositeHandler
 {
     public MySqlCompositeHandler()
     {
-        super(new MySqlMetadataHandler(), new MySqlRecordHandler());
+        super(new MySqlMetadataHandler(System.getenv()), new MySqlRecordHandler(System.getenv()));
     }
 }

@@ -173,7 +173,7 @@ public class NeptuneRecordHandlerTest extends TestBase {
                         return mockObject;
                 });
 
-                handler = new NeptuneRecordHandler(amazonS3, awsSecretsManager, athena, neptuneConnection);
+                handler = new NeptuneRecordHandler(amazonS3, awsSecretsManager, athena, neptuneConnection, java.util.Map.of());
                 spillReader = new S3BlockSpillReader(amazonS3, allocator);
         }
 

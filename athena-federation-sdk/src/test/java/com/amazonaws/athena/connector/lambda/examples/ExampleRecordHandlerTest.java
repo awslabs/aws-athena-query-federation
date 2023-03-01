@@ -180,7 +180,7 @@ public class ExampleRecordHandlerTest
                     }
                 });
 
-        recordService = new LocalHandler(allocator, amazonS3, awsSecretsManager, athena);
+        recordService = new LocalHandler(allocator, amazonS3, awsSecretsManager, athena, java.util.Map.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         logger.info("setUpBefore - exit");
@@ -290,9 +290,9 @@ public class ExampleRecordHandlerTest
         private ExampleRecordHandler handler;
         private final BlockAllocatorImpl allocator;
 
-        public LocalHandler(BlockAllocatorImpl allocator, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena)
+        public LocalHandler(BlockAllocatorImpl allocator, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, java.util.Map<String, String> configOptions)
         {
-            handler = new ExampleRecordHandler(amazonS3, secretsManager, athena);
+            handler = new ExampleRecordHandler(amazonS3, secretsManager, athena, configOptions);
             handler.setNumRows(20_000);//lower number for faster unit tests vs integ tests
             this.allocator = allocator;
         }

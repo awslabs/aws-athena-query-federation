@@ -48,7 +48,7 @@ public class ImpalaCompositeHandlerTest
                 "impala://jdbc:impala://54.89.6.2:10000/authena;AuthMech=3;${testSecret}","testSecret");
         PowerMockito.mockStatic(JDBCUtil.class);
         JDBCUtil tested = PowerMockito.mock(JDBCUtil.class);
-        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME)).thenReturn(databaseConnectionConfig);
+        PowerMockito.when(tested.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME, System.getenv())).thenReturn(databaseConnectionConfig);
         new ImpalaCompositeHandler();
         }catch(Exception e) {
             ex =e;

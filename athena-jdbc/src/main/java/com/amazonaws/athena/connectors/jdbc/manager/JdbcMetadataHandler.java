@@ -83,26 +83,33 @@ public abstract class JdbcMetadataHandler
     /**
      * Used only by Multiplexing handler. All calls will be delegated to respective database handler.
      */
-    protected JdbcMetadataHandler(String sourceType)
+    protected JdbcMetadataHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
-        super(sourceType);
+        super(sourceType, configOptions);
         this.jdbcConnectionFactory = null;
         this.databaseConnectionConfig = null;
     }
 
-    protected JdbcMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected JdbcMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig.getEngine());
+        super(databaseConnectionConfig.getEngine(), configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
 
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
 
     @VisibleForTesting
-    protected JdbcMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AWSSecretsManager secretsManager,
-            final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected JdbcMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfig,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(null, secretsManager, athena, databaseConnectionConfig.getEngine(), null, null);
+        super(null, secretsManager, athena, databaseConnectionConfig.getEngine(), null, null, configOptions);
         this.jdbcConnectionFactory = Validate.notNull(jdbcConnectionFactory, "jdbcConnectionFactory must not be null");
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
@@ -227,7 +234,8 @@ public abstract class JdbcMetadataHandler
                 ArrowType columnType = JdbcArrowTypeConverter.toArrowType(
                         resultSet.getInt("DATA_TYPE"),
                         resultSet.getInt("COLUMN_SIZE"),
-                        resultSet.getInt("DECIMAL_DIGITS"));
+                        resultSet.getInt("DECIMAL_DIGITS"),
+                        configOptions);
                 String columnName = resultSet.getString("COLUMN_NAME");
                 if (columnType != null && SupportedTypes.isSupported(columnType)) {
                     if (columnType instanceof ArrowType.List) {

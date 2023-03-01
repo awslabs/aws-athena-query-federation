@@ -67,20 +67,24 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
 {
     static final Logger LOGGER = LoggerFactory.getLogger(HiveMetadataHandler.class);
     static final String GET_METADATA_QUERY = "describe ";
-    public HiveMetadataHandler()
+    public HiveMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(HiveConstants.HIVE_NAME, configOptions), configOptions);
     }
-    public HiveMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public HiveMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new HiveJdbcConnectionFactory(databaseConnectionConfig, HiveConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(HiveConstants.HIVE_DRIVER_CLASS, HiveConstants.HIVE_DEFAULT_PORT)));
+        super(databaseConnectionConfig, new HiveJdbcConnectionFactory(databaseConnectionConfig, HiveConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(HiveConstants.HIVE_DRIVER_CLASS, HiveConstants.HIVE_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
-    protected HiveMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfiguration, final AWSSecretsManager secretManager,
-                                  AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected HiveMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfiguration,
+        AWSSecretsManager secretManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfiguration, secretManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfiguration, secretManager, athena, jdbcConnectionFactory, configOptions);
     }
     /**
      * Delegates creation of partition schema to database type implementation.
@@ -272,7 +276,7 @@ public class HiveMetadataHandler extends JdbcMetadataHandler
                 Map<String, String> meteHashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"));
+                            resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
                     String columnName = resultSet.getString(HiveConstants.COLUMN_NAME);
                     String dataType = meteHashMap.get(columnName);
                     LOGGER.debug("columnName:" + columnName);

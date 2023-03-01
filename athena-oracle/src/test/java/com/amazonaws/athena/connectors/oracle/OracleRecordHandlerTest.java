@@ -77,7 +77,7 @@ public class OracleRecordHandlerTest
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", ORACLE_NAME,
                 "oracle://jdbc:oracle:thin:username/password@//127.0.0.1:1521/orcl");
 
-        this.oracleRecordHandler = new OracleRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder);
+        this.oracleRecordHandler = new OracleRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, java.util.Map.of());
     }
 
     @Test

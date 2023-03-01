@@ -120,7 +120,7 @@ public class KafkaMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
-        kafkaMetadataHandler = new KafkaMetadataHandler(consumer);
+        kafkaMetadataHandler = new KafkaMetadataHandler(consumer, java.util.Map.of());
     }
 
     @After

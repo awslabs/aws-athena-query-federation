@@ -89,18 +89,20 @@ public class TimestreamRecordHandler
     private final QueryFactory queryFactory = new QueryFactory();
     private final AmazonTimestreamQuery tsQuery;
 
-    public TimestreamRecordHandler()
+    public TimestreamRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(AmazonS3ClientBuilder.defaultClient(),
-                AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient(),
-                TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE));
+        this(
+            AmazonS3ClientBuilder.defaultClient(),
+            AWSSecretsManagerClientBuilder.defaultClient(),
+            AmazonAthenaClientBuilder.defaultClient(),
+            TimestreamClientBuilder.buildQueryClient(SOURCE_TYPE),
+            configOptions);
     }
 
     @VisibleForTesting
-    protected TimestreamRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AmazonTimestreamQuery tsQuery)
+    protected TimestreamRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, AmazonTimestreamQuery tsQuery, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, athena, SOURCE_TYPE, configOptions);
         this.tsQuery = tsQuery;
     }
 

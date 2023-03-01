@@ -89,7 +89,7 @@ public class TestBase
     public static void setupOnce() throws Exception
     {
         ddbClient = setupDatabase();
-        ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+        ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, java.util.Map.of()).build();
         schema = DDBTableUtils.peekTableForSchema(TEST_TABLE, invoker, ddbClient);
     }
 

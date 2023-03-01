@@ -43,23 +43,23 @@ class MySqlMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new MySqlRecordHandler(config);
+        return new MySqlRecordHandler(config, configOptions);
     }
 }
 
 public class MySqlMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public MySqlMuxRecordHandler()
+    public MySqlMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new MySqlMuxRecordHandlerFactory());
+        super(new MySqlMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    MySqlMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-            final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    MySqlMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+            DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

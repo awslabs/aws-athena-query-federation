@@ -32,6 +32,6 @@ public class HiveCompositeHandler
 {
     public HiveCompositeHandler()
     {
-        super(new HiveMetadataHandler(), new HiveRecordHandler());
+        super(new HiveMetadataHandler(System.getenv()), new HiveRecordHandler(System.getenv()));
     }
 }

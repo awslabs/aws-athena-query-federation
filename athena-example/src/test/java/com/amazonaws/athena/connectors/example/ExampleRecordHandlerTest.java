@@ -124,7 +124,7 @@ public class ExampleRecordHandlerTest
                     }
                 });
 
-        handler = new ExampleRecordHandler(amazonS3, awsSecretsManager, athena);
+        handler = new ExampleRecordHandler(amazonS3, awsSecretsManager, athena, java.util.Map.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
 

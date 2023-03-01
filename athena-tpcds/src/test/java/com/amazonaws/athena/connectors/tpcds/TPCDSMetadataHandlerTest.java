@@ -84,7 +84,7 @@ public class TPCDSMetadataHandlerTest
     public void setUp()
             throws Exception
     {
-        handler = new TPCDSMetadataHandler(new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix");
+        handler = new TPCDSMetadataHandler(new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", java.util.Map.of());
         allocator = new BlockAllocatorImpl();
     }
 

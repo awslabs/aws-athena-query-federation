@@ -34,7 +34,7 @@ public class BigQueryCompositeHandler
     public BigQueryCompositeHandler()
             throws IOException
     {
-        super(new BigQueryMetadataHandler(), new BigQueryRecordHandler());
+        super(new BigQueryMetadataHandler(System.getenv()), new BigQueryRecordHandler(System.getenv()));
         logger.info("Inside BigQueryCompositeHandler()");
     }
 }

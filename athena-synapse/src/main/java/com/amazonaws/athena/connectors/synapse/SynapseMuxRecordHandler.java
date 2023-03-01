@@ -40,23 +40,23 @@ class SynapseMuxRecordHandlerFactory implements JdbcRecordHandlerFactory
     }
 
     @Override
-    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config)
+    public JdbcRecordHandler createJdbcRecordHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new SynapseRecordHandler(config);
+        return new SynapseRecordHandler(config, configOptions);
     }
 }
 
 public class SynapseMuxRecordHandler extends MultiplexingJdbcRecordHandler
 {
-    public SynapseMuxRecordHandler()
+    public SynapseMuxRecordHandler(java.util.Map<String, String> configOptions)
     {
-        super(new SynapseMuxRecordHandlerFactory());
+        super(new SynapseMuxRecordHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    SynapseMuxRecordHandler(final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                           final DatabaseConnectionConfig databaseConnectionConfig, final Map<String, JdbcRecordHandler> recordHandlerMap)
+    SynapseMuxRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                           DatabaseConnectionConfig databaseConnectionConfig, Map<String, JdbcRecordHandler> recordHandlerMap, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap);
+        super(amazonS3, secretsManager, athena, jdbcConnectionFactory, databaseConnectionConfig, recordHandlerMap, configOptions);
     }
 }

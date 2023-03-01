@@ -96,6 +96,12 @@ public abstract class MetadataHandler
         implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetadataHandler.class);
+
+    // When MetadataHandler is used as a Lambda, configOptions is the same as System.getenv()
+    // Otherwise in situations where the connector is used outside of a Lambda, it may be a config map
+    // that is passed in.
+    protected final java.util.Map<String, String> configOptions;
+
     //name of the default column used when a default single-partition response is required for connectors that
     //do not support robust partitioning. In such cases Athena requires at least 1 partition in order indicate
     //there is indeed data to be read vs. queries that were able to fully partition prune and thus decide there
@@ -109,10 +115,9 @@ public abstract class MetadataHandler
     protected static final String SPILL_PREFIX_ENV = "spill_prefix";
     protected static final String KMS_KEY_ID_ENV = "kms_key_id";
     protected static final String DISABLE_SPILL_ENCRYPTION = "disable_spill_encryption";
-
     private final CachableSecretsManager secretsManager;
     private final AmazonAthena athena;
-    private final ThrottlingInvoker athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker athenaInvoker;
     private final EncryptionKeyFactory encryptionKeyFactory;
     private final String spillBucket;
     private final String spillPrefix;
@@ -120,39 +125,46 @@ public abstract class MetadataHandler
     private final SpillLocationVerifier verifier;
 
     /**
+     * When MetadataHandler is used as a Lambda, the "Main" class will pass in System.getenv() as the configOptions.
+     * Otherwise in situations where the connector is used outside of a Lambda, it may be a config map
+     * that is passed in.
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public MetadataHandler(String sourceType)
+    public MetadataHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
+        this.configOptions = configOptions;
         this.sourceType = sourceType;
-        this.spillBucket = System.getenv(SPILL_BUCKET_ENV);
-        this.spillPrefix = System.getenv(SPILL_PREFIX_ENV) == null ?
-                DEFAULT_SPILL_PREFIX : System.getenv(SPILL_PREFIX_ENV);
-        if (System.getenv(DISABLE_SPILL_ENCRYPTION) == null ||
-                !DISABLE_ENCRYPTION.equalsIgnoreCase(System.getenv(DISABLE_SPILL_ENCRYPTION))) {
-            encryptionKeyFactory = (System.getenv(KMS_KEY_ID_ENV) != null) ?
-                    new KmsKeyFactory(AWSKMSClientBuilder.standard().build(), System.getenv(KMS_KEY_ID_ENV)) :
-                    new LocalKeyFactory();
+        this.spillBucket = this.configOptions.get(SPILL_BUCKET_ENV);
+        this.spillPrefix = this.configOptions.getOrDefault(SPILL_PREFIX_ENV, DEFAULT_SPILL_PREFIX);
+
+        if (DISABLE_ENCRYPTION.equalsIgnoreCase(this.configOptions.getOrDefault(DISABLE_SPILL_ENCRYPTION, "false"))) {
+            this.encryptionKeyFactory = null;
         }
         else {
-            encryptionKeyFactory = null;
+            this.encryptionKeyFactory = (this.configOptions.get(KMS_KEY_ID_ENV) != null) ?
+                    new KmsKeyFactory(AWSKMSClientBuilder.standard().build(), this.configOptions.get(KMS_KEY_ID_ENV)) :
+                    new LocalKeyFactory();
         }
 
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
         this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
+        this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public MetadataHandler(EncryptionKeyFactory encryptionKeyFactory,
-            AWSSecretsManager secretsManager,
-            AmazonAthena athena,
-            String sourceType,
-            String spillBucket,
-            String spillPrefix)
+    public MetadataHandler(
+        EncryptionKeyFactory encryptionKeyFactory,
+        AWSSecretsManager secretsManager,
+        AmazonAthena athena,
+        String sourceType,
+        String spillBucket,
+        String spillPrefix,
+        java.util.Map<String, String> configOptions)
     {
+        this.configOptions = configOptions;
         this.encryptionKeyFactory = encryptionKeyFactory;
         this.secretsManager = new CachableSecretsManager(secretsManager);
         this.athena = athena;
@@ -160,6 +172,7 @@ public abstract class MetadataHandler
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
         this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
+        this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
     /**

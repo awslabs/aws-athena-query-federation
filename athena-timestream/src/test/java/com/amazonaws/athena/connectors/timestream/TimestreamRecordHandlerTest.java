@@ -179,7 +179,7 @@ public class TimestreamRecordHandlerTest
                 .addField("region", Types.MinorType.VARCHAR.getType())
                 .build();
 
-        handler = new TimestreamRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockClient);
+        handler = new TimestreamRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockClient, java.util.Map.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
     }
 

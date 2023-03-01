@@ -70,32 +70,37 @@ public abstract class RecordHandler
     private static final Logger logger = LoggerFactory.getLogger(RecordHandler.class);
     private static final String MAX_BLOCK_SIZE_BYTES = "MAX_BLOCK_SIZE_BYTES";
     private static final int NUM_SPILL_THREADS = 2;
+    protected final java.util.Map<String, String> configOptions;
     private final AmazonS3 amazonS3;
     private final String sourceType;
     private final CachableSecretsManager secretsManager;
     private final AmazonAthena athena;
-    private final ThrottlingInvoker athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker athenaInvoker;
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public RecordHandler(String sourceType)
+    public RecordHandler(String sourceType, java.util.Map<String, String> configOptions)
     {
         this.sourceType = sourceType;
         this.amazonS3 = AmazonS3ClientBuilder.defaultClient();
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
+        this.configOptions = configOptions;
+        this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
      * @param sourceType Used to aid in logging diagnostic info when raising a support case.
      */
-    public RecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType)
+    public RecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, String sourceType, java.util.Map<String, String> configOptions)
     {
         this.sourceType = sourceType;
         this.amazonS3 = amazonS3;
         this.secretsManager = new CachableSecretsManager(secretsManager);
         this.athena = athena;
+        this.configOptions = configOptions;
+        this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
     /**
@@ -186,7 +191,7 @@ public abstract class RecordHandler
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
                 request.getSchema(),
                 request.getConstraints());
-                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator);
+                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, request.getSchema(), evaluator, configOptions);
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
             readWithConstraint(spiller, request, queryStatusChecker);
@@ -225,8 +230,8 @@ public abstract class RecordHandler
     protected SpillConfig getSpillConfig(ReadRecordsRequest request)
     {
         long maxBlockSize = request.getMaxBlockSize();
-        if (System.getenv(MAX_BLOCK_SIZE_BYTES) != null) {
-            maxBlockSize = Long.parseLong(System.getenv(MAX_BLOCK_SIZE_BYTES));
+        if (configOptions.get(MAX_BLOCK_SIZE_BYTES) != null) {
+            maxBlockSize = Long.parseLong(configOptions.get(MAX_BLOCK_SIZE_BYTES));
         }
 
         return SpillConfig.newBuilder()

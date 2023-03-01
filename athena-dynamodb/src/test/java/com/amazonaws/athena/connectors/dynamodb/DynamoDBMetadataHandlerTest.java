@@ -144,7 +144,7 @@ public class DynamoDBMetadataHandlerTest
 
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         allocator = new BlockAllocatorImpl();
-        handler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient);
+        handler = new DynamoDBMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", ddbClient, glueClient, java.util.Map.of());
     }
 
     @After

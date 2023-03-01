@@ -26,6 +26,6 @@ public class TimestreamCompositeHandler
 {
     public TimestreamCompositeHandler()
     {
-        super(new TimestreamMetadataHandler(), new TimestreamRecordHandler());
+        super(new TimestreamMetadataHandler(System.getenv()), new TimestreamRecordHandler(System.getenv()));
     }
 }

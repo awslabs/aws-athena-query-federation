@@ -57,11 +57,11 @@ public final class EdgeRowWriter
         // Empty private constructor
     }
 
-    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field) 
+    public static void writeRowTemplate(RowWriterBuilder rowWriterBuilder, Field field, java.util.Map<String, String> configOptions)
     {
         ArrowType arrowType = field.getType();
         Types.MinorType minorType = Types.getMinorTypeForArrowType(arrowType);
-        Boolean enableCaseinsensitivematch = (System.getenv("enable_caseinsensitivematch") == null) ? true : Boolean.parseBoolean(System.getenv("enable_caseinsensitivematch"));
+        Boolean enableCaseinsensitivematch = Boolean.parseBoolean(configOptions.getOrDefault("enable_caseinsensitivematch", "true"));
 
         switch (minorType) {
             case BIT:

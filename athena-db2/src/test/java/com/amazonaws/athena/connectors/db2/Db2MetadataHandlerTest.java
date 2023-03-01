@@ -95,7 +95,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
+        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, java.util.Map.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = new BlockAllocatorImpl();
     }

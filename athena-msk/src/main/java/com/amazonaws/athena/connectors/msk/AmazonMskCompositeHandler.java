@@ -26,6 +26,6 @@ public class AmazonMskCompositeHandler
 {
     public AmazonMskCompositeHandler() throws Exception
     {
-        super(new AmazonMskMetadataHandler(), new AmazonMskRecordHandler());
+        super(new AmazonMskMetadataHandler(System.getenv()), new AmazonMskRecordHandler(System.getenv()));
     }
 }

@@ -30,6 +30,6 @@ public class MetricsCompositeHandler
 {
     public MetricsCompositeHandler()
     {
-        super(new MetricsMetadataHandler(), new MetricsRecordHandler());
+        super(new MetricsMetadataHandler(System.getenv()), new MetricsRecordHandler(System.getenv()));
     }
 }

@@ -59,23 +59,23 @@ public class SynapseRecordHandler extends JdbcRecordHandler
     private static final String QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public SynapseRecordHandler()
+    public SynapseRecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(SynapseConstants.NAME, configOptions), configOptions);
     }
-    public SynapseRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(),
                 AmazonAthenaClientBuilder.defaultClient(), new SynapseJdbcConnectionFactory(databaseConnectionConfig,
                         SynapseMetadataHandler.JDBC_PROPERTIES, new DatabaseConnectionInfo(SynapseConstants.DRIVER_CLASS, SynapseConstants.DEFAULT_PORT)),
-                new SynapseQueryStringBuilder(QUOTE_CHARACTER));
+                new SynapseQueryStringBuilder(QUOTE_CHARACTER), configOptions);
     }
 
     @VisibleForTesting
-    SynapseRecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
-                         final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    SynapseRecordHandler(DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager,
+                         final AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
 

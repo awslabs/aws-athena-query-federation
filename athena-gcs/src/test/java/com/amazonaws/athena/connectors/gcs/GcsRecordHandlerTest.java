@@ -168,7 +168,7 @@ public class GcsRecordHandlerTest
         PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
         suppress(constructor(StorageMetadata.class, String.class));
         Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
-        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator());
+        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), java.util.Map.of());
 
         // Mocking GcsUtil
         PowerMockito.mockStatic(GcsUtil.class);
@@ -176,7 +176,7 @@ public class GcsRecordHandlerTest
         PowerMockito.when(GcsUtil.createUri(anyString())).thenReturn( "file:" + parquetFile.getPath() + "/" + "person-data.parquet");
 
         // The class we want to test.
-        gcsRecordHandler = new GcsRecordHandler(bufferAllocator);
+        gcsRecordHandler = new GcsRecordHandler(bufferAllocator, java.util.Map.of());
         LOGGER.info("Completed init.");
     }
 

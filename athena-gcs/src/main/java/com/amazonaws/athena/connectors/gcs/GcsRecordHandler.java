@@ -73,13 +73,13 @@ public class GcsRecordHandler
     private BufferAllocator allocator;
 
     // to handle back-pressure during API invocation to GCS
-    ThrottlingInvoker invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER).build();
+    private final ThrottlingInvoker invoker;
 
-    public GcsRecordHandler(BufferAllocator allocator)
+    public GcsRecordHandler(BufferAllocator allocator, java.util.Map<String, String> configOptions)
     {
         this(AmazonS3ClientBuilder.defaultClient(),
                 AWSSecretsManagerClientBuilder.defaultClient(),
-                AmazonAthenaClientBuilder.defaultClient());
+                AmazonAthenaClientBuilder.defaultClient(), configOptions);
         this.allocator = allocator;
     }
 
@@ -91,9 +91,10 @@ public class GcsRecordHandler
      * @param amazonAthena   An instance of AmazonAthena
      */
     @VisibleForTesting
-    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena)
+    protected GcsRecordHandler(AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena amazonAthena, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE);
+        super(amazonS3, secretsManager, amazonAthena, SOURCE_TYPE, configOptions);
+        this.invoker = ThrottlingInvoker.newDefaultBuilder(EXCEPTION_FILTER, configOptions).build();
     }
 
     /**

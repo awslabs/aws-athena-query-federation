@@ -71,15 +71,15 @@ public class KafkaMetadataHandler extends MetadataHandler
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaMetadataHandler.class);
     private final Consumer<String, String> kafkaConsumer;
 
-    public KafkaMetadataHandler() throws Exception
+    public KafkaMetadataHandler(java.util.Map<String, String> configOptions) throws Exception
     {
-        this(KafkaUtils.getKafkaConsumer());
+        this(KafkaUtils.getKafkaConsumer(configOptions), configOptions);
     }
 
     @VisibleForTesting
-    public KafkaMetadataHandler(Consumer<String, String> kafkaConsumer)
+    public KafkaMetadataHandler(Consumer<String, String> kafkaConsumer, java.util.Map<String, String> configOptions)
     {
-        super(KafkaConstants.KAFKA_SOURCE);
+        super(KafkaConstants.KAFKA_SOURCE, configOptions);
         this.kafkaConsumer = kafkaConsumer;
     }
 

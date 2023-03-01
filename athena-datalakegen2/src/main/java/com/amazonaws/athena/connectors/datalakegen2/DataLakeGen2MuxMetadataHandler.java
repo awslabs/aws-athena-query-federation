@@ -40,24 +40,24 @@ class DataLakeGen2MetadataHandlerFactory
     }
 
     @Override
-    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config)
+    public JdbcMetadataHandler createJdbcMetadataHandler(DatabaseConnectionConfig config, java.util.Map<String, String> configOptions)
     {
-        return new DataLakeGen2MetadataHandler(config);
+        return new DataLakeGen2MetadataHandler(config, configOptions);
     }
 }
 
 public class DataLakeGen2MuxMetadataHandler
         extends MultiplexingJdbcMetadataHandler
 {
-    public DataLakeGen2MuxMetadataHandler()
+    public DataLakeGen2MuxMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        super(new DataLakeGen2MetadataHandlerFactory());
+        super(new DataLakeGen2MetadataHandlerFactory(), configOptions);
     }
 
     @VisibleForTesting
-    protected DataLakeGen2MuxMetadataHandler(final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory,
-                                       final Map<String, JdbcMetadataHandler> metadataHandlerMap, final DatabaseConnectionConfig databaseConnectionConfig)
+    protected DataLakeGen2MuxMetadataHandler(AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory,
+                                     Map<String, JdbcMetadataHandler> metadataHandlerMap, DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig);
+        super(secretsManager, athena, jdbcConnectionFactory, metadataHandlerMap, databaseConnectionConfig, configOptions);
     }
 }

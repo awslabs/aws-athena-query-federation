@@ -108,10 +108,10 @@ public class KafkaUtils
      *
      * @return @return {@link KafkaConsumer}
      */
-    public static Consumer<String, String> getKafkaConsumer() throws Exception
+    public static Consumer<String, String> getKafkaConsumer(java.util.Map<String, String> configOptions) throws Exception
     {
         Properties properties;
-        properties = getKafkaProperties();
+        properties = getKafkaProperties(configOptions);
 
         return new KafkaConsumer<>(properties);
     }
@@ -127,9 +127,9 @@ public class KafkaUtils
      * @return Consumer {@link Consumer}
      * @throws Exception - {@link Exception}
      */
-    public static Consumer<String, TopicResultSet> getKafkaConsumer(Schema schema) throws Exception
+    public static Consumer<String, TopicResultSet> getKafkaConsumer(Schema schema, java.util.Map<String, String> configOptions) throws Exception
     {
-        Properties properties = KafkaUtils.getKafkaProperties();
+        Properties properties = KafkaUtils.getKafkaProperties(configOptions);
 
         // Get the topic data type, while we had built the schema we had put it in schema's metadata
         String dataFormat = schema.getCustomMetadata().get("dataFormat");
@@ -159,11 +159,11 @@ public class KafkaUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    public static Properties getKafkaProperties() throws Exception
+    public static Properties getKafkaProperties(java.util.Map<String, String> configOptions) throws Exception
     {
         // Create the necessary properties to use for kafka connection
         Properties properties = new Properties();
-        properties.setProperty(KAFKA_BOOTSTRAP_SERVERS_CONFIG, getEnvVar(KafkaConstants.ENV_KAFKA_ENDPOINT));
+        properties.setProperty(KAFKA_BOOTSTRAP_SERVERS_CONFIG, getRequiredConfig(KafkaConstants.ENV_KAFKA_ENDPOINT, configOptions));
         properties.setProperty(KAFKA_GROUP_ID_CONFIG, UUID.randomUUID().toString());
         properties.setProperty(KAFKA_EXCLUDE_INTERNAL_TOPICS_CONFIG, "true");
         properties.setProperty(KAFKA_ENABLE_AUTO_COMMIT_CONFIG, "false");
@@ -174,23 +174,23 @@ public class KafkaUtils
         properties.setProperty(KAFKA_VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 
         //fetch authentication type for the kafka cluster
-        AuthType authType = AuthType.valueOf(getEnvVar(KafkaConstants.AUTH_TYPE).toUpperCase().trim());
+        AuthType authType = AuthType.valueOf(getRequiredConfig(KafkaConstants.AUTH_TYPE, configOptions).toUpperCase().trim());
 
         switch (authType) {
             case SASL_SSL_SCRAM_SHA512:
-                setScramSSLAuthKafkaProperties(properties);
+                setScramSSLAuthKafkaProperties(properties, configOptions);
                 break;
             case SASL_PLAINTEXT_SCRAM_SHA512:
-                setScramPlainTextAuthKafkaProperties(properties);
+                setScramPlainTextAuthKafkaProperties(properties, configOptions);
                 break;
             case SASL_SSL_PLAIN:
-                setSaslSslAuthKafkaProperties(properties);
+                setSaslSslAuthKafkaProperties(properties, configOptions);
                 break;
             case SASL_PLAINTEXT_PLAIN:
-                setSaslPlainAuthKafkaProperties(properties);
+                setSaslPlainAuthKafkaProperties(properties, configOptions);
                 break;
             case SSL:
-                setSSLAuthKafkaProperties(properties);
+                setSSLAuthKafkaProperties(properties, configOptions);
                 break;
             case NO_AUTH:
                 break;
@@ -208,14 +208,14 @@ public class KafkaUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties setSSLAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setSSLAuthKafkaProperties(Properties properties, java.util.Map<String, String> configOptions) throws Exception
     {
         // Download certificates for kafka connection from S3 and save to temp directory
-        Path tempDir = copyCertificatesFromS3ToTempFolder();
+        Path tempDir = copyCertificatesFromS3ToTempFolder(configOptions);
 
         // Fetch the secrets for kafka connection from AWS SecretManager and set required kafka properties for
         //establishing successful connection
-        Map<String, Object> secretInfo = getCredentialsAsKeyValue();
+        Map<String, Object> secretInfo = getCredentialsAsKeyValue(configOptions);
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SSL");
         properties.setProperty(KAFKA_SSL_CLIENT_AUTH, "required");
         properties.setProperty(KAFKA_SSL_KEY_PASSWORD, secretInfo.get(KafkaConstants.SSL_KEY_PASSWORD).toString());
@@ -233,17 +233,17 @@ public class KafkaUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties setScramSSLAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setScramSSLAuthKafkaProperties(Properties properties, java.util.Map<String, String> configOptions) throws Exception
     {
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_SSL");
         properties.setProperty(KAFKA_SASL_MECHANISM, "SCRAM-SHA-512");
-        Map<String, Object> cred = getCredentialsAsKeyValue();
+        Map<String, Object> cred = getCredentialsAsKeyValue(configOptions);
         String username = cred.get(KafkaConstants.AWS_SECRET_USERNAME).toString();
         String password = cred.get(KafkaConstants.AWS_SECRET_PWD).toString();
-        String s3uri = System.getenv(KafkaConstants.CERTIFICATES_S3_REFERENCE);
+        String s3uri = configOptions.get(KafkaConstants.CERTIFICATES_S3_REFERENCE);
         if (StringUtils.isNotBlank(s3uri)) {
             //Download certificates for kafka connection from S3 and save to temp directory
-            Path tempDir = copyCertificatesFromS3ToTempFolder();
+            Path tempDir = copyCertificatesFromS3ToTempFolder(configOptions);
             properties.setProperty(KAFKA_TRUSTSTORE_LOCATION, tempDir + File.separator + TRUSTSTORE);
             properties.setProperty(KAFKA_TRUSTSTORE_PASSWORD, cred.get(KafkaConstants.TRUSTSTORE_PASSWORD).toString());
         }
@@ -251,11 +251,11 @@ public class KafkaUtils
         return properties;
     }
 
-    protected static Properties setScramPlainTextAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setScramPlainTextAuthKafkaProperties(Properties properties, java.util.Map<String, String> configOptions) throws Exception
     {
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_PLAINTEXT");
         properties.setProperty(KAFKA_SASL_MECHANISM, "SCRAM-SHA-512");
-        Map<String, Object> cred = getCredentialsAsKeyValue();
+        Map<String, Object> cred = getCredentialsAsKeyValue(configOptions);
         String username = cred.get(KafkaConstants.AWS_SECRET_USERNAME).toString();
         String password = cred.get(KafkaConstants.AWS_SECRET_PWD).toString();
         properties.put(KAFKA_SASL_JAAS_CONFIG, "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"" + username + "\" password=\"" + password + "\";");
@@ -268,11 +268,11 @@ public class KafkaUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties setSaslPlainAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setSaslPlainAuthKafkaProperties(Properties properties, java.util.Map<String, String> configOptions) throws Exception
     {
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_PLAINTEXT");
         properties.setProperty(KAFKA_SASL_MECHANISM, "PLAIN");
-        Map<String, Object> cred = getCredentialsAsKeyValue();
+        Map<String, Object> cred = getCredentialsAsKeyValue(configOptions);
         properties.put(KAFKA_SASL_JAAS_CONFIG, "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"" + cred.get(KafkaConstants.AWS_SECRET_USERNAME).toString() + "\" password=\"" + cred.get(KafkaConstants.AWS_SECRET_PWD).toString() + "\";");
         return properties;
     }
@@ -283,15 +283,15 @@ public class KafkaUtils
      * @return {@link Properties}
      * @throws Exception - {@link Exception}
      */
-    protected static Properties setSaslSslAuthKafkaProperties(Properties properties) throws Exception
+    protected static Properties setSaslSslAuthKafkaProperties(Properties properties, java.util.Map<String, String> configOptions) throws Exception
     {
-        Map<String, Object> cred = getCredentialsAsKeyValue();
+        Map<String, Object> cred = getCredentialsAsKeyValue(configOptions);
         properties.setProperty(KAFKA_SECURITY_PROTOCOL, "SASL_SSL");
         properties.setProperty(KAFKA_SASL_MECHANISM, "PLAIN");
-        String s3uri = System.getenv(KafkaConstants.CERTIFICATES_S3_REFERENCE);
+        String s3uri = configOptions.get(KafkaConstants.CERTIFICATES_S3_REFERENCE);
         if (StringUtils.isNotBlank(s3uri)) {
             //Download certificates for kafka connection from S3 and save to temp directory
-            Path tempDir = copyCertificatesFromS3ToTempFolder();
+            Path tempDir = copyCertificatesFromS3ToTempFolder(configOptions);
             properties.setProperty(KAFKA_TRUSTSTORE_LOCATION, tempDir + File.separator + TRUSTSTORE);
             properties.setProperty(KAFKA_TRUSTSTORE_PASSWORD, cred.get(KafkaConstants.TRUSTSTORE_PASSWORD).toString());
         }
@@ -304,7 +304,7 @@ public class KafkaUtils
      *
      * @throws Exception - {@link Exception}
      */
-    protected static Path copyCertificatesFromS3ToTempFolder() throws Exception
+    protected static Path copyCertificatesFromS3ToTempFolder(java.util.Map<String, String> configOptions) throws Exception
     {
         LOGGER.debug("Creating the connection with AWS S3 for copying certificates to Temp Folder");
         Path tempDir = getTempDirPath();
@@ -313,7 +313,7 @@ public class KafkaUtils
                 withCredentials(new AWSStaticCredentialsProvider(credentials)).
                 build();
 
-        String s3uri = getEnvVar(KafkaConstants.CERTIFICATES_S3_REFERENCE);
+        String s3uri = getRequiredConfig(KafkaConstants.CERTIFICATES_S3_REFERENCE, configOptions);
         String[] s3Bucket = s3uri.split("s3://")[1].split("/");
 
         ObjectListing objectListing = s3Client.listObjects(s3Bucket[0], s3Bucket[1]);
@@ -354,11 +354,11 @@ public class KafkaUtils
      * @return Map of Credentials from AWS Secret Manager
      * @throws Exception - {@link Exception}
      */
-    private static Map<String, Object> getCredentialsAsKeyValue() throws Exception
+    private static Map<String, Object> getCredentialsAsKeyValue(java.util.Map<String, String> configOptions) throws Exception
     {
         AWSSecretsManager secretsManager = AWSSecretsManagerClientBuilder.defaultClient();
         GetSecretValueRequest getSecretValueRequest = new GetSecretValueRequest();
-        getSecretValueRequest.setSecretId(getEnvVar(KafkaConstants.SECRET_MANAGER_KAFKA_CREDS_NAME));
+        getSecretValueRequest.setSecretId(getRequiredConfig(KafkaConstants.SECRET_MANAGER_KAFKA_CREDS_NAME, configOptions));
         GetSecretValueResult response = secretsManager.getSecretValue(getSecretValueRequest);
         return objectMapper.readValue(response.getSecretString(), new TypeReference<Map<String, Object>>()
         {
@@ -368,16 +368,16 @@ public class KafkaUtils
     /**
      * Gets the environment variable.
      *
-     * @param envVar - the key of an environment variable
+     * @param key - the config key
      * @return {@link String}
      */
-    private static String getEnvVar(String envVar)
+    private static String getRequiredConfig(String key, java.util.Map<String, String> configOptions)
     {
-        String envVariable = System.getenv(envVar);
-        if (envVariable == null || envVariable.length() == 0) {
-            throw new IllegalArgumentException("Lambda Environment Variable " + envVar + " has not been populated! ");
+        String value = configOptions.getOrDefault(key, "");
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("Lambda Environment Variable " + key + " has not been populated! ");
         }
-        return envVariable;
+        return value;
     }
 
     /**

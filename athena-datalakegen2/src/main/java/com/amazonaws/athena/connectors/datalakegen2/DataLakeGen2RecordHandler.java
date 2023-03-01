@@ -46,20 +46,20 @@ public class DataLakeGen2RecordHandler extends JdbcRecordHandler
     private static final String QUOTE_CHARACTER = "\"";
     private static final int FETCH_SIZE = 1000;
     private final JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    public DataLakeGen2RecordHandler()
+    public DataLakeGen2RecordHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(DataLakeGen2Constants.NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(DataLakeGen2Constants.NAME, configOptions), configOptions);
     }
-    public DataLakeGen2RecordHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public DataLakeGen2RecordHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
         this(databaseConnectionConfig, AmazonS3ClientBuilder.defaultClient(), AWSSecretsManagerClientBuilder.defaultClient(), AmazonAthenaClientBuilder.defaultClient(),
                 new GenericJdbcConnectionFactory(databaseConnectionConfig, DataLakeGen2MetadataHandler.JDBC_PROPERTIES,
-                        new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)), new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER));
+                        new DatabaseConnectionInfo(DataLakeGen2Constants.DRIVER_CLASS, DataLakeGen2Constants.DEFAULT_PORT)), new DataLakeGen2QueryStringBuilder(QUOTE_CHARACTER), configOptions);
     }
     @VisibleForTesting
-    DataLakeGen2RecordHandler(final DatabaseConnectionConfig databaseConnectionConfig, final AmazonS3 amazonS3, final AWSSecretsManager secretsManager, final AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory, final JdbcSplitQueryBuilder jdbcSplitQueryBuilder)
+    DataLakeGen2RecordHandler(DatabaseConnectionConfig databaseConnectionConfig, AmazonS3 amazonS3, AWSSecretsManager secretsManager, AmazonAthena athena, JdbcConnectionFactory jdbcConnectionFactory, JdbcSplitQueryBuilder jdbcSplitQueryBuilder, java.util.Map<String, String> configOptions)
     {
-        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory);
+        super(amazonS3, secretsManager, athena, databaseConnectionConfig, jdbcConnectionFactory, configOptions);
         this.jdbcSplitQueryBuilder = Validate.notNull(jdbcSplitQueryBuilder, "query builder must not be null");
     }
     @Override

@@ -67,20 +67,24 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
 {
     static final Logger LOGGER = LoggerFactory.getLogger(ImpalaMetadataHandler.class);
     static final String GET_METADATA_QUERY = "describe FORMATTED ";
-    public ImpalaMetadataHandler()
+    public ImpalaMetadataHandler(java.util.Map<String, String> configOptions)
     {
-        this(JDBCUtil.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME));
+        this(JDBCUtil.getSingleDatabaseConfigFromEnv(ImpalaConstants.IMPALA_NAME, configOptions), configOptions);
     }
-    public ImpalaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
+    public ImpalaMetadataHandler(DatabaseConnectionConfig databaseConnectionConfig, java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)));
+        super(databaseConnectionConfig, new ImpalaJdbcConnectionFactory(databaseConnectionConfig, ImpalaConstants.JDBC_PROPERTIES, new DatabaseConnectionInfo(ImpalaConstants.IMPALA_DRIVER_CLASS, ImpalaConstants.IMPALA_DEFAULT_PORT)), configOptions);
     }
 
     @VisibleForTesting
-    protected ImpalaMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfiguration, final AWSSecretsManager secretManager,
-                                    AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
+    protected ImpalaMetadataHandler(
+        DatabaseConnectionConfig databaseConnectionConfiguration,
+        AWSSecretsManager secretManager,
+        AmazonAthena athena,
+        JdbcConnectionFactory jdbcConnectionFactory,
+        java.util.Map<String, String> configOptions)
     {
-        super(databaseConnectionConfiguration, secretManager, athena, jdbcConnectionFactory);
+        super(databaseConnectionConfiguration, secretManager, athena, jdbcConnectionFactory, configOptions);
     }
     /**
      * Delegates creation of partition schema to database type implementation.
@@ -273,7 +277,7 @@ public class ImpalaMetadataHandler extends JdbcMetadataHandler
                 Map<String, String> hashMap = getMetadataForGivenTable(psmt);
                 while (resultSet.next()) {
                     ArrowType columnType = JdbcArrowTypeConverter.toArrowType(resultSet.getInt("DATA_TYPE"),
-                            resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"));
+                            resultSet.getInt("COLUMN_SIZE"), resultSet.getInt("DECIMAL_DIGITS"), configOptions);
                     String columnName = resultSet.getString(ImpalaConstants.COLUMN_NAME);
                     String dataType = hashMap.get(columnName);
                     LOGGER.debug("columnName:" + columnName);
