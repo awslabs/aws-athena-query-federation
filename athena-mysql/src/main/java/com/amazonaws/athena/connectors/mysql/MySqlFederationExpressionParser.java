@@ -35,7 +35,6 @@ public class MySqlFederationExpressionParser extends JdbcFederationExpressionPar
     @Override
     public String writeArrayConstructorClause(ArrowType type, List<String> arguments)
     {
-        // TODO: Implement.
         return Joiner.on(", ").join(arguments);
     }    
 }
