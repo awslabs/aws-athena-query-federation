@@ -25,11 +25,8 @@ import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.domain.predicate.functions.StandardFunctions;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
-import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableLayoutRequest;
@@ -40,12 +37,6 @@ import com.amazonaws.athena.connector.lambda.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.DataSourceOptimizations;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.OptimizationSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.AggregationPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.ComplexExpressionPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.FilterPushdownSubType;
-import com.amazonaws.athena.connector.lambda.metadata.optimizations.pushdown.LimitPushdownSubType;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
@@ -59,9 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -146,32 +135,6 @@ public class ElasticsearchMetadataHandler
         this.clientFactory = clientFactory;
         this.glueTypeMapper = new ElasticsearchGlueTypeMapper();
         this.queryTimeout = queryTimeout;
-    }
-
-    @Override
-    public GetDataSourceCapabilitiesResponse doGetDataSourceCapabilities(BlockAllocator allocator, GetDataSourceCapabilitiesRequest request)
-    {
-        Map<String, List<OptimizationSubType>> capabilities = new HashMap<>();
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_AGGREGATE_FUNCTIONS.withSupportedSubTypes(
-            AggregationPushdownSubType.SUPPORTS_MAX_PUSHDOWN,
-            AggregationPushdownSubType.SUPPORTS_MIN_PUSHDOWN,
-            AggregationPushdownSubType.SUPPORTS_SUM_PUSHDOWN
-            ));
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
-            LimitPushdownSubType.ALL
-        ));
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_FILTER_PUSHDOWN.withSupportedSubTypes(
-            FilterPushdownSubType.ALL
-        ));
-        capabilities.putAll(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
-            ComplexExpressionPushdownSubType.SUPPORTS_FUNCTION_CALL_EXPRESSION_PUSHDOWN,
-            ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES.withSubTypeProperties(
-                    Arrays.stream(StandardFunctions.values())
-                            .map(standardFunctions -> standardFunctions.getFunctionName().getFunctionName())
-                            .toArray(String[]::new))
-        ));
-
-        return new GetDataSourceCapabilitiesResponse(request.getCatalogName(), capabilities);
     }
 
     /**
