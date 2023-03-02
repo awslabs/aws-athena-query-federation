@@ -69,7 +69,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
@@ -123,8 +122,6 @@ public class GcsMetadataHandlerTest
     public static final String DATABASE_NAME = "mydatalake1";
     public static final String S3_GOOGLE_CLOUD_STORAGE_FLAG = "s3://google-cloud-storage-flag";
     public static final String DATABASE_NAME1 = "s3database";
-    @Rule
-    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     @Mock
     protected PageImpl<Blob> tables;
     @Mock
@@ -159,7 +156,6 @@ public class GcsMetadataHandlerTest
         PowerMockito.when(blob.getName()).thenReturn("data.parquet");
         PowerMockito.when(blob.getSize()).thenReturn(10L);
         PowerMockito.when(blob1.getName()).thenReturn("birthday/year=2000/birth_month09/12/");
-        environmentVariables.set("gcs_credential_key", "gcs_credential_keys");
         mockStatic(ServiceAccountCredentials.class);
         PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);
         MockitoAnnotations.initMocks(this);

@@ -43,7 +43,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
 import java.sql.*;
 import java.util.*;
@@ -55,9 +54,6 @@ import static org.mockito.ArgumentMatchers.nullable;
 
 public class SnowflakeMetadataHandlerTest
         extends TestBase {
-
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     private DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SnowflakeConstants.SNOWFLAKE_NAME,
             "snowflake://jdbc:snowflake://hostname/?warehouse=warehousename&db=dbname&schema=schemaname&user=xxx&password=xxx");

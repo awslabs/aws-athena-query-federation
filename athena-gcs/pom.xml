@@ -127,12 +127,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.github.stefanbirkner</groupId>
-            <artifactId>system-rules</artifactId>
-            <version>${test.system.rules.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>software.amazon.awscdk</groupId>
             <artifactId>logs</artifactId>
             <version>${aws-cdk.version}</version>
