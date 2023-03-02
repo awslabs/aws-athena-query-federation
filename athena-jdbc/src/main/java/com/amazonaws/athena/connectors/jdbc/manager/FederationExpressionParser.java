@@ -17,10 +17,11 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda.domain.predicate;
+package com.amazonaws.athena.connectors.jdbc.manager;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;

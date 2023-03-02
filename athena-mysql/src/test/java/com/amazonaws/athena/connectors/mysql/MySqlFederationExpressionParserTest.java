@@ -27,7 +27,7 @@ import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.amazonaws.athena.connector.lambda.domain.predicate.FederationExpressionParser;
+import com.amazonaws.athena.connectors.jdbc.manager.FederationExpressionParser;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.ConstantExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FunctionCallExpression;
