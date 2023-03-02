@@ -51,7 +51,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,9 +78,6 @@ public class KafkaMetadataHandlerTest {
     private List<String> partitionCols;
     private Constraints constraints;
 
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
-
     @Mock
     AWSGlue awsGlue;
 
@@ -95,13 +91,14 @@ public class KafkaMetadataHandlerTest {
         partitions = Mockito.mock(Block.class);
         partitionCols = Mockito.mock(List.class);
         constraints = Mockito.mock(Constraints.class);
-        environmentVariables.set("aws.region", "us-west-2");
-        environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW");
-        environmentVariables.set("auth_type", KafkaUtils.AuthType.SSL.toString());
-        environmentVariables.set("secret_manager_kafka_creds_name", "testSecret");
-        environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
-        environmentVariables.set("certificates_s3_reference", "s3://kafka-connector-test-bucket/kafkafiles/");
-        environmentVariables.set("secrets_manager_secret", "Kafka_afq");
+        var configOptions = java.util.Map.of(
+            "aws.region", "us-west-2",
+            "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW",
+            "auth_type", KafkaUtils.AuthType.SSL.toString(),
+            "secret_manager_kafka_creds_name", "testSecret",
+            "kafka_endpoint", "12.207.18.179:9092",
+            "certificates_s3_reference", "s3://kafka-connector-test-bucket/kafkafiles/",
+            "secrets_manager_secret", "Kafka_afq");
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
         Map<TopicPartition, Long> partitionsStart = Map.of(
@@ -120,7 +117,7 @@ public class KafkaMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
-        kafkaMetadataHandler = new KafkaMetadataHandler(consumer, java.util.Map.of());
+        kafkaMetadataHandler = new KafkaMetadataHandler(consumer, configOptions);
     }
 
     @After

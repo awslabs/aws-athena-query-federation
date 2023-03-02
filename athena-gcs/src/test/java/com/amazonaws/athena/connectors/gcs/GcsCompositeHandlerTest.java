@@ -27,7 +27,6 @@ import com.google.auth.oauth2.ServiceAccountCredentials;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -60,15 +59,6 @@ public class GcsCompositeHandlerTest {
 
     @Mock
     GoogleCredentials credentials;
-
-    @Rule
-    public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
-
-    @Before
-    public void setUp()
-    {
-        environmentVariables.set("gcs_credential_key", "gcs_credential_keys");
-    }
 
     @Test
     public void testGcsCompositeHandler() throws IOException, CertificateEncodingException, NoSuchAlgorithmException, KeyStoreException

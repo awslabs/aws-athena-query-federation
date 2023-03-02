@@ -51,7 +51,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,9 +78,6 @@ public class AmazonMskMetadataHandlerTest {
     private List<String> partitionCols;
     private Constraints constraints;
 
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
-
     @Mock
     AWSGlue awsGlue;
 
@@ -95,13 +91,14 @@ public class AmazonMskMetadataHandlerTest {
         partitions = Mockito.mock(Block.class);
         partitionCols = Mockito.mock(List.class);
         constraints = Mockito.mock(Constraints.class);
-        environmentVariables.set("aws.region", "us-west-2");
-        environmentVariables.set("glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW");
-        environmentVariables.set("auth_type", AmazonMskUtils.AuthType.SSL.toString());
-        environmentVariables.set("secret_manager_msk_creds_name", "testSecret");
-        environmentVariables.set("kafka_endpoint", "12.207.18.179:9092");
-        environmentVariables.set("certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/");
-        environmentVariables.set("secrets_manager_secret", "AmazonMSK_afq");
+        var configOptions = java.util.Map.of(
+            "aws.region", "us-west-2",
+            "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW",
+            "auth_type", AmazonMskUtils.AuthType.SSL.toString(),
+            "secret_manager_msk_creds_name", "testSecret",
+            "kafka_endpoint", "12.207.18.179:9092",
+            "certificates_s3_reference", "s3://msk-connector-test-bucket/mskfiles/",
+            "secrets_manager_secret", "AmazonMSK_afq");
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
         Map<TopicPartition, Long> partitionsStart = Map.of(
@@ -120,7 +117,7 @@ public class AmazonMskMetadataHandlerTest {
         consumer.updateEndOffsets(partitionsEnd);
         consumer.updatePartitions("testTopic", partitionInfoList);
 
-        amazonMskMetadataHandler = new AmazonMskMetadataHandler(consumer, java.util.Map.of());
+        amazonMskMetadataHandler = new AmazonMskMetadataHandler(consumer, configOptions);
     }
 
     @After

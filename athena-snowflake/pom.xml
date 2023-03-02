@@ -32,12 +32,6 @@
             <artifactId>snowflake-jdbc</artifactId>
             <version>3.13.28</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.stefanbirkner</groupId>
-            <artifactId>system-rules</artifactId>
-            <version>${test.system.rules.version}</version>
-            <scope>test</scope>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-rds -->
         <dependency>
             <groupId>com.amazonaws</groupId>

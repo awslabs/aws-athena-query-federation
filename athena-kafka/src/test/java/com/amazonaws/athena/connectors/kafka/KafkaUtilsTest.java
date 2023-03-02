@@ -56,7 +56,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.junit.contrib.java.lang.system.EnvironmentVariables;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileOutputStream;
@@ -81,9 +80,6 @@ public class KafkaUtilsTest {
 
     @Mock
     ObjectMapper objectMapper;
-
-    @Rule
-    public EnvironmentVariables environmentVariables = new EnvironmentVariables();
 
     @Mock
     AWSSecretsManager awsSecretsManager;
