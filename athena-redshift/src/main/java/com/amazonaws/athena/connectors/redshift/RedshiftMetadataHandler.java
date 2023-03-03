@@ -84,7 +84,7 @@ public class RedshiftMetadataHandler
             FilterPushdownSubType.values()
         ));
         capabilities.put(DataSourceOptimizations.SUPPORTS_LIMIT_PUSHDOWN.withSupportedSubTypes(
-            LimitPushdownSubType.ALL
+            LimitPushdownSubType.INTEGER_CONSTANT
         ));
         capabilities.put(DataSourceOptimizations.SUPPORTS_COMPLEX_EXPRESSION_PUSHDOWN.withSupportedSubTypes(
             ComplexExpressionPushdownSubType.SUPPORTED_FUNCTION_EXPRESSION_TYPES
