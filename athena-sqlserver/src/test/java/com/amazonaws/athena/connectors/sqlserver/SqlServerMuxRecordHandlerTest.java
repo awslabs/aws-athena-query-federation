@@ -64,7 +64,7 @@ public class SqlServerMuxRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SqlServerConstants.NAME,
                 "sqlserver://jdbc:sqlserver://hostname;${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new SqlServerMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, java.util.Map.of());
+        this.jdbcRecordHandler = new SqlServerMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

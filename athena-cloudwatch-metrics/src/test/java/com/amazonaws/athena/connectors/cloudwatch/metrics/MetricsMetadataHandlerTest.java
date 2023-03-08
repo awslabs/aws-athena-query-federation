@@ -102,7 +102,7 @@ public class MetricsMetadataHandlerTest
     public void setUp()
             throws Exception
     {
-        handler = new MetricsMetadataHandler(mockMetrics, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", java.util.Map.of());
+        handler = new MetricsMetadataHandler(mockMetrics, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 

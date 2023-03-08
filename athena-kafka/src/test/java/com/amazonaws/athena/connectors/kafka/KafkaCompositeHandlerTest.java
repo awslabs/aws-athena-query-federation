@@ -47,7 +47,7 @@ public class KafkaCompositeHandlerTest {
         System.setProperty("aws.region", "us-west-2");
     }
 
-    private java.util.Map<String, String> configOptions = java.util.Map.of(
+    private java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
         "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
         "bootstrap.servers", "test"
     );

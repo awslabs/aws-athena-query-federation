@@ -111,7 +111,7 @@ public class DocDBMetadataHandlerTest
 
         when(connectionFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 
-        handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", java.util.Map.of());
+        handler = new DocDBMetadataHandler(awsGlue, connectionFactory, new LocalKeyFactory(), secretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 

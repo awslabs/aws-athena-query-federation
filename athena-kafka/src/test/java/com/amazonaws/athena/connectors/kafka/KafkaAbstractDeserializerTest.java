@@ -40,7 +40,7 @@ public abstract class KafkaAbstractDeserializerTest
                     true,
                     KafkaUtils.toArrowType(it.getType()),
                     null,
-                    Map.of(
+                    com.google.common.collect.ImmutableMap.of(
                             "mapping", it.getMapping(),
                             "formatHint", it.getFormatHint(),
                             "type", it.getType()
@@ -62,7 +62,7 @@ public abstract class KafkaAbstractDeserializerTest
                     true,
                     KafkaUtils.toArrowType(it.getType()),
                     null,
-                    Map.of(
+                    com.google.common.collect.ImmutableMap.of(
                             "formatHint", it.getFormatHint(),
                             "type", it.getType()
                     )

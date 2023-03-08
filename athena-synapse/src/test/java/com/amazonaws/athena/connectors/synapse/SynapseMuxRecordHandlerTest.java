@@ -64,7 +64,7 @@ public class SynapseMuxRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SynapseConstants.NAME,
                 "synapse://jdbc:sqlserver://hostname;${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new SynapseMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, java.util.Map.of());
+        this.jdbcRecordHandler = new SynapseMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

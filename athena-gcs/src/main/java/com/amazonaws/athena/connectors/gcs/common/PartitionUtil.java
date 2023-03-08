@@ -22,6 +22,7 @@ package com.amazonaws.athena.connectors.gcs.common;
 import com.amazonaws.services.glue.model.Column;
 import com.amazonaws.services.glue.model.Table;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,10 +72,10 @@ public class PartitionUtil
      */
     public static Map<String, String> getPartitionColumnData(Table table, String partitionFolder)
     {
-        List<Column> partitionKeys = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+        List<Column> partitionKeys = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
         return getRegExExpression(table).map(folderNameRegEx ->
             getPartitionColumnData(table.getParameters().get(PARTITION_PATTERN_KEY), partitionFolder, folderNameRegEx, partitionKeys))
-            .orElse(Map.of());
+            .orElse(com.google.common.collect.ImmutableMap.of());
     }
 
     /**
@@ -91,7 +92,7 @@ public class PartitionUtil
         Map<String, String> partitions = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         Matcher partitionPatternMatcher = PARTITION_PATTERN.matcher(partitionPattern);
         Matcher partitionFolderMatcher = Pattern.compile(folderNameRegEx).matcher(partitionFolder);
-        var partitionColumnsSet = partitionColumns.stream()
+        java.util.TreeSet<String> partitionColumnsSet = partitionColumns.stream()
                 .map(c -> c.getName())
                 .collect(Collectors.toCollection(() -> new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER)));
         while (partitionFolderMatcher.find()) {
@@ -139,12 +140,12 @@ public class PartitionUtil
      */
     protected static Optional<String> getRegExExpression(Table table)
     {
-        List<Column> partitionColumns = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+        List<Column> partitionColumns = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
         validatePartitionColumnTypes(partitionColumns);
         String partitionPattern = table.getParameters().get(PARTITION_PATTERN_KEY);
         // Check to see if there is a partition pattern configured for the Table by the user
         // if not, it returns empty value
-        if (partitionPattern == null || partitionPattern.isBlank()) {
+        if (partitionPattern == null || StringUtils.isBlank(partitionPattern)) {
             return Optional.empty();
         }
         return Optional.of(partitionPattern.replaceAll(PARTITION_PATTERN_REGEX, VARCHAR_OR_STRING_REGEX));

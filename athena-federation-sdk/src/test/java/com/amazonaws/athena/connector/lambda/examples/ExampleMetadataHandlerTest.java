@@ -87,7 +87,7 @@ public class ExampleMetadataHandlerTest
                 mock(AmazonAthena.class),
                 "spill-bucket",
                 "spill-prefix",
-                java.util.Map.of());
+                com.google.common.collect.ImmutableMap.of());
         logger.info("setUpBefore - exit");
     }
 

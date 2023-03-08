@@ -140,7 +140,7 @@ public class BigQueryRecordHandlerTest
                 .build();
 
         schemaForRead = new Schema(BigQueryTestUtils.getTestSchemaFieldsArrow());
-        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), java.util.Map.of());
+        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         //Mock the BigQuery Client to return Datasets, and Table Schema information.
@@ -150,7 +150,7 @@ public class BigQueryRecordHandlerTest
         when(bigQuery.listTables(nullable(DatasetId.class))).thenReturn(tables);
 
         //The class we want to test.
-        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, java.util.Map.of());
+        bigQueryRecordHandler = new BigQueryRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
 
         logger.info("Completed init.");
     }
@@ -211,7 +211,7 @@ public class BigQueryRecordHandlerTest
 
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), java.util.Map.of("gcp_project_id", "test")));
+            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
             //Ensure that there was a spill so that we can read the spilled block.
             assertTrue(spillWriter.spilled());
@@ -280,7 +280,7 @@ public class BigQueryRecordHandlerTest
 
             //Execute the test
             bigQueryRecordHandler.readWithConstraint(spillWriter, request, queryStatusChecker);
-            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), java.util.Map.of("gcp_project_id", "test")));
+            logger.info("Project Name: "+BigQueryUtils.getProjectName(request.getCatalogName(), com.google.common.collect.ImmutableMap.of("gcp_project_id", "test")));
 
         }
     }

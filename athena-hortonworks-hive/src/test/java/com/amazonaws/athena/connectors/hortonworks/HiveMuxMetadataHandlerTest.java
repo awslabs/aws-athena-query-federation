@@ -74,7 +74,7 @@ public class HiveMuxMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", HiveConstants.HIVE_NAME,
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new HiveMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, java.util.Map.of());
+        this.jdbcMetadataHandler = new HiveMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
@@ -116,7 +116,7 @@ public class HiveMuxMetadataHandlerTest
                 "hive2://jdbc:hive2://54.89.6.2:10000/authena;AuthMech=3;${testSecret}", "testSecret");
         try {
             new HiveMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory,
-                    metadataHandlersMap, databaseConnectionConfig, java.util.Map.of());
+                    metadataHandlersMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
         } catch (Exception e) {
             e.getMessage();
             Assert.assertTrue(e.getMessage().contains("Max 100 catalogs supported in multiplexer."));

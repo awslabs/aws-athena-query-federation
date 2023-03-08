@@ -138,7 +138,7 @@ public class StorageMetadata
         LOGGER.info("Getting partition folder(s) for table {}.{}", tableInfo.getSchemaName(), tableInfo.getTableName());
         Table table = GcsUtil.getGlueTable(tableInfo, awsGlue);
         // Build expression only based on partition keys
-        List<Column> partitionColumns = table.getPartitionKeys() == null ? List.of() : table.getPartitionKeys();
+        List<Column> partitionColumns = table.getPartitionKeys() == null ? com.google.common.collect.ImmutableList.of() : table.getPartitionKeys();
         // getConstraintsForPartitionedColumns gives us a case insensitive mapping of column names to their value set
         Map<String, Optional<Set<String>>> columnValueConstraintMap = FilterExpressionBuilder.getConstraintsForPartitionedColumns(partitionColumns, constraints);
         LOGGER.info("columnValueConstraintMap for the request of {}.{} is \n{}", tableInfo.getSchemaName(), tableInfo.getTableName(), columnValueConstraintMap);

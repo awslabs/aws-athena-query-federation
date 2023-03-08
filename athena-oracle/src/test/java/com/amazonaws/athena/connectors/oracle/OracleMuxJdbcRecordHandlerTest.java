@@ -66,7 +66,7 @@ public class OracleMuxJdbcRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "oracle",
                 "oracle://jdbc:oracle:thin:${testSecret}@//127.0.0.1:1521/orcl", "testSecret");
-        this.jdbcRecordHandler = new OracleMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, java.util.Map.of());
+        this.jdbcRecordHandler = new OracleMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

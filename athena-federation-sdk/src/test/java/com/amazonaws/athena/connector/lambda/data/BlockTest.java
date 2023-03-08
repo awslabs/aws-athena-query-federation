@@ -692,7 +692,7 @@ public class BlockTest
                             }
 
                             throw new RuntimeException("Unexpected field " + field.getName());
-                        }, Map.of());
+                        }, com.google.common.collect.ImmutableMap.of());
                     }
                     List<Field> children = vector.getField().getChildren();
                     Field keyValueStructField;

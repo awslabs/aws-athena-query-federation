@@ -98,7 +98,7 @@ public class SqlServerMetadataHandlerTest
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, java.util.Map.of());
+        this.sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.allocator = new BlockAllocatorImpl();
     }
@@ -220,7 +220,7 @@ public class SqlServerMetadataHandlerTest
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        SqlServerMetadataHandler sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, java.util.Map.of());
+        SqlServerMetadataHandler sqlServerMetadataHandler = new SqlServerMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
         sqlServerMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -269,19 +269,19 @@ public class SqlServerMetadataHandlerTest
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "1"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "2"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "3"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                sqlServerMetadataHandler.PARTITION_NUMBER, "1",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"),
+            com.google.common.collect.ImmutableMap.of(
+                sqlServerMetadataHandler.PARTITION_NUMBER, "2",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"),
+            com.google.common.collect.ImmutableMap.of(
+                sqlServerMetadataHandler.PARTITION_NUMBER, "3",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"));
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
@@ -371,11 +371,11 @@ public class SqlServerMetadataHandlerTest
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "2");
         GetSplitsResponse getSplitsResponse = this.sqlServerMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(sqlServerMetadataHandler.PARTITION_NUMBER, "3"),
-                Map.entry("PARTITIONING_COLUMN", "pc"),
-                Map.entry("PARTITION_FUNCTION", "pf")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                sqlServerMetadataHandler.PARTITION_NUMBER, "3",
+                "PARTITIONING_COLUMN", "pc",
+                "PARTITION_FUNCTION", "pf"));
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }

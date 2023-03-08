@@ -285,7 +285,7 @@ public class BlockUtils
                     break;
                 case DATEDAY:
                     if (value instanceof Date) {
-                        var days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
+                        long days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
                         ((DateDayVector) vector).setSafe(pos, new Long(days).intValue());
                     }
                     else if (value instanceof LocalDate) {
@@ -830,7 +830,7 @@ public class BlockUtils
                         dateDayWriter.writeNull();
                     }
                     else if (value instanceof Date) {
-                        var days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
+                        long days = java.time.Duration.of(((Date) value).getTime(), java.time.temporal.ChronoUnit.MILLIS).toDays();
                         dateDayWriter.writeDateDay(new Long(days).intValue());
                     }
                     else if (value instanceof LocalDate) {

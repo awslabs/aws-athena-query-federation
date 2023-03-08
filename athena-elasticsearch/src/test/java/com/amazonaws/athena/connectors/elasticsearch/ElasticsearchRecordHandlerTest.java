@@ -314,7 +314,7 @@ public class ElasticsearchRecordHandlerTest
         when(mockScrollResponse.getHits()).thenReturn(null);
         when(mockClient.scroll(any(), any())).thenReturn(mockScrollResponse);
 
-        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory, 720, 60, java.util.Map.of());
+        handler = new ElasticsearchRecordHandler(amazonS3, awsSecretsManager, athena, clientFactory, 720, 60, com.google.common.collect.ImmutableMap.of());
 
         logger.info("setUpBefore - exit");
     }

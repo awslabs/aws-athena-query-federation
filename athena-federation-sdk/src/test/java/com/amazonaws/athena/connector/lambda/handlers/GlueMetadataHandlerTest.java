@@ -151,7 +151,7 @@ public class GlueMetadataHandlerTest
                 "glue-test",
                 "spill-bucket",
                 "spill-prefix",
-                java.util.Map.of())
+                com.google.common.collect.ImmutableMap.of())
         {
             @Override
             public GetTableLayoutResponse doGetTableLayout(BlockAllocator blockAllocator, GetTableLayoutRequest request)

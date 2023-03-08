@@ -64,7 +64,7 @@ public class PostGreSqlMuxJdbcRecordHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "postgres",
                 "postgres://jdbc:postgresql://hostname/${testSecret}", "testSecret");
-        this.jdbcRecordHandler = new PostGreSqlMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, java.util.Map.of());
+        this.jdbcRecordHandler = new PostGreSqlMuxRecordHandler(this.amazonS3, this.secretsManager, this.athena, this.jdbcConnectionFactory, databaseConnectionConfig, this.recordHandlerMap, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

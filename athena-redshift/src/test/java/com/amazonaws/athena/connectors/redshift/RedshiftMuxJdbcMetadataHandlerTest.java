@@ -68,7 +68,7 @@ public class RedshiftMuxJdbcMetadataHandlerTest
         this.jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", "redshift",
                 "redshift://jdbc:redshift://hostname/${testSecret}", "testSecret");
-        this.jdbcMetadataHandler = new RedshiftMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, java.util.Map.of());
+        this.jdbcMetadataHandler = new RedshiftMuxMetadataHandler(this.secretsManager, this.athena, this.jdbcConnectionFactory, this.metadataHandlerMap, databaseConnectionConfig, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test

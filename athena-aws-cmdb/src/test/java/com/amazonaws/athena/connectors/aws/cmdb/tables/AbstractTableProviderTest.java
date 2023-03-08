@@ -219,7 +219,7 @@ public abstract class AbstractTableProviderTest
 
         setUpRead();
 
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, response.getSchema(), evaluator, java.util.Map.of());
+        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, response.getSchema(), evaluator, com.google.common.collect.ImmutableMap.of());
         provider.readWithConstraint(spiller, readRequest, queryStatusChecker);
 
         validateRead(response.getSchema(), blockSpillReader, spiller.getSpillLocations(), spillConfig.getEncryptionKey());

@@ -112,7 +112,7 @@ public class CloudwatchMetadataHandlerTest
             return new DescribeLogGroupsResult().withLogGroups(new LogGroup().withLogGroupName("schema-1"),
                     new LogGroup().withLogGroupName("schema-20"));
         });
-        handler = new CloudwatchMetadataHandler(mockAwsLogs, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", java.util.Map.of());
+        handler = new CloudwatchMetadataHandler(mockAwsLogs, new LocalKeyFactory(), mockSecretsManager, mockAthena, "spillBucket", "spillPrefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
     }
 

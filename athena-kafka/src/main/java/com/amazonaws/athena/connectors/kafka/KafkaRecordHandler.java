@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 
 public class KafkaRecordHandler
@@ -86,7 +85,7 @@ public class KafkaRecordHandler
         try (Consumer<String, TopicResultSet> kafkaConsumer = KafkaUtils.getKafkaConsumer(recordsRequest.getSchema(), configOptions)) {
             // Set which topic and partition we are going to read.
             TopicPartition partition = new TopicPartition(splitParameters.topic, splitParameters.partition);
-            Collection<TopicPartition> partitions = List.of(partition);
+            Collection<TopicPartition> partitions = com.google.common.collect.ImmutableList.of(partition);
 
             // Assign the topic and partition into this consumer.
             kafkaConsumer.assign(partitions);

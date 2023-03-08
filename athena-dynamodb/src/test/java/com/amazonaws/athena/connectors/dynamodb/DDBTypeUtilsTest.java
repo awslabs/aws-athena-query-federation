@@ -168,7 +168,7 @@ public class DDBTypeUtilsTest
     @Test
     public void inferArrowFieldListWithNullTest() throws Exception
     {
-        var inputArray = new java.util.ArrayList<String>();
+        java.util.ArrayList inputArray = new java.util.ArrayList<String>();
         inputArray.add("value1");
         inputArray.add(null);
         inputArray.add("value3");

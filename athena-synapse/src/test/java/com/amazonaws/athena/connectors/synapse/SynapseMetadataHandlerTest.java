@@ -95,7 +95,7 @@ public class SynapseMetadataHandlerTest
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, java.util.Map.of());
+        this.synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
 
@@ -193,7 +193,7 @@ public class SynapseMetadataHandlerTest
         JdbcConnectionFactory jdbcConnectionFactory = Mockito.mock(JdbcConnectionFactory.class);
         Mockito.when(jdbcConnectionFactory.getConnection(nullable(JdbcCredentialProvider.class))).thenReturn(connection);
         Mockito.when(connection.getMetaData().getSearchStringEscape()).thenThrow(new SQLException());
-        SynapseMetadataHandler synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, java.util.Map.of());
+        SynapseMetadataHandler synapseMetadataHandler = new SynapseMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
 
         synapseMetadataHandler.doGetTableLayout(Mockito.mock(BlockAllocator.class), getTableLayoutRequest);
     }
@@ -226,27 +226,30 @@ public class SynapseMetadataHandlerTest
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.synapseMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry("PARTITION_BOUNDARY_FROM", " "),
-                Map.entry(SynapseMetadataHandler.PARTITION_NUMBER, "1"),
-                Map.entry("PARTITION_COLUMN", "id"),
-                Map.entry("PARTITION_BOUNDARY_TO", "0")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry("PARTITION_BOUNDARY_FROM", "0"),
-                Map.entry(SynapseMetadataHandler.PARTITION_NUMBER, "2"),
-                Map.entry("PARTITION_COLUMN", "id"),
-                Map.entry("PARTITION_BOUNDARY_TO", "105")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry("PARTITION_BOUNDARY_FROM", "105"),
-                Map.entry(SynapseMetadataHandler.PARTITION_NUMBER, "3"),
-                Map.entry("PARTITION_COLUMN", "id"),
-                Map.entry("PARTITION_BOUNDARY_TO", "327")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry("PARTITION_BOUNDARY_FROM", "327"),
-                Map.entry(SynapseMetadataHandler.PARTITION_NUMBER, "4"),
-                Map.entry("PARTITION_COLUMN", "id"),
-                Map.entry("PARTITION_BOUNDARY_TO", "null")));
+        // TODO: Not sure why this is a set of maps, but I'm not going to change it
+        // other than mechanically making it java 8 compatible
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                "PARTITION_BOUNDARY_FROM", " ",
+                SynapseMetadataHandler.PARTITION_NUMBER, "1",
+                "PARTITION_COLUMN", "id",
+                "PARTITION_BOUNDARY_TO", "0"),
+            com.google.common.collect.ImmutableMap.of(
+                "PARTITION_BOUNDARY_FROM", "0",
+                SynapseMetadataHandler.PARTITION_NUMBER, "2",
+                "PARTITION_COLUMN", "id",
+                "PARTITION_BOUNDARY_TO", "105"),
+            com.google.common.collect.ImmutableMap.of(
+                "PARTITION_BOUNDARY_FROM", "105",
+                SynapseMetadataHandler.PARTITION_NUMBER, "3",
+                "PARTITION_COLUMN", "id",
+                "PARTITION_BOUNDARY_TO", "327"),
+            com.google.common.collect.ImmutableMap.of(
+                "PARTITION_BOUNDARY_FROM", "327",
+                SynapseMetadataHandler.PARTITION_NUMBER, "4",
+                "PARTITION_COLUMN", "id",
+                "PARTITION_BOUNDARY_TO", "null")
+        );
 
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
@@ -312,17 +315,17 @@ public class SynapseMetadataHandlerTest
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, "2");
         GetSplitsResponse getSplitsResponse = this.synapseMetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry("PARTITION_BOUNDARY_FROM", "105"),
-                Map.entry(SynapseMetadataHandler.PARTITION_NUMBER, "3"),
-                Map.entry("PARTITION_COLUMN", "id"),
-                Map.entry("PARTITION_BOUNDARY_TO", "327")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry("PARTITION_BOUNDARY_FROM", "327"),
-                Map.entry(SynapseMetadataHandler.PARTITION_NUMBER, "4"),
-                Map.entry("PARTITION_COLUMN", "id"),
-                Map.entry("PARTITION_BOUNDARY_TO", "null")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                "PARTITION_BOUNDARY_FROM", "105",
+                SynapseMetadataHandler.PARTITION_NUMBER, "3",
+                "PARTITION_COLUMN", "id",
+                "PARTITION_BOUNDARY_TO", "327"),
+            com.google.common.collect.ImmutableMap.of(
+                "PARTITION_BOUNDARY_FROM", "327",
+                SynapseMetadataHandler.PARTITION_NUMBER, "4",
+                "PARTITION_COLUMN", "id",
+                "PARTITION_BOUNDARY_TO", "null"));
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
         Assert.assertEquals(expectedSplits, actualSplits);
     }

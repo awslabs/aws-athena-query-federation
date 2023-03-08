@@ -133,7 +133,7 @@ public class VerticaMetadataHandlerTest extends TestBase
                 "spill-prefix",
                 verticaSchemaUtils,
                 amazonS3,
-                java.util.Map.of());
+                com.google.common.collect.ImmutableMap.of());
         this.allocator =  new BlockAllocatorImpl();
         this.databaseMetaData = this.connection.getMetaData();
         verticaMetadataHandlerMocked = Mockito.spy(this.verticaMetadataHandler);

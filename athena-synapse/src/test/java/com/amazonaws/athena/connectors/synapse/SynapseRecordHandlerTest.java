@@ -75,7 +75,7 @@ public class SynapseRecordHandlerTest
         final DatabaseConnectionConfig databaseConnectionConfig = new DatabaseConnectionConfig("testCatalog", SynapseConstants.NAME,
                 "synapse://jdbc:sqlserver://hostname;databaseName=fakedatabase");
 
-        this.synapseRecordHandler = new SynapseRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, java.util.Map.of());
+        this.synapseRecordHandler = new SynapseRecordHandler(databaseConnectionConfig, amazonS3, secretsManager, athena, jdbcConnectionFactory, jdbcSplitQueryBuilder, com.google.common.collect.ImmutableMap.of());
     }
 
     private ValueSet getSingleValueSet(Object value) {
@@ -135,7 +135,7 @@ public class SynapseRecordHandlerTest
         Schema schema = schemaBuilder.build();
 
         Split split = Mockito.mock(Split.class);
-        Mockito.when(split.getProperties()).thenReturn(Map.of("PARTITION_BOUNDARY_FROM", "0", "PARTITION_NUMBER", "1", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", "100000"));
+        Mockito.when(split.getProperties()).thenReturn(com.google.common.collect.ImmutableMap.of("PARTITION_BOUNDARY_FROM", "0", "PARTITION_NUMBER", "1", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", "100000"));
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_BOUNDARY_FROM"))).thenReturn("0");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_NUMBER"))).thenReturn("1");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_COLUMN"))).thenReturn("testCol1");
@@ -146,21 +146,21 @@ public class SynapseRecordHandlerTest
         Mockito.when(this.connection.prepareStatement(nullable(String.class))).thenReturn(expectedPreparedStatement);
         this.synapseRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
-        Mockito.when(split.getProperties()).thenReturn(Map.of("PARTITION_BOUNDARY_FROM", " ", "PARTITION_NUMBER", "1", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", "100000"));
+        Mockito.when(split.getProperties()).thenReturn(com.google.common.collect.ImmutableMap.of("PARTITION_BOUNDARY_FROM", " ", "PARTITION_NUMBER", "1", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", "100000"));
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_BOUNDARY_FROM"))).thenReturn(" ");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_NUMBER"))).thenReturn("1");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_COLUMN"))).thenReturn("testCol1");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_BOUNDARY_TO"))).thenReturn("100000");
         this.synapseRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
-        Mockito.when(split.getProperties()).thenReturn(Map.of("PARTITION_BOUNDARY_FROM", "300000", "PARTITION_NUMBER", "2", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", " "));
+        Mockito.when(split.getProperties()).thenReturn(com.google.common.collect.ImmutableMap.of("PARTITION_BOUNDARY_FROM", "300000", "PARTITION_NUMBER", "2", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", " "));
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_BOUNDARY_FROM"))).thenReturn("300000");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_NUMBER"))).thenReturn("1");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_COLUMN"))).thenReturn("testCol1");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_BOUNDARY_TO"))).thenReturn(" ");
         this.synapseRecordHandler.buildSplitSql(this.connection, "testCatalogName", tableName, schema, constraints, split);
 
-        Mockito.when(split.getProperties()).thenReturn(Map.of("PARTITION_BOUNDARY_FROM", " ", "PARTITION_NUMBER", "2", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", " "));
+        Mockito.when(split.getProperties()).thenReturn(com.google.common.collect.ImmutableMap.of("PARTITION_BOUNDARY_FROM", " ", "PARTITION_NUMBER", "2", "PARTITION_COLUMN", "testCol1", "PARTITION_BOUNDARY_TO", " "));
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_BOUNDARY_FROM"))).thenReturn(" ");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_NUMBER"))).thenReturn("1");
         Mockito.when(split.getProperty(Mockito.eq("PARTITION_COLUMN"))).thenReturn("testCol1");

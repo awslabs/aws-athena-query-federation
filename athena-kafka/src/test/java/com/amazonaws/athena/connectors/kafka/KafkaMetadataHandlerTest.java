@@ -91,7 +91,7 @@ public class KafkaMetadataHandlerTest {
         partitions = Mockito.mock(Block.class);
         partitionCols = Mockito.mock(List.class);
         constraints = Mockito.mock(Constraints.class);
-        var configOptions = java.util.Map.of(
+        java.util.Map configOptions = com.google.common.collect.ImmutableMap.of(
             "aws.region", "us-west-2",
             "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-NEW",
             "auth_type", KafkaUtils.AuthType.SSL.toString(),
@@ -101,11 +101,11 @@ public class KafkaMetadataHandlerTest {
             "secrets_manager_secret", "Kafka_afq");
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        Map<TopicPartition, Long> partitionsStart = Map.of(
+        Map<TopicPartition, Long> partitionsStart = com.google.common.collect.ImmutableMap.of(
                 new TopicPartition("testTopic", 0), 0L,
                 new TopicPartition("testTopic", 1), 0L
         );
-        Map<TopicPartition, Long> partitionsEnd = Map.of(
+        Map<TopicPartition, Long> partitionsEnd = com.google.common.collect.ImmutableMap.of(
                 new TopicPartition("testTopic", 0), 20100L,
                 new TopicPartition("testTopic", 1), 7850L
         );
@@ -136,7 +136,7 @@ public class KafkaMetadataHandlerTest {
         ListSchemasRequest listSchemasRequest = new ListSchemasRequest(federatedIdentity, QUERY_ID, "default");
         ListSchemasResponse listSchemasResponse = kafkaMetadataHandler.doListSchemaNames(blockAllocator, listSchemasRequest);
 
-        assertEquals(new ArrayList(List.of("Asdf")), new ArrayList(listSchemasResponse.getSchemas()));
+        assertEquals(new ArrayList(com.google.common.collect.ImmutableList.of("Asdf")), new ArrayList(listSchemasResponse.getSchemas()));
     }
 
     @Test(expected = RuntimeException.class)

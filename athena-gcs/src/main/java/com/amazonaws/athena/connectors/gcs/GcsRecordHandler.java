@@ -118,7 +118,7 @@ public class GcsRecordHandler
         LOGGER.info("Reading records from the table {} under the schema {}", tableInfo.getTableName(), tableInfo.getSchemaName());
         Split split = recordsRequest.getSplit();
         List<String> fileList = new ObjectMapper()
-            .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8), new TypeReference<>(){});
+            .readValue(split.getProperty(GcsConstants.STORAGE_SPLIT_JSON).getBytes(StandardCharsets.UTF_8), new TypeReference<List<String>>(){});
         String classification = split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM);
         FileFormat format = FileFormat.valueOf(classification.toUpperCase());
         for (String file : fileList) {
