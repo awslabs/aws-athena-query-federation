@@ -153,6 +153,7 @@ public class StorageMetadata
                 .map(blob -> blob.getName().replaceFirst("^" + path, ""))
                 // get partition folder path from complete file location
                 .map(name -> name.substring(0, name.lastIndexOf("/") + 1).trim())
+                .distinct()
                 // remove the front-slash, because, the expression generated without it
                 .map(folderPath -> folderPath.replaceFirst("^/", ""))
                 .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
