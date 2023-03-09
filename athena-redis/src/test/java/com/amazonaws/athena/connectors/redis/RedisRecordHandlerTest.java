@@ -173,7 +173,7 @@ public class RedisRecordHandlerTest
                     throw new RuntimeException("Unknown secret " + request.getSecretId());
                 });
 
-        handler = new RedisRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockFactory, java.util.Map.of());
+        handler = new RedisRecordHandler(amazonS3, mockSecretsManager, mockAthena, mockFactory, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         logger.info("setUpBefore - exit");

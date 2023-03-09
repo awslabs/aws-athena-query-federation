@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  */
 
 import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -48,7 +49,7 @@ public class GlueFieldLexer
 
     private static final String MAP = "map";
 
-    private static final Set<String> LIST_EQUIVALENTS = Set.of("array", "set");
+    private static final Set<String> LIST_EQUIVALENTS = ImmutableSet.of("array", "set");
 
     private static final BaseTypeMapper DEFAULT_TYPE_MAPPER = (String type) -> DefaultGlueType.toArrowType(type);
 

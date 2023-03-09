@@ -74,7 +74,6 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.MAX_PARTITION_COUNT;
 import static com.amazonaws.athena.connectors.snowflake.SnowflakeConstants.PARTITION_RECORD_COUNT;
-import static java.util.Map.entry;
 
 /**
  * Handles metadata for Snowflake. User must have access to `schemata`, `tables`, `columns` in
@@ -356,13 +355,13 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                 String dataType = hashMap.get(columnName);
                 LOGGER.debug("columnName: " + columnName);
                 LOGGER.debug("dataType: " + dataType);
-                final Map<String, ArrowType> stringArrowTypeMap = Map.ofEntries(
-                        entry("INTEGER", Types.MinorType.INT.getType()),
-                        entry("DATE", Types.MinorType.DATEDAY.getType()),
-                        entry("TIMESTAMP", Types.MinorType.DATEMILLI.getType()),
-                        entry("TIMESTAMP_LTZ", Types.MinorType.DATEMILLI.getType()),
-                        entry("TIMESTAMP_NTZ", Types.MinorType.DATEMILLI.getType()),
-                        entry("TIMESTAMP_TZ", Types.MinorType.DATEMILLI.getType())
+                final Map<String, ArrowType> stringArrowTypeMap = com.google.common.collect.ImmutableMap.of(
+                    "INTEGER", (ArrowType) Types.MinorType.INT.getType(),
+                    "DATE", (ArrowType) Types.MinorType.DATEDAY.getType(),
+                    "TIMESTAMP", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+                    "TIMESTAMP_LTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+                    "TIMESTAMP_NTZ", (ArrowType) Types.MinorType.DATEMILLI.getType(),
+                    "TIMESTAMP_TZ", (ArrowType) Types.MinorType.DATEMILLI.getType()
                 );
                 if (dataType != null && stringArrowTypeMap.containsKey(dataType.toUpperCase())) {
                     columnType = stringArrowTypeMap.get(dataType.toUpperCase());

@@ -152,7 +152,7 @@ public class GcsMetadataHandlerTest
         PowerMockito.when(optionBuilder.build()).thenReturn(mockedOptions);
         PowerMockito.when(mockedOptions.getService()).thenReturn(storage);
         PowerMockito.when(storage.list(anyString(), Mockito.any())).thenReturn(tables);
-        PowerMockito.when(tables.iterateAll()).thenReturn(List.of(blob, blob1));
+        PowerMockito.when(tables.iterateAll()).thenReturn(com.google.common.collect.ImmutableList.of(blob, blob1));
         PowerMockito.when(blob.getName()).thenReturn("data.parquet");
         PowerMockito.when(blob.getSize()).thenReturn(10L);
         PowerMockito.when(blob1.getName()).thenReturn("birthday/year=2000/birth_month09/12/");
@@ -165,11 +165,11 @@ public class GcsMetadataHandlerTest
 
         mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(List.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
+        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(com.google.common.collect.ImmutableList.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         mockStatic(AWSGlueClientBuilder.class);
         PowerMockito.when(AWSGlueClientBuilder.defaultClient()).thenReturn(awsGlue);
-        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator, java.util.Map.of());
+        gcsMetadataHandler = new GcsMetadataHandler(new LocalKeyFactory(), secretsManager, athena, "spillBucket", "spillPrefix", awsGlue, allocator, com.google.common.collect.ImmutableMap.of());
         blockAllocator = new BlockAllocatorImpl();
         federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
@@ -245,7 +245,7 @@ public class GcsMetadataHandlerTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation(LOCATION).withColumns(new Column().withName("name").withType("String")));
         table.setCatalogId(CATALOG);
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("name", "String")
         );
         table.setPartitionKeys(columns);
@@ -276,7 +276,7 @@ public class GcsMetadataHandlerTest
         table.setStorageDescriptor(new StorageDescriptor()
                 .withLocation(LOCATION).withColumns(new Column()));
         table.setCatalogId(CATALOG);
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("year", "varchar"),
                 createColumn("month", "varchar"),
                 createColumn("day", "varchar")
@@ -302,7 +302,7 @@ public class GcsMetadataHandlerTest
         Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
-                partitions, List.of("year"), new Constraints(new HashMap<>()), null);
+                partitions, com.google.common.collect.ImmutableList.of("year"), new Constraints(new HashMap<>()), null);
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
         GetTableResult getTableResult = mock(GetTableResult.class);
@@ -310,10 +310,10 @@ public class GcsMetadataHandlerTest
         when(storageDescriptor.getLocation()).thenReturn(LOCATION);
         Table table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${year}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
         when(awsGlue.getTable(any())).thenReturn(getTableResult);
         when(getTableResult.getTable()).thenReturn(table);
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("year", "varchar")
         );
         when(table.getPartitionKeys()).thenReturn(columns);

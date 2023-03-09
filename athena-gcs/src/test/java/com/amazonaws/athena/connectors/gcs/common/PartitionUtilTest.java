@@ -51,7 +51,7 @@ public class PartitionUtilTest
         table = mock(Table.class);
         when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
 
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("year", "bigint"),
                 createColumn("month", "int")
         );
@@ -61,7 +61,7 @@ public class PartitionUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void testFolderNameRegExPatterExpectException()
     {
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/${day}"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/${day}"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
     }
@@ -69,7 +69,7 @@ public class PartitionUtilTest
     @Test(expected = IllegalArgumentException.class)
     public void testFolderNameRegExPatter()
     {
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         assertFalse("Expression shouldn't contain a '{' character", optionalRegEx.get().contains("{"));
@@ -80,14 +80,14 @@ public class PartitionUtilTest
     public void dynamicFolderExpressionWithDigits()
     {
         // Odd index matches, otherwise doesn't
-        List<String> partitionFolders = List.of(
+        List<String> partitionFolders = com.google.common.collect.ImmutableList.of(
                 "state='Tamilnadu'/",
                 "year=2000/birth_month10/",
                 "zone=EST/",
                 "year=2001/birth_month01/",
                 "month01/"
         );
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${year}/birth_month${month}/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         Pattern folderMatchPattern = Pattern.compile(optionalRegEx.get());
@@ -105,7 +105,7 @@ public class PartitionUtilTest
     public void dynamicFolderExpressionWithDefaultsDates()
     {
         // Odd index matches, otherwise doesn't
-        List<String> partitionFolders = List.of(
+        List<String> partitionFolders = com.google.common.collect.ImmutableList.of(
                 "year=2000/birth_month10/",
                 "creation_dt=2022-12-20/",
                 "zone=EST/",
@@ -113,8 +113,8 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "creation_dt=${creation_dt}/"));
-        List<Column> columns = List.of(
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "creation_dt=${creation_dt}/"));
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("creation_dt", "date")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
@@ -136,7 +136,7 @@ public class PartitionUtilTest
     public void dynamicFolderExpressionWithQuotedVarchar() // failed
     {
         // Odd index matches, otherwise doesn't
-        List<String> partitionFolders = List.of(
+        List<String> partitionFolders = com.google.common.collect.ImmutableList.of(
                 "year=2000/birth_month10/",
                 "state=\"Tamilnadu\"/",
                 "state='Tamilnadu'/",
@@ -145,8 +145,8 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state='${stateName}'/"));
-        List<Column> columns = List.of(
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "state='${stateName}'/"));
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("stateName", "string")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
@@ -168,7 +168,7 @@ public class PartitionUtilTest
     public void dynamicFolderExpressionWithUnquotedVarchar()
     {
         // Odd index matches, otherwise doesn't
-        List<String> partitionFolders = List.of(
+        List<String> partitionFolders = com.google.common.collect.ImmutableList.of(
                 "year=2000/birth_month10/",
                 "state=Tamilnadu/",
                 "zone=EST/",
@@ -176,8 +176,8 @@ public class PartitionUtilTest
                 "month01/"
         );
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, "state=${stateName}/"));
-        List<Column> columns = List.of(
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "state=${stateName}/"));
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("stateName", "string")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
@@ -200,7 +200,7 @@ public class PartitionUtilTest
     {
         String partitionPatten = "year=${year}/birth_month${month}/";
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten ));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, partitionPatten ));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPatten, "year=2000/birth_month09/", optionalRegEx.get(), table.getPartitionKeys());
@@ -217,7 +217,7 @@ public class PartitionUtilTest
     public void testGetHiveNonHivePartitions()
     {
         // mock
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("year", "bigint"),
                 createColumn("month", "int"),
                 createColumn("day", "int")
@@ -225,7 +225,7 @@ public class PartitionUtilTest
         // mock
         when(table.getPartitionKeys()).thenReturn(columns);
         String partitionPatten = "year=${year}/birth_month${month}/${day}";
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPatten + "/"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, partitionPatten + "/"));
         Optional<String> optionalRegEx = PartitionUtil.getRegExExpression(table);
         assertTrue(optionalRegEx.isPresent());
         Map<String, String> partitions = PartitionUtil.getPartitionColumnData(partitionPatten, "year=2000/birth_month09/12/",
@@ -246,7 +246,7 @@ public class PartitionUtilTest
     public void testGetPartitionFolders()
     {
         // re-mock
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("year", "bigint"),
                 createColumn("month", "int"),
                 createColumn("day", "int")
@@ -255,7 +255,7 @@ public class PartitionUtilTest
         String partitionPattern = "year=${year}/birth_month${month}/${day}";
 
         // list of folders in a bucket
-        List<String> bucketFolders = List.of(
+        List<String> bucketFolders = com.google.common.collect.ImmutableList.of(
                 "year=2000/birth_month09/12/",
                 "year=2000/birth_month09/abc",
                 "year=2001/birth_month12/20/",
@@ -282,16 +282,16 @@ public class PartitionUtilTest
     public void testHivePartition()
     {
         // re-mock
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("statename", "string"),
                 createColumn("zipcode", "varchar")
         );
         when(table.getPartitionKeys()).thenReturn(columns);
         String partitionPattern = "StateName=${statename}/ZipCode=${zipcode}";
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
         // list of folders in a bucket
-        List<String> bucketFolders = List.of(
+        List<String> bucketFolders = com.google.common.collect.ImmutableList.of(
                 "StateName=WB/ZipCode=700099/",
                 "year=2000/birth_month09/abc/",
                 "StateName=TN/ZipCode=600001/",
@@ -324,7 +324,7 @@ public class PartitionUtilTest
     public void testNonHivePartition()
     {
         // re-mock
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("statename", "string"),
                 createColumn("district", "varchar"),
                 createColumn("zipcode", "string")
@@ -332,9 +332,9 @@ public class PartitionUtilTest
         when(table.getPartitionKeys()).thenReturn(columns);
         String partitionPattern = "${statename}/${district}/${zipcode}";
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
         // list of folders in a bucket
-        List<String> bucketFolders = List.of(
+        List<String> bucketFolders = com.google.common.collect.ImmutableList.of(
                 "WB/Kolkata/700099/",
                 "year=2000/birth_month09/abc/",
                 "TN/DistrictChennai/600001/",
@@ -364,7 +364,7 @@ public class PartitionUtilTest
     public void testMixedLayoutStringOnlyPartition()
     {
         // re-mock
-        List<Column> columns = List.of(
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
                 createColumn("statename", "string"),
                 createColumn("district", "varchar"),
                 createColumn("zipcode", "string")
@@ -372,9 +372,9 @@ public class PartitionUtilTest
         when(table.getPartitionKeys()).thenReturn(columns);
         String partitionPattern = "StateName=${statename}/District${district}/${zipcode}";
         // mock
-        when(table.getParameters()).thenReturn(Map.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, partitionPattern + "/"));
         // list of folders in a bucket
-        List<String> bucketFolders = List.of(
+        List<String> bucketFolders = com.google.common.collect.ImmutableList.of(
                 "StateName=WB/DistrictKolkata/700099/",
                 "year=2000/birth_month09/abc/",
                 "StateName=TN/DistrictChennai/600001/",

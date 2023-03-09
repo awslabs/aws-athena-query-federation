@@ -153,7 +153,7 @@ public abstract class GlueMetadataHandler
         // we need to maintain backwards compatibility.
         //
         // Original comment: "Disable Glue if the env var is present and not explicitly set to "false""
-        var disabled = configOptions.get(DISABLE_GLUE) != null && !"false".equalsIgnoreCase(configOptions.get(DISABLE_GLUE));
+        boolean disabled = configOptions.get(DISABLE_GLUE) != null && !"false".equalsIgnoreCase(configOptions.get(DISABLE_GLUE));
 
         // null if the current instance does not want to leverage Glue for metadata
         awsGlue = disabled ? null : (AWSGlueClientBuilder.standard()

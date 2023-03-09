@@ -75,7 +75,7 @@ public class ExampleMetadataHandlerTest
             mock(AmazonAthena.class),
             "spill-bucket",
             "spill-prefix",
-            java.util.Map.of());
+            com.google.common.collect.ImmutableMap.of());
 
     private boolean enableTests = System.getenv("publishing") != null &&
             System.getenv("publishing").equalsIgnoreCase("true");

@@ -128,7 +128,7 @@ public class MetricsRecordHandlerTest
     {
         mockS3Storage = new ArrayList<>();
         allocator = new BlockAllocatorImpl();
-        handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, java.util.Map.of());
+        handler = new MetricsRecordHandler(mockS3, mockSecretsManager, mockAthena, mockMetrics, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
         Mockito.lenient().when(mockS3.putObject(any()))

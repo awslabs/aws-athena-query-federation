@@ -119,7 +119,7 @@ public class TimestreamMetadataHandlerTest
                 mockAthena,
                 "spillBucket",
                 "spillPrefix",
-                java.util.Map.of());
+                com.google.common.collect.ImmutableMap.of());
 
         allocator = new BlockAllocatorImpl();
     }

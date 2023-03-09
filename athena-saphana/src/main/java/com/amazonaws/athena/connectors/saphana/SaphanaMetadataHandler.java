@@ -310,7 +310,7 @@ public class SaphanaMetadataHandler extends JdbcMetadataHandler
                     if (isSpatialDataType) {
                         schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType)
                                 .addField(new Field(quoteColumnName(columnName) + TO_WELL_KNOWN_TEXT_FUNCTION,
-                                        new FieldType(true, columnType, null), List.of()))
+                                        new FieldType(true, columnType, null), com.google.common.collect.ImmutableList.of()))
                                 .build());
                     }
                     else {

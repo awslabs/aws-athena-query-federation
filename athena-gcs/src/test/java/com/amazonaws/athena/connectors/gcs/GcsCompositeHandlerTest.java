@@ -65,7 +65,7 @@ public class GcsCompositeHandlerTest {
     {
         PowerMockito.mockStatic(AWSSecretsManagerClientBuilder.class);
         PowerMockito.when(AWSSecretsManagerClientBuilder.defaultClient()).thenReturn(secretsManager);
-        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(List.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
+        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(com.google.common.collect.ImmutableList.of("v1")).withSecretString("{\"gcs_credential_keys\": \"test\"}");
         Mockito.when(secretsManager.getSecretValue(Mockito.any())).thenReturn(getSecretValueResult);
         PowerMockito.mockStatic(ServiceAccountCredentials.class);
         PowerMockito.when(ServiceAccountCredentials.fromStream(Mockito.any())).thenReturn(serviceAccountCredentials);

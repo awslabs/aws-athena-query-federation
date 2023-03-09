@@ -161,14 +161,14 @@ public class GcsRecordHandlerTest
         PowerMockito.mockStatic(AmazonAthenaClientBuilder.class);
         PowerMockito.when(AmazonAthenaClientBuilder.defaultClient()).thenReturn(athena);
 
-        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(List.of("v1")).withSecretString("{\"athena_gcs_keys\": \"test\"}");
+        GetSecretValueResult getSecretValueResult = new GetSecretValueResult().withVersionStages(com.google.common.collect.ImmutableList.of("v1")).withSecretString("{\"athena_gcs_keys\": \"test\"}");
         when(secretsManager.getSecretValue(any())).thenReturn(getSecretValueResult);
         PowerMockito.mockStatic(GoogleCredentials.class);
         PowerMockito.when(GoogleCredentials.fromStream(any())).thenReturn(credentials);
         PowerMockito.when(credentials.createScoped((Collection<String>) any())).thenReturn(credentials);
         suppress(constructor(StorageMetadata.class, String.class));
         Schema schemaForRead = new Schema(GcsTestUtils.getTestSchemaFieldsArrow());
-        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), java.util.Map.of());
+        spillWriter = new S3BlockSpiller(amazonS3, spillConfig, allocator, schemaForRead, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
 
         // Mocking GcsUtil
         PowerMockito.mockStatic(GcsUtil.class);
@@ -176,7 +176,7 @@ public class GcsRecordHandlerTest
         PowerMockito.when(GcsUtil.createUri(anyString())).thenReturn( "file:" + parquetFile.getPath() + "/" + "person-data.parquet");
 
         // The class we want to test.
-        gcsRecordHandler = new GcsRecordHandler(bufferAllocator, java.util.Map.of());
+        gcsRecordHandler = new GcsRecordHandler(bufferAllocator, com.google.common.collect.ImmutableMap.of());
         LOGGER.info("Completed init.");
     }
 

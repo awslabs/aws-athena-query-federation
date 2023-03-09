@@ -95,7 +95,7 @@ public class Db2MetadataHandlerTest extends TestBase {
         this.secretsManager = Mockito.mock(AWSSecretsManager.class);
         this.athena = Mockito.mock(AmazonAthena.class);
         Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"user\": \"testUser\", \"password\": \"testPassword\"}"));
-        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, java.util.Map.of());
+        this.db2MetadataHandler = new Db2MetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory, com.google.common.collect.ImmutableMap.of());
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
         this.blockAllocator = new BlockAllocatorImpl();
     }
@@ -166,16 +166,16 @@ public class Db2MetadataHandlerTest extends TestBase {
         GetSplitsRequest getSplitsRequest = new GetSplitsRequest(this.federatedIdentity, "testQueryId", "testCatalogName", tableName, getTableLayoutResponse.getPartitions(), new ArrayList<>(partitionCols), constraints, null);
         GetSplitsResponse getSplitsResponse = this.db2MetadataHandler.doGetSplits(splitBlockAllocator, getSplitsRequest);
 
-        Set<Map<String, String>> expectedSplits = new HashSet<>();
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(db2MetadataHandler.PARTITION_NUMBER, "0"),
-                Map.entry(db2MetadataHandler.PARTITIONING_COLUMN, "PC")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(db2MetadataHandler.PARTITION_NUMBER, "1"),
-                Map.entry(db2MetadataHandler.PARTITIONING_COLUMN, "PC")));
-        expectedSplits.add(Map.ofEntries(
-                Map.entry(db2MetadataHandler.PARTITION_NUMBER, "2"),
-                Map.entry(db2MetadataHandler.PARTITIONING_COLUMN, "PC")));
+        Set<Map<String, String>> expectedSplits = com.google.common.collect.ImmutableSet.of(
+            com.google.common.collect.ImmutableMap.of(
+                db2MetadataHandler.PARTITION_NUMBER, "0",
+                db2MetadataHandler.PARTITIONING_COLUMN, "PC"),
+            com.google.common.collect.ImmutableMap.of(
+                db2MetadataHandler.PARTITION_NUMBER, "1",
+                db2MetadataHandler.PARTITIONING_COLUMN, "PC"),
+            com.google.common.collect.ImmutableMap.of(
+                db2MetadataHandler.PARTITION_NUMBER, "2",
+                db2MetadataHandler.PARTITIONING_COLUMN, "PC"));
 
         Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
         Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());

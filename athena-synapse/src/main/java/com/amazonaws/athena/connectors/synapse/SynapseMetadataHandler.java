@@ -314,7 +314,7 @@ public class SynapseMetadataHandler extends JdbcMetadataHandler
             stmt.setString(1, tableName.getSchemaName() + "." + tableName.getTableName());
             try (ResultSet dataTypeResultSet = stmt.executeQuery()) {
                 while (dataTypeResultSet.next()) {
-                    List<String> columnDetails = List.of(
+                    List<String> columnDetails = com.google.common.collect.ImmutableList.of(
                             dataTypeResultSet.getString("DATA_TYPE").trim(),
                             dataTypeResultSet.getString("PRECISION").trim(),
                             dataTypeResultSet.getString("SCALE").trim());

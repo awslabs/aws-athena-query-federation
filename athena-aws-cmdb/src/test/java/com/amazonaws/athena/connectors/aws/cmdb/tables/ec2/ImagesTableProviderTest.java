@@ -86,7 +86,7 @@ public class ImagesTableProviderTest
 
     protected TableProvider setUpSource()
     {
-        return new ImagesTableProvider(mockEc2, java.util.Map.of());
+        return new ImagesTableProvider(mockEc2, com.google.common.collect.ImmutableMap.of());
     }
 
     @Override

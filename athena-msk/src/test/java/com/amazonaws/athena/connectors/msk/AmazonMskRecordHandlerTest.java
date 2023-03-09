@@ -127,7 +127,7 @@ public class AmazonMskRecordHandlerTest {
                 .withSpillLocation(s3SpillLocation)
                 .build();
         allocator = new BlockAllocatorImpl();
-        amazonMskRecordHandler = new AmazonMskRecordHandler(amazonS3, awsSecretsManager, athena, java.util.Map.of());
+        amazonMskRecordHandler = new AmazonMskRecordHandler(amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
     }
 
     @Test
@@ -145,7 +145,7 @@ public class AmazonMskRecordHandlerTest {
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, java.util.Map.of())).thenReturn(consumer);
+        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         ConstraintEvaluator evaluator = mock(ConstraintEvaluator.class);
@@ -159,7 +159,7 @@ public class AmazonMskRecordHandlerTest {
         when(queryStatusChecker.isQueryRunning()).thenReturn(true);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
-        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), java.util.Map.of());
+        BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, schema, ConstraintEvaluator.emptyEvaluator(), com.google.common.collect.ImmutableMap.of());
         amazonMskRecordHandler.readWithConstraint(spiller, request, queryStatusChecker);
     }
 
@@ -178,7 +178,7 @@ public class AmazonMskRecordHandlerTest {
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, java.util.Map.of())).thenReturn(consumer);
+        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
@@ -206,7 +206,7 @@ public class AmazonMskRecordHandlerTest {
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, java.util.Map.of())).thenReturn(consumer);
+        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         ReadRecordsRequest request = createReadRecordsRequest(schema);
@@ -230,7 +230,7 @@ public class AmazonMskRecordHandlerTest {
         Schema schema = createSchema(createCsvTopicSchema());
 
         PowerMockito.mockStatic(AmazonMskUtils.class);
-        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, java.util.Map.of())).thenReturn(consumer);
+        PowerMockito.when(AmazonMskUtils.getKafkaConsumer(schema, com.google.common.collect.ImmutableMap.of())).thenReturn(consumer);
         PowerMockito.when(AmazonMskUtils.createSplitParam(anyMap())).thenReturn(splitParameters);
 
         QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
@@ -282,7 +282,7 @@ public class AmazonMskRecordHandlerTest {
                     true,
                     AmazonMskUtils.toArrowType(it.getType()),
                     null,
-                    Map.of(
+                    com.google.common.collect.ImmutableMap.of(
                             "mapping", it.getMapping(),
                             "formatHint", it.getFormatHint(),
                             "type", it.getType()

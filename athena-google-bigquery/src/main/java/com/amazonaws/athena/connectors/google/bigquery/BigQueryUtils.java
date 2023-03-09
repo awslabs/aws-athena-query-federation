@@ -85,7 +85,7 @@ public class BigQueryUtils
 
     public static String getEnvBigQueryCredsSmId(java.util.Map<String, String> configOptions)
     {
-        var smid = configOptions.getOrDefault(BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "");
+        String smid = configOptions.getOrDefault(BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID, "");
         if (smid.isEmpty()) {
             throw new RuntimeException(String.format("Configuration variable: %s not set", BigQueryConstants.ENV_BIG_QUERY_CREDS_SM_ID));
         }

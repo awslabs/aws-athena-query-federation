@@ -59,10 +59,11 @@ public class FilterExpressionBuilder
                 if (!value1.isPresent() && !value2.isPresent()) {
                     return Optional.empty();
                 }
-                return Optional.of(
-                  java.util.stream.Stream.concat(value1.stream(), value2.stream()).flatMap(Set::stream).collect(Collectors.toSet()));
+                Set<String> value1Set = value1.orElse(java.util.Collections.emptySet());
+                Set<String> value2Set = value2.orElse(java.util.Collections.emptySet());
+                return Optional.of(com.google.common.collect.ImmutableSet.<String>builder().addAll(value1Set).addAll(value2Set).build());
             },
-            () -> new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER)
+            () -> new java.util.TreeMap<String, Optional<Set<String>>>(String.CASE_INSENSITIVE_ORDER)
         ));
     }
 

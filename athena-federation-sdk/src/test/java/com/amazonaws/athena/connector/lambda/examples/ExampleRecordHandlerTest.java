@@ -180,7 +180,7 @@ public class ExampleRecordHandlerTest
                     }
                 });
 
-        recordService = new LocalHandler(allocator, amazonS3, awsSecretsManager, athena, java.util.Map.of());
+        recordService = new LocalHandler(allocator, amazonS3, awsSecretsManager, athena, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(amazonS3, allocator);
 
         logger.info("setUpBefore - exit");

@@ -20,6 +20,8 @@ package com.amazonaws.athena.connector.lambda.metadata.glue;
  * #L%
  */
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
@@ -30,8 +32,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.util.Map.entry;
-
 /**
  * Defines the default mapping of AWS Glue Data Catalog types to Apache Arrow types. You can override these by
  * overriding convertField(...) on GlueMetadataHandler.
@@ -39,25 +39,26 @@ import static java.util.Map.entry;
 public class DefaultGlueType
 {
     private static final String TIMESTAMPMILLITZ = "timestamptz";
-    private static final Set<String> NON_COMPARABALE_SET = Set.of("TIMESTAMPMILLITZ");
+    private static final Set<String> NON_COMPARABALE_SET = ImmutableSet.of("TIMESTAMPMILLITZ");
 
-    private static final Map<String, ArrowType> TYPE_MAP = Map.ofEntries(
-        entry("int", Types.MinorType.INT.getType()),
-        entry("varchar", Types.MinorType.VARCHAR.getType()),
-        entry("string", Types.MinorType.VARCHAR.getType()),
-        entry("bigint", Types.MinorType.BIGINT.getType()),
-        entry("double", Types.MinorType.FLOAT8.getType()),
-        entry("float", Types.MinorType.FLOAT4.getType()),
-        entry("smallint", Types.MinorType.SMALLINT.getType()),
-        entry("tinyint", Types.MinorType.TINYINT.getType()),
-        entry("boolean", Types.MinorType.BIT.getType()),
-        entry("binary", Types.MinorType.VARBINARY.getType()),
-        entry("timestamp", Types.MinorType.DATEMILLI.getType()),
-        entry("date", Types.MinorType.DATEDAY.getType()),
+    private static final Map<String, ArrowType> TYPE_MAP = new ImmutableMap.Builder<String, ArrowType>()
+        .put("int", Types.MinorType.INT.getType())
+        .put("varchar", Types.MinorType.VARCHAR.getType())
+        .put("string", Types.MinorType.VARCHAR.getType())
+        .put("bigint", Types.MinorType.BIGINT.getType())
+        .put("double", Types.MinorType.FLOAT8.getType())
+        .put("float", Types.MinorType.FLOAT4.getType())
+        .put("smallint", Types.MinorType.SMALLINT.getType())
+        .put("tinyint", Types.MinorType.TINYINT.getType())
+        .put("boolean", Types.MinorType.BIT.getType())
+        .put("binary", Types.MinorType.VARBINARY.getType())
+        .put("timestamp", Types.MinorType.DATEMILLI.getType())
+        .put("date", Types.MinorType.DATEDAY.getType())
         // ZoneId.systemDefault().getId() is just a place holder, each row will have a TZ value
         // otherwise fall back to the table configured default TZ
-        entry(TIMESTAMPMILLITZ, new ArrowType.Timestamp(
-                org.apache.arrow.vector.types.TimeUnit.MILLISECOND, ZoneId.systemDefault().getId())));
+        .put(TIMESTAMPMILLITZ, (ArrowType) new ArrowType.Timestamp(
+                org.apache.arrow.vector.types.TimeUnit.MILLISECOND, ZoneId.systemDefault().getId()))
+        .build();
 
     // decimal match examples:
     // decimal

@@ -111,7 +111,7 @@ public class KafkaUtilsTest {
     @Mock
     AWSGlue awsGlue;
 
-    final java.util.Map<String, String> configOptions = Map.of(
+    final java.util.Map<String, String> configOptions = com.google.common.collect.ImmutableMap.of(
         "glue_registry_arn", "arn:aws:glue:us-west-2:123456789101:registry/Athena-Kafka",
         "secret_manager_kafka_creds_name", "testSecret",
         "kafka_endpoint", "12.207.18.179:9092",
@@ -159,12 +159,12 @@ public class KafkaUtilsTest {
         Mockito.when(amazonS3Client.getObject(any())).thenReturn(s3Obj);
         S3ObjectSummary s3 = new S3ObjectSummary();
         s3.setKey("test/key");
-        Mockito.when(oList.getObjectSummaries()).thenReturn(List.of(s3));
+        Mockito.when(oList.getObjectSummaries()).thenReturn(com.google.common.collect.ImmutableList.of(s3));
     }
 
     @Test
     public void testGetScramAuthKafkaProperties() throws Exception {
-        var testConfigOptions = new java.util.HashMap(configOptions);
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
         testConfigOptions.put("auth_type", KafkaUtils.AuthType.SASL_SSL_SCRAM_SHA512.toString());
         String sasljaasconfig = "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"admin\" password=\"test\";";
         Properties properties = getKafkaProperties(testConfigOptions);
@@ -175,7 +175,7 @@ public class KafkaUtilsTest {
 
     @Test
     public void testGetSSLAuthKafkaProperties() throws Exception {
-        var testConfigOptions = new java.util.HashMap(configOptions);
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
         testConfigOptions.put("auth_type", KafkaUtils.AuthType.SSL.toString());
         Properties properties = getKafkaProperties(testConfigOptions);
         assertEquals("SSL", properties.get("security.protocol"));
@@ -202,7 +202,7 @@ public class KafkaUtilsTest {
 
     @Test
     public void testGetKafkaConsumerWithSchema() throws Exception {
-        var testConfigOptions = new java.util.HashMap(configOptions);
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
         testConfigOptions.put("auth_type", KafkaUtils.AuthType.NO_AUTH.toString());
         Field field = new Field("name", FieldType.nullable(new ArrowType.Utf8()), null);
         Map<String, String> metadataSchema = new HashMap<>();
@@ -214,7 +214,7 @@ public class KafkaUtilsTest {
 
     @Test
     public void testGetKafkaConsumer() throws Exception {
-        var testConfigOptions = new java.util.HashMap(configOptions);
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
         testConfigOptions.put("auth_type", KafkaUtils.AuthType.NO_AUTH.toString());
         Consumer<String, String> consumer = KafkaUtils.getKafkaConsumer(testConfigOptions);
         assertNotNull(consumer);
@@ -222,7 +222,7 @@ public class KafkaUtilsTest {
 
     @Test
     public void testCreateSplitParam() {
-        Map<String, String> params = Map.of(
+        Map<String, String> params = com.google.common.collect.ImmutableMap.of(
                 SplitParameters.TOPIC, "testTopic",
                 SplitParameters.PARTITION, "0",
                 SplitParameters.START_OFFSET, "0",
@@ -235,13 +235,13 @@ public class KafkaUtilsTest {
 
     @Test(expected = RuntimeException.class)
     public void testGetKafkaPropertiesForRuntimeException() throws Exception {
-        var testConfigOptions = new java.util.HashMap(configOptions);
+        java.util.HashMap testConfigOptions = new java.util.HashMap(configOptions);
         testConfigOptions.put("auth_type", "UNKNOWN");
         getKafkaProperties(testConfigOptions);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetKafkaPropertiesForIllegalArgumentException() throws Exception {
-        getKafkaProperties(java.util.Map.of());
+        getKafkaProperties(com.google.common.collect.ImmutableMap.of());
     }
 }

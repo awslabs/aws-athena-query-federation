@@ -112,7 +112,7 @@ public class CloudwatchRecordHandlerTest
 
         mockS3Storage = new ArrayList<>();
         allocator = new BlockAllocatorImpl();
-        handler = new CloudwatchRecordHandler(mockS3, mockSecretsManager, mockAthena, mockAwsLogs, java.util.Map.of());
+        handler = new CloudwatchRecordHandler(mockS3, mockSecretsManager, mockAthena, mockAwsLogs, com.google.common.collect.ImmutableMap.of());
         spillReader = new S3BlockSpillReader(mockS3, allocator);
 
         when(mockS3.putObject(any()))

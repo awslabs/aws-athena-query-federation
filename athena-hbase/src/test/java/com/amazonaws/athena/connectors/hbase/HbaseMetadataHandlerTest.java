@@ -119,7 +119,7 @@ public class HbaseMetadataHandlerTest
                 mockConnFactory,
                 "spillBucket",
                 "spillPrefix",
-                java.util.Map.of());
+                com.google.common.collect.ImmutableMap.of());
 
         when(mockConnFactory.getOrCreateConn(nullable(String.class))).thenReturn(mockClient);
 

@@ -53,7 +53,7 @@ public class TableProviderFactoryTest
     @Mock
     private AmazonS3 amazonS3;
 
-    private TableProviderFactory factory = new TableProviderFactory(mockEc2, mockEmr, mockRds, amazonS3, java.util.Map.of());
+    private TableProviderFactory factory = new TableProviderFactory(mockEc2, mockEmr, mockRds, amazonS3, com.google.common.collect.ImmutableMap.of());
 
     @Test
     public void getTableProviders()

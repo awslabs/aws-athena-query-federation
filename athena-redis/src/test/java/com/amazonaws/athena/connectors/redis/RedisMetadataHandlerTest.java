@@ -121,7 +121,7 @@ public class RedisMetadataHandlerTest
         when(mockFactory.getOrCreateConn(eq(decodedEndpoint), anyBoolean(), anyBoolean(), nullable(String.class))).thenReturn(mockConnection);
         when(mockConnection.sync()).thenReturn(mockSyncCommands);
 
-        handler = new RedisMetadataHandler(mockGlue, new LocalKeyFactory(), mockSecretsManager, mockAthena, mockFactory, "bucket", "prefix", java.util.Map.of());
+        handler = new RedisMetadataHandler(mockGlue, new LocalKeyFactory(), mockSecretsManager, mockAthena, mockFactory, "bucket", "prefix", com.google.common.collect.ImmutableMap.of());
         allocator = new BlockAllocatorImpl();
 
         when(mockSecretsManager.getSecretValue(nullable(GetSecretValueRequest.class)))

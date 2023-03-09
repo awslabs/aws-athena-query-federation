@@ -156,7 +156,7 @@ public class BigQueryMetadataHandler
     @Override
     public GetTableResponse doGetTable(BlockAllocator blockAllocator, GetTableRequest getTableRequest) throws java.io.IOException
     {
-        var projectName = BigQueryUtils.getProjectName(getTableRequest.getCatalogName(), configOptions);
+        String projectName = BigQueryUtils.getProjectName(getTableRequest.getCatalogName(), configOptions);
 
         logger.info("doGetTable called with request {}. Resolved projectName: {}", getTableRequest, projectName);
 

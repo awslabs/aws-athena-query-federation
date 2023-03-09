@@ -127,7 +127,7 @@ public class AwsCmdbMetadataHandlerTest
 
         when(mockTableProviderFactory.getSchemas()).thenReturn(schemas);
 
-        handler = new AwsCmdbMetadataHandler(mockTableProviderFactory, new LocalKeyFactory(), mockSecretsManager, mockAthena, bucket, prefix, java.util.Map.of());
+        handler = new AwsCmdbMetadataHandler(mockTableProviderFactory, new LocalKeyFactory(), mockSecretsManager, mockAthena, bucket, prefix, com.google.common.collect.ImmutableMap.of());
 
         verify(mockTableProviderFactory, times(1)).getTableProviders();
         verify(mockTableProviderFactory, times(1)).getSchemas();
