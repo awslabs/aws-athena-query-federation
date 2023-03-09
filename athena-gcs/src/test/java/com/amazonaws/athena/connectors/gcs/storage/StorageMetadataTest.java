@@ -206,6 +206,24 @@ public class StorageMetadataTest
         assertEquals(4, partValue2.size());
         assertEquals(partValue2, List.of(Map.of("year", "2000", "month", "1"), Map.of("year", "2000", "month", "2"),
                 Map.of("year", "2001", "month", "1"), Map.of("year", "2001", "month", "2")));
+
+        //partition without file
+        getStorageList(List.of("year=2000/"));
+        List<Field> fieldList3 = List.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
+        List<Column> partKeys3 = List.of(createColumn("year", "varchar"));
+        Schema schema3 = getSchema(glue, fieldList3, partKeys3, "year=${year}/");
+        List<Map<String, String>> partValue3 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        assertEquals(0, partValue3.size());
+        assertEquals(partValue3, List.of());
+
+        //partition without file/folder
+        getStorageList(List.of());
+        List<Field> fieldList4 = List.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
+        List<Column> partKeys4 = List.of(createColumn("year", "varchar"));
+        Schema schema4 = getSchema(glue, fieldList4, partKeys4, "year=${year}/");
+        List<Map<String, String>> partValue4 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        assertEquals(0, partValue4.size());
+        assertEquals(partValue4, List.of());
     }
 
     @NotNull
