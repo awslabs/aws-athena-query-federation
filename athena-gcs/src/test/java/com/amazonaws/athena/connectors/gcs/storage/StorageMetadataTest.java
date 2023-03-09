@@ -162,17 +162,17 @@ public class StorageMetadataTest
     public void testGetPartitionFolders() throws URISyntaxException
     {
         //single partition
-        getStorageList(List.of("year=2000/birthday.parquet", "year=2000/", "year=2000/birthday1.parquet"));
+        getStorageList(ImmutableList.of("year=2000/birthday.parquet", "year=2000/", "year=2000/birthday1.parquet"));
         AWSGlue glue = Mockito.mock(AWSGlueClient.class);
-        List<Field> fieldList = List.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
-        List<Column> partKeys = List.of(createColumn("year", "varchar"));
+        List<Field> fieldList = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
+        List<Column> partKeys = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema = getSchema(glue, fieldList, partKeys, "year=${year}/");
-        List<Map<String, String>> partValue = storageMetadata.getPartitionFolders(schema, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        List<Map<String, String>> partValue = storageMetadata.getPartitionFolders(schema, new TableName("testSchema", "testTable"), new Constraints(ImmutableMap.of()), glue);
         assertEquals(1, partValue.size());
-        assertEquals(partValue, List.of(Map.of("year", "2000")));
+        assertEquals(partValue, ImmutableList.of(ImmutableMap.of("year", "2000")));
 
         //nested partition with folder
-        getStorageList(List.of("year=2000/birth_month1/birthday.parquet",
+        getStorageList(ImmutableList.of("year=2000/birth_month1/birthday.parquet",
                 "year=2000/",
                 "year=2000/birth_month1/",
                 "year=2000/birth_month2/birthday.parquet",
@@ -183,47 +183,47 @@ public class StorageMetadataTest
                 "year=2001/birth_month2/birthday.parquet",
                 "year=2001/birth_month2/"
         ));
-        List<Field> fieldList1 = List.of(new Field("year", FieldType.nullable(new ArrowType.Utf8()), null),
+        List<Field> fieldList1 = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Utf8()), null),
                 new Field("month", FieldType.nullable(new ArrowType.Utf8()), null));
-        List<Column> partKeys1 = List.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
+        List<Column> partKeys1 = ImmutableList.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
         Schema schema1 = getSchema(glue, fieldList1, partKeys1, "year=${year}/birth_month${month}/");
-        List<Map<String, String>> partValue1 = storageMetadata.getPartitionFolders(schema1, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        List<Map<String, String>> partValue1 = storageMetadata.getPartitionFolders(schema1, new TableName("testSchema", "testTable"), new Constraints(ImmutableMap.of()), glue);
         assertEquals(4, partValue1.size());
-        assertEquals(partValue1, List.of(Map.of("year", "2000", "month", "1"), Map.of("year", "2000", "month", "2"),
-                Map.of("year", "2001", "month", "1"), Map.of("year", "2001", "month", "2")));
+        assertEquals(partValue1, ImmutableList.of(ImmutableMap.of("year", "2000", "month", "1"), ImmutableMap.of("year", "2000", "month", "2"),
+                ImmutableMap.of("year", "2001", "month", "1"), ImmutableMap.of("year", "2001", "month", "2")));
 
         // nested partition without folder
-        getStorageList(List.of("year=2000/birth_month1/birthday.parquet",
+        getStorageList(ImmutableList.of("year=2000/birth_month1/birthday.parquet",
                 "year=2000/birth_month2/birthday.parquet",
                 "year=2001/birth_month1/birthday.parquet",
                 "year=2001/birth_month2/birthday.parquet"
         ));
-        List<Field> fieldList2 = List.of(new Field("year", FieldType.nullable(new ArrowType.Utf8()), null),
+        List<Field> fieldList2 = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Utf8()), null),
                 new Field("month", FieldType.nullable(new ArrowType.Utf8()), null));
-        List<Column> partKeys2 = List.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
+        List<Column> partKeys2 = ImmutableList.of(createColumn("year", "varchar"), createColumn("month", "varchar"));
         Schema schema2 = getSchema(glue, fieldList2, partKeys2, "year=${year}/birth_month${month}/");
-        List<Map<String, String>> partValue2 = storageMetadata.getPartitionFolders(schema2, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        List<Map<String, String>> partValue2 = storageMetadata.getPartitionFolders(schema2, new TableName("testSchema", "testTable"), new Constraints(ImmutableMap.of()), glue);
         assertEquals(4, partValue2.size());
-        assertEquals(partValue2, List.of(Map.of("year", "2000", "month", "1"), Map.of("year", "2000", "month", "2"),
-                Map.of("year", "2001", "month", "1"), Map.of("year", "2001", "month", "2")));
+        assertEquals(partValue2, ImmutableList.of(ImmutableMap.of("year", "2000", "month", "1"), ImmutableMap.of("year", "2000", "month", "2"),
+                ImmutableMap.of("year", "2001", "month", "1"), ImmutableMap.of("year", "2001", "month", "2")));
 
         //partition without file
-        getStorageList(List.of("year=2000/"));
-        List<Field> fieldList3 = List.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
-        List<Column> partKeys3 = List.of(createColumn("year", "varchar"));
+        getStorageList(ImmutableList.of("year=2000/"));
+        List<Field> fieldList3 = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
+        List<Column> partKeys3 = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema3 = getSchema(glue, fieldList3, partKeys3, "year=${year}/");
-        List<Map<String, String>> partValue3 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        List<Map<String, String>> partValue3 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"), new Constraints(ImmutableMap.of()), glue);
         assertEquals(0, partValue3.size());
-        assertEquals(partValue3, List.of());
+        assertEquals(partValue3, ImmutableList.of());
 
         //partition without file/folder
-        getStorageList(List.of());
-        List<Field> fieldList4 = List.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
-        List<Column> partKeys4 = List.of(createColumn("year", "varchar"));
+        getStorageList(ImmutableList.of());
+        List<Field> fieldList4 = ImmutableList.of(new Field("year", FieldType.nullable(new ArrowType.Int(64, true)), null));
+        List<Column> partKeys4 = ImmutableList.of(createColumn("year", "varchar"));
         Schema schema4 = getSchema(glue, fieldList4, partKeys4, "year=${year}/");
-        List<Map<String, String>> partValue4 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"), new Constraints(Map.of()), glue);
+        List<Map<String, String>> partValue4 = storageMetadata.getPartitionFolders(schema3, new TableName("testSchema", "testTable"), new Constraints(ImmutableMap.of()), glue);
         assertEquals(0, partValue4.size());
-        assertEquals(partValue4, List.of());
+        assertEquals(partValue4, ImmutableList.of());
     }
 
     @NotNull
