@@ -71,6 +71,7 @@ import static com.amazonaws.athena.connectors.kafka.KafkaConstants.MAX_RECORDS_I
 
 public class KafkaMetadataHandler extends MetadataHandler
 {
+    private static final int maxGluePageSize = 100;
     private static final long MAX_RESULTS = 100_000;
     private static final String REGISTRY_MARKER = "{AthenaFederationKafka}";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaMetadataHandler.class);
@@ -95,6 +96,28 @@ public class KafkaMetadataHandler extends MetadataHandler
             .map(r -> r.getRegistryName());
     }
 
+    private ListRegistriesResult listRegistriesFromGlue(AWSGlue glue, String nextToken, boolean start)
+    {
+        if (!start && nextToken == null) {
+            return null;
+        }
+        ListRegistriesRequest listRequest = new ListRegistriesRequest().withMaxResults(maxGluePageSize);
+        listRequest = (nextToken == null) ? listRequest : listRequest.withNextToken(nextToken);
+        return glue.listRegistries(listRequest);
+    }
+
+    private ListSchemasResult listSchemasFromGlue(AWSGlue glue, String glueRegistryName, int pageSize, String nextToken, boolean start)
+    {
+        if (!start && nextToken == null) {
+            return null;
+        }
+        com.amazonaws.services.glue.model.ListSchemasRequest listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
+            .withRegistryId(new RegistryId().withRegistryName(glueRegistryName))
+            .withMaxResults(Math.min(pageSize, maxGluePageSize));
+        listRequest = (nextToken == null) ? listRequest : listRequest.withNextToken(nextToken);
+        return glue.listSchemas(listRequest);
+    }
+
     /**
      * It will list the schema name which is set to default.
      *
@@ -108,11 +131,11 @@ public class KafkaMetadataHandler extends MetadataHandler
         LOGGER.info("doListSchemaNames called with Catalog: {}", listSchemasRequest.getCatalogName());
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
         Stream<String> allFilteredRegistries = Stream.empty();
-        for (ListRegistriesRequest listRequest = new ListRegistriesRequest().withMaxResults(100); listRequest != null; ) {
-            ListRegistriesResult currentResult = glue.listRegistries(listRequest);
-            // Setup the next request
-            String nextToken = currentResult.getNextToken();
-            listRequest = (nextToken == null) ? null : listRequest.withNextToken(nextToken);
+        for (
+            ListRegistriesResult currentResult = listRegistriesFromGlue(glue, null, true);
+            currentResult != null;
+            currentResult = listRegistriesFromGlue(glue, currentResult.getNextToken(), false)
+        ) {
             // Concat the results from the current page
             allFilteredRegistries = Stream.concat(allFilteredRegistries, filteredRegistriesStream(currentResult.getRegistries().stream()));
         }
@@ -141,30 +164,28 @@ public class KafkaMetadataHandler extends MetadataHandler
      * List all the tables. It pulls all the schema names from a Glue registry.
      *
      * @param blockAllocator - instance of {@link BlockAllocator}
-     * @param listTablesRequest - instance of {@link ListTablesRequest}
+     * @param federationListTablesRequest - instance of {@link ListTablesRequest}
      * @return {@link ListTablesResponse}
      */
     @Override
-    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest listTablesRequest)
+    public ListTablesResponse doListTables(BlockAllocator blockAllocator, ListTablesRequest federationListTablesRequest)
     {
-        LOGGER.info("doListTables: {}", listTablesRequest);
-        String glueRegistryNameResolved = resolveGlueRegistryName(listTablesRequest.getSchemaName());
+        LOGGER.info("doListTables: {}", federationListTablesRequest);
+        String glueRegistryNameResolved = resolveGlueRegistryName(federationListTablesRequest.getSchemaName());
         LOGGER.info("Resolved Glue registry name to: {}", glueRegistryNameResolved);
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
         // In this situation we want to loop through all the pages to return up to the MAX_RESULTS size
-        if (listTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE) {
+        // And only do this if we don't have a token passed in, otherwise if we have a token that takes precedence
+        // over the fact that the page size was set to unlimited.
+        if (federationListTablesRequest.getPageSize() == UNLIMITED_PAGE_SIZE_VALUE &&
+                federationListTablesRequest.getNextToken() == null) {
             LOGGER.info("Request page size is UNLIMITED_PAGE_SIZE_VALUE");
             List<TableName> allTableNames = new ArrayList();
             for (
-                com.amazonaws.services.glue.model.ListSchemasRequest listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
-                    .withRegistryId(new RegistryId().withRegistryName(glueRegistryNameResolved))
-                    .withMaxResults(100);
-                listRequest != null;
+                ListSchemasResult currentResult = listSchemasFromGlue(glue, glueRegistryNameResolved, maxGluePageSize, null, true);
+                currentResult != null;
+                currentResult = listSchemasFromGlue(glue, glueRegistryNameResolved, maxGluePageSize, currentResult.getNextToken(), false)
             ) {
-                ListSchemasResult currentResult = glue.listSchemas(listRequest);
-                // Setup the next request
-                String nextToken = currentResult.getNextToken();
-                listRequest = (nextToken == null) ? null : listRequest.withNextToken(nextToken);
                 // Append the results from the current page
                 allTableNames.addAll(
                     currentResult.getSchemas().stream()
@@ -177,23 +198,30 @@ public class KafkaMetadataHandler extends MetadataHandler
                         String.format("Exceeded maximum result size. Current doListTables result size: %d", allTableNames.size()));
                 }
             }
-            ListTablesResponse result = new ListTablesResponse(listTablesRequest.getCatalogName(), allTableNames, null);
+            ListTablesResponse result = new ListTablesResponse(federationListTablesRequest.getCatalogName(), allTableNames, null);
             LOGGER.debug("doListTables result: {}", result);
             return result;
         }
 
         // Otherwise don't retrieve all pages, just pass through the page token.
-        int pageSize = Math.min(listTablesRequest.getPageSize(), 100); // 100 is the maximum Glue allows
-        com.amazonaws.services.glue.model.ListSchemasRequest listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
-            .withRegistryId(new RegistryId().withRegistryName(glueRegistryNameResolved))
-            .withMaxResults(pageSize);
-        ListSchemasResult listSchemasResult = glue.listSchemas(listRequest);
-        List<TableName> tableNames = listSchemasResult.getSchemas()
+        ListSchemasResult listSchemasResultFromGlue = listSchemasFromGlue(
+            glue,
+            glueRegistryNameResolved,
+            federationListTablesRequest.getPageSize(),
+            federationListTablesRequest.getNextToken(),
+            // always consider this as a starting rqeuest if the token is null
+            federationListTablesRequest.getNextToken() == null);
+        // Convert the glue response into our own federation response
+        List<TableName> tableNames = listSchemasResultFromGlue.getSchemas()
             .stream()
             .map(schemaListItem -> schemaListItem.getSchemaName())
             .map(glueSchemaName -> new TableName(glueRegistryNameResolved, glueSchemaName))
             .collect(Collectors.toList());
-        ListTablesResponse result = new ListTablesResponse(listTablesRequest.getCatalogName(), tableNames, listSchemasResult.getNextToken());
+        // Pass through whatever token we got from Glue to the user
+        ListTablesResponse result = new ListTablesResponse(
+            federationListTablesRequest.getCatalogName(),
+            tableNames,
+            listSchemasResultFromGlue.getNextToken());
         LOGGER.debug("doListTables [paginated] result: {}", result);
         return result;
     }
@@ -202,11 +230,11 @@ public class KafkaMetadataHandler extends MetadataHandler
     {
         LOGGER.debug("findGlueRegistryNameIgnoringCasing {}", glueRegistryNameIn);
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
-        for (ListRegistriesRequest listRequest = new ListRegistriesRequest().withMaxResults(100); listRequest != null; ) {
-            ListRegistriesResult currentResult = glue.listRegistries(listRequest);
-            // Setup the next request
-            String nextToken = currentResult.getNextToken();
-            listRequest = (nextToken == null) ? null : listRequest.withNextToken(nextToken);
+        for (
+            ListRegistriesResult currentResult = listRegistriesFromGlue(glue, null, true);
+            currentResult != null;
+            currentResult = listRegistriesFromGlue(glue, currentResult.getNextToken(), false)
+        ) {
             // Try to find the registry ignoring the case
             java.util.Optional<String> result = filteredRegistriesStream(currentResult.getRegistries().stream())
                 .filter(r -> r.equalsIgnoreCase(glueRegistryNameIn))
@@ -228,15 +256,10 @@ public class KafkaMetadataHandler extends MetadataHandler
         // List all schemas under the input registry
         AWSGlue glue = AWSGlueClientBuilder.defaultClient();
         for (
-            com.amazonaws.services.glue.model.ListSchemasRequest listRequest = new com.amazonaws.services.glue.model.ListSchemasRequest()
-                .withRegistryId(new RegistryId().withRegistryName(glueRegistryNameIn))
-                .withMaxResults(100);
-            listRequest != null;
+            ListSchemasResult currentResult = listSchemasFromGlue(glue, glueRegistryNameIn, maxGluePageSize, null, true);
+            currentResult != null;
+            currentResult = listSchemasFromGlue(glue, glueRegistryNameIn, maxGluePageSize, currentResult.getNextToken(), false)
         ) {
-            ListSchemasResult currentResult = glue.listSchemas(listRequest);
-            // Setup the next request
-            String nextToken = currentResult.getNextToken();
-            listRequest = (nextToken == null) ? null : listRequest.withNextToken(nextToken);
             // Find the schema name ignoring the case in this page
             java.util.Optional<String> foundSchema = currentResult.getSchemas().stream()
                 .map(schemaListItem -> schemaListItem.getSchemaName())
