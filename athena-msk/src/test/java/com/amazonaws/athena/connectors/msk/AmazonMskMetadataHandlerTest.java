@@ -53,6 +53,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -101,14 +102,15 @@ public class AmazonMskMetadataHandlerTest {
             "secrets_manager_secret", "AmazonMSK_afq");
 
         consumer = new MockConsumer<>(OffsetResetStrategy.EARLIEST);
-        Map<TopicPartition, Long> partitionsStart = com.google.common.collect.ImmutableMap.of(
-                new TopicPartition("testTopic", 0), 0L,
-                new TopicPartition("testTopic", 1), 0L
-        );
-        Map<TopicPartition, Long> partitionsEnd = com.google.common.collect.ImmutableMap.of(
-                new TopicPartition("testTopic", 0), 20100L,
-                new TopicPartition("testTopic", 1), 7850L
-        );
+        Map<TopicPartition, Long> partitionsStart = new HashMap<>();
+        Map<TopicPartition, Long> partitionsEnd = new HashMap<>();
+
+        // max splits per request is 1000. Here we will make 1500 partitions that each have the max records
+        // for a single split. we expect 1500 splits to generate, over two requests.
+        for (int i = 0; i < 1500; i++) {
+            partitionsStart.put(new TopicPartition("testTopic", i), 0L);
+            partitionsEnd.put(new TopicPartition("testTopic",  i), com.amazonaws.athena.connectors.msk.AmazonMskConstants.MAX_RECORDS_IN_SPLIT - 1L); // keep simple and don't have multiple pieces
+        }
         List<PartitionInfo> partitionInfoList = new ArrayList<>(partitionsStart.keySet())
                 .stream()
                 .map(it -> new PartitionInfo(it.topic(), it.partition(), null, null, null))
@@ -215,10 +217,24 @@ public class AmazonMskMetadataHandlerTest {
                 Mockito.mock(Block.class),
                 new ArrayList<>(),
                 Mockito.mock(Constraints.class),
-                "continuationToken"
+                null 
         );
 
         GetSplitsResponse response = amazonMskMetadataHandler.doGetSplits(blockAllocator, request);
-        assertEquals(4, response.getSplits().size());
+        assertEquals(1000, response.getSplits().size());
+        assertEquals("1000", response.getContinuationToken());
+        request = new GetSplitsRequest(
+                federatedIdentity,
+                QUERY_ID,
+                "kafka",
+                new TableName("default", "testTopic"),
+                Mockito.mock(Block.class),
+                new ArrayList<>(),
+                Mockito.mock(Constraints.class),
+                response.getContinuationToken()
+        );
+        response = amazonMskMetadataHandler.doGetSplits(blockAllocator, request);
+        assertEquals(500, response.getSplits().size());
+        assertNull(response.getContinuationToken());
     }
 }
