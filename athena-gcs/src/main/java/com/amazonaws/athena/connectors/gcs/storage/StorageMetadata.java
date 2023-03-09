@@ -149,12 +149,15 @@ public class StorageMetadata
         Page<Blob> blobPage = storage.list(storageLocation.getAuthority(), prefix(path));
 
         Map<Boolean, List<Map<String, String>>> results = StreamSupport.stream(blobPage.iterateAll().spliterator(), false)
-            .filter(blob -> !isBlobFile(blob))
-            .map(blob -> blob.getName().replaceFirst("^" + path, ""))
-             // remove the front-slash, because, the expression generated without it
-            .map(folderPath -> folderPath.replaceFirst("^/", ""))
-            .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
-            .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
+                .filter(blob -> isBlobFile(blob))
+                .map(blob -> blob.getName().replaceFirst("^" + path, ""))
+                // get partition folder path from complete file location
+                .map(name -> name.substring(0, name.lastIndexOf("/") + 1).trim())
+                .distinct()
+                // remove the front-slash, because, the expression generated without it
+                .map(folderPath -> folderPath.replaceFirst("^/", ""))
+                .map(folderPath -> PartitionUtil.getPartitionColumnData(table, folderPath))
+                .collect(Collectors.partitioningBy(partitionsMap -> partitionConstraintsSatisfied(partitionsMap, columnValueConstraintMap)));
 
         LOGGER.info("getPartitionFolders results: {}", results);
 
@@ -165,7 +168,7 @@ public class StorageMetadata
      * Retrieves the filename of any file that has a non-zero size within the bucket/prefix
      *
      * @param bucket Name of the bucket
-     * @param prefix Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
+     * @param prefixPath Prefix (aka, folder in Storage service) of the bucket from where this method with retrieve files
      * @return A single file name under the prefix
      */
     protected Optional<String> getAnyFilenameInPath(String bucket, String prefixPath)
