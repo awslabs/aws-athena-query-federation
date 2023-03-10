@@ -13,8 +13,7 @@ jobs:
         uses: fkirc/skip-duplicate-actions@v5.3.0
         with:
           cancel_others: 'true'
-          concurrent_skipping: 'same_content'
-          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+          concurrent_skipping: 'same_content_newer'
 
   build:
     needs: pre_job
@@ -27,5 +26,6 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '11'
+      # Target java 8 to ensure that the source is compatible with java 8
       - name: Build with Maven
-        run: mvn -B package -T 2C --file pom.xml
+        run: mvn -B package -T 2C --file pom.xml -Dmaven.compiler.release=8
