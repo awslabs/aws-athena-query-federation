@@ -58,7 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +73,7 @@ public class AmazonMskMetadataHandler extends MetadataHandler
 {
     private static final int maxGluePageSize = 100;
     private static final long MAX_RESULTS = 100_000;
+    static final long MAX_SPLITS_PER_REQUEST = 1000; // around 45k splits will exceed the 6mb response
     private static final String REGISTRY_MARKER = "{AthenaFederationMSK}";
     private static final Logger LOGGER = LoggerFactory.getLogger(AmazonMskMetadataHandler.class);
     private final Consumer<String, String> kafkaConsumer;
@@ -362,10 +363,12 @@ public class AmazonMskMetadataHandler extends MetadataHandler
         LOGGER.info("Retrieved topicName: {}", topic);
 
         // Get the available partitions of the topic from kafka server.
-        Collection<TopicPartition> topicPartitions = kafkaConsumer.partitionsFor(topic)
-                .stream()
+        List<TopicPartition> topicPartitions = kafkaConsumer.partitionsFor(topic).stream()
                 .map(it -> new TopicPartition(it.topic(), it.partition()))
                 .collect(Collectors.toList());
+        // consumer does not always return the same order for the partitions. We need to sort it so the continuation token
+        // has meaning.
+        Collections.sort(topicPartitions, (tp1, tp2) -> tp1.partition() - tp2.partition());
 
         LOGGER.debug("[KafkaPartition] total partitions {} found for topic: {}", topicPartitions.size(), topic);
 
@@ -391,7 +394,12 @@ public class AmazonMskMetadataHandler extends MetadataHandler
 
         Set<Split> splits = new HashSet<>();
         SpillLocation spillLocation = makeSpillLocation(request);
-        for (TopicPartition partition : topicPartitions) {
+        int continuationToken = request.getContinuationToken() == null ? 0 : Integer.parseInt(request.getContinuationToken());
+        for (
+            int partitionIndex = continuationToken;
+            partitionIndex < topicPartitions.size();
+            partitionIndex++) {
+            TopicPartition partition = topicPartitions.get(partitionIndex);
             // Calculate how many pieces we can divide a topic partition.
             List<TopicPartitionPiece>  topicPartitionPieces = pieceTopicPartition(startOffsets.get(partition), endOffsets.get(partition));
             LOGGER.info("[TopicPartitionPiece] Total pieces created {} for partition {} in topic {}",
@@ -417,8 +425,14 @@ public class AmazonMskMetadataHandler extends MetadataHandler
                         .add(SplitParameters.END_OFFSET, Long.toString(topicPartitionPiece.endOffset));
                 splits.add(splitBuilder.build());
             }
-        }
 
+            // if this isn't the last partition, and we've read more than our max splits per request, paginate the request.
+            if (splits.size() >= MAX_SPLITS_PER_REQUEST && partitionIndex < topicPartitions.size() - 1) { 
+                LOGGER.debug("[kafka] Total split created {} exceeded MAX_SPLITS_PER_REQUEST, sending paginated response", splits.size());
+                String encodedContinuationToken = String.valueOf(partitionIndex + 1);
+                return new GetSplitsResponse(request.getCatalogName(), splits, encodedContinuationToken);
+            }
+        }
         LOGGER.debug("[kafka] Total split created {} ", splits.size());
         return new GetSplitsResponse(request.getCatalogName(), splits);
     }
