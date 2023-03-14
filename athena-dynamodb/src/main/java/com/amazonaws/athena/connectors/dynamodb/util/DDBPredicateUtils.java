@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 
 /**
@@ -296,7 +295,7 @@ public class DDBPredicateUtils
             for (Object value : singleValues) {
                 bindValue(originalColumnName, value, accumulator, recordMetadata);
             }
-            String values = COMMA_JOINER.join(Stream.generate(valueNameProducer::getNext).limit(singleValues.size()).collect(toImmutableList()));
+            String values = COMMA_JOINER.join(Stream.generate(valueNameProducer::getNext).limit(singleValues.size()).collect(Collectors.toList()));
             disjuncts.add((isWhitelist ? "" : "NOT ") + columnName + " IN (" + values + ")");
         }
 
