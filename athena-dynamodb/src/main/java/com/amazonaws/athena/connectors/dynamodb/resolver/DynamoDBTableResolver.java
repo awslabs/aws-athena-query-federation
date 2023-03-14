@@ -39,9 +39,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants.DEFAULT_SCHEMA;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 
 /**
  * This class helps with resolving the differences in casing between DynamoDB and Presto. Presto expects all
@@ -77,7 +77,7 @@ public class DynamoDBTableResolver
         return listTablesInternal().stream()
                 .map(table -> table.toLowerCase(Locale.ENGLISH)) // lowercase for compatibility
                 .map(table -> new TableName(DEFAULT_SCHEMA, table))
-                .collect(toImmutableList());
+                .collect(Collectors.toList());
     }
 
     private List<String> listTablesInternal()
