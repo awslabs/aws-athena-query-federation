@@ -89,7 +89,6 @@ public class Constraints
 
     @Override
     public void close()
-            throws Exception
     {
         for (ValueSet next : summary.values()) {
             try {
