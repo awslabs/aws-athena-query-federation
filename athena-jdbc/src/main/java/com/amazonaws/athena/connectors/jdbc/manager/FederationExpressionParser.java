@@ -29,6 +29,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.expression.Variabl
 import com.amazonaws.athena.connector.lambda.domain.predicate.functions.FunctionName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -56,7 +57,7 @@ public abstract class FederationExpressionParser
     public List<String> parseComplexExpressions(List<Field> columns, Constraints constraints)
     {
         if (constraints.getExpression() == null || constraints.getExpression().isEmpty()) {
-            return List.of();
+            return ImmutableList.of();
         }
 
         List<FederationExpression> federationExpressions = constraints.getExpression();

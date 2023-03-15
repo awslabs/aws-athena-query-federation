@@ -97,21 +97,21 @@ public class ReadRecordsRequestSerDeV4Test extends TypedSerDeTest<FederationRequ
         FederationExpression federationExpression = new FunctionCallExpression(
                 ArrowType.Bool.INSTANCE,
                 StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME.getFunctionName(),
-                List.of(new FunctionCallExpression(
+                ImmutableList.of(new FunctionCallExpression(
                         Types.MinorType.FLOAT8.getType(),
                         StandardFunctions.ADD_FUNCTION_NAME.getFunctionName(),
-                        List.of(new VariableExpression("col3", Types.MinorType.FLOAT8.getType()),
+                        ImmutableList.of(new VariableExpression("col3", Types.MinorType.FLOAT8.getType()),
                                 new ConstantExpression(
-                                        BlockUtils.newBlock(allocator, "col1", new ArrowType.Int(32, true), List.of(10)),
+                                        BlockUtils.newBlock(allocator, "col1", new ArrowType.Int(32, true), ImmutableList.of(10)),
                                         new ArrowType.Int(32, true)))),
                         new VariableExpression("col2", Types.MinorType.FLOAT8.getType())));
 
-        List<OrderByField> orderByClause = List.of(
+        List<OrderByField> orderByClause = ImmutableList.of(
             new OrderByField("col3", OrderByField.Direction.ASC_NULLS_FIRST),
             new OrderByField("col2", OrderByField.Direction.DESC_NULLS_FIRST)
         );
 
-        Constraints constraints = new Constraints(constraintsMap, List.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT);
+        Constraints constraints = new Constraints(constraintsMap, ImmutableList.of(federationExpression), orderByClause, DEFAULT_NO_LIMIT);
 
         int num_partitions = 10;
         for (int i = 0; i < num_partitions; i++) {

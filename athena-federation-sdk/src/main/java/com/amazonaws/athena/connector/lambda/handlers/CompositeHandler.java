@@ -97,7 +97,7 @@ public class CompositeHandler
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
             ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator, SerDeVersion.SERDE_VERSION);
             FederationRequest rawReq;
-            byte[] allInputBytes = inputStream.readAllBytes();
+            byte[] allInputBytes = com.google.common.io.ByteStreams.toByteArray(inputStream);
 
             try {
                 rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);

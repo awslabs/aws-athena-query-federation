@@ -47,6 +47,7 @@ import com.amazonaws.services.glue.model.StorageDescriptor;
 import com.amazonaws.services.glue.model.Table;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.complex.impl.UnionListReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -193,7 +194,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of(), List.of(), List.of(), 5),
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 5),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -225,7 +226,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of(), List.of(), List.of(), 10_000),
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 10_000),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 
@@ -336,7 +337,7 @@ public class DynamoDBRecordHandlerTest
                 TEST_TABLE_NAME,
                 schema,
                 split,
-                new Constraints(ImmutableMap.of(), List.of(), List.of(), 1),
+                new Constraints(ImmutableMap.of(), ImmutableList.of(), ImmutableList.of(), 1),
                 100_000_000_000L, // too big to spill
                 100_000_000_000L);
 

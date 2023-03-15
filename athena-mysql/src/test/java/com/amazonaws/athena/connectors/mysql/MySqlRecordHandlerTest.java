@@ -137,8 +137,8 @@ public class MySqlRecordHandlerTest
                 .put("testCol7", valueSet7)
                 .put("testCol8", valueSet8)
                 .build(),
-            List.of(),
-            List.of(
+            ImmutableList.of(),
+            ImmutableList.of(
                 new OrderByField("testCol1", Direction.ASC_NULLS_FIRST),
                 new OrderByField("testCol3", Direction.ASC_NULLS_FIRST)
             ),
