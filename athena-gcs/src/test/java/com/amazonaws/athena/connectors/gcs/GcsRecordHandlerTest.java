@@ -74,7 +74,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -188,7 +188,7 @@ public class GcsRecordHandlerTest
         // Mocking split
         Split split = mock(Split.class);
         when(split.getProperty(STORAGE_SPLIT_JSON)).thenReturn("[\"data.parquet\"]");
-        when(split.getProperty(CLASSIFICATION_GLUE_TABLE_PARAM)).thenReturn("parquet");
+        when(split.getProperty(FILE_FORMAT)).thenReturn("parquet");
 
         // Test readWithConstraint
         try (ReadRecordsRequest request = new ReadRecordsRequest(
