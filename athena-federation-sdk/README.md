@@ -34,7 +34,8 @@ The below table lists the supported Apache Arrow types as well as the correspond
 |-------------|-----------------|
 |BIT|int, boolean|
 |DATEMILLI|Date, long|
-|TIMESTAMPMILLITZ|Date, long|
+|TIMESTAMPMILLITZ|LocalDateTime, ZonedDateTime, Date, long|
+|TIMESTAMPMICROTZ|LocalDateTime, ZonedDateTime, Date, long|
 |DATEDAY|Date, long, int|
 |FLOAT8|double|
 |FLOAT4|float|

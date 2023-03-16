@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connector.lambda.data;
 
 import org.apache.arrow.vector.holders.TimeStampMilliTZHolder;
+import org.apache.arrow.vector.holders.TimeStampMicroTZHolder;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.After;
 import org.junit.Before;
@@ -160,5 +161,35 @@ public class DateTimeFormatterUtilTest {
         assertEquals("-05:00", holder.timezone);
         assertNotEquals(expectedPackedLong, holder.value);
         assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedUnpackedLong, arrowType));
+    }
+
+    @Test
+    public void timestampMicroTzHolderFromObject() {
+        long expectedMicros = 2134123412348117L + java.util.concurrent.TimeUnit.HOURS.toMicros(5);
+        Instant expectedInstant = Instant.EPOCH.plus(expectedMicros, java.time.temporal.ChronoUnit.MICROS);
+        LocalDateTime localDateTimeExpected = LocalDateTime.of(
+            2037, 8, 17,
+            12, 3, 32,
+            (int) java.util.concurrent.TimeUnit.MICROSECONDS.toNanos(348117));
+        ZoneId zoneIdExpected = ZoneId.of("-05:00");
+        ZonedDateTime expectedZdt = ZonedDateTime.of(localDateTimeExpected, zoneIdExpected);
+
+        // This is to just make sure that the expected values being used are consistent
+        assertEquals(expectedInstant, expectedZdt.toInstant());
+
+        try {
+            DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt);
+            fail("Exception was expected since packing should not work for microseconds");
+        }
+        catch (RuntimeException ex) {
+        }
+
+        // Now disable packing and test again
+        DateTimeFormatterUtil.disableTimezonePacking();
+        TimeStampMicroTZHolder holder = DateTimeFormatterUtil.timestampMicroTzHolderFromObject(expectedZdt);
+        assertEquals(expectedMicros, holder.value);
+        assertEquals("-05:00", holder.timezone);
+        ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MICROSECOND, "-05:00");
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedMicros, arrowType));
     }
 }

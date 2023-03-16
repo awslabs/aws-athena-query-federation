@@ -308,6 +308,7 @@ public final class DDBTypeUtils
                 switch (fieldType) {
                     case DATEMILLI:
                         return DateTimeFormatterUtil.stringToDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
+                    case TIMESTAMPMICROTZ:
                     case TIMESTAMPMILLITZ:
                         return DateTimeFormatterUtil.stringToZonedDateTime((String) value, customerConfiguredFormat, defaultTimeZone);
                     case DATEDAY:

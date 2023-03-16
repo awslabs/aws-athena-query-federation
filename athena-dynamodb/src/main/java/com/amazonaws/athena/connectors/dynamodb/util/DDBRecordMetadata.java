@@ -123,8 +123,9 @@ public class DDBRecordMetadata
     public static boolean isDateTimeFieldType(Types.MinorType fieldType)
     {
         return fieldType.equals(Types.MinorType.DATEMILLI)
-                || fieldType.equals(Types.MinorType.DATEDAY)
-                || fieldType.equals(Types.MinorType.TIMESTAMPMILLITZ);
+            || fieldType.equals(Types.MinorType.DATEDAY)
+            || fieldType.equals(Types.MinorType.TIMESTAMPMILLITZ)
+            || fieldType.equals(Types.MinorType.TIMESTAMPMICROTZ);
     }
 
     /**

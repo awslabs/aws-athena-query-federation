@@ -38,7 +38,9 @@ public class ArrowSerDeTest
     // MinorType.DECIMAL which is a similar case of no default mapping to ArrowType does not need this as
     // MinorType name and ArrowType name are the same so simple fall back of enum name works.
     private static final ImmutableMap<SupportedTypes, String> FALL_BACK_ARROW_TYPE_CLASS = ImmutableMap.of(
-            SupportedTypes.TIMESTAMPMILLITZ, ArrowType.Timestamp.class.getSimpleName());
+        SupportedTypes.TIMESTAMPMILLITZ, ArrowType.Timestamp.class.getSimpleName(),
+        SupportedTypes.TIMESTAMPMICROTZ, ArrowType.Timestamp.class.getSimpleName()
+    );
 
     @Test
     public void testSupportedTypesHaveSerializers()
