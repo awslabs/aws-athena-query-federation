@@ -363,12 +363,8 @@ public class DynamoDBMetadataHandlerTest
         ImmutableMap<String, AttributeValue> expressionValues = ImmutableMap.of(":v0", ItemUtils.toAttributeValue(startTime), ":v1", ItemUtils.toAttributeValue(endTime));
         assertThat(res.getPartitions().getSchema().getCustomMetadata().get(EXPRESSION_VALUES_METADATA), equalTo(Jackson.toJsonString(expressionValues)));
 
-        // Note that while we were able to fix the inclusive upper and lower bound cases, we cannot fix mixed
-        // inclusion bounds for now.
-        // So this key condition is expected to fail when used against a real DDB instance with:
+        // Tests to validate that we correctly generate predicates that avoid this error:
         //    "KeyConditionExpressions must only contain one condition per key"
-        // However, we still test the mixed cases below to make sure that we don't accidentally generate the BETWEEN version even though
-        // this will cause customer queries with mixed inclusion to fail.
         {
             SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
             timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
@@ -381,7 +377,25 @@ public class DynamoDBMetadataHandlerTest
                 new Constraints(constraintsMap),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 >= :v0 AND #col_5 < :v1)"));
+            // Verify that only the upper bound is present
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 < :v0)"));
+        }
+
+        // For the same filters that we applied above, validate that we still get two conditions for non sort keys
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+                true /* inclusive lowerbound */, endTime, false /* exclusive upperbound */));
+            constraintsMap.put("col_6", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            // Verify that both bounds are present for col_6 which is not a sort key
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 < :v1 AND #col_6 >= :v2)"));
         }
 
         {
@@ -396,8 +410,27 @@ public class DynamoDBMetadataHandlerTest
                 new Constraints(constraintsMap),
                 SchemaBuilder.newBuilder().build(),
                 Collections.EMPTY_SET));
-            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 > :v0 AND #col_5 <= :v1)"));
+            // Verify that only the upper bound is present
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(RANGE_KEY_FILTER_METADATA), equalTo("(#col_5 <= :v0)"));
         }
+
+        // For the same filters that we applied above, validate that we still get two conditions for non sort keys
+        {
+            SortedRangeSet.Builder timeValueSet2 = SortedRangeSet.newBuilder(Types.MinorType.DATEMILLI.getType(), false);
+            timeValueSet2.add(Range.range(allocator, Types.MinorType.DATEMILLI.getType(), startTime,
+                false /* exclusive lowerbound */, endTime, true /* inclusive upperbound */));
+            constraintsMap.put("col_6", timeValueSet2.build());
+            GetTableLayoutResponse res2 = handler.doGetTableLayout(allocator, new GetTableLayoutRequest(TEST_IDENTITY,
+                TEST_QUERY_ID,
+                TEST_CATALOG_NAME,
+                TEST_TABLE_NAME,
+                new Constraints(constraintsMap),
+                SchemaBuilder.newBuilder().build(),
+                Collections.EMPTY_SET));
+            // Verify that both bounds are present for col_6 which is not a sort key
+            assertThat(res2.getPartitions().getSchema().getCustomMetadata().get(NON_KEY_FILTER_METADATA), equalTo("(#col_6 <= :v1 AND #col_6 > :v2)"));
+        }
+
         // -------------------------------------------------------------------------
         // Single bound constraint tests
         {

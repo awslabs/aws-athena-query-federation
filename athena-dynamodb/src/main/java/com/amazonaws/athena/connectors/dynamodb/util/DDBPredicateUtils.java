@@ -217,10 +217,11 @@ public class DDBPredicateUtils
      * @param accumulator the value accumulator to add values to
      * @param valueNameProducer the value name producer to generate value aliases with
      * @param recordMetadata object containing any necessary metadata from the glue table
+     * @param columnIsSortKey whether or not the originalColumnName column is a sort key
      * @return the generated filter expression
      */
     public static String generateSingleColumnFilter(String originalColumnName, ValueSet predicate, List<AttributeValue> accumulator,
-            IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata)
+            IncrementingValueNameProducer valueNameProducer, DDBRecordMetadata recordMetadata, boolean columnIsSortKey)
     {
         String columnName = aliasColumn(originalColumnName);
 
@@ -244,6 +245,8 @@ public class DDBPredicateUtils
                 }
                 validateColumnRange(range);
                 List<String> rangeConjuncts = new ArrayList<>();
+                // DDB Only supports one condition per sort key, so here we attempt to combine the situations wherever we
+                // have both inclusive upper and lower bounds (BETWEEN).
                 if (range.getLow().getBound().equals(Marker.Bound.EXACTLY) && range.getHigh().getBound().equals(Marker.Bound.EXACTLY)) {
                     String startBetweenPredicate = toPredicate(originalColumnName, "BETWEEN", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata);
                     String endBetweenPredicate = valueNameProducer.getNext();
@@ -252,23 +255,36 @@ public class DDBPredicateUtils
                     rangeConjuncts.add(endBetweenPredicate);
                 }
                 else {
-                    if (!range.getLow().isLowerUnbounded()) {
+                    // Otherwise in this situation, since we still want to
+                    // push down, we will just push down one of the bounds
+                    // here if it is a sort key.
+                    // We will prioritize upper bounds because they should
+                    // theoretically result in fewer matches vs lower bounds.
+                    boolean upperBoundConditionAdded = false;
+                    if (!range.getHigh().isUpperUnbounded()) {
+                        switch (range.getHigh().getBound()) {
+                            case EXACTLY:
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                upperBoundConditionAdded = true;
+                                break;
+                            case BELOW:
+                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
+                                upperBoundConditionAdded = true;
+                                break;
+                        }
+                    }
+                    // We can always add the lower bound if the column is not
+                    // a sort key.
+                    // But if it is a sort key, then we can only add it if we
+                    // have not already added the upper bound.
+                    boolean canAddLowerBound = (!columnIsSortKey || !upperBoundConditionAdded);
+                    if (canAddLowerBound && !range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
                                 rangeConjuncts.add(toPredicate(originalColumnName, ">", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                             case EXACTLY:
                                 rangeConjuncts.add(toPredicate(originalColumnName, ">=", range.getLow().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                                break;
-                        }
-                    }
-                    if (!range.getHigh().isUpperUnbounded()) {
-                        switch (range.getHigh().getBound()) {
-                            case EXACTLY:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<=", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
-                                break;
-                            case BELOW:
-                                rangeConjuncts.add(toPredicate(originalColumnName, "<", range.getHigh().getValue(), accumulator, valueNameProducer.getNext(), recordMetadata));
                                 break;
                         }
                     }
@@ -337,7 +353,7 @@ public class DDBPredicateUtils
         for (Map.Entry<String, ValueSet> predicate : predicates.entrySet()) {
             String columnName = predicate.getKey();
             if (!columnsToIgnore.contains(columnName)) {
-                builder.add(generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata));
+                builder.add(generateSingleColumnFilter(columnName, predicate.getValue(), accumulator, valueNameProducer, recordMetadata, false));
             }
         }
         ImmutableList<String> filters = builder.build();
