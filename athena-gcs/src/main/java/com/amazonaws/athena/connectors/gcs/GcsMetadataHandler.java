@@ -48,6 +48,7 @@ import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.VisibleForTesting;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +64,7 @@ import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
+import static com.amazonaws.athena.connectors.gcs.GcsConstants.FILE_FORMAT;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.STORAGE_SPLIT_JSON;
@@ -251,8 +253,12 @@ public class GcsMetadataHandler
             LOGGER.info("MetadataHandler=GcsMetadataHandler|Method=doGetSplits|Message=StorageSplit JSON\n{}",
                     storageSplitJson);
             Split.Builder splitBuilder = Split.newBuilder(spillLocation, makeEncryptionKey())
-                    .add(CLASSIFICATION_GLUE_TABLE_PARAM, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
+                    .add(FILE_FORMAT, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
                     .add(STORAGE_SPLIT_JSON, storageSplitJson);
+
+            for (FieldVector fieldVector : partitions.getFieldVectors()) {
+                splitBuilder.add(fieldVector.getName(), fieldVector.getReader().readObject().toString());
+            }
             splits.add(splitBuilder.build());
 
             if (splits.size() >= GcsConstants.MAX_SPLITS_PER_REQUEST) {
