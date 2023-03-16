@@ -390,4 +390,24 @@ public class DateTimeFormatterUtil
 
         return holder;
     }
+
+    public static org.apache.arrow.vector.holders.TimeStampMicroTZHolder timestampMicroTzHolderFromObject(Object value)
+    {
+        if (packTimezone) {
+            throw new UnsupportedOperationException("Packing for TimeStampMicroTZ is not currently supported");
+        }
+
+        ZonedDateTime zdt = zonedDateTimeFromObject(value);
+        String zone = zdt.getZone().getId();
+        Instant instant = zdt.toInstant();
+
+        // From: https://stackoverflow.com/a/47869726
+        long epochMicros = java.util.concurrent.TimeUnit.SECONDS.toMicros(instant.getEpochSecond()) +
+            instant.getLong(java.time.temporal.ChronoField.MICRO_OF_SECOND);
+
+        org.apache.arrow.vector.holders.TimeStampMicroTZHolder holder = new org.apache.arrow.vector.holders.TimeStampMicroTZHolder();
+        holder.timezone = zone;
+        holder.value = epochMicros;
+        return holder;
+    }
 }

@@ -33,6 +33,7 @@ import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeStampMicroTZVector;
 import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.UInt1Vector;
@@ -58,6 +59,7 @@ import org.apache.arrow.vector.complex.writer.Float4Writer;
 import org.apache.arrow.vector.complex.writer.Float8Writer;
 import org.apache.arrow.vector.complex.writer.IntWriter;
 import org.apache.arrow.vector.complex.writer.SmallIntWriter;
+import org.apache.arrow.vector.complex.writer.TimeStampMicroTZWriter;
 import org.apache.arrow.vector.complex.writer.TimeStampMilliTZWriter;
 import org.apache.arrow.vector.complex.writer.TinyIntWriter;
 import org.apache.arrow.vector.complex.writer.UInt1Writer;
@@ -251,6 +253,14 @@ public class BlockUtils
                         ((TimeStampMilliTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value));
                     }
                     break;
+                case TIMESTAMPMICROTZ:
+                    if (value instanceof Long) {
+                        ((TimeStampMicroTZVector) vector).setSafe(pos, (long) value);
+                    }
+                    else {
+                        ((TimeStampMicroTZVector) vector).setSafe(pos, DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value));
+                    }
+                    break;
                 case DATEMILLI:
                     if (value instanceof Date) {
                         ((DateMilliVector) vector).setSafe(pos, ((Date) value).getTime());
@@ -436,6 +446,7 @@ public class BlockUtils
         switch (reader.getMinorType()) {
             case DATEDAY:
                 return String.valueOf(reader.readInteger());
+            case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
                 ArrowType.Timestamp actualType = (ArrowType.Timestamp) reader.getField().getType();
                 return String.valueOf(DateTimeFormatterUtil.constructZonedDateTime(reader.readLong(), actualType));
@@ -764,9 +775,8 @@ public class BlockUtils
         ArrowType type = field.getType();
         try {
             switch (Types.getMinorTypeForArrowType(type)) {
-                case TIMESTAMPMILLITZ:
+                case TIMESTAMPMILLITZ: {
                     String timezone =  ((ArrowType.Timestamp) type).getTimezone();
-
                     // Known issue with Lists and Maps of TimeStampMilliTZ. This will throw.
                     TimeStampMilliTZWriter timeStampMilliTZWriter = fromMapOrStruct ? writer.timeStampMilliTZ(field.getName(), timezone) : writer.timeStampMilliTZ();
                     if (value == null) {
@@ -775,6 +785,18 @@ public class BlockUtils
                     }
                     timeStampMilliTZWriter.write(DateTimeFormatterUtil.timestampMilliTzHolderFromObject(value));
                     break;
+                }
+                case TIMESTAMPMICROTZ: {
+                    String timezone = ((ArrowType.Timestamp) type).getTimezone();
+                    // Known issue with Lists and Maps of TimeStampMicroTZ. This will throw.
+                    TimeStampMicroTZWriter timeStampMicroTZWriter = fromMapOrStruct ? writer.timeStampMicroTZ(field.getName(), timezone) : writer.timeStampMicroTZ();
+                    if (value == null) {
+                        timeStampMicroTZWriter.writeNull();
+                        break;
+                    }
+                    timeStampMicroTZWriter.write(DateTimeFormatterUtil.timestampMicroTzHolderFromObject(value));
+                    break;
+                }
                 case DATEMILLI:
                     DateMilliWriter dateMilliWriter = fromMapOrStruct ? writer.dateMilli(field.getName()) : writer.dateMilli();
                     if (value == null) {
@@ -1004,6 +1026,9 @@ public class BlockUtils
     private static void setNullValue(FieldVector vector, int pos)
     {
         switch (vector.getMinorType()) {
+            case TIMESTAMPMICROTZ:
+                ((TimeStampMicroTZVector) vector).setNull(pos);
+                break;
             case TIMESTAMPMILLITZ:
                 ((TimeStampMilliTZVector) vector).setNull(pos);
                 break;
@@ -1072,6 +1097,9 @@ public class BlockUtils
     {
         for (FieldVector vector : block.getFieldVectors()) {
             switch (vector.getMinorType()) {
+                case TIMESTAMPMICROTZ:
+                    ((TimeStampMicroTZVector) vector).setNull(row);
+                    break;
                 case TIMESTAMPMILLITZ:
                     ((TimeStampMilliTZVector) vector).setNull(row);
                     break;
@@ -1151,6 +1179,7 @@ public class BlockUtils
     public static Class getJavaType(Types.MinorType minorType)
     {
         switch (minorType) {
+            case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
                 return ZonedDateTime.class;
             case DATEMILLI:

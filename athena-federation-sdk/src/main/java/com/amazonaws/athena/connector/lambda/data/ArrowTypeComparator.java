@@ -88,6 +88,7 @@ public class ArrowTypeComparator
                 return ((java.time.LocalDateTime) lhs).compareTo((java.time.LocalDateTime) rhs);
             case DATEDAY:
                 return ((Integer) lhs).compareTo((Integer) rhs);
+            case TIMESTAMPMICROTZ:
             case TIMESTAMPMILLITZ:
                 ArrowType.Timestamp actualArrowType = (ArrowType.Timestamp) arrowType;
                 if (lhs instanceof Long) {
