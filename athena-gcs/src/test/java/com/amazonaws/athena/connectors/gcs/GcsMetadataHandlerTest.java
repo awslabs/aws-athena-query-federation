@@ -299,7 +299,7 @@ public class GcsMetadataHandlerTest
     @Test
     public void testDoGetSplits() throws Exception
     {
-        Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000);
+        Block partitions = BlockUtils.newBlock(blockAllocator, "year", Types.MinorType.VARCHAR.getType(), 2000, 2001);
         GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
                 QUERY_ID, CATALOG, TABLE_NAME,
                 partitions, com.google.common.collect.ImmutableList.of("year"), new Constraints(new HashMap<>()), null);
@@ -319,5 +319,7 @@ public class GcsMetadataHandlerTest
         when(table.getPartitionKeys()).thenReturn(columns);
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
         assertNotNull(response);
+        assertEquals(2, response.getSplits().size());
+        assertNotNull(response.getSplits().stream().findFirst().get().getProperty("year"));
     }
 }
