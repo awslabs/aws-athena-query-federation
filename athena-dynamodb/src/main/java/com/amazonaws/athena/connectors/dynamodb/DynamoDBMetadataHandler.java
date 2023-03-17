@@ -300,7 +300,7 @@ public class DynamoDBMetadataHandler
             if (rangeKey.isPresent()) {
                 String rangeKeyName = rangeKey.get();
                 if (summary.containsKey(rangeKeyName)) {
-                    String rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata);
+                    String rangeKeyFilter = DDBPredicateUtils.generateSingleColumnFilter(rangeKeyName, summary.get(rangeKeyName), valueAccumulator, valueNameProducer, recordMetadata, true);
                     partitionSchemaBuilder.addMetadata(RANGE_KEY_NAME_METADATA, rangeKeyName);
                     partitionSchemaBuilder.addMetadata(RANGE_KEY_FILTER_METADATA, rangeKeyFilter);
                     columnsToIgnore.add(rangeKeyName);
