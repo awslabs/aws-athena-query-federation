@@ -256,7 +256,9 @@ public class GcsMetadataHandler
                     .add(FILE_FORMAT, table.getParameters().get(CLASSIFICATION_GLUE_TABLE_PARAM))
                     .add(STORAGE_SPLIT_JSON, storageSplitJson);
 
+            // set partition column name and value in split
             for (FieldVector fieldVector : partitions.getFieldVectors()) {
+                fieldVector.getReader().setPosition(curPartition);
                 splitBuilder.add(fieldVector.getName(), fieldVector.getReader().readObject().toString());
             }
             splits.add(splitBuilder.build());
