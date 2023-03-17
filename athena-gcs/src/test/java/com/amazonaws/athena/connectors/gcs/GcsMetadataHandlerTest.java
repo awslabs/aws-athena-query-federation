@@ -60,6 +60,7 @@ import com.google.cloud.PageImpl;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -84,6 +85,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.CLASSIFICATION_GLUE_TABLE_PARAM;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.PARTITION_PATTERN_KEY;
@@ -317,7 +319,7 @@ public class GcsMetadataHandlerTest
         when(table.getPartitionKeys()).thenReturn(columns);
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
         assertEquals(2, response.getSplits().size());
-        assertEquals(2, response.getSplits().stream().map(split -> split.getProperties().get("year")).count());
+        assertEquals(ImmutableList.of("2000", "2001"), response.getSplits().stream().map(split -> split.getProperties().get("year")).sorted().collect(Collectors.toList()));
     }
 
     @Test
@@ -330,7 +332,7 @@ public class GcsMetadataHandlerTest
         BlockAllocatorImpl allocator = new BlockAllocatorImpl();
         Block partitions = allocator.createBlock(schema);
 
-        int num_partitions = 10;
+        int num_partitions = 4;
         for (int i = 0; i < num_partitions; i++) {
             BlockUtils.setValue(partitions.getFieldVector("yearCol"), i, 2016 + i);
             BlockUtils.setValue(partitions.getFieldVector("monthCol"), i, (i % 12) + 1);
@@ -355,7 +357,8 @@ public class GcsMetadataHandlerTest
         );
         when(table.getPartitionKeys()).thenReturn(columns);
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
-        assertEquals(10, response.getSplits().size());
-        assertEquals(10, response.getSplits().stream().map(split -> split.getProperties().get("year")).count());
+        assertEquals(4, response.getSplits().size());
+        assertEquals(ImmutableList.of("2016", "2017", "2018", "2019"), response.getSplits().stream().map(split -> split.getProperties().get("yearCol")).sorted().collect(Collectors.toList()));
+        assertEquals(ImmutableList.of("1", "2", "3", "4"), response.getSplits().stream().map(split -> split.getProperties().get("monthCol")).sorted().collect(Collectors.toList()));
     }
 }
