@@ -67,7 +67,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatchers;
@@ -94,7 +93,6 @@ import static com.amazonaws.athena.connectors.gcs.filter.FilterExpressionBuilder
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -318,8 +316,46 @@ public class GcsMetadataHandlerTest
         );
         when(table.getPartitionKeys()).thenReturn(columns);
         GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
-        assertNotNull(response);
         assertEquals(2, response.getSplits().size());
-        assertNotNull(response.getSplits().stream().findFirst().get().getProperty("year"));
+        assertEquals(2, response.getSplits().stream().map(split -> split.getProperties().get("year")).count());
+    }
+
+    @Test
+    public void testDoGetSplitsProperty() throws Exception
+    {
+        Schema schema = SchemaBuilder.newBuilder()
+                .addStringField("yearCol")
+                .addStringField("monthCol")
+                .build();
+        BlockAllocatorImpl allocator = new BlockAllocatorImpl();
+        Block partitions = allocator.createBlock(schema);
+
+        int num_partitions = 10;
+        for (int i = 0; i < num_partitions; i++) {
+            BlockUtils.setValue(partitions.getFieldVector("yearCol"), i, 2016 + i);
+            BlockUtils.setValue(partitions.getFieldVector("monthCol"), i, (i % 12) + 1);
+        }
+        partitions.setRowCount(num_partitions);
+        GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
+                QUERY_ID, CATALOG, TABLE_NAME,
+                partitions, com.google.common.collect.ImmutableList.of("yearCol", "monthCol"), new Constraints(new HashMap<>()), null);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+        GetTableResult getTableResult = mock(GetTableResult.class);
+        StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
+        when(storageDescriptor.getLocation()).thenReturn(LOCATION);
+        Table table = mock(Table.class);
+        when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${yearCol}/month${monthCol}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(awsGlue.getTable(any())).thenReturn(getTableResult);
+        when(getTableResult.getTable()).thenReturn(table);
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
+                createColumn("yearCol", "varchar"),
+                createColumn("monthCol", "varchar")
+        );
+        when(table.getPartitionKeys()).thenReturn(columns);
+        GetSplitsResponse response = gcsMetadataHandler.doGetSplits(blockAllocator, request);
+        assertEquals(10, response.getSplits().size());
+        assertEquals(10, response.getSplits().stream().map(split -> split.getProperties().get("year")).count());
     }
 }
