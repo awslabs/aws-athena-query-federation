@@ -110,11 +110,6 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 public class GcsMetadataHandlerTest
 {
     public static final String PARQUET = "parquet";
-    private static final String QUERY_ID = "queryId";
-    private static final String CATALOG = "catalog";
-    private static final String TEST_TOKEN = "testToken";
-    private static final String SCHEMA_NAME = "default";
-    private static final TableName TABLE_NAME = new TableName("default", "testtable");
     public static final String LOCATION = "gs://mydatalake1test/birthday/";
     public static final String TABLE_1 = "testtable1";
     public static final String TABLE_2 = "testtable2";
@@ -122,6 +117,11 @@ public class GcsMetadataHandlerTest
     public static final String DATABASE_NAME = "mydatalake1";
     public static final String S3_GOOGLE_CLOUD_STORAGE_FLAG = "s3://google-cloud-storage-flag";
     public static final String DATABASE_NAME1 = "s3database";
+    private static final String QUERY_ID = "queryId";
+    private static final String CATALOG = "catalog";
+    private static final String TEST_TOKEN = "testToken";
+    private static final String SCHEMA_NAME = "default";
+    private static final TableName TABLE_NAME = new TableName("default", "testtable");
     @Mock
     protected PageImpl<Blob> tables;
     @Mock
@@ -360,5 +360,29 @@ public class GcsMetadataHandlerTest
         assertEquals(4, response.getSplits().size());
         assertEquals(ImmutableList.of("2016", "2017", "2018", "2019"), response.getSplits().stream().map(split -> split.getProperties().get("yearCol")).sorted().collect(Collectors.toList()));
         assertEquals(ImmutableList.of("1", "2", "3", "4"), response.getSplits().stream().map(split -> split.getProperties().get("monthCol")).sorted().collect(Collectors.toList()));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public void testDoGetSplitsException() throws Exception
+    {
+        Block partitions = BlockUtils.newBlock(blockAllocator, "gcs_file_format", Types.MinorType.VARCHAR.getType(), 2000, 2001);
+        GetSplitsRequest request = new GetSplitsRequest(federatedIdentity,
+                QUERY_ID, CATALOG, TABLE_NAME,
+                partitions, com.google.common.collect.ImmutableList.of("gcs_file_format"), new Constraints(new HashMap<>()), null);
+        QueryStatusChecker queryStatusChecker = mock(QueryStatusChecker.class);
+        when(queryStatusChecker.isQueryRunning()).thenReturn(true);
+        GetTableResult getTableResult = mock(GetTableResult.class);
+        StorageDescriptor storageDescriptor = mock(StorageDescriptor.class);
+        when(storageDescriptor.getLocation()).thenReturn(LOCATION);
+        Table table = mock(Table.class);
+        when(table.getStorageDescriptor()).thenReturn(storageDescriptor);
+        when(table.getParameters()).thenReturn(com.google.common.collect.ImmutableMap.of(PARTITION_PATTERN_KEY, "year=${gcs_file_format}/", CLASSIFICATION_GLUE_TABLE_PARAM, PARQUET));
+        when(awsGlue.getTable(any())).thenReturn(getTableResult);
+        when(getTableResult.getTable()).thenReturn(table);
+        List<Column> columns = com.google.common.collect.ImmutableList.of(
+                createColumn("gcs_file_format", "varchar")
+        );
+        when(table.getPartitionKeys()).thenReturn(columns);
+        gcsMetadataHandler.doGetSplits(blockAllocator, request);
     }
 }

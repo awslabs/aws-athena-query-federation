@@ -259,6 +259,8 @@ public class GcsMetadataHandler
             // set partition column name and value in split
             for (FieldVector fieldVector : partitions.getFieldVectors()) {
                 fieldVector.getReader().setPosition(curPartition);
+                if (fieldVector.getName().equalsIgnoreCase(FILE_FORMAT) || fieldVector.getName().equalsIgnoreCase(STORAGE_SPLIT_JSON))
+                    throw new RuntimeException("column name is same as metadata");
                 splitBuilder.add(fieldVector.getName(), fieldVector.getReader().readObject().toString());
             }
             splits.add(splitBuilder.build());
