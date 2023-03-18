@@ -19,6 +19,8 @@
  */
 package com.amazonaws.athena.connector.lambda.data;
 
+import org.apache.arrow.vector.holders.TimeStampMilliTZHolder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,6 +51,10 @@ public class DateTimeFormatterUtilTest {
     @Before
     public void setUp() {
         logger.info("{}: enter", testName.getMethodName());
+        // re-enable for each test because that is the default behavior
+        // We will selectively disable in parts of tests that we
+        // want to test the disabled behavior.
+        DateTimeFormatterUtil.enableTimezonePacking();
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
@@ -136,13 +142,23 @@ public class DateTimeFormatterUtilTest {
     }
 
     @Test
-    public void packDateTimeWithZoneTest() {
+    public void timestampMilliTzHolderFromObject() {
+        ArrowType.Timestamp arrowType = new ArrowType.Timestamp(org.apache.arrow.vector.types.TimeUnit.MILLISECOND, "-05:00");
+        long expectedPackedLong = 5942221840384541L;
         LocalDateTime localDateTimeExpected = LocalDateTime.of(2015, 12, 21, 17, 42, 34, 0);
         ZoneId zoneIdExpected = ZoneId.of("-05:00");
-        long expectedLong = 5942221840384541L;
         ZonedDateTime expectedZdt = ZonedDateTime.of(localDateTimeExpected, zoneIdExpected);
-        assertEquals(expectedLong, DateTimeFormatterUtil.packDateTimeWithZone(expectedZdt));
-        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedLong));
+        long expectedUnpackedLong = expectedZdt.toInstant().toEpochMilli();
 
+        assertEquals(expectedPackedLong, DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt).value);
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedPackedLong, arrowType));
+
+        // Now disable packing and test again
+        DateTimeFormatterUtil.disableTimezonePacking();
+        TimeStampMilliTZHolder holder = DateTimeFormatterUtil.timestampMilliTzHolderFromObject(expectedZdt);
+        assertEquals(expectedUnpackedLong, holder.value);
+        assertEquals("-05:00", holder.timezone);
+        assertNotEquals(expectedPackedLong, holder.value);
+        assertEquals(expectedZdt, DateTimeFormatterUtil.constructZonedDateTime(expectedUnpackedLong, arrowType));
     }
 }
