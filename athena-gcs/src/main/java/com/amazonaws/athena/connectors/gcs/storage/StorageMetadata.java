@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connectors.gcs.storage;
 
+import com.amazonaws.athena.connector.lambda.data.ArrowSchemaUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
@@ -43,7 +44,6 @@ import org.apache.arrow.util.VisibleForTesting;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -236,8 +236,10 @@ public class StorageMetadata
                 field = Field.nullable(field.getName().toLowerCase(), Types.MinorType.VARCHAR.getType());
             }
             else {
-                ArrowType arrowType = getCompatibleFieldType(field.getType());
-                field = new Field(field.getName().toLowerCase(), new FieldType(field.isNullable(), arrowType, field.getDictionary(), field.getMetadata()), field.getChildren());
+                // TODO: Need to check to see if nested field names need to be lowercased since this
+                // method was not taking into account the casing of the struct fieldnames before.
+                Field updatedField = ArrowSchemaUtils.remapArrowTypesWithinField(field, StorageMetadata::getCompatibleFieldType);
+                field = new Field(updatedField.getName().toLowerCase(), updatedField.getFieldType(), updatedField.getChildren());
             }
             schemaBuilder.addField(field);
         }
@@ -246,23 +248,22 @@ public class StorageMetadata
 
     private static ArrowType getCompatibleFieldType(ArrowType arrowType)
     {
-        Types.MinorType fieldType = Types.getMinorTypeForArrowType(arrowType);
-        switch (fieldType) {
-            case TIMESTAMPNANO:
-            case TIMESTAMPSEC:
-            case TIMESTAMPMILLI:
-            case TIMEMICRO:
-            case TIMESTAMPMICRO:
-            case TIMENANO:
+        switch (arrowType.getTypeID()) {
+            case Time: {
                 return Types.MinorType.DATEMILLI.getType();
-            case TIMESTAMPMICROTZ:
-                return Types.MinorType.TIMESTAMPMILLITZ.getType();
-            case FIXEDSIZEBINARY:
-            case LARGEVARBINARY:
-                return Types.MinorType.VARCHAR.getType();
-            default:
-                return arrowType;
+            }
+            case Timestamp: {
+                return new ArrowType.Timestamp(
+                    org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
+                    ((ArrowType.Timestamp) arrowType).getTimezone());
+            }
+            // NOTE: Not sure that both of these should go to Utf8,
+            // but just keeping it in-line with how it was before.
+            case FixedSizeBinary:
+            case LargeBinary:
+                return ArrowType.Utf8.INSTANCE;
         }
+        return arrowType;
     }
 
     private static boolean isArrowTypeNull(ArrowType arrowType)

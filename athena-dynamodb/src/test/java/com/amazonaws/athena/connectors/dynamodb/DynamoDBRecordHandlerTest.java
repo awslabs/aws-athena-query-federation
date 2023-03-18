@@ -772,6 +772,6 @@ public class DynamoDBRecordHandlerTest
     private long getPackedDateTimeWithZone(String s)
     {
         ZonedDateTime zdt = ZonedDateTime.parse(s);
-        return DateTimeFormatterUtil.packDateTimeWithZone(zdt);
+        return DateTimeFormatterUtil.timestampMilliTzHolderFromObject(zdt).value;
     }
 }
