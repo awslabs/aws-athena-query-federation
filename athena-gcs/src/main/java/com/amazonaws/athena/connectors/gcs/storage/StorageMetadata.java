@@ -248,19 +248,25 @@ public class StorageMetadata
 
     private static ArrowType getCompatibleFieldType(ArrowType arrowType)
     {
-        switch (arrowType.getTypeID()) {
-            case Time: {
+        Types.MinorType fieldType = Types.getMinorTypeForArrowType(arrowType);
+        switch (fieldType) {
+            case TIMESTAMPNANO:
+            case TIMESTAMPSEC:
+            case TIMESTAMPMILLI:
+            case TIMEMICRO:
+            case TIMESTAMPMICRO:
+            case TIMENANO:
                 return Types.MinorType.DATEMILLI.getType();
-            }
-            case Timestamp: {
+            case TIMESTAMPMILLITZ:
+            case TIMESTAMPMICROTZ: {
                 return new ArrowType.Timestamp(
                     org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
                     ((ArrowType.Timestamp) arrowType).getTimezone());
             }
             // NOTE: Not sure that both of these should go to Utf8,
             // but just keeping it in-line with how it was before.
-            case FixedSizeBinary:
-            case LargeBinary:
+            case FIXEDSIZEBINARY:
+            case LARGEVARBINARY:
                 return ArrowType.Utf8.INSTANCE;
         }
         return arrowType;

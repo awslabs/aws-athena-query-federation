@@ -374,8 +374,7 @@ public class TeradataMetadataHandler extends JdbcMetadataHandler
                                 resultSet.getInt("DECIMAL_DIGITS")));
                     }
                     else {
-                        LOGGER.info("getSchema:columnType is not instance of ArrowType column[" + columnName +
-                                "] to a supported type, attempted " + columnType + " - defaulting type to VARCHAR.");
+                        LOGGER.info("getSchema:columnType is a supported ArrowType. Column: {} ArrowType: {}", columnName, columnType);
                         schemaBuilder.addField(FieldBuilder.newBuilder(columnName, columnType).build());
                     }
                 }
