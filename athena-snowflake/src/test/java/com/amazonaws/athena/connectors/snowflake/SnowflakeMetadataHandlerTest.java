@@ -110,7 +110,7 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(resultSet.getInt(1)).thenReturn(1000000);
+        Mockito.when(resultSet.getLong(1)).thenReturn(1000000L);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
@@ -127,7 +127,7 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
-        Mockito.verify(resultSet, Mockito.times(2)).getInt(1);
+        Mockito.verify(resultSet, Mockito.times(2)).getLong(1);
     }
 
     @Test
@@ -150,7 +150,7 @@ public class SnowflakeMetadataHandlerTest
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
 
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(resultSet.getInt(1)).thenReturn(30000);
+        Mockito.when(resultSet.getLong(1)).thenReturn(30000L);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
 
         Assert.assertEquals(values.length, getTableLayoutResponse.getPartitions().getRowCount());
@@ -169,7 +169,7 @@ public class SnowflakeMetadataHandlerTest
 
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
-        Mockito.verify(resultSet, Mockito.times(1)).getInt(1);
+        Mockito.verify(resultSet, Mockito.times(1)).getLong(1);
     }
 
     @Test
@@ -191,7 +191,7 @@ public class SnowflakeMetadataHandlerTest
         ResultSet resultSet = mockResultSet(columns, types, values, new AtomicInteger(-1));
         Mockito.when(preparedStatement.executeQuery()).thenReturn(resultSet);
         Mockito.when(this.connection.getMetaData().getSearchStringEscape()).thenReturn(null);
-        Mockito.when(resultSet.getInt(1)).thenReturn((int)totalActualRecordCount);
+        Mockito.when(resultSet.getLong(1)).thenReturn((long)totalActualRecordCount);
         GetTableLayoutResponse getTableLayoutResponse = this.snowflakeMetadataHandler.doGetTableLayout(blockAllocator, getTableLayoutRequest);
         List<String> actualValues = new ArrayList<>();
         List<String> expectedValues = new ArrayList<>();
@@ -229,7 +229,7 @@ public class SnowflakeMetadataHandlerTest
         Assert.assertEquals(tableName, getTableLayoutResponse.getTableName());
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(1, tableName.getSchemaName());
         Mockito.verify(preparedStatement, Mockito.times(1)).setString(2, tableName.getTableName());
-        Mockito.verify(resultSet, Mockito.times(1)).getInt(1);
+        Mockito.verify(resultSet, Mockito.times(1)).getLong(1);
     }
 
     @Test(expected = RuntimeException.class)
