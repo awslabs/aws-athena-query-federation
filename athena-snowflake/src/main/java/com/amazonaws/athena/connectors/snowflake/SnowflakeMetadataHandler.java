@@ -184,7 +184,7 @@ public class SnowflakeMetadataHandler extends JdbcMetadataHandler
                          .withQuery(COUNT_RECORDS_QUERY).withParameters(parameters).build();
                  ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
-                    totalRecordCount = rs.getInt(1);
+                    totalRecordCount = rs.getLong(1);
                 }
                 if (totalRecordCount > 0) {
                     // if number of partitions are more than defined limit "MAX_PARTITION_COUNT"
