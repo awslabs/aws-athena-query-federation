@@ -28,4 +28,4 @@ jobs:
           java-version: '11'
       # Target java 8 to ensure that the source is compatible with java 8
       - name: Build with Maven
-        run: mvn -B package -T 2C --file pom.xml -Dmaven.compiler.release=8
+        run: mvn -B clean package -T 2C --file pom.xml -Dmaven.compiler.release=8
