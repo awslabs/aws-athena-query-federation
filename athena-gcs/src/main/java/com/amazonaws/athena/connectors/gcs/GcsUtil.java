@@ -51,7 +51,6 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.Date;
 
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_LOCATION_PREFIX;
 import static com.amazonaws.athena.connectors.gcs.GcsConstants.GCS_SECRET_KEY_ENV_VAR;
@@ -163,22 +162,28 @@ public class GcsUtil
     {
         // Since [...]/gcs/storage/StorageMetadata.java is only mapping these
         // types in the schema, we only have to worry about Time and Timestamp
-        //    case Time: {
-        //        return Types.MinorType.DATEMILLI.getType();
-        //    }
-        //    case Timestamp: {
-        //        return new ArrowType.Timestamp(
-        //            org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
-        //            ((ArrowType.Timestamp) arrowType).getTimezone());
-        //    }
+        //  case TIMESTAMPNANO:
+        //  case TIMESTAMPSEC:
+        //  case TIMESTAMPMILLI:
+        //  case TIMEMICRO:
+        //  case TIMESTAMPMICRO:
+        //  case TIMENANO:
+        //      return Types.MinorType.DATEMILLI.getType();
+        //  case TIMESTAMPMILLITZ:
+        //  case TIMESTAMPMICROTZ: {
+        //      return new ArrowType.Timestamp(
+        //          org.apache.arrow.vector.types.TimeUnit.MILLISECOND,
+        //          ((ArrowType.Timestamp) arrowType).getTimezone());
+        //  }
         ArrowType arrowType = vector.getField().getType();
         switch (arrowType.getTypeID()) {
             case Time: {
                 ArrowType.Time actualType = (ArrowType.Time) arrowType;
                 if (value instanceof Long) {
-                    return Date.from(Instant.EPOCH.plus(
+                    return Instant.EPOCH.plus(
                         (Long) value,
-                        DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(actualType.getUnit())));
+                        DateTimeFormatterUtil.arrowTimeUnitToChronoUnit(actualType.getUnit())
+                    ).atZone(java.time.ZoneId.of("UTC")).toLocalDateTime();
                 }
                 // If its anything other than Long, just let BlockUtils handle it directly.
                 return value;
