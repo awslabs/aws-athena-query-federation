@@ -23,7 +23,7 @@
         <mockito.version>4.11.0</mockito.version>
         <powermock.version>2.0.9</powermock.version>
         <junit.version>4.13.2</junit.version>
-        <jqwik.version>1.7.2</jqwik.version>
+        <jqwik.version>1.7.3</jqwik.version>
         <assertj.version>3.24.2</assertj.version>
         <testng.version>7.7.1</testng.version>
         <fasterxml.jackson.version>2.14.2</fasterxml.jackson.version>
