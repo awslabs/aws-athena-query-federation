@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
+import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorRegistry;
@@ -35,7 +36,6 @@ import org.apache.arrow.vector.ipc.WriteChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
-import org.apache.arrow.vector.types.MetadataVersion;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayInputStream;
@@ -90,7 +90,7 @@ public final class BlockSerDe
                 throws IOException
         {
             try {
-                IpcOption option = new IpcOption(true, MetadataVersion.V4);
+                IpcOption option = AthenaFederationIpcOption.DEFAULT;
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 MessageSerializer.serialize(new WriteChannel(Channels.newChannel(out)), recordBatch, option);
                 return out.toByteArray();
