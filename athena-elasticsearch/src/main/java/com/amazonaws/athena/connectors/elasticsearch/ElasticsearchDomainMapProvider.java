@@ -26,6 +26,8 @@ import com.amazonaws.services.elasticsearch.model.ListDomainNamesRequest;
 import com.amazonaws.services.elasticsearch.model.ListDomainNamesResult;
 import com.google.common.base.Splitter;
 import org.apache.arrow.util.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,6 +47,8 @@ public class ElasticsearchDomainMapProvider
     private static final Splitter.MapSplitter domainSplitter = Splitter.on(",").trimResults().withKeyValueSeparator("=");
 
     private static final String endpointPrefix = "https://";
+
+    private static final Logger logger = LoggerFactory.getLogger(ElasticsearchDomainMapProvider.class);
 
     // Env. variable that indicates whether the service is with Amazon ES Service (true) and thus the domain-
     // names and associated endpoints can be auto-discovered via the AWS ES SDK. Or, the Elasticsearch service
@@ -117,8 +121,10 @@ public class ElasticsearchDomainMapProvider
                         .withDomainNames(domainNames.subList(startDomainNameIndex, endDomainNameIndex));
                 DescribeElasticsearchDomainsResult describeDomainsResult =
                         awsEsClient.describeElasticsearchDomains(describeDomainsRequest);
-                describeDomainsResult.getDomainStatusList().forEach(domainStatus ->
-                        domainMap.put(domainStatus.getDomainName(), endpointPrefix + domainStatus.getEndpoint()));
+                describeDomainsResult.getDomainStatusList().forEach(domainStatus -> {
+                        String domainEndpoint = (domainStatus.getEndpoint() == null) ? domainStatus.getEndpoints().get("vpc") : domainStatus.getEndpoint();
+                        domainMap.put(domainStatus.getDomainName(), endpointPrefix + domainEndpoint);
+                });
                 startDomainNameIndex = endDomainNameIndex;
             }
 
