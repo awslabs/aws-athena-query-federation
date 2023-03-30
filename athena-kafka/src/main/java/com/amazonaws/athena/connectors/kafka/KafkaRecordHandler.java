@@ -210,7 +210,7 @@ public class KafkaRecordHandler
             for (KafkaField field : record.value().getFields()) {
                 boolean isMatched = block.offerValue(field.getName(), rowNum, field.getValue());
                 if (!isMatched) {
-                    LOGGER.debug("[FailedToSpill] {} Failed to split record, offset: {}", splitParameters, record.offset());
+                    LOGGER.debug("[FailedToSpill] {} Failed to spill record, offset: {}", splitParameters, record.offset());
                     return 0;
                 }
             }
