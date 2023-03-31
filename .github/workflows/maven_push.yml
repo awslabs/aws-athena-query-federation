@@ -18,7 +18,7 @@ jobs:
   build:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - name: Set up JDK 11
@@ -28,4 +28,7 @@ jobs:
           java-version: '11'
       # Target java 8 to ensure that the source is compatible with java 8
       - name: Build with Maven
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_REGION: us-east-1
         run: mvn -B clean package -T 1C --file pom.xml -Dmaven.compiler.release=8

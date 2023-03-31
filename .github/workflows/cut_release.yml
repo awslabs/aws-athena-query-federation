@@ -21,6 +21,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       # See: https://stackoverflow.com/a/57969570
       - name: Setup previous release version environment variable
@@ -53,6 +55,7 @@ jobs:
       - name: Create the release bump commit
         run: |
           echo "Cut release $NEW_RELEASE_VERSION" > /tmp/RELEASE_MESSAGE
+          echo >> /tmp/RELEASE_MESSAGE
           git fetch --tag origin
           git log --format='  - %s' $PREVIOUS_RELEASE_TAG..HEAD >> /tmp/RELEASE_MESSAGE
           git commit -a -F /tmp/RELEASE_MESSAGE
