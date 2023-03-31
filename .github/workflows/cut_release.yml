@@ -80,7 +80,11 @@ jobs:
 
           # Copy over the connector jars
           mkdir -p /tmp/java11_connector_jars/
-          find athena-*/ -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_jars/
+          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_jars/
+
+          # Copy over the connector zips
+          mkdir -p /tmp/java11_connector_zips/
+          find athena-*/target/ -name "*.zip" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_zips/
 
       - name: Build Spark DSV2 Java 8 jars
         run: |
@@ -88,7 +92,7 @@ jobs:
 
           # Copy over the java 8 jars
           mkdir -p /tmp/spark_java8_jars/
-          find athena*-dsv2 -name "*.jar" -type f | grep -v "/original-" | xargs -I{} cp {} /tmp/spark_java8_jars/
+          find athena*-dsv2/target -name "*.jar" -type f | grep -v "/original-" | xargs -I{} cp {} /tmp/spark_java8_jars/
           ls /tmp/spark_java8_jars
 
       - name: Create the release on github
@@ -116,6 +120,11 @@ jobs:
           |----------|----|
           $(cd /tmp/java11_connector_jars && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
 
+          Athena Federation Connector Lambda zips
+          |CheckSum|File|
+          |----------|----|
+          $(cd /tmp/java11_connector_zips && ls | xargs -I{} cksum {} | sed 's/\([0-9]\) \([a-zA-Z]\)/\1|\2/g' | sed 's/^/|/g' | sed 's/$/|/g')
+
           Athena Federation Spark DSV2 jars
           |CheckSum|File|
           |----------|----|
@@ -137,5 +146,6 @@ jobs:
           gh release upload "v$NEW_RELEASE_VERSION" \
             $(find /tmp/java11_sdk_jars -type f) \
             $(find /tmp/java11_connector_jars -type f) \
+            $(find /tmp/java11_connector_zips -type f) \
             $(find /tmp/spark_java8_jars -type f) \
             --clobber
