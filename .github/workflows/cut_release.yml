@@ -6,12 +6,11 @@ on:
 jobs:
   cut_release:
     name: Cut a release
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Setup dependencies
         run: |
-          sudo yum -y update
-          sudo yum -y install python3 python3-pip libxml2
+          sudo apt-get install -y libxml2-utils python3
           pip3 install lxml beautifulsoup4
 
       - name: Set up JDK 11
