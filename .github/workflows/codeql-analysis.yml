@@ -29,11 +29,19 @@ jobs:
     permissions:
       security-events: write
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+      # Specify custom java build since the autobuild doesn't take advantage of multiple cores.
+      # For more info on specifying custom build steps, see:
+      # https://docs.github.com/en/enterprise-server@3.6/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-the-codeql-workflow-for-compiled-languages#adding-build-steps-for-a-compiled-language
+      - if: matrix.language == 'java'
+        name: Build java
+        run: mvn clean package -T 1C -DskipTests
+      # Autobuild as a fallback for any compiled languages that we haven't specified custom build steps for
+      - if: matrix.language != 'java'
+        name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
