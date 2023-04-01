@@ -81,7 +81,7 @@ jobs:
 
           # Copy over the connector jars
           mkdir -p /tmp/java11_connector_jars/
-          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | xargs -I{} cp {} /tmp/java11_connector_jars/
+          find athena-*/target -name "*.jar" -type f | grep -v "test" | grep -v "arrow" | grep -v "/original" | grep -v "example" | grep -v "\-sdk-" | grep -v "\-dsv2/" | grep -v "athena-jdbc" | xargs -I{} cp {} /tmp/java11_connector_jars/
 
           # Copy over the connector zips
           mkdir -p /tmp/java11_connector_zips/
