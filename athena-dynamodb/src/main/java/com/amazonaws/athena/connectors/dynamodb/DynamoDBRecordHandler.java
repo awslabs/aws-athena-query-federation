@@ -20,6 +20,7 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.AmazonWebServiceRequest;
+import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -104,7 +105,9 @@ public class DynamoDBRecordHandler
     public DynamoDBRecordHandler(java.util.Map<String, String> configOptions)
     {
         super(sourceType, configOptions);
-        this.ddbClient = AmazonDynamoDBClientBuilder.standard().build();
+        this.ddbClient = AmazonDynamoDBClientBuilder.standard()
+            .withCredentials(CrossAccountCredentialsProvider.getCrossAccountCredentialsIfPresent(configOptions, "DynamoDBRecordHandler_CrossAccountRoleSession"))
+            .build();
         this.invokerCache = CacheBuilder.newBuilder().build(
             new CacheLoader<String, ThrottlingInvoker>() {
                 @Override
