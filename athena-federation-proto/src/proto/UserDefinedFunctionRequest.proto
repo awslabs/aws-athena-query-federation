@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package com.amazonaws.athena.connector.lambda.proto.udf;
+
+import 'FederatedIdentity.proto';
+import 'Block.proto';
+
+option java_multiple_files = true;
+
+enum UserDefinedFunctionType {
+  SCALAR = 0;
+}
+
+message UserDefinedFunctionRequest {
+  optional string type = 1 [json_name="@type"];
+  optional com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity identity = 2;
+  optional com.amazonaws.athena.connector.lambda.proto.data.Block inputRecords = 3;
+  optional bytes outputSchema = 4;
+  optional string methodName = 5;
+  optional UserDefinedFunctionType functionType = 6;
+}

@@ -23,7 +23,6 @@ import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.S3BlockSpiller;
 import com.amazonaws.athena.connector.lambda.data.SpillConfig;
@@ -31,30 +30,21 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.records.RecordRequest;
-import com.amazonaws.athena.connector.lambda.records.RecordRequestType;
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.stream.Collectors;
 
@@ -67,7 +57,6 @@ import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_
  * source. Athena will call readWithConstraint(...) on this class for each 'Split' we generated in MetadataHandler.
  */
 public abstract class RecordHandler
-        implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(RecordHandler.class);
     private static final String MAX_BLOCK_SIZE_BYTES = "MAX_BLOCK_SIZE_BYTES";
@@ -125,33 +114,6 @@ public abstract class RecordHandler
         return secretsManager.getSecret(secretName);
     }
 
-    public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
-            throws IOException
-    {
-        try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-            try (FederationRequest rawReq = objectMapper.readValue(inputStream, FederationRequest.class)) {
-                if (rawReq instanceof PingRequest) {
-                    try (PingResponse response = doPing((PingRequest) rawReq)) {
-                        assertNotNull(response);
-                        objectMapper.writeValue(outputStream, response);
-                    }
-                    return;
-                }
-
-                if (!(rawReq instanceof RecordRequest)) {
-                    throw new RuntimeException("Expected a RecordRequest but found " + rawReq.getClass());
-                }
-
-                doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
-            }
-            catch (Exception ex) {
-                logger.warn("handleRequest: Completed with an exception.", ex);
-                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
-            }
-        }
-    }
-
     // protobuf handler
     protected final void doHandleRequest(BlockAllocator allocator,
             ReadRecordsRequest readRecordsRequest,
@@ -163,28 +125,6 @@ public abstract class RecordHandler
         String jsonOut = JsonFormat.printer().print(response);
         logger.debug("ReadRecordsResponse json - {}", jsonOut);
         outputStream.write(jsonOut.getBytes());
-    }
-
-    @Deprecated
-    protected final void doHandleRequest(BlockAllocator allocator,
-            ObjectMapper objectMapper,
-            RecordRequest req,
-            OutputStream outputStream)
-            throws Exception
-    {
-        logger.info("doHandleRequest: request[{}]", req);
-        RecordRequestType type = req.getRequestType();
-        switch (type) {
-            // case READ_RECORDS:
-            //     try (RecordResponse response = doReadRecords(allocator, (ReadRecordsRequest) req)) {
-            //         logger.info("doHandleRequest: response[{}]", response);
-            //         assertNotNull(response);
-            //         objectMapper.writeValue(outputStream, response);
-            //     }
-            //     return;
-            default:
-                throw new IllegalArgumentException("Unknown request type " + type);
-        }
     }
 
     /**

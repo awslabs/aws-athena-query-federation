@@ -22,18 +22,13 @@ package com.amazonaws.athena.connector.lambda.handlers;
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
-import com.amazonaws.athena.connector.lambda.records.RecordRequest;
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
+import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionRequest;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,41 +95,18 @@ public class CompositeHandler
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
             // TODO: if inputStream can be processed as a protobuf message, call the protobuf handleRequest method instead.
             byte[] allInputBytes = inputStream.readAllBytes();
-            try {
-                String inputJson = new String(allInputBytes, StandardCharsets.UTF_8);
-                logger.warn("Incoming bytes, converted to string: {}", inputJson);
-                TypeHeader.Builder typeHeaderBuilder = TypeHeader.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, typeHeaderBuilder);
-                TypeHeader typeHeader = typeHeaderBuilder.build();
+            String inputJson = new String(allInputBytes, StandardCharsets.UTF_8);
+            logger.warn("Incoming bytes, converted to string: {}", inputJson);
+            TypeHeader.Builder typeHeaderBuilder = TypeHeader.newBuilder();
+            JsonFormat.parser().ignoringUnknownFields().merge(inputJson, typeHeaderBuilder);
+            TypeHeader typeHeader = typeHeaderBuilder.build();
 
-                // in the existing logic, we were attching the Lambda Context variable to the metadata request, which is messy.
-                // For now, I'll stick it in the config options with the fields we care about only.
-                metadataHandler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, context.getInvokedFunctionArn());
+            // in the existing logic, we were attching the Lambda Context variable to the metadata request, which is messy.
+            // For now, I'll stick it in the config options with the fields we care about only.
+            metadataHandler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, context.getInvokedFunctionArn());
 
-                handleRequest(allocator, typeHeader, inputJson, outputStream);
-                return; // if protobuf was successful, stop
-            } 
-            catch (Exception e) {
-                // could not parse as a protobuf message
-                logger.error("Encounted problem reading in json as a protobuf message. Exception is {}. Will try with fallback jackson serde", e);
-            }
-
-            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-            try (FederationRequest rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class)) {
-                if (rawReq instanceof MetadataRequest) {
-                    ((MetadataRequest) rawReq).setContext(context);
-                }
-                handleRequest(allocator, rawReq, outputStream, objectMapper);
-            }
-            catch (IllegalStateException e) { // if client has not upgraded to our latest, fallback to v2
-                objectMapper = VersionedObjectMapperFactory.create(allocator, 2);
-                rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class);
-            }
-            if (rawReq instanceof MetadataRequest) {
-                ((MetadataRequest) rawReq).setContext(context);
-            }
-            handleRequest(allocator, rawReq, outputStream, objectMapper);
-            rawReq.close();
+            handleRequest(allocator, typeHeader, inputJson, outputStream);
+            return; // if protobuf was successful, stop
         }
         catch (Exception ex) {
             logger.warn("handleRequest: Completed with an exception.", ex);
@@ -174,6 +146,11 @@ public class CompositeHandler
                 JsonFormat.parser().ignoringUnknownFields().merge(inputJson, readRecordsRequestBuilder);
                 recordHandler.doHandleRequest(allocator, readRecordsRequestBuilder.build(), outputStream);
                 return;
+            case "UserDefinedFunctionRequest":
+                UserDefinedFunctionRequest.Builder  userDefinedFunctionRequestBuilder = UserDefinedFunctionRequest.newBuilder();
+                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, userDefinedFunctionRequestBuilder);
+                udfhandler.doHandleRequest(allocator, userDefinedFunctionRequestBuilder.build(), outputStream);
+                return;
             default:
                 metadataHandler.doHandleRequest(allocator, typeHeader, inputJson, outputStream);
                 return;
@@ -182,33 +159,5 @@ public class CompositeHandler
         //     "@GetSplitsRequest", (byte[] in) -> uncheckedWrapper(() -> GetSplitsRequest.parseFrom(in)) 
         // );
         // AbstractMessage msg = parserMap.get(type).apply(inputBytes);
-    }
-
-    /**
-     * Handles routing the request to the appropriate Handler, either MetadataHandler or RecordHandler.
-     *
-     * @param allocator The BlockAllocator to use for Apache Arrow Resources.
-     * @param rawReq The request object itself.
-     * @param outputStream The OutputStream to which all responses should be written.
-     * @param objectMapper The ObjectMapper that can be used for serializing responses.
-     * @throws Exception
-     * @note that PingRequests are routed to the MetadataHandler even though both MetadataHandler and RecordHandler
-     * implemented PingRequest handling.
-     */
-    public final void handleRequest(BlockAllocator allocator, FederationRequest rawReq, OutputStream outputStream, ObjectMapper objectMapper)
-            throws Exception
-    {
-        if (rawReq instanceof MetadataRequest) {
-            metadataHandler.doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
-        }
-        else if (rawReq instanceof RecordRequest) {
-            recordHandler.doHandleRequest(allocator, objectMapper, (RecordRequest) rawReq, outputStream);
-        }
-        else if (udfhandler != null && rawReq instanceof UserDefinedFunctionRequest) {
-            udfhandler.doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawReq, outputStream);
-        }
-        else {
-            throw new IllegalArgumentException("Unknown request class " + rawReq.getClass());
-        }
     }
 }

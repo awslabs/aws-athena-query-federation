@@ -1,5 +1,7 @@
 package com.amazonaws.athena.connector.lambda.handlers;
 
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
+
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -27,10 +29,10 @@ import com.amazonaws.athena.connector.lambda.data.FieldBuilder;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.UnitTestBlockUtils;
 import com.amazonaws.athena.connector.lambda.metadata.ListSchemasRequest;
+import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionRequest;
+import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
-import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -93,7 +95,7 @@ public class UserDefinedFunctionHandlerTest
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Integer.class, "test_scalar_udf", true, Integer.class, Integer.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
-        Block responseBlock = udfResponse.getRecords();
+        Block responseBlock = ProtoUtils.fromProtoBlock(allocator, udfResponse.getRecords());
 
         assertEquals(1, responseBlock.getFieldReaders().size());
         assertEquals(rowCount, responseBlock.getRowCount());
@@ -116,7 +118,7 @@ public class UserDefinedFunctionHandlerTest
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, List.class, "test_list_type", true, List.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
-        Block responseBlock = udfResponse.getRecords();
+        Block responseBlock = ProtoUtils.fromProtoBlock(allocator, udfResponse.getRecords());
 
         assertEquals(1, responseBlock.getFieldReaders().size());
         assertEquals(rowCount, responseBlock.getRowCount());
@@ -139,7 +141,7 @@ public class UserDefinedFunctionHandlerTest
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Map.class, "test_row_type", true, Map.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
-        Block responseBlock = udfResponse.getRecords();
+        Block responseBlock = ProtoUtils.fromProtoBlock(allocator, udfResponse.getRecords());
 
         assertEquals(1, responseBlock.getFieldReaders().size());
         assertEquals(rowCount, responseBlock.getRowCount());
@@ -169,7 +171,7 @@ public class UserDefinedFunctionHandlerTest
         UserDefinedFunctionRequest udfRequest = createUDFRequest(rowCount, Boolean.class, "test_scalar_function_with_null_value", false, Integer.class);
 
         UserDefinedFunctionResponse udfResponse = handler.processFunction(allocator, udfRequest);
-        Block responseBlock = udfResponse.getRecords();
+        Block responseBlock = ProtoUtils.fromProtoBlock(allocator, udfResponse.getRecords());
 
         assertEquals(1, responseBlock.getFieldReaders().size());
         assertEquals(rowCount, responseBlock.getRowCount());
@@ -182,29 +184,6 @@ public class UserDefinedFunctionHandlerTest
             Boolean expected = handler.test_scalar_function_with_null_value(null);
             Boolean actual = fieldReader.readBoolean();
             assertEquals(expected, actual);
-        }
-    }
-
-    @Test
-    public void testRequestTypeValidation()
-            throws Exception
-    {
-        FederationRequest federationRequest = new ListSchemasRequest(null, "dummy_catalog", "dummy_qid");
-
-        ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        objectMapper.writeValue(byteArrayOutputStream, federationRequest);
-        byte[] inputData = byteArrayOutputStream.toByteArray();
-        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(inputData);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        try {
-            handler.handleRequest(byteArrayInputStream, outputStream, null);
-            fail();
-        }
-        catch (Exception e) {
-            assertTrue(e.getMessage().contains("Expected a UserDefinedFunctionRequest but found"));
         }
     }
 
@@ -234,7 +213,13 @@ public class UserDefinedFunctionHandlerTest
             writeData(block, rowCount);
         }
 
-        return new UserDefinedFunctionRequest(null, block, outputSchema, methodName, SCALAR);
+        return UserDefinedFunctionRequest.newBuilder()
+            .setType("UserDefinedFunctionRequest")
+            .setInputRecords(ProtoUtils.toProtoBlock(block))
+            .setOutputSchema(ProtoUtils.toProtoSchemaBytes(outputSchema))
+            .setMethodName(methodName)
+            .setFunctionType(com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionType.SCALAR)
+            .build();
     }
 
     private void writeData(Block block, int numOfRows)

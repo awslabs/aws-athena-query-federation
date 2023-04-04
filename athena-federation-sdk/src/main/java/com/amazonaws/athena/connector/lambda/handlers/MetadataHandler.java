@@ -24,7 +24,6 @@ import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
@@ -37,7 +36,6 @@ import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
 import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -51,23 +49,18 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -75,8 +68,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.UUID;
@@ -98,7 +89,6 @@ import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_
  * you can look at the CloudwatchTableResolver in the athena-cloudwatch module for one potential approach to this challenge.
  */
 public abstract class MetadataHandler
-        implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(MetadataHandler.class);
 
@@ -232,35 +222,6 @@ public abstract class MetadataHandler
                 .build();
     }
 
-    public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
-            throws IOException
-    {
-        try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            byte[] allInputBytes = inputStream.readAllBytes();
-          // behavior before protobuf
-            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-            try (FederationRequest rawReq = objectMapper.readValue(allInputBytes, FederationRequest.class)) {
-                // if (rawReq instanceof PingRequest) {
-                //     try (PingResponse response = doPing((PingRequest) rawReq)) {
-                //         assertNotNull(response);
-                //         objectMapper.writeValue(outputStream, response);
-                //     }
-                //     return;
-                // }
-
-                if (!(rawReq instanceof MetadataRequest)) {
-                    throw new RuntimeException("Expected a MetadataRequest but found " + rawReq.getClass());
-                }
-                ((MetadataRequest) rawReq).setContext(context);
-                doHandleRequest(allocator, objectMapper, (MetadataRequest) rawReq, outputStream);
-            }
-            catch (Exception ex) {
-                logger.warn("handleRequest: Completed with an exception.", ex);
-                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
-            }
-        }
-    }
-
     // for protobuf
     protected final void doHandleRequest(BlockAllocator allocator,
             TypeHeader typeHeader,
@@ -332,28 +293,6 @@ public abstract class MetadataHandler
             default:
               logger.error("Input type {} is not yet supported.", typeHeader.getType()); 
               throw new UnsupportedOperationException("Input type is not yet supported - " + typeHeader.getType());
-        }
-    }
-
-    @Deprecated
-    protected final void doHandleRequest(BlockAllocator allocator,
-            ObjectMapper objectMapper,
-            MetadataRequest req,
-            OutputStream outputStream)
-            throws Exception
-    {
-        logger.info("doHandleRequest: request[{}]", req);
-        MetadataRequestType type = req.getRequestType();
-        switch (type) {
-            case GET_DATASOURCE_CAPABILITIES:
-                try (GetDataSourceCapabilitiesResponse response = doGetDataSourceCapabilities(allocator, (GetDataSourceCapabilitiesRequest) req)) {
-                    logger.info("doHandleRequest: response[{}]", response);
-                    assertNotNull(response);
-                    objectMapper.writeValue(outputStream, response);
-                }
-                return;
-            default:
-                throw new IllegalArgumentException("Unknown request type " + type);
         }
     }
 

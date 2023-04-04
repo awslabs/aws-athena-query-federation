@@ -1,5 +1,4 @@
 package com.amazonaws.athena.connector.lambda.handlers;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -19,10 +18,9 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * limitations under the License.
  * #L%
  */
-
+import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.FieldResolver;
 import com.amazonaws.athena.connector.lambda.data.projectors.ArrowValueProjector;
@@ -46,19 +44,15 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecima
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
-import com.amazonaws.athena.connector.lambda.request.FederationRequest;
+import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionRequest;
+import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
-import com.amazonaws.athena.connector.lambda.serde.VersionedObjectMapperFactory;
-import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionRequest;
-import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionResponse;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
-import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.protobuf.util.JsonFormat;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -76,7 +70,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -96,7 +89,6 @@ import static com.google.common.base.Preconditions.checkState;
  * Athena UDF users are expected to extend this class to create UDFs.
  */
 public abstract class UserDefinedFunctionHandler
-        implements RequestStreamHandler
 {
     private static final Logger logger = LoggerFactory.getLogger(UserDefinedFunctionHandler.class);
 
@@ -109,52 +101,23 @@ public abstract class UserDefinedFunctionHandler
         this.sourceType = sourceType;
     }
 
-    @Override
-    public final void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
-    {
-        try (BlockAllocator allocator = new BlockAllocatorImpl()) {
-            ObjectMapper objectMapper = VersionedObjectMapperFactory.create(allocator);
-            try (FederationRequest rawRequest = objectMapper.readValue(inputStream, FederationRequest.class)) {
-                if (rawRequest instanceof PingRequest) {
-                    try (PingResponse response = doPing((PingRequest) rawRequest)) {
-                        assertNotNull(response);
-                        objectMapper.writeValue(outputStream, response);
-                    }
-                    return;
-                }
-
-                if (!(rawRequest instanceof UserDefinedFunctionRequest)) {
-                    throw new RuntimeException("Expected a UserDefinedFunctionRequest but found "
-                            + rawRequest.getClass());
-                }
-
-                doHandleRequest(allocator, objectMapper, (UserDefinedFunctionRequest) rawRequest, outputStream);
-            }
-            catch (Exception ex) {
-                throw (ex instanceof RuntimeException) ? (RuntimeException) ex : new RuntimeException(ex);
-            }
-        }
-    }
-
-    protected final void doHandleRequest(BlockAllocator allocator,
-            ObjectMapper objectMapper,
+    // protobuf
+    public final void doHandleRequest(BlockAllocator allocator,
             UserDefinedFunctionRequest req,
             OutputStream outputStream)
-            throws Exception
+    throws Exception
     {
         logger.info("doHandleRequest: request[{}]", req);
-        try (UserDefinedFunctionResponse response = processFunction(allocator, req)) {
-            logger.info("doHandleRequest: response[{}]", response);
-            assertNotNull(response);
-            objectMapper.writeValue(outputStream, response);
-        }
+        UserDefinedFunctionResponse response = processFunction(allocator, req);
+        String jsonOut = JsonFormat.printer().print(response);
+        outputStream.write(jsonOut.getBytes());
     }
 
     @VisibleForTesting
-    UserDefinedFunctionResponse processFunction(BlockAllocator allocator, UserDefinedFunctionRequest req)
+    public UserDefinedFunctionResponse processFunction(BlockAllocator allocator, UserDefinedFunctionRequest req)
             throws Exception
     {
-        UserDefinedFunctionType functionType = req.getFunctionType();
+        UserDefinedFunctionType functionType = UserDefinedFunctionType.valueOf(req.getFunctionType().name());
         switch (functionType) {
             case SCALAR:
                 return processScalarFunction(allocator, req);
@@ -166,12 +129,16 @@ public abstract class UserDefinedFunctionHandler
     private UserDefinedFunctionResponse processScalarFunction(BlockAllocator allocator, UserDefinedFunctionRequest req)
             throws Exception
     {
-        Method udfMethod = extractScalarFunctionMethod(req);
-        Block inputRecords = req.getInputRecords();
-        Schema outputSchema = req.getOutputSchema();
+        Method udfMethod = extractScalarFunctionMethod(allocator, req);
+        Block inputRecords = ProtoUtils.fromProtoBlock(allocator, req.getInputRecords());
+        Schema outputSchema = ProtoUtils.fromProtoSchema(allocator, req.getOutputSchema());
 
         Block outputRecords = processRows(allocator, udfMethod, inputRecords, outputSchema);
-        return new UserDefinedFunctionResponse(outputRecords, udfMethod.getName());
+        return UserDefinedFunctionResponse.newBuilder()
+            .setType("UserDefinedFunctionResponse")
+            .setRecords(ProtoUtils.toProtoBlock(outputRecords))
+            .setMethodName(udfMethod.getName())
+            .build();
     }
 
     /**
@@ -232,11 +199,11 @@ public abstract class UserDefinedFunctionHandler
      * @param req UDF request
      * @return java method matching the UDF defined in Athena query.
      */
-    private Method extractScalarFunctionMethod(UserDefinedFunctionRequest req)
+    private Method extractScalarFunctionMethod(BlockAllocator allocator, UserDefinedFunctionRequest req)
     {
         String methodName = req.getMethodName();
-        Class[] argumentTypes = extractJavaTypes(req.getInputRecords().getSchema());
-        Class[] returnTypes = extractJavaTypes(req.getOutputSchema());
+        Class[] argumentTypes = extractJavaTypes(ProtoUtils.fromProtoSchema(allocator, req.getInputRecords().getSchema()));
+        Class[] returnTypes = extractJavaTypes(ProtoUtils.fromProtoSchema(allocator, req.getOutputSchema()));
         checkState(returnTypes.length == RETURN_COLUMN_COUNT,
                 String.format("Expecting %d return columns, found %d in method signature.",
                         RETURN_COLUMN_COUNT, returnTypes.length));
