@@ -87,6 +87,11 @@
                             <pattern>com.amazonaws.util.json</pattern>
                             <shadedPattern>athena.com.amazonaws.util.json</shadedPattern>
                         </relocation>
+                        <!-- Some Spark distributions use a conflicting version of the Athena Federation SDK so relocate ours to not conflict -->
+                        <relocation>
+                            <pattern>com.amazonaws.athena.connector.lambda</pattern>
+                            <shadedPattern>com.amazonaws.athena.connector.dsv2</shadedPattern>
+                        </relocation>
                     </relocations>
                 </configuration>
                 <dependencies>
