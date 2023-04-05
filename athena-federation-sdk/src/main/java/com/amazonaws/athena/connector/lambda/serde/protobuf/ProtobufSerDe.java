@@ -38,6 +38,10 @@ public class ProtobufSerDe
     }
     public static final JsonFormat.Printer PROTOBUF_JSON_PRINTER = JsonFormat.printer().includingDefaultValueFields();
     public static final JsonFormat.Parser PROTOBUF_JSON_PARSER = JsonFormat.parser().ignoringUnknownFields();
+
+    // find a better place for these later, but these are constants from the *Request and *Response objects that we want to preserve.
+    public static final int UNLIMITED_PAGE_SIZE_VALUE = -1;
+
     private static final Logger logger = LoggerFactory.getLogger(ProtobufSerDe.class);
     
     public static Message buildFromJson(String inputJson, Message.Builder builder) throws InvalidProtocolBufferException

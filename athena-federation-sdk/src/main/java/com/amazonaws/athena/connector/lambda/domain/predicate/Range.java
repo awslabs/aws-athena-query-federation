@@ -21,8 +21,6 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.beans.Transient;
@@ -40,10 +38,9 @@ public class Range
     private final Marker low;
     private final Marker high;
 
-    @JsonCreator
     public Range(
-            @JsonProperty("low") Marker low,
-            @JsonProperty("high") Marker high)
+            Marker low,
+            Marker high)
     {
         requireNonNull(low, "low value is null");
         requireNonNull(high, "high value is null");
@@ -106,13 +103,11 @@ public class Range
         return low.getType();
     }
 
-    @JsonProperty
     public Marker getLow()
     {
         return low;
     }
 
-    @JsonProperty
     public Marker getHigh()
     {
         return high;

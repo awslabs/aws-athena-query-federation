@@ -43,11 +43,10 @@ import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecima
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarBinaryHolder;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableVarCharHolder;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintProjector;
+import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
+import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionRequest;
 import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionResponse;
-import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
@@ -245,7 +244,13 @@ public abstract class UserDefinedFunctionHandler
 
     private final PingResponse doPing(PingRequest request)
     {
-        PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES, SERDE_VERSION);
+        PingResponse response = PingResponse.newBuilder()
+            .setCatalogName(request.getCatalogName())
+            .setQueryId(request.getQueryId())
+            .setSourceType(sourceType)
+            .setCapabilities(CAPABILITIES)
+            .setSerDeVersion(SERDE_VERSION)
+            .build();
         try {
             onPing(request);
         }
@@ -258,13 +263,6 @@ public abstract class UserDefinedFunctionHandler
     protected void onPing(PingRequest request)
     {
         //NoOp
-    }
-
-    private void assertNotNull(FederationResponse response)
-    {
-        if (response == null) {
-            throw new RuntimeException("Response was null");
-        }
     }
 
     private GeneratedRowWriter createOutputRowWriter(Field outputField, List<ArrowValueProjector> valueProjectors, Method udfMethod)

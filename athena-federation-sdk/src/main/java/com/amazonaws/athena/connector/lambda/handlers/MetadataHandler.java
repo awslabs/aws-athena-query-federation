@@ -29,12 +29,9 @@ import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.data.SimpleBlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SupportedTypes;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -48,18 +45,17 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
-import com.amazonaws.athena.connector.lambda.request.FederationResponse;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufUtils;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
 import org.apache.arrow.vector.types.Types;
@@ -119,7 +115,6 @@ public abstract class MetadataHandler
     private final String spillBucket;
     private final String spillPrefix;
     private final String sourceType;
-    private final SpillLocationVerifier verifier;
 
     /**
      * When MetadataHandler is used as a Lambda, the "Main" class will pass in System.getenv() as the configOptions.
@@ -145,7 +140,6 @@ public abstract class MetadataHandler
 
         this.secretsManager = new CachableSecretsManager(AWSSecretsManagerClientBuilder.defaultClient());
         this.athena = AmazonAthenaClientBuilder.defaultClient();
-        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
@@ -168,7 +162,6 @@ public abstract class MetadataHandler
         this.sourceType = sourceType;
         this.spillBucket = spillBucket;
         this.spillPrefix = spillPrefix;
-        this.verifier = new SpillLocationVerifier(AmazonS3ClientBuilder.standard().build());
         this.athenaInvoker = ThrottlingInvoker.newDefaultBuilder(ATHENA_EXCEPTION_FILTER, configOptions).build();
     }
 
@@ -197,33 +190,21 @@ public abstract class MetadataHandler
         return (encryptionKeyFactory != null) ? encryptionKeyFactory.create() : null;
     }
 
-    protected SpillLocation makeSpillLocation(String queryId)
-    {
-        return S3SpillLocation.newBuilder()
-                .withBucket(spillBucket)
-                .withPrefix(spillPrefix)
-                .withQueryId(queryId)
-                .withSplitId(UUID.randomUUID().toString())
-                .build();
-    }
-
-    /**
+        /**
      * Used to make a spill location for a split. Each split should have a unique spill location, so be sure
      * to call this method once per split!
-     * @param request 
+     * @param queryId 
      * @return A unique spill location.
      */
-    protected SpillLocation makeSpillLocation(MetadataRequest request)
+    protected SpillLocation makeSpillLocation(String queryId)
     {
-        return S3SpillLocation.newBuilder()
-                .withBucket(spillBucket)
-                .withPrefix(spillPrefix)
-                .withQueryId(request.getQueryId())
-                .withSplitId(UUID.randomUUID().toString())
+        return SpillLocation.newBuilder()
+                .setBucket(spillBucket)
+                .setKey(ProtobufUtils.buildS3SpillLocationKey(spillPrefix, queryId, UUID.randomUUID().toString()))
+                .setDirectory(true) // this is true because our key is a nested path
                 .build();
     }
 
-    // for protobuf
     protected final void doHandleRequest(BlockAllocator allocator,
             TypeHeader typeHeader,
             String inputJson,
@@ -476,18 +457,6 @@ public abstract class MetadataHandler
     public void onPing(PingRequest request)
     {
         //NoOp
-    }
-
-    /**
-     * Helper function that is used to ensure we always have a non-null response.
-     *
-     * @param response The response to assert is not null.
-     */
-    private void assertNotNull(FederationResponse response)
-    {
-        if (response == null) {
-            throw new RuntimeException("Response was null");
-        }
     }
 
     /**

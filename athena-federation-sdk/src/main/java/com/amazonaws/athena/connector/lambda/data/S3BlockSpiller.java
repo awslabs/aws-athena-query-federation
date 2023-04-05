@@ -21,11 +21,10 @@ package com.amazonaws.athena.connector.lambda.data;
  */
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -158,7 +157,7 @@ public class S3BlockSpiller
         this.spillConfig = requireNonNull(spillConfig, "spillConfig was null");
         this.allocator = requireNonNull(allocator, "allocator was null");
         this.schema = requireNonNull(schema, "schema was null");
-        this.blockCrypto = (spillConfig.getEncryptionKey() != null && spillConfig.getEncryptionKey().getNonce().length > 0 && spillConfig.getEncryptionKey().getKey().length > 0) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
+        this.blockCrypto = (spillConfig.getEncryptionKey() != null && spillConfig.getEncryptionKey().getNonce().toByteArray().length > 0 && spillConfig.getEncryptionKey().getKey().toByteArray().length > 0) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
         asyncSpillPool = (spillConfig.getNumSpillThreads() <= 0) ? null : makeAsyncSpillPool(spillConfig);
         this.maxRowsPerCall = maxRowsPerCall;
         this.constraintEvaluator = constraintEvaluator;
@@ -348,7 +347,7 @@ public class S3BlockSpiller
     protected SpillLocation write(Block block)
     {
         try {
-            S3SpillLocation spillLocation = makeSpillLocation();
+            SpillLocation spillLocation = makeSpillLocation();
             EncryptionKey encryptionKey = spillConfig.getEncryptionKey();
 
             logger.info("write: Started encrypting block for write to {}", spillLocation);
@@ -388,7 +387,7 @@ public class S3BlockSpiller
      * @param schema The Schema to use when deserializing the spilled Block.
      * @return The Block stored at the spill location.
      */
-    protected Block read(S3SpillLocation spillLocation, EncryptionKey key, Schema schema)
+    protected Block read(SpillLocation spillLocation, EncryptionKey key, Schema schema)
     {
         try {
             logger.debug("write: Started reading block from S3");
@@ -464,14 +463,14 @@ public class S3BlockSpiller
      * reads while the spiller is still writing. Violating this convention may reduce performance
      * or increase calls to S3.
      */
-    private S3SpillLocation makeSpillLocation()
+    private SpillLocation makeSpillLocation()
     {
-        S3SpillLocation splitSpillLocation = (S3SpillLocation) spillConfig.getSpillLocation();
-        if (!splitSpillLocation.isDirectory()) {
+        SpillLocation splitSpillLocation = spillConfig.getSpillLocation();
+        if (!splitSpillLocation.getDirectory()) {
             throw new RuntimeException("Split's SpillLocation must be a directory because multiple blocks may be spilled.");
         }
         String blockKey = splitSpillLocation.getKey() + "." + spillNumber.getAndIncrement();
-        return new S3SpillLocation(splitSpillLocation.getBucket(), blockKey, false);
+        return SpillLocation.newBuilder().setBucket(splitSpillLocation.getBucket()).setKey(blockKey).setDirectory(false).build();
     }
 
     /**

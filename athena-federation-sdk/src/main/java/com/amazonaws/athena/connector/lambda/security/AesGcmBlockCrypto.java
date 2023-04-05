@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.security;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -110,16 +111,16 @@ public class AesGcmBlockCrypto
 
     private Cipher makeCipher(int mode, EncryptionKey key)
     {
-        if (key.getNonce().length != NONCE_BYTES) {
-            throw new RuntimeException("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().length);
+        if (key.getNonce().toByteArray().length != NONCE_BYTES) {
+            throw new RuntimeException("Expected " + NONCE_BYTES + " nonce bytes but found " + key.getNonce().toByteArray().length);
         }
 
-        if (key.getKey().length != KEY_BYTES) {
-            throw new RuntimeException("Expected " + KEY_BYTES + " key bytes but found " + key.getKey().length);
+        if (key.getKey().toByteArray().length != KEY_BYTES) {
+            throw new RuntimeException("Expected " + KEY_BYTES + " key bytes but found " + key.getKey().toByteArray().length);
         }
 
-        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, key.getNonce());
-        SecretKeySpec secretKeySpec = new SecretKeySpec(key.getKey(), KEYSPEC);
+        GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, key.getNonce().toByteArray());
+        SecretKeySpec secretKeySpec = new SecretKeySpec(key.getKey().toByteArray(), KEYSPEC);
 
         try {
             Cipher cipher = Cipher.getInstance(ALGO, ALGO_BC);

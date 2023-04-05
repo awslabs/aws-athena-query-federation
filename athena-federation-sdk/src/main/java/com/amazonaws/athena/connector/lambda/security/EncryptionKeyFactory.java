@@ -19,6 +19,7 @@ package com.amazonaws.athena.connector.lambda.security;
  * limitations under the License.
  * #L%
  */
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 
 /**
  * Defines a factory that can be used to create AES-GCM compatible encryption keys.

@@ -21,8 +21,6 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.util.Objects;
@@ -52,10 +50,9 @@ public class AllOrNoneValueSet
      * @param all True if all non-null values are in this ValueSet.
      * @param nullAllowed True is all null values are in this ValueSet.
      */
-    @JsonCreator
-    public AllOrNoneValueSet(@JsonProperty("type") ArrowType type,
-            @JsonProperty("all") boolean all,
-            @JsonProperty("nullAllowed") boolean nullAllowed)
+    public AllOrNoneValueSet(ArrowType type,
+            boolean all,
+            boolean nullAllowed)
     {
         this.type = requireNonNull(type, "type is null");
         this.all = all;
@@ -89,7 +86,6 @@ public class AllOrNoneValueSet
      * @see ValueSet
      */
     @Override
-    @JsonProperty("nullAllowed")
     public boolean isNullAllowed()
     {
         return nullAllowed;
@@ -102,7 +98,6 @@ public class AllOrNoneValueSet
      * @see ValueSet
      */
     @Override
-    @JsonProperty
     public ArrowType getType()
     {
         return type;
@@ -127,7 +122,6 @@ public class AllOrNoneValueSet
      * @see ValueSet
      */
     @Override
-    @JsonProperty
     public boolean isAll()
     {
         return all && nullAllowed;

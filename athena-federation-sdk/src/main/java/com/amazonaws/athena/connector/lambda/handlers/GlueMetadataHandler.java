@@ -23,9 +23,8 @@ package com.amazonaws.athena.connector.lambda.handlers;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequest;
 import com.amazonaws.athena.connector.lambda.metadata.glue.GlueFieldLexer;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasRequest;
@@ -35,6 +34,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
@@ -68,8 +68,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 
 /**
  * This class allows you to leverage AWS Glue's DataCatalog to satisfy portions of the functionality required in a
@@ -233,24 +231,6 @@ public abstract class GlueMetadataHandler
         return override;
     }
 
-    // TODO: Deprecate this old logic once it is not needed (after adding in all remaining metadata proto requests)
-    protected String getCatalog(MetadataRequest request)
-    {
-        String override = configOptions.get(CATALOG_NAME_ENV_OVERRIDE);
-        if (override == null) {
-            if (request.getContext() != null) {
-                String functionArn = request.getContext().getInvokedFunctionArn();
-                String functionOwner = getFunctionOwner(functionArn).orElse(null);
-                if (functionOwner != null) {
-                    logger.debug("Function Owner: " + functionOwner);
-                    return functionOwner;
-                }
-            }
-            return request.getIdentity().getAccount();
-        }
-        return override;
-    }
-
     /**
      * Returns an unfiltered list of schemas (aka databases) from AWS Glue DataCatalog.
      *
@@ -339,7 +319,7 @@ public abstract class GlueMetadataHandler
         int pageSize = request.getPageSize();
         do {
             getTablesRequest.setNextToken(nextToken);
-            if (pageSize != UNLIMITED_PAGE_SIZE_VALUE) {
+            if (pageSize != ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE) {
                 // Paginated requests will include the maxResults argument determined by the minimum value between the
                 // pageSize and the maximum results supported by Glue (as defined in the Glue API docs).
                 int maxResults = Math.min(pageSize, GET_TABLES_REQUEST_MAX_RESULTS);
@@ -350,18 +330,18 @@ public abstract class GlueMetadataHandler
 
             for (Table next : result.getTableList()) {
                 if (filter == null || filter.filter(next)) {
-                    tables.add(new TableName(request.getSchemaName(), next.getName()));
+                    tables.add(TableName.newBuilder().setSchemaName(request.getSchemaName()).setTableName(next.getName()).build());
                 }
             }
 
             nextToken = result.getNextToken();
         }
-        while (nextToken != null && (pageSize == UNLIMITED_PAGE_SIZE_VALUE || pageSize > 0));
+        while (nextToken != null && (pageSize == ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE || pageSize > 0));
 
         ListTablesResponse.Builder listTablesResponseBuilder = ListTablesResponse.newBuilder()
             .setType("ListTablesResponse")
             .setCatalogName(request.getCatalogName())
-            .addAllTables(tables.stream().map(ProtobufMessageConverter::toTableName).collect(Collectors.toList()));
+            .addAllTables(tables);
         if (nextToken != null) {
             listTablesResponseBuilder.setNextToken(nextToken);
         }

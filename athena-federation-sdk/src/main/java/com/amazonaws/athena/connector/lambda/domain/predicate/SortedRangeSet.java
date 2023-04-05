@@ -21,8 +21,6 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import java.beans.Transient;
@@ -138,11 +136,10 @@ public class SortedRangeSet
         return new Builder(type, nullAllowed).addAll(ranges).build();
     }
 
-    @JsonCreator
     public static SortedRangeSet copyOf(
-            @JsonProperty("type") ArrowType type,
-            @JsonProperty("ranges") List<Range> ranges,
-            @JsonProperty("nullAllowed") boolean nullAllowed
+            ArrowType type,
+            List<Range> ranges,
+            boolean nullAllowed
     )
     {
         return copyOf(type, (Iterable<Range>) ranges, nullAllowed);
@@ -154,7 +151,6 @@ public class SortedRangeSet
      * @return True if NULLs satisfy this constraint, false otherwise.
      * @see ValueSet
      */
-    @JsonProperty("nullAllowed")
     @Override
     public boolean isNullAllowed()
     {
@@ -167,13 +163,11 @@ public class SortedRangeSet
      * @return The ArrowType of the field this ValueSet applies to.
      * @see ValueSet
      */
-    @JsonProperty
     public ArrowType getType()
     {
         return type;
     }
 
-    @JsonProperty("ranges")
     public List<Range> getOrderedRanges()
     {
         return new ArrayList<>(lowIndexedRanges.values());

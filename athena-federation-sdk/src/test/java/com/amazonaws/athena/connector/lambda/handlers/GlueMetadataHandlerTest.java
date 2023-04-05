@@ -25,9 +25,9 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockWriter;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesRequest;
 import com.amazonaws.athena.connector.lambda.metadata.GetDataSourceCapabilitiesResponse;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetSplitsResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
@@ -41,6 +41,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.model.Column;
@@ -87,7 +88,6 @@ import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.SOURCE_TABLE_PROPERTY;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.getSourceTableName;
 import static com.amazonaws.athena.connector.lambda.handlers.GlueMetadataHandler.populateSourceTableNameIfAvailable;
-import static com.amazonaws.athena.connector.lambda.metadata.ListTablesRequest.UNLIMITED_PAGE_SIZE_VALUE;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
@@ -127,14 +127,13 @@ public class GlueMetadataHandlerTest
         .setCatalogName(catalog)
         .addAllTables(
             new ImmutableList.Builder<TableName>()
-                    .add(new TableName(schema, "table1"))
-                    .add(new TableName(schema, "table2"))
-                    .add(new TableName(schema, "table3"))
-                    .add(new TableName(schema, "table4"))
-                    .add(new TableName(schema, "table5"))
+                    .add(TableName.newBuilder().setSchemaName(schema).setTableName("table1").build())
+                    .add(TableName.newBuilder().setSchemaName(schema).setTableName("table2").build())
+                    .add(TableName.newBuilder().setSchemaName(schema).setTableName("table3").build())
+                    .add(TableName.newBuilder().setSchemaName(schema).setTableName("table4").build())
+                    .add(TableName.newBuilder().setSchemaName(schema).setTableName("table5").build())
                     .build()
             .stream()
-            .map(ProtobufMessageConverter::toTableName)   
             .collect(Collectors.toList())
         )
         .build();
@@ -195,11 +194,11 @@ public class GlueMetadataHandlerTest
                 {
                     GetTablesRequest request = (GetTablesRequest) invocationOnMock.getArguments()[0];
                     String nextToken = request.getNextToken();
-                    int pageSize = request.getMaxResults() == null ? UNLIMITED_PAGE_SIZE_VALUE : request.getMaxResults();
+                    int pageSize = request.getMaxResults() == null ? ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE : request.getMaxResults();
                     assertEquals(accountId, request.getCatalogId());
                     assertEquals(schema, request.getDatabaseName());
                     GetTablesResult mockResult = mock(GetTablesResult.class);
-                    if (pageSize == UNLIMITED_PAGE_SIZE_VALUE) {
+                    if (pageSize == ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE) {
                         // Simulate full list of tables returned from Glue.
                         when(mockResult.getTableList()).thenReturn(unPaginatedTables);
                         when(mockResult.getNextToken()).thenReturn(null);
@@ -282,7 +281,7 @@ public class GlueMetadataHandlerTest
             .setQueryId(queryId)
             .setCatalogName(catalog)
             .setSchemaName(schema)
-            .setPageSize(UNLIMITED_PAGE_SIZE_VALUE)
+            .setPageSize(ProtobufSerDe.UNLIMITED_PAGE_SIZE_VALUE)
             .setIdentity(IdentityUtil.fakeIdentity())
             .build();
         
@@ -329,12 +328,11 @@ public class GlueMetadataHandlerTest
             .setNextToken("table4")
             .addAllTables(
                 new ImmutableList.Builder<TableName>()
-                    .add(new TableName(req.getSchemaName(), "table1"))
-                    .add(new TableName(req.getSchemaName(), "table2"))
-                    .add(new TableName(req.getSchemaName(), "table3"))
+                    .add(TableName.newBuilder().setSchemaName(req.getSchemaName()).setTableName("table1").build())
+                    .add(TableName.newBuilder().setSchemaName(req.getSchemaName()).setTableName("table2").build())
+                    .add(TableName.newBuilder().setSchemaName(req.getSchemaName()).setTableName("table3").build())
                     .build()
                 .stream()
-                .map(ProtobufMessageConverter::toTableName)
                 .collect(Collectors.toList())
             )
             .build();
@@ -358,11 +356,10 @@ public class GlueMetadataHandlerTest
             .setCatalogName(req.getCatalogName())
             .addAllTables(
                 new ImmutableList.Builder<TableName>()
-                    .add(new TableName(req.getSchemaName(), "table4"))
-                    .add(new TableName(req.getSchemaName(), "table5"))
+                    .add(TableName.newBuilder().setSchemaName(req.getSchemaName()).setTableName("table4").build())
+                    .add(TableName.newBuilder().setSchemaName(req.getSchemaName()).setTableName("table5").build())
                     .build()
                 .stream()
-                .map(ProtobufMessageConverter::toTableName)
                 .collect(Collectors.toList())
             )
             .build();
@@ -551,7 +548,6 @@ public class GlueMetadataHandlerTest
     public void testGetCatalog() {
         // Catalog should be the account from the request
         com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity identity = IdentityUtil.fakeIdentity();
-        //MetadataRequest req = new GetTableRequest(new com.amazonaws.athena.connector.lambda.security.FederatedIdentity("arn", "account", Collections.emptyMap(), Collections.emptyList()), queryId, catalog, new TableName(schema, table));
         String catalog = handler.getCatalog(identity);
         assertEquals(IdentityUtil.fakeIdentity().getAccount(), catalog);
 

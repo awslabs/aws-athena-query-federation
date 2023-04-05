@@ -7,34 +7,6 @@ import "Block.proto";
 import "ArrowTypeMessage.proto";
 option java_multiple_files = true;
 
-// message SortedRangeSet {
-//   optional string typeField = 1 [json_name="@type"];
-//   optional com.amazonaws.athena.connector.lambda.proto.arrowtype.ArrowTypeMessage arrowTypeMessage = 2 [json_name="type"];
-//   repeated com.amazonaws.athena.connector.lambda.proto.domain.predicate.Range ranges = 3;
-//   optional bool nullAllowed = 4;
-// }
-// 
-// message EquatableValueSet {
-//   optional string typeField = 1 [json_name="@type"];
-//   optional com.amazonaws.athena.connector.lambda.proto.data.Block valueBlock = 2;
-//   optional bool whiteList = 3;
-//   optional bool nullAllowed = 4;
-// }
-// 
-// message AllOrNoneValueSet {
-//   optional string typeField = 1 [json_name="@type"];
-//   optional com.amazonaws.athena.connector.lambda.proto.arrowtype.ArrowTypeMessage arrowTypeMessage = 2 [json_name="type"];
-//   optional bool all = 3;
-//   optional bool nullAllowed = 4;
-// }
-//
-// message ValueSet {
-//   oneof kind {
-//     SortedRangeSet sortedRangeSet = 1;
-//     EquatableValueSet equatableValueSet = 2;
-//     AllOrNoneValueSet allOrNoneValueSet = 3;
-//   }
-
 message ValueSet {
   optional string typeField = 1 [json_name="@type"]; // shared for all ValueSets
   optional com.amazonaws.athena.connector.lambda.proto.arrowtype.ArrowTypeMessage arrowTypeMessage = 2 [json_name="type"]; // for SortedRangeSet, AllOrNoneValueSet

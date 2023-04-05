@@ -21,6 +21,7 @@ package com.amazonaws.athena.connector.lambda.security;
  */
 
 import com.amazonaws.athena.connector.lambda.data.Block;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 /**

@@ -19,13 +19,14 @@ package com.amazonaws.athena.connector.lambda.security;
  * limitations under the License.
  * #L%
  */
-
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.services.kms.AWSKMS;
 import com.amazonaws.services.kms.model.DataKeySpec;
 import com.amazonaws.services.kms.model.GenerateDataKeyRequest;
 import com.amazonaws.services.kms.model.GenerateDataKeyResult;
 import com.amazonaws.services.kms.model.GenerateRandomRequest;
 import com.amazonaws.services.kms.model.GenerateRandomResult;
+import com.google.protobuf.ByteString;
 
 /**
  * An EncryptionKeyFactory that is backed by AWS KMS.
@@ -59,6 +60,9 @@ public class KmsKeyFactory
                 .withNumberOfBytes(AesGcmBlockCrypto.NONCE_BYTES);
         GenerateRandomResult randomResult = kmsClient.generateRandom(randomRequest);
 
-        return new EncryptionKey(dataKeyResult.getPlaintext().array(), randomResult.getPlaintext().array());
+        return EncryptionKey.newBuilder()
+            .setKey(ByteString.copyFrom(dataKeyResult.getPlaintext()))
+            .setNonce(ByteString.copyFrom(randomResult.getPlaintext()))
+            .build();
     }
 }

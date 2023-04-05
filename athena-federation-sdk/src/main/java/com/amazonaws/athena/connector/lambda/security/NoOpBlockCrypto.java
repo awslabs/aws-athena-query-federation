@@ -22,6 +22,7 @@ package com.amazonaws.athena.connector.lambda.security;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import org.apache.arrow.vector.types.pojo.Schema;
 
@@ -46,7 +47,7 @@ public class NoOpBlockCrypto
 
     public byte[] encrypt(EncryptionKey key, Block block)
     {
-        if (key != null && key.getKey().length > 0 && key.getNonce().length > 0) {
+        if (key != null && key.getKey().toByteArray().length > 0 && key.getNonce().toByteArray().length > 0) {
             throw new RuntimeException("Real key provided to NoOpBlockCrypto, likely indicates you wanted real crypto.");
         }
         try {

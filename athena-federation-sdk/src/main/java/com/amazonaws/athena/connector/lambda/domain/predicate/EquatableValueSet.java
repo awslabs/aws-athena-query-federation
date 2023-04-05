@@ -24,8 +24,6 @@ import com.amazonaws.athena.connector.lambda.data.ArrowTypeComparator;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.Types;
@@ -63,11 +61,9 @@ public class EquatableValueSet
      * @param whiteList True if this ValueSet is a white list (only these values), False if these are excluded values.
      * @param nullAllowed True if null values should be considered part of this ValueSet, False otherwise.
      */
-    @JsonCreator
-    public EquatableValueSet(
-            @JsonProperty("valueBlock") Block valueBlock,
-            @JsonProperty("whiteList") boolean whiteList,
-            @JsonProperty("nullAllowed") boolean nullAllowed)
+    public EquatableValueSet(Block valueBlock,
+            boolean whiteList,
+            boolean nullAllowed)
     {
         requireNonNull(valueBlock, "valueBlock is null");
         this.valueBlock = valueBlock;
@@ -125,7 +121,6 @@ public class EquatableValueSet
      * @return True if NULLs satisfy this constraint, false otherwise.
      * @see ValueSet
      */
-    @JsonProperty("nullAllowed")
     @Override
     public boolean isNullAllowed()
     {
@@ -143,7 +138,6 @@ public class EquatableValueSet
      *
      * @return The Block of Apache Arrow records in this ValueSet.
      */
-    @JsonProperty
     public Block getValueBlock()
     {
         return valueBlock;
@@ -168,7 +162,6 @@ public class EquatableValueSet
      * @return True if the values in this ValueSet are part of a whitelist (e.g. list of values to include) vs a list of
      * * values to exclude.
      */
-    @JsonProperty
     public boolean isWhiteList()
     {
         return whiteList;

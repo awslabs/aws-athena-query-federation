@@ -21,7 +21,7 @@ package com.amazonaws.athena.connector.lambda.data;
  */
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluator;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
 
 import java.util.List;
 

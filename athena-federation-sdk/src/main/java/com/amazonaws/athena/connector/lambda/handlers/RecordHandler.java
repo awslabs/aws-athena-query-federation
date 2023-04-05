@@ -43,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.OutputStream;
-import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
 
@@ -158,8 +157,8 @@ public abstract class RecordHandler
                     .setType("RemoteReadRecordsResponse")
                     .setCatalogName(request.getCatalogName())
                     .setSchema(request.getSchema())
-                    .addAllRemoteBlocks(spiller.getSpillLocations().stream().map(ProtobufMessageConverter::toProtoSpillLocation).collect(Collectors.toList()))
-                    .setEncryptionKey(ProtobufMessageConverter.toProtoEncryptionKey(spillConfig.getEncryptionKey()))
+                    .addAllRemoteBlocks(spiller.getSpillLocations())
+                    .setEncryptionKey(spillConfig.getEncryptionKey())
                     .build();
             }
         }
@@ -192,11 +191,11 @@ public abstract class RecordHandler
         }
 
         return SpillConfig.newBuilder()
-                .withSpillLocation(ProtobufMessageConverter.fromProtoSplit(request.getSplit()).getSpillLocation())
+                .withSpillLocation(request.getSplit().getSpillLocation())
                 .withMaxBlockBytes(maxBlockSize)
                 .withMaxInlineBlockBytes(request.getMaxInlineBlockSize())
                 .withRequestId(request.getQueryId())
-                .withEncryptionKey(ProtobufMessageConverter.fromProtoSplit(request.getSplit()).getEncryptionKey())
+                .withEncryptionKey(request.getSplit().getEncryptionKey())
                 .withNumSpillThreads(NUM_SPILL_THREADS)
                 .build();
     }

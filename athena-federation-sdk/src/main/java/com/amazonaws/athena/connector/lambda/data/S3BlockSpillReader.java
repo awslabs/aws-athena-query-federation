@@ -1,5 +1,4 @@
 package com.amazonaws.athena.connector.lambda.data;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -19,11 +18,10 @@ package com.amazonaws.athena.connector.lambda.data;
  * limitations under the License.
  * #L%
  */
-
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.domain.spill.SpillLocation;
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.AesGcmBlockCrypto;
 import com.amazonaws.athena.connector.lambda.security.BlockCrypto;
-import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.NoOpBlockCrypto;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
@@ -57,14 +55,14 @@ public class S3BlockSpillReader
      * @param schema The Schema to use when deserializing the spilled Block.
      * @return The Block stored at the spill location.
      */
-    public Block read(S3SpillLocation spillLocation, EncryptionKey key, Schema schema)
+    public Block read(SpillLocation spillLocation, EncryptionKey key, Schema schema)
     {
         S3Object fullObject = null;
         try {
             logger.debug("read: Started reading block from S3");
             fullObject = amazonS3.getObject(spillLocation.getBucket(), spillLocation.getKey());
             logger.debug("read: Completed reading block from S3");
-            BlockCrypto blockCrypto = (key != null && key.getKey().length > 0 && key.getNonce().length > 0) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
+            BlockCrypto blockCrypto = (key != null && key.getKey().toByteArray().length > 0 && key.getNonce().toByteArray().length > 0) ? new AesGcmBlockCrypto(allocator) : new NoOpBlockCrypto(allocator);
             Block block = blockCrypto.decrypt(key, ByteStreams.toByteArray(fullObject.getObjectContent()), schema);
             logger.debug("read: Completed decrypting block of size.");
             return block;
@@ -91,7 +89,7 @@ public class S3BlockSpillReader
      * @param key The encryption key to use when reading the spilled Block.
      * @return The Block stored at the spill location.
      */
-    public byte[] read(S3SpillLocation spillLocation, EncryptionKey key)
+    public byte[] read(SpillLocation spillLocation, EncryptionKey key)
     {
         S3Object fullObject = null;
         try {

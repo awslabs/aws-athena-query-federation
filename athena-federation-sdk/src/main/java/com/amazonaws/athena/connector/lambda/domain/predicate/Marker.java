@@ -37,8 +37,6 @@ import com.amazonaws.athena.connector.lambda.data.ArrowTypeComparator;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -78,11 +76,10 @@ public class Marker
      * LOWER UNBOUNDED is specified with an empty value and a ABOVE bound
      * UPPER UNBOUNDED is specified with an empty value and a BELOW bound
      */
-    @JsonCreator
     public Marker(
-            @JsonProperty("valueBlock") Block valueBlock,
-            @JsonProperty("bound") Bound bound,
-            @JsonProperty("nullValue") boolean nullValue)
+            Block valueBlock,
+            Bound bound,
+            boolean nullValue)
     {
         requireNonNull(valueBlock, "valueBlock is null");
         requireNonNull(bound, "bound is null");
@@ -160,7 +157,6 @@ public class Marker
      *
      * @return The Bound.
      */
-    @JsonProperty
     public Bound getBound()
     {
         return bound;
@@ -184,7 +180,6 @@ public class Marker
      * @return The Apache Arrow Block used to store the value of this marker.
      * @note This is only used to avoid in serialization and will throw when called on a Marker that uses as SharedBlock.
      */
-    @JsonProperty
     public Block getValueBlock()
     {
         if (valueBlock.getRowCount() > 1) {

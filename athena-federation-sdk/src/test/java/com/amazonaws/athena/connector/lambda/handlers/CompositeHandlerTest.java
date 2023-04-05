@@ -24,12 +24,9 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.athena.connector.lambda.domain.Split;
-import com.amazonaws.athena.connector.lambda.domain.TableName;
+import com.amazonaws.athena.connector.lambda.proto.domain.Split;
+import com.amazonaws.athena.connector.lambda.proto.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
-import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
-import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocationVerifier;
-import com.amazonaws.athena.connector.lambda.metadata.MetadataRequestType;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableLayoutResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.GetTableRequest;
@@ -259,10 +256,6 @@ public class CompositeHandlerTest
     public void doGetSplits()
             throws Exception
     {
-        SpillLocationVerifier mockVerifier = mock(SpillLocationVerifier.class);
-        doNothing().when(mockVerifier).checkBucketAuthZ(nullable(String.class));
-        Whitebox.setInternalState(mockMetadataHandler, "verifier", mockVerifier);
-        
         TypeHeader typeHeader = TypeHeader.newBuilder()
             .setType("GetSplitsRequest")
             .build();

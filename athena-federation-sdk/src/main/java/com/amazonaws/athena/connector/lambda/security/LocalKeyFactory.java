@@ -19,6 +19,8 @@ package com.amazonaws.athena.connector.lambda.security;
  * limitations under the License.
  * #L%
  */
+import com.amazonaws.athena.connector.lambda.proto.security.EncryptionKey;
+import com.google.protobuf.ByteString;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -50,7 +52,7 @@ public class LocalKeyFactory
             SecretKey key = keyGen.generateKey();
             final byte[] nonce = new byte[AesGcmBlockCrypto.NONCE_BYTES];
             random.nextBytes(nonce);
-            return new EncryptionKey(key.getEncoded(), nonce);
+            return EncryptionKey.newBuilder().setKey(ByteString.copyFrom(key.getEncoded())).setNonce(ByteString.copyFrom(nonce)).build();
         });
 
         // Now wait at most 1 second for it to finish.

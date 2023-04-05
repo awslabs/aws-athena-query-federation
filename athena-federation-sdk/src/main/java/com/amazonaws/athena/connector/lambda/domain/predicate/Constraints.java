@@ -21,8 +21,6 @@ package com.amazonaws.athena.connector.lambda.domain.predicate;
  */
 
 import com.amazonaws.athena.connector.lambda.domain.predicate.expression.FederationExpression;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
 import java.util.Collections;
@@ -56,11 +54,10 @@ public class Constraints
         this(summary, Collections.emptyList(), Collections.emptyList(), DEFAULT_NO_LIMIT);
     }
 
-    @JsonCreator
-    public Constraints(@JsonProperty("summary") Map<String, ValueSet> summary,
-                       @JsonProperty("expression") List<FederationExpression> expression,
-                       @JsonProperty("orderByClause") List<OrderByField> orderByClause,
-                       @JsonProperty("limit") long limit)
+    public Constraints(Map<String, ValueSet> summary,
+                       List<FederationExpression> expression,
+                       List<OrderByField> orderByClause,
+                       long limit)
     {
         this.summary = summary;
         this.expression = expression;
