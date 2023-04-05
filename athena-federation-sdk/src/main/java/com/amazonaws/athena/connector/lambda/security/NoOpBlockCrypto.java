@@ -22,7 +22,7 @@ package com.amazonaws.athena.connector.lambda.security;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import java.io.ByteArrayOutputStream;
@@ -37,12 +37,10 @@ import java.io.IOException;
 public class NoOpBlockCrypto
         implements BlockCrypto
 {
-    private final RecordBatchSerDe serDe;
     private final BlockAllocator allocator;
 
     public NoOpBlockCrypto(BlockAllocator allocator)
     {
-        this.serDe = new RecordBatchSerDe(allocator);
         this.allocator = allocator;
     }
 
@@ -53,7 +51,7 @@ public class NoOpBlockCrypto
         }
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            serDe.serialize(block.getRecordBatch(), out);
+            ProtobufMessageConverter.serializeRecordBatch(out, block.getRecordBatch());
             return out.toByteArray();
         }
         catch (IOException ex) {
@@ -63,14 +61,9 @@ public class NoOpBlockCrypto
 
     public Block decrypt(EncryptionKey key, byte[] bytes, Schema schema)
     {
-        try {
-            Block resultBlock = allocator.createBlock(schema);
-            resultBlock.loadRecordBatch(serDe.deserialize(bytes));
-            return resultBlock;
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+        Block resultBlock = allocator.createBlock(schema);
+        resultBlock.loadRecordBatch(ProtobufMessageConverter.deserializeRecordBatch(allocator, bytes));
+        return resultBlock;
     }
 
     public byte[] decrypt(EncryptionKey key, byte[] bytes)

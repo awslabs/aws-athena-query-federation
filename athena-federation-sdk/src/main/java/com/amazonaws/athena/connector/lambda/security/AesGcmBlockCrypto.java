@@ -22,7 +22,7 @@ package com.amazonaws.athena.connector.lambda.security;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
-import com.amazonaws.athena.connector.lambda.data.RecordBatchSerDe;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
@@ -56,7 +56,6 @@ public class AesGcmBlockCrypto
     protected static final String ALGO = "AES/GCM/NoPadding";
     protected static final String ALGO_BC = "BC";
 
-    private final RecordBatchSerDe serDe;
     private final BlockAllocator allocator;
 
     static {
@@ -65,7 +64,6 @@ public class AesGcmBlockCrypto
 
     public AesGcmBlockCrypto(BlockAllocator allocator)
     {
-        this.serDe = new RecordBatchSerDe(allocator);
         this.allocator = allocator;
     }
 
@@ -73,7 +71,7 @@ public class AesGcmBlockCrypto
     {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            serDe.serialize(block.getRecordBatch(), out);
+            ProtobufMessageConverter.serializeRecordBatch(out, block.getRecordBatch());
 
             Cipher cipher = makeCipher(Cipher.ENCRYPT_MODE, key);
             return cipher.doFinal(out.toByteArray());
@@ -90,11 +88,11 @@ public class AesGcmBlockCrypto
             byte[] clear = cipher.doFinal(bytes);
 
             Block resultBlock = allocator.createBlock(schema);
-            resultBlock.loadRecordBatch(serDe.deserialize(clear));
+            resultBlock.loadRecordBatch(ProtobufMessageConverter.deserializeRecordBatch(allocator, clear));
 
             return resultBlock;
         }
-        catch (BadPaddingException | IllegalBlockSizeException | IOException ex) {
+        catch (BadPaddingException | IllegalBlockSizeException ex) {
             throw new RuntimeException(ex);
         }
     }

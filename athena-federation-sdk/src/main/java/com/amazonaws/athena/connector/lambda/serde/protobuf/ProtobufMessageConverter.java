@@ -19,6 +19,7 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.protobuf;
 
+import com.amazonaws.athena.connector.lambda.data.AthenaFederationIpcOption;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -33,10 +34,11 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.spill.S3SpillLocation;
 import com.amazonaws.athena.connector.lambda.domain.spill.SpillLocation;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
-import com.amazonaws.athena.connector.lambda.serde.v2.BlockSerDe;
 import com.google.protobuf.ByteString;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.WriteChannel;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
 import org.apache.arrow.vector.types.DateUnit;
@@ -51,10 +53,12 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class ProtobufMessageConverter 
@@ -345,10 +349,9 @@ public class ProtobufMessageConverter
     {
         ByteArrayOutputStream outRecords = new ByteArrayOutputStream();
         try (var batch = block.getRecordBatch()) {
-            if (batch.getLength() > 0) { // if we don't do this conditionally, it writes a non-empty string, which breaks our current serde
+            if (batch.getLength() > 0) { // if we don't do this conditionally, it writes a non-empty string, which breaks the Jackson serdes
                 // WARNING - this is also conditional on the serde version.
-                IpcOption option = new IpcOption(true, MetadataVersion.V4);
-                MessageSerializer.serialize(new WriteChannel(Channels.newChannel(outRecords)), batch, option);
+                serializeRecordBatch(outRecords, batch);
             }
         }
         catch (IOException ie) {
@@ -381,9 +384,7 @@ public class ProtobufMessageConverter
 
         var protoRecords = protoBlock.getRecords().toByteArray();
         if (protoRecords.length > 0) {
-            // WARNING - this too is dependent on what serde version we are doing. Needs to be made dynamic based on the serde version!
-            var arrowBatch = BlockSerDe.Deserializer.deserializeRecordBatch(allocator, protoRecords);
-            block.loadRecordBatch(arrowBatch);
+            block.loadRecordBatch(deserializeRecordBatch(allocator, protoRecords));
         }
 
         return block;
@@ -443,5 +444,41 @@ public class ProtobufMessageConverter
             .setKey(ByteString.copyFrom(encryptionKey.getKey()))
             .setNonce(ByteString.copyFrom(encryptionKey.getNonce()))
             .build();
+    }
+
+    // preserving functionality of v2 RecordBatch SerDe, as it's the only thing we need still from Jackson
+    // method is a copy of RecordBatchSerDe.java's serializer
+    public static void serializeRecordBatch(OutputStream outRecords, ArrowRecordBatch batch) throws IOException
+    {
+        try {
+            IpcOption option = AthenaFederationIpcOption.DEFAULT;
+            MessageSerializer.serialize(new WriteChannel(Channels.newChannel(outRecords)), batch, option);
+        }
+        finally {
+            batch.close();
+        }
+    }
+    
+
+    /**
+     * Method is a copy of BlockSerDe.java's deserializer for record batches.
+     */
+    public static ArrowRecordBatch deserializeRecordBatch(BlockAllocator allocator, byte[] protoRecords)
+    {
+        // WARNING - this too is dependent on what serde version we are doing. Needs to be made dynamic based on the serde version!
+        AtomicReference<ArrowRecordBatch> batch = new AtomicReference<>();
+            try {
+                return allocator.registerBatch((BufferAllocator root) -> {
+                    batch.set((ArrowRecordBatch) MessageSerializer.deserializeMessageBatch(
+                            new ReadChannel(Channels.newChannel(new ByteArrayInputStream(protoRecords))), root));
+                    return batch.get();
+                });
+            }
+            catch (Exception ex) {
+                if (batch.get() != null) {
+                    batch.get().close();
+                }
+                throw ex;
+            }
     }
 }

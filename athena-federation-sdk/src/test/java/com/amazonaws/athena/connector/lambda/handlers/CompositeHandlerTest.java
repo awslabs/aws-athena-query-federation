@@ -47,7 +47,6 @@ import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
-import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -88,7 +87,6 @@ public class CompositeHandlerTest
     private RecordHandler mockRecordHandler;
     private CompositeHandler compositeHandler;
     private BlockAllocatorImpl allocator;
-    private ObjectMapper objectMapper;
     private Schema schemaForRead;
 
     @Rule
@@ -101,7 +99,6 @@ public class CompositeHandlerTest
         logger.info("{}: enter", testName.getMethodName());
 
         allocator = new BlockAllocatorImpl();
-        objectMapper = ObjectMapperFactory.create(allocator);
         mockMetadataHandler = mock(MetadataHandler.class);
         mockRecordHandler = mock(RecordHandler.class);
 

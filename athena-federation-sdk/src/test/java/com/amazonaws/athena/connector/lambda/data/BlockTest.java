@@ -24,8 +24,6 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.EquatableValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -64,9 +62,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -129,75 +124,52 @@ public class BlockTest
     }
 
     //TODO: Break this into multiple smaller tests, probably primitive types vs. complex vs. nested complex
-    //TODO: List of Lists
-    //TODO: List of Structs
     @Test
     public void EndToEndBlockTest()
             throws Exception
     {
-        BlockAllocatorImpl expectedAllocator = new BlockAllocatorImpl();
+        BlockAllocatorImpl allocator = new BlockAllocatorImpl();
 
         int expectedRows = 200;
 
         Schema origSchema = generateTestSchema();
-        Block expectedBlock = generateTestBlock(expectedAllocator, origSchema, expectedRows);
-
-        RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
-        ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
-        ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
-        expectSerDe.serialize(expectedBatch, blockOut);
-        assertSerializationOverhead(blockOut);
-        expectedBatch.close();
-        expectedBlock.close();
-
-        ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        schemaSerDe.serialize(origSchema, schemaOut);
-        Schema actualSchema = schemaSerDe.deserialize(new ByteArrayInputStream(schemaOut.toByteArray()));
-
-        BlockAllocatorImpl actualAllocator = new BlockAllocatorImpl();
-        RecordBatchSerDe actualSerDe = new RecordBatchSerDe(actualAllocator);
-        ArrowRecordBatch batch = actualSerDe.deserialize(blockOut.toByteArray());
-
-        /**
-         * Generate and write the block
-         */
-        Block actualBlock = actualAllocator.createBlock(actualSchema);
-        actualBlock.loadRecordBatch(batch);
+        Block block = generateTestBlock(allocator, origSchema, expectedRows);
+        ArrowRecordBatch batch = block.getRecordBatch();
+        block.loadRecordBatch(batch);
         batch.close();
 
-        for (int i = 0; i < actualBlock.getRowCount(); i++) {
-            logger.info("EndToEndBlockTest: util {}", BlockUtils.rowToString(actualBlock, i));
+        for (int i = 0; i < block.getRowCount(); i++) {
+            logger.info("EndToEndBlockTest: util {}", BlockUtils.rowToString(block, i));
         }
 
-        assertEquals("Row count missmatch", expectedRows, actualBlock.getRowCount());
+        assertEquals("Row count missmatch", expectedRows, block.getRowCount());
         int actualFieldCount = 1;
-        for (Field next : actualBlock.getFields()) {
-            FieldReader vector = actualBlock.getFieldReader(next.getName());
+        for (Field next : block.getFields()) {
+            FieldReader vector = block.getFieldReader(next.getName());
             switch (vector.getMinorType()) {
                 case INT:
                     IntReader intVector = vector;
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         intVector.setPosition(i);
                         assertEquals(i * actualFieldCount * 3, intVector.readInteger().intValue());
                     }
                     break;
                 case FLOAT8:
                     Float8Reader fVector = vector;
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         fVector.setPosition(i);
                         assertEquals(i * actualFieldCount * 1.1, fVector.readDouble().doubleValue(), .1);
                     }
                     break;
                 case VARCHAR:
                     VarCharReader vVector = (VarCharReader) vector;
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         vVector.setPosition(i);
                         assertEquals(String.valueOf(i * actualFieldCount), vVector.readText().toString());
                     }
                     break;
                 case STRUCT:
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         FieldReader effectiveVector = vector;
                         if (vector.getField().getName().equals("structFieldNested28")) {
                             //If this is our struct with a nested struct, then grab the nested struct and check it
@@ -211,7 +183,7 @@ public class BlockTest
                 case LIST:
                     int actual = 0;
                     Field child = vector.getField().getChildren().get(0);
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         vector.setPosition(i);
                         int entryValues = 0;
                         while (vector.next()) {
@@ -257,7 +229,7 @@ public class BlockTest
                         if (entryValues > 0) {actual++;}
                     }
 
-                    assertEquals("failed for " + vector.getField().getName(), actualBlock.getRowCount(), actual);
+                    assertEquals("failed for " + vector.getField().getName(), block.getRowCount(), actual);
                     break;
                 default:
                     //todo: add more types here.
@@ -268,10 +240,10 @@ public class BlockTest
         /**
          * Now check that we can unset a row properly
          */
-        BlockUtils.unsetRow(0, actualBlock);
+        BlockUtils.unsetRow(0, block);
 
-        for (Field next : actualBlock.getFields()) {
-            FieldReader vector = actualBlock.getFieldReader(next.getName());
+        for (Field next : block.getFields()) {
+            FieldReader vector = block.getFieldReader(next.getName());
             switch (vector.getMinorType()) {
                 case DATEDAY:
                 case DATEMILLI:
@@ -303,8 +275,8 @@ public class BlockTest
             actualFieldCount++;
         }
 
-        logger.info("EndToEndBlockTest: block size {}", actualAllocator.getUsage());
-        actualBlock.close();
+        logger.info("EndToEndBlockTest: block size {}", allocator.getUsage());
+        block.close();
     }
 
     public static Schema generateTestSchema()
@@ -736,7 +708,7 @@ public class BlockTest
     public void ListOfListsTest()
             throws Exception
     {
-        BlockAllocatorImpl expectedAllocator = new BlockAllocatorImpl();
+        BlockAllocatorImpl allocator = new BlockAllocatorImpl();
 
         /**
          * Generate and write the schema
@@ -746,16 +718,16 @@ public class BlockTest
                 FieldBuilder.newBuilder("outerlist", new ArrowType.List())
                         .addListField("innerList", Types.MinorType.VARCHAR.getType())
                         .build());
-        Schema origSchema = schemaBuilder.build();
+        Schema schema = schemaBuilder.build();
 
         /**
          * Generate and write the block
          */
-        Block expectedBlock = expectedAllocator.createBlock(origSchema);
+        Block block = allocator.createBlock(schema);
 
         int expectedRows = 200;
-        for (Field next : origSchema.getFields()) {
-            ValueVector vector = expectedBlock.getFieldVector(next.getName());
+        for (Field next : schema.getFields()) {
+            ValueVector vector = block.getFieldVector(next.getName());
             switch (vector.getMinorType()) {
                 case LIST:
                     Field child = vector.getField().getChildren().get(0);
@@ -780,44 +752,20 @@ public class BlockTest
                     throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
             }
         }
-        expectedBlock.setRowCount(expectedRows);
+        block.setRowCount(expectedRows);
 
-        RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
-        ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
-        ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
-        expectSerDe.serialize(expectedBatch, blockOut);
-        assertSerializationOverhead(blockOut);
-        expectedBatch.close();
-        expectedBlock.close();
-
-        ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        schemaSerDe.serialize(origSchema, schemaOut);
-        Schema actualSchema = schemaSerDe.deserialize(new ByteArrayInputStream(schemaOut.toByteArray()));
-
-        BlockAllocatorImpl actualAllocator = new BlockAllocatorImpl();
-        RecordBatchSerDe actualSerDe = new RecordBatchSerDe(actualAllocator);
-        ArrowRecordBatch batch = actualSerDe.deserialize(blockOut.toByteArray());
-
-        /**
-         * Generate and write the block
-         */
-        Block actualBlock = actualAllocator.createBlock(actualSchema);
-        actualBlock.loadRecordBatch(batch);
-        batch.close();
-
-        for (int i = 0; i < actualBlock.getRowCount(); i++) {
-            logger.info("ListOfList: util {}", BlockUtils.rowToString(actualBlock, i));
+        for (int i = 0; i < block.getRowCount(); i++) {
+            logger.info("ListOfList: util {}", BlockUtils.rowToString(block, i));
         }
 
-        assertEquals("Row count missmatch", expectedRows, actualBlock.getRowCount());
+        assertEquals("Row count missmatch", expectedRows, block.getRowCount());
         int actualFieldCount = 1;
-        for (Field next : actualBlock.getFields()) {
-            FieldReader vector = actualBlock.getFieldReader(next.getName());
+        for (Field next : block.getFields()) {
+            FieldReader vector = block.getFieldReader(next.getName());
             switch (vector.getMinorType()) {
                 case LIST:
                     int actual = 0;
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         vector.setPosition(i);
                         int entryValues = 0;
                         while (vector.next()) {
@@ -831,7 +779,7 @@ public class BlockTest
                         if (entryValues > 0) {actual++;}
                     }
 
-                    assertEquals("failed for " + vector.getField().getName(), actualBlock.getRowCount(), actual);
+                    assertEquals("failed for " + vector.getField().getName(), block.getRowCount(), actual);
                     break;
                 default:
                     throw new UnsupportedOperationException(next.getType().getTypeID() + " is not supported");
@@ -839,14 +787,14 @@ public class BlockTest
             actualFieldCount++;
         }
 
-        actualBlock.close();
+        block.close();
     }
 
     @Test
     public void ListOfStructsTest()
             throws Exception
     {
-        BlockAllocatorImpl expectedAllocator = new BlockAllocatorImpl();
+        BlockAllocatorImpl allocator = new BlockAllocatorImpl();
 
         /**
          * Generate and write the schema
@@ -860,16 +808,16 @@ public class BlockTest
                                         .addBigIntField("bigint")
                                         .build())
                         .build());
-        Schema origSchema = schemaBuilder.build();
+        Schema schema = schemaBuilder.build();
 
         /**
          * Generate and write the block
          */
-        Block expectedBlock = expectedAllocator.createBlock(origSchema);
+        Block block = allocator.createBlock(schema);
 
         int expectedRows = 200;
-        for (Field next : origSchema.getFields()) {
-            ValueVector vector = expectedBlock.getFieldVector(next.getName());
+        for (Field next : schema.getFields()) {
+            ValueVector vector = block.getFieldVector(next.getName());
             switch (vector.getMinorType()) {
                 case LIST:
                     Field child = vector.getField().getChildren().get(0);
@@ -893,44 +841,20 @@ public class BlockTest
                     throw new UnsupportedOperationException(vector.getMinorType() + " is not supported");
             }
         }
-        expectedBlock.setRowCount(expectedRows);
+        block.setRowCount(expectedRows);
 
-        RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
-        ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
-        ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
-        expectSerDe.serialize(expectedBatch, blockOut);
-        assertSerializationOverhead(blockOut);
-        expectedBatch.close();
-        expectedBlock.close();
-
-        ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        schemaSerDe.serialize(origSchema, schemaOut);
-        Schema actualSchema = schemaSerDe.deserialize(new ByteArrayInputStream(schemaOut.toByteArray()));
-
-        BlockAllocatorImpl actualAllocator = new BlockAllocatorImpl();
-        RecordBatchSerDe actualSerDe = new RecordBatchSerDe(actualAllocator);
-        ArrowRecordBatch batch = actualSerDe.deserialize(blockOut.toByteArray());
-
-        /**
-         * Generate and write the block
-         */
-        Block actualBlock = actualAllocator.createBlock(actualSchema);
-        actualBlock.loadRecordBatch(batch);
-        batch.close();
-
-        for (int i = 0; i < actualBlock.getRowCount(); i++) {
-            logger.info("ListOfList: util {}", BlockUtils.rowToString(actualBlock, i));
+        for (int i = 0; i < block.getRowCount(); i++) {
+            logger.info("ListOfList: util {}", BlockUtils.rowToString(block, i));
         }
 
-        assertEquals("Row count missmatch", expectedRows, actualBlock.getRowCount());
+        assertEquals("Row count missmatch", expectedRows, block.getRowCount());
         int actualFieldCount = 1;
-        for (Field next : actualBlock.getFields()) {
-            FieldReader vector = actualBlock.getFieldReader(next.getName());
+        for (Field next : block.getFields()) {
+            FieldReader vector = block.getFieldReader(next.getName());
             switch (vector.getMinorType()) {
                 case LIST:
                     int actual = 0;
-                    for (int i = 0; i < actualBlock.getRowCount(); i++) {
+                    for (int i = 0; i < block.getRowCount(); i++) {
                         vector.setPosition(i);
                         int entryValues = 0;
                         while (vector.next()) {
@@ -941,7 +865,7 @@ public class BlockTest
                         if (entryValues > 0) {actual++;}
                     }
 
-                    assertEquals("failed for " + vector.getField().getName(), actualBlock.getRowCount(), actual);
+                    assertEquals("failed for " + vector.getField().getName(), block.getRowCount(), actual);
                     break;
                 default:
                     throw new UnsupportedOperationException(next.getType().getTypeID() + " is not supported");
@@ -949,14 +873,14 @@ public class BlockTest
             actualFieldCount++;
         }
 
-        actualBlock.close();
+        block.close();
     }
 
     @Test
     public void structOfListsTest()
             throws Exception
     {
-        BlockAllocatorImpl expectedAllocator = new BlockAllocatorImpl();
+        BlockAllocatorImpl allocator = new BlockAllocatorImpl();
 
         /**
          * Generate and write the schema
@@ -967,16 +891,16 @@ public class BlockTest
                         .addStringField("varchar")
                         .addListField("list", Types.MinorType.VARCHAR.getType())
                         .build());
-        Schema origSchema = schemaBuilder.build();
+        Schema schema = schemaBuilder.build();
 
         /**
          * Generate and write the block
          */
-        Block expectedBlock = expectedAllocator.createBlock(origSchema);
+        Block block = allocator.createBlock(schema);
 
         int expectedRows = 200;
-        for (Field next : origSchema.getFields()) {
-            ValueVector vector = expectedBlock.getFieldVector(next.getName());
+        for (Field next : schema.getFields()) {
+            ValueVector vector = block.getFieldVector(next.getName());
             for (int i = 0; i < expectedRows; i++) {
                 switch (vector.getMinorType()) {
                     case STRUCT:
@@ -998,43 +922,18 @@ public class BlockTest
                 }
             }
         }
-        expectedBlock.setRowCount(expectedRows);
+        block.setRowCount(expectedRows);
 
-        RecordBatchSerDe expectSerDe = new RecordBatchSerDe(expectedAllocator);
-        ByteArrayOutputStream blockOut = new ByteArrayOutputStream();
-        ArrowRecordBatch expectedBatch = expectedBlock.getRecordBatch();
-        expectSerDe.serialize(expectedBatch, blockOut);
-
-        assertSerializationOverhead(blockOut);
-        expectedBatch.close();
-        expectedBlock.close();
-
-        ByteArrayOutputStream schemaOut = new ByteArrayOutputStream();
-        SchemaSerDe schemaSerDe = new SchemaSerDe();
-        schemaSerDe.serialize(origSchema, schemaOut);
-        Schema actualSchema = schemaSerDe.deserialize(new ByteArrayInputStream(schemaOut.toByteArray()));
-
-        BlockAllocatorImpl actualAllocator = new BlockAllocatorImpl();
-        RecordBatchSerDe actualSerDe = new RecordBatchSerDe(actualAllocator);
-        ArrowRecordBatch batch = actualSerDe.deserialize(blockOut.toByteArray());
-
-        /**
-         * Generate and write the block
-         */
-        Block actualBlock = actualAllocator.createBlock(actualSchema);
-        actualBlock.loadRecordBatch(batch);
-        batch.close();
-
-        for (int i = 0; i < actualBlock.getRowCount(); i++) {
-            logger.info("ListOfList: util {}", BlockUtils.rowToString(actualBlock, i));
+        for (int i = 0; i < block.getRowCount(); i++) {
+            logger.info("ListOfList: util {}", BlockUtils.rowToString(block, i));
         }
 
-        assertEquals("Row count missmatch", expectedRows, actualBlock.getRowCount());
+        assertEquals("Row count missmatch", expectedRows, block.getRowCount());
         int actualListValues = 0;
         int emptyListValues = 0;
-        for (Field next : actualBlock.getFields()) {
-            FieldReader vector = actualBlock.getFieldReader(next.getName());
-            for (int i = 0; i < actualBlock.getRowCount(); i++) {
+        for (Field next : block.getFields()) {
+            FieldReader vector = block.getFieldReader(next.getName());
+            for (int i = 0; i < block.getRowCount(); i++) {
                 switch (vector.getMinorType()) {
                     case STRUCT:
                         vector.setPosition(i);
@@ -1056,36 +955,9 @@ public class BlockTest
             }
         }
 
-        actualBlock.close();
+        block.close();
         assertEquals(200, actualListValues);
         assertEquals(100, emptyListValues);
         logger.info("structOfListsTest: actualListValues[{}] emptyListValues[{}]", actualListValues, emptyListValues);
-    }
-
-    /**
-     * Temporary 'HACK' - this assertion will fail if the overhead associated with serializing blocks exceeds
-     * the hard coded expectation. This is only meaningful for inline blocks which will exceed Lambda's response size.
-     * If this assertion fails we need to revisit the default settings in our serialization layer. The serialization
-     * layer is currently being refactored and eventually this assertion will not be needed.
-     *
-     * @param serializedBlock The bytes of the block to serialize.
-     * @note https://github.com/awslabs/aws-athena-query-federation/issues/121
-     */
-    private void assertSerializationOverhead(ByteArrayOutputStream serializedBlock)
-    {
-        try {
-            ByteArrayOutputStream jout = new ByteArrayOutputStream();
-            JsonFactory factory = new JsonFactory();
-            JsonGenerator jsonGenerator = factory.createGenerator(jout);
-            jsonGenerator.writeStartObject();
-            jsonGenerator.writeBinaryField("field", serializedBlock.toByteArray());
-            jsonGenerator.close();
-            double overhead = 1 - (((double) serializedBlock.size()) / ((double) jout.size()));
-            logger.info("assertSerializationOverhead: {} vs {} = {}", serializedBlock.size(), jout.size(), overhead);
-            assertTrue(0.35D > overhead);
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
     }
 }
