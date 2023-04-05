@@ -19,18 +19,15 @@
  */
 package com.amazonaws.athena.connector.lambda.serde.v2;
 
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.metadata.GetTableResponse;
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.serde.TypedSerDeTest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.fasterxml.jackson.core.JsonEncoding;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Before;
@@ -42,7 +39,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -81,7 +77,7 @@ public class GetTableResponseSerDeTest extends TypedSerDeTest<FederationResponse
     public void testProto_case1_nativeArrowToProtoToNativeArrow()
     {
         Schema expectedSchema = ((GetTableResponse) expected).getSchema();
-        ByteString protoSchema = ProtoUtils.toProtoSchemaBytes(expectedSchema);
+        ByteString protoSchema = ProtobufMessageConverter.toProtoSchemaBytes(expectedSchema);
         logger.info(protoSchema.toString());
         
     }
@@ -95,8 +91,8 @@ public class GetTableResponseSerDeTest extends TypedSerDeTest<FederationResponse
     //     com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse protoGTR = com.amazonaws.athena.connector.lambda.proto.metadata.GetTableResponse.newBuilder()
     //         .setType("GetTableResponse")
     //         .setCatalogName("test-catalog")
-    //         .setTableName(ProtoUtils.toTableName(new TableName("test-schema", "test-table")))
-    //         .setSchema(ProtoUtils.toProtoSchemaBytes(expectedSchema))
+    //         .setTableName(ProtobufMessageConverter.toTableName(new TableName("test-schema", "test-table")))
+    //         .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(expectedSchema))
     //         .addAllPartitionColumns(List.of("year", "month", "day"))
     //         .build();
     //     logger.info("PRINTING RESPONSE IN PROTO FORMAT - {}", JsonFormat.printer().print(protoGTR));
@@ -104,7 +100,7 @@ public class GetTableResponseSerDeTest extends TypedSerDeTest<FederationResponse
         
 
     //     // just test if we can deserialize a schema properly
-    //     Schema backToSchema = ProtoUtils.fromProtoSchema(allocator, ProtoUtils.toProtoSchemaBytes(expectedSchema));
+    //     Schema backToSchema = ProtobufMessageConverter.fromProtoSchema(allocator, ProtoUtils.toProtoSchemaBytes(expectedSchema));
     //     assertEquals(expectedSchema, backToSchema);
 
     //     // compare...
@@ -113,12 +109,6 @@ public class GetTableResponseSerDeTest extends TypedSerDeTest<FederationResponse
     //     String actual = new String(outputStream.toByteArray(), JsonEncoding.UTF8.getJavaName());
     //     logger.info("serialized text for full repsonse, including schema, using jackson is [{}]", actual);
     // }
-
-    @Test
-    public void testProto_fromProtoToArrowSchemaAndBack()
-    {
-        
-    }
 
     @Test
     public void serialize()

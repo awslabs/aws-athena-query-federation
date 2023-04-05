@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda;
+package com.amazonaws.athena.connector.lambda.serde.protobuf;
 
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -57,14 +57,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class ProtoUtils 
+public class ProtobufMessageConverter 
 {
     
     private static final String ALL_OR_NONE_VALUE_SET_TYPE = "@AllOrNoneValueSet";
     private static final String EQUATABLE_VALUE_SET_TYPE = "@EquatableValueSet";
     private static final String SORTED_RANGE_SET_TYPE = "@SortedRangeSet";
 
-    private ProtoUtils()
+    private ProtobufMessageConverter()
     {
         // do nothing
     }
@@ -192,7 +192,7 @@ public class ProtoUtils
     public static com.amazonaws.athena.connector.lambda.proto.domain.predicate.Marker toProtoMarker(Marker marker)
     {
         return com.amazonaws.athena.connector.lambda.proto.domain.predicate.Marker.newBuilder()
-            .setValueBlock(ProtoUtils.toProtoBlock(marker.getValueBlock()))
+            .setValueBlock(ProtobufMessageConverter.toProtoBlock(marker.getValueBlock()))
             .setBound(com.amazonaws.athena.connector.lambda.proto.domain.predicate.Bound.valueOf(marker.getBound().name()))
             .setNullValue(marker.isNullValue())
             .build();
@@ -201,7 +201,7 @@ public class ProtoUtils
     public static Marker fromProtoMarker(BlockAllocator blockAllocator, com.amazonaws.athena.connector.lambda.proto.domain.predicate.Marker protoMarker)
     {
         return new Marker(
-            ProtoUtils.fromProtoBlock(blockAllocator, protoMarker.getValueBlock()),
+            ProtobufMessageConverter.fromProtoBlock(blockAllocator, protoMarker.getValueBlock()),
             Marker.Bound.valueOf(protoMarker.getBound().name()),
             protoMarker.getNullValue()
         );
@@ -236,7 +236,7 @@ public class ProtoUtils
             AllOrNoneValueSet allOrNone = (AllOrNoneValueSet) valueSet;
             return outBuilder
                 .setTypeField(ALL_OR_NONE_VALUE_SET_TYPE)
-                .setArrowTypeMessage(ProtoUtils.toProtoArrowType(allOrNone.getType()))
+                .setArrowTypeMessage(ProtobufMessageConverter.toProtoArrowType(allOrNone.getType()))
                 .setAll(allOrNone.isAll())
                 .setNullAllowed(allOrNone.isNullAllowed())
                 .build();
@@ -245,7 +245,7 @@ public class ProtoUtils
             EquatableValueSet eqValueSet = (EquatableValueSet) valueSet;
             return outBuilder
                 .setTypeField(EQUATABLE_VALUE_SET_TYPE)
-                .setValueBlock(ProtoUtils.toProtoBlock(eqValueSet.getValueBlock()))
+                .setValueBlock(ProtobufMessageConverter.toProtoBlock(eqValueSet.getValueBlock()))
                 .setWhiteList(eqValueSet.isWhiteList())
                 .setNullAllowed(eqValueSet.isNullAllowed())
                 .build();
@@ -254,7 +254,7 @@ public class ProtoUtils
             SortedRangeSet sortedRangeSet = (SortedRangeSet) valueSet;
             return outBuilder
                 .setTypeField(SORTED_RANGE_SET_TYPE)
-                .setArrowTypeMessage(ProtoUtils.toProtoArrowType(sortedRangeSet.getType()))
+                .setArrowTypeMessage(ProtobufMessageConverter.toProtoArrowType(sortedRangeSet.getType()))
                 .addAllRanges(toProtoRanges(sortedRangeSet.getOrderedRanges()))
                 .setNullAllowed(sortedRangeSet.isNullAllowed())
                 .build();
@@ -363,19 +363,6 @@ public class ProtoUtils
 
     public static Schema fromProtoSchema(BlockAllocator allocator, ByteString protoSchemaBytes)
     {
-        // JsonFactory jsonFactory = new JsonFactory();
-        // ByteArrayInputStream schemaBytesInputStream = new ByteArrayInputStream(protoSchemaBytes.toByteArray());
-        // byte[] decodedSchemaBytes;
-        // try (JsonParser jsonParser = jsonFactory.createParser(schemaBytesInputStream)) {
-        //     decodedSchemaBytes = jsonParser.getBinaryValue();
-        //     ByteArrayInputStream decodedSchemaBytesInputStream = new ByteArrayInputStream(decodedSchemaBytes);
-        //     return MessageSerializer.deserializeSchema(new ReadChannel(Channels.newChannel(decodedSchemaBytesInputStream)));
-        // } catch (IOException e) {
-        //     // TODO Auto-generated catch block
-        //     e.printStackTrace();
-        //     throw new RuntimeException(e);
-        // }
-        
         ByteArrayInputStream in = new ByteArrayInputStream(protoSchemaBytes.toByteArray());
         Schema schema = null;
         try {
@@ -434,10 +421,10 @@ public class ProtoUtils
     {
         com.amazonaws.athena.connector.lambda.proto.domain.Split.Builder splitBuilder = com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder();
             if (split.getEncryptionKey() != null) {
-                splitBuilder.setEncryptionKey(ProtoUtils.toProtoEncryptionKey(split.getEncryptionKey()));
+                splitBuilder.setEncryptionKey(ProtobufMessageConverter.toProtoEncryptionKey(split.getEncryptionKey()));
             }
             if (split.getSpillLocation() != null) {
-                splitBuilder.setSpillLocation(ProtoUtils.toProtoSpillLocation(split.getSpillLocation()));
+                splitBuilder.setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation(split.getSpillLocation()));
             }
             if (split.getProperties() != null) {
                 splitBuilder.putAllProperties(split.getProperties());

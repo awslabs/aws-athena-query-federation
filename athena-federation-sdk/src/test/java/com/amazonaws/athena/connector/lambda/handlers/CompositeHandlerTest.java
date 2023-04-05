@@ -1,7 +1,5 @@
 package com.amazonaws.athena.connector.lambda.handlers;
 
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
@@ -50,8 +48,9 @@ import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.IdentityUtil;
 import com.amazonaws.athena.connector.lambda.serde.ObjectMapperFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.util.JsonFormat;
 
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -66,6 +65,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -117,7 +117,7 @@ public class CompositeHandlerTest
                         .setSchemaName("schema")
                         .setTableName("table")
                         .build()
-                    ).setPartitions(ProtoUtils.toProtoBlock(BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)))
+                    ).setPartitions(ProtobufMessageConverter.toProtoBlock(BlockUtils.newBlock(allocator, "col1", Types.MinorType.BIGINT.getType(), 1L)))
                     .build());
 
         when(mockMetadataHandler.doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class)))
@@ -140,7 +140,7 @@ public class CompositeHandlerTest
                             .setTableName("table")
                             .build()
                     ).setSchema(
-                        ProtoUtils.toProtoSchemaBytes(SchemaBuilder.newBuilder().addStringField("col1").build())
+                        ProtobufMessageConverter.toProtoSchemaBytes(SchemaBuilder.newBuilder().addStringField("col1").build())
                     )
                     .build()
                 );
@@ -155,13 +155,11 @@ public class CompositeHandlerTest
         when(mockMetadataHandler.doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class)))
                 .thenReturn(GetSplitsResponse.newBuilder().setCatalogName("catalog").addSplits(com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder().build()).build());
 
-        when(mockMetadataHandler.doPing(nullable(PingRequest.class)))
-                .thenReturn(PingResponse.newBuilder().setCatalogName("catalog").setQueryId("queryId").setSourceType("type").setCapabilities(23).setSerDeVersion(2).build());
 
         when(mockRecordHandler.doReadRecords(nullable(BlockAllocatorImpl.class), nullable(ReadRecordsRequest.class)))
                 .thenReturn(ReadRecordsResponse.newBuilder()
                     .setCatalogName("catalog")
-                    .setRecords(ProtoUtils.toProtoBlock(BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))))
+                    .setRecords(ProtobufMessageConverter.toProtoBlock(BlockUtils.newEmptyBlock(allocator, "col", new ArrowType.Int(32, true))))
                     .build());
 
         compositeHandler = new CompositeHandler(mockMetadataHandler, mockRecordHandler);
@@ -186,7 +184,7 @@ public class CompositeHandlerTest
                 .build())
             .setCatalogName("catalog")
             .setQueryId("queryId-" + System.currentTimeMillis())
-            .setSchema(ProtoUtils.toProtoSchemaBytes(schemaForRead))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaForRead))
             .setSplit(
                 com.amazonaws.athena.connector.lambda.proto.domain.Split.newBuilder()
                 .setSpillLocation(
@@ -205,7 +203,7 @@ public class CompositeHandlerTest
             .setMaxInlineBlockSize(100_000_000_000L)
             .build();
         TypeHeader typeHeader = TypeHeader.newBuilder().setType("ReadRecordsRequest").build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(req);
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockRecordHandler, times(1))
                 .doReadRecords(nullable(BlockAllocator.class), nullable(ReadRecordsRequest.class));
@@ -217,7 +215,7 @@ public class CompositeHandlerTest
     {
         ListSchemasRequest req = ListSchemasRequest.newBuilder().setType("ListSchemasRequest").build();
         TypeHeader typeHeader = TypeHeader.newBuilder().setType("ListSchemasRequest").build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(req);
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doListSchemaNames(nullable(BlockAllocatorImpl.class), nullable(ListSchemasRequest.class));
     }
@@ -228,7 +226,7 @@ public class CompositeHandlerTest
     {
         ListTablesRequest req = ListTablesRequest.newBuilder().setType("ListTablesRequest").build();
         TypeHeader typeHeader = TypeHeader.newBuilder().setType("ListTablesRequest").build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(req);
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doListTables(nullable(BlockAllocatorImpl.class), nullable(ListTablesRequest.class));
     }
@@ -239,7 +237,7 @@ public class CompositeHandlerTest
     {
         GetTableRequest req = GetTableRequest.newBuilder().setType("GetTableRequest").build();
         TypeHeader typeHeader = TypeHeader.newBuilder().setType("GetTableRequest").build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(req);
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doGetTable(nullable(BlockAllocatorImpl.class), nullable(GetTableRequest.class));
     }
@@ -254,7 +252,7 @@ public class CompositeHandlerTest
         GetTableLayoutRequest request = GetTableLayoutRequest.newBuilder()
             .setType("GetTableLayoutRequest")
             .build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(request);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(request);
 
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doGetTableLayout(nullable(BlockAllocatorImpl.class), nullable(GetTableLayoutRequest.class));
@@ -274,7 +272,7 @@ public class CompositeHandlerTest
         GetSplitsRequest request = GetSplitsRequest.newBuilder()
             .setType("GetSplitsRequest")
             .build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(request);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(request);
 
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
         verify(mockMetadataHandler, times(1)).doGetSplits(nullable(BlockAllocatorImpl.class), nullable(GetSplitsRequest.class));
@@ -292,8 +290,8 @@ public class CompositeHandlerTest
             .setQueryId("queryId")
             .setType("PingRequest")
             .build();
-        String inputJson = JsonFormat.printer().includingDefaultValueFields().print(req);
+        String inputJson = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(req);
         compositeHandler.handleRequest(allocator, typeHeader, inputJson, new ByteArrayOutputStream());
-        verify(mockMetadataHandler, times(1)).doPing(nullable(PingRequest.class));
+        verify(mockMetadataHandler, times(1)).doPing(nullable(PingRequest.class), nullable(OutputStream.class));
     }
 }

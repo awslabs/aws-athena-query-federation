@@ -1,16 +1,15 @@
-package com.amazonaws.athena.connector.lambda.handlers;
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,7 +17,7 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * limitations under the License.
  * #L%
  */
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
+package com.amazonaws.athena.connector.lambda.handlers;
 import com.amazonaws.athena.connector.lambda.data.Block;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockUtils;
@@ -49,10 +48,11 @@ import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionRespon
 import com.amazonaws.athena.connector.lambda.request.FederationResponse;
 import com.amazonaws.athena.connector.lambda.request.PingRequest;
 import com.amazonaws.athena.connector.lambda.request.PingResponse;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.athena.connector.lambda.udf.UserDefinedFunctionType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.protobuf.util.JsonFormat;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
@@ -109,7 +109,7 @@ public abstract class UserDefinedFunctionHandler
     {
         logger.info("doHandleRequest: request[{}]", req);
         UserDefinedFunctionResponse response = processFunction(allocator, req);
-        String jsonOut = JsonFormat.printer().print(response);
+        String jsonOut = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(response);
         outputStream.write(jsonOut.getBytes());
     }
 
@@ -130,13 +130,13 @@ public abstract class UserDefinedFunctionHandler
             throws Exception
     {
         Method udfMethod = extractScalarFunctionMethod(allocator, req);
-        Block inputRecords = ProtoUtils.fromProtoBlock(allocator, req.getInputRecords());
-        Schema outputSchema = ProtoUtils.fromProtoSchema(allocator, req.getOutputSchema());
+        Block inputRecords = ProtobufMessageConverter.fromProtoBlock(allocator, req.getInputRecords());
+        Schema outputSchema = ProtobufMessageConverter.fromProtoSchema(allocator, req.getOutputSchema());
 
         Block outputRecords = processRows(allocator, udfMethod, inputRecords, outputSchema);
         return UserDefinedFunctionResponse.newBuilder()
             .setType("UserDefinedFunctionResponse")
-            .setRecords(ProtoUtils.toProtoBlock(outputRecords))
+            .setRecords(ProtobufMessageConverter.toProtoBlock(outputRecords))
             .setMethodName(udfMethod.getName())
             .build();
     }
@@ -202,8 +202,8 @@ public abstract class UserDefinedFunctionHandler
     private Method extractScalarFunctionMethod(BlockAllocator allocator, UserDefinedFunctionRequest req)
     {
         String methodName = req.getMethodName();
-        Class[] argumentTypes = extractJavaTypes(ProtoUtils.fromProtoSchema(allocator, req.getInputRecords().getSchema()));
-        Class[] returnTypes = extractJavaTypes(ProtoUtils.fromProtoSchema(allocator, req.getOutputSchema()));
+        Class[] argumentTypes = extractJavaTypes(ProtobufMessageConverter.fromProtoSchema(allocator, req.getInputRecords().getSchema()));
+        Class[] returnTypes = extractJavaTypes(ProtobufMessageConverter.fromProtoSchema(allocator, req.getOutputSchema()));
         checkState(returnTypes.length == RETURN_COLUMN_COUNT,
                 String.format("Expecting %d return columns, found %d in method signature.",
                         RETURN_COLUMN_COUNT, returnTypes.length));

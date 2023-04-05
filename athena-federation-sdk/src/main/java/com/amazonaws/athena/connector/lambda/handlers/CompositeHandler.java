@@ -24,12 +24,11 @@ import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocatorImpl;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.proto.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.proto.request.TypeHeader;
 import com.amazonaws.athena.connector.lambda.proto.udf.UserDefinedFunctionRequest;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,21 +91,14 @@ public class CompositeHandler
     public final void handleRequest(InputStream inputStream, OutputStream outputStream, final Context context)
             throws IOException
     {
+        // in the existing logic, we were attching the Lambda Context variable to the metadata request, which is messy.
+        // For now, I'll stick it in the config options with only the part we need.
+        metadataHandler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, context.getInvokedFunctionArn());
+
         try (BlockAllocatorImpl allocator = new BlockAllocatorImpl()) {
-            // TODO: if inputStream can be processed as a protobuf message, call the protobuf handleRequest method instead.
-            byte[] allInputBytes = inputStream.readAllBytes();
-            String inputJson = new String(allInputBytes, StandardCharsets.UTF_8);
-            logger.warn("Incoming bytes, converted to string: {}", inputJson);
-            TypeHeader.Builder typeHeaderBuilder = TypeHeader.newBuilder();
-            JsonFormat.parser().ignoringUnknownFields().merge(inputJson, typeHeaderBuilder);
-            TypeHeader typeHeader = typeHeaderBuilder.build();
-
-            // in the existing logic, we were attching the Lambda Context variable to the metadata request, which is messy.
-            // For now, I'll stick it in the config options with the fields we care about only.
-            metadataHandler.configOptions.put(MetadataHandler.FUNCTION_ARN_CONFIG_KEY, context.getInvokedFunctionArn());
-
+            String inputJson = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            TypeHeader typeHeader = (TypeHeader) ProtobufSerDe.buildFromJson(inputJson, TypeHeader.newBuilder());
             handleRequest(allocator, typeHeader, inputJson, outputStream);
-            return; // if protobuf was successful, stop
         }
         catch (Exception ex) {
             logger.warn("handleRequest: Completed with an exception.", ex);
@@ -114,19 +106,9 @@ public class CompositeHandler
         }
     }
 
-    // Needed to handle the checked exceptions from the protobuf parseFrom method
-    // private AbstractMessage uncheckedWrapper(Callable<AbstractMessage> callable)
-    // {
-    //     try {
-    //         return callable.call();
-    //     }
-    //     catch (Exception ex) {
-    //         throw new RuntimeException(ex);
-    //     }
-    // }
-
     /**
-     * For protobuf
+     * Based on the type of request, delegate to appropriate handler (Metadata/Record/Udf).
+     * We work under the invariant that the delegate handlers will write to the output stream.
      */
     public final void handleRequest(BlockAllocator allocator, TypeHeader typeHeader, String inputJson, OutputStream outputStream)
             throws Exception
@@ -134,30 +116,20 @@ public class CompositeHandler
         String type = typeHeader.getType();
         switch(type) {
             case "PingRequest":
-                PingRequest.Builder pingBuilder = PingRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, pingBuilder);
-                PingResponse response = metadataHandler.doPing(pingBuilder.build());
-                String outputJson = JsonFormat.printer().print(response);
-                outputStream.write(outputJson.getBytes());
-                logger.info("PingResponse - {}", outputJson);
+                PingRequest pingRequest = (PingRequest) ProtobufSerDe.buildFromJson(inputJson, PingRequest.newBuilder());
+                metadataHandler.doPing(pingRequest, outputStream);
                 return;
             case "ReadRecordsRequest":
-                ReadRecordsRequest.Builder readRecordsRequestBuilder = ReadRecordsRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, readRecordsRequestBuilder);
-                recordHandler.doHandleRequest(allocator, readRecordsRequestBuilder.build(), outputStream);
+                ReadRecordsRequest readRecordsRequest = (ReadRecordsRequest) ProtobufSerDe.buildFromJson(inputJson, ReadRecordsRequest.newBuilder());
+                recordHandler.doHandleRequest(allocator, readRecordsRequest, outputStream);
                 return;
             case "UserDefinedFunctionRequest":
-                UserDefinedFunctionRequest.Builder  userDefinedFunctionRequestBuilder = UserDefinedFunctionRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, userDefinedFunctionRequestBuilder);
-                udfhandler.doHandleRequest(allocator, userDefinedFunctionRequestBuilder.build(), outputStream);
+                UserDefinedFunctionRequest userDefinedFunctionRequest = (UserDefinedFunctionRequest) ProtobufSerDe.buildFromJson(inputJson, UserDefinedFunctionRequest.newBuilder());
+                udfhandler.doHandleRequest(allocator, userDefinedFunctionRequest, outputStream);
                 return;
             default:
                 metadataHandler.doHandleRequest(allocator, typeHeader, inputJson, outputStream);
                 return;
         }
-        // Map<String, Function<byte[], AbstractMessage>> parserMap = Map.of(
-        //     "@GetSplitsRequest", (byte[] in) -> uncheckedWrapper(() -> GetSplitsRequest.parseFrom(in)) 
-        // );
-        // AbstractMessage msg = parserMap.get(type).apply(inputBytes);
     }
 }

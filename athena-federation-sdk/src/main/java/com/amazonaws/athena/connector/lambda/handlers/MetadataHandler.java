@@ -1,17 +1,15 @@
-package com.amazonaws.athena.connector.lambda.handlers;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,7 +17,8 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * limitations under the License.
  * #L%
  */
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
+package com.amazonaws.athena.connector.lambda.handlers;
+
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -55,19 +54,21 @@ import com.amazonaws.athena.connector.lambda.security.EncryptionKey;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.KmsKeyFactory;
 import com.amazonaws.athena.connector.lambda.security.LocalKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.kms.AWSKMSClientBuilder;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.google.protobuf.util.JsonFormat;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.UUID;
@@ -230,69 +231,37 @@ public abstract class MetadataHandler
             throws Exception
     {
         logger.info("doHandleRequest: request[{}]", inputJson);
+
+        // we have to support Java 8, or else we would be able to use Switch case pattern matching + return values to make this nicer.
         switch(typeHeader.getType()) {
             case "ListSchemasRequest":
-                ListSchemasRequest.Builder listSchemasBuilder = ListSchemasRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, listSchemasBuilder);
-                ListSchemasResponse listSchemasResponse = doListSchemaNames(allocator, listSchemasBuilder.build());
-                String listSchemasResponseJson = JsonFormat.printer().print(listSchemasResponse);
-                logger.debug("ListSchemasResponse json - {}", listSchemasResponseJson);
-                outputStream.write(listSchemasResponseJson.getBytes());
+                ListSchemasRequest listSchemasRequest = (ListSchemasRequest) ProtobufSerDe.buildFromJson(inputJson, ListSchemasRequest.newBuilder());
+                ListSchemasResponse listSchemasResponse = doListSchemaNames(allocator, listSchemasRequest);
+                ProtobufSerDe.writeResponse(listSchemasResponse, outputStream);
                 return;
             case "ListTablesRequest":
-                ListTablesRequest.Builder listTablesBuilder = ListTablesRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, listTablesBuilder);
-                ListTablesResponse listTablesResponse = doListTables(allocator, listTablesBuilder.build());
-
-                // primitive fields are omitted by default - set next token to empty string first, because we can't set it to null.
-                if (!listTablesResponse.hasNextToken()) {
-                    listTablesResponse = listTablesResponse.toBuilder().setNextToken("").build();
-                }
-
-                // after converting to a json string, replace the empty string for next token with an explicit null.
-                // right now, we are not using the includingDefaultValueFields() option because we assume all non-primitives are set.
-                String listTablesResponseJson = JsonFormat.printer().print(listTablesResponse);
-                listTablesResponseJson = listTablesResponseJson.replace("\"nextToken\": \"\"", "\"nextToken\": null");
-                logger.debug("ListTablesResponse json - {}", listTablesResponseJson);
-                outputStream.write(listTablesResponseJson.getBytes());
+                ListTablesRequest listTablesRequest = (ListTablesRequest) ProtobufSerDe.buildFromJson(inputJson, ListTablesRequest.newBuilder());
+                ListTablesResponse listTablesResponse = doListTables(allocator, listTablesRequest);
+                ProtobufSerDe.writeResponse(listTablesResponse, outputStream);
                 return;
             case "GetTableRequest":
-                GetTableRequest.Builder getTableBuilder = GetTableRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, getTableBuilder);
-                GetTableResponse getTableResponse = doGetTable(allocator, getTableBuilder.build());
-                assertTypes(ProtoUtils.fromProtoSchema(allocator, getTableResponse.getSchema()));
-                String getTableResponseJson = JsonFormat.printer().includingDefaultValueFields().print(getTableResponse);
-                logger.debug("GetTableResponse json - {}", getTableResponseJson);
-                outputStream.write(getTableResponseJson.getBytes());
+                GetTableRequest getTableRequest = (GetTableRequest) ProtobufSerDe.buildFromJson(inputJson, GetTableRequest.newBuilder());
+                GetTableResponse getTableResponse = doGetTable(allocator, getTableRequest);
+                assertTypes(ProtobufMessageConverter.fromProtoSchema(allocator, getTableResponse.getSchema()));
+                ProtobufSerDe.writeResponse(getTableResponse, outputStream);
                 return;
             case "GetTableLayoutRequest":
-                GetTableLayoutRequest.Builder getTableLayoutRequestBuilder = GetTableLayoutRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, getTableLayoutRequestBuilder);
-                GetTableLayoutResponse getTableLayoutResponse = doGetTableLayout(allocator, getTableLayoutRequestBuilder.build());
-                String getTableLayoutResponseJson = JsonFormat.printer().includingDefaultValueFields().print(getTableLayoutResponse);
-                logger.debug("GetTableLayoutResopnse json - {}", getTableLayoutResponseJson);
-                outputStream.write(getTableLayoutResponseJson.getBytes());
+                GetTableLayoutRequest getTableLayoutRequest = (GetTableLayoutRequest) ProtobufSerDe.buildFromJson(inputJson, GetTableLayoutRequest.newBuilder());
+                GetTableLayoutResponse getTableLayoutResponse = doGetTableLayout(allocator, getTableLayoutRequest);
+                ProtobufSerDe.writeResponse(getTableLayoutResponse, outputStream);
                 return;
             case "GetSplitsRequest":
-                GetSplitsRequest.Builder getSplitsBuilder = GetSplitsRequest.newBuilder();
-                JsonFormat.parser().ignoringUnknownFields().merge(inputJson, getSplitsBuilder);
-                GetSplitsResponse response = doGetSplits(allocator, getSplitsBuilder.build());
-
-                // primitive fields are omitted by default - set continuation token to empty string first, becuase we can't set it to null.
-                if (!response.hasContinuationToken()) {
-                    response = response.toBuilder().setContinuationToken("").build();
-                }
-
-                // after converting to a json string, replace the empty string for continuation token with explicit null.
-                // right now, we are not using the includingDefaultValueFields() option becuase we assume all non-primitives are set.
-                String responseJson = JsonFormat.printer().print(response);
-                responseJson = responseJson.replace("\"continuationToken\": \"\"", "\"continuationToken\": null");
-                logger.info("GetSplitsResponse json - {}", responseJson);
-                outputStream.write(responseJson.getBytes());
+                GetSplitsRequest getSplitsRequest = (GetSplitsRequest) ProtobufSerDe.buildFromJson(inputJson, GetSplitsRequest.newBuilder());
+                GetSplitsResponse response = doGetSplits(allocator, getSplitsRequest);
+                ProtobufSerDe.writeResponse(response, outputStream);
                 return;
             default:
-              logger.error("Input type {} is not yet supported.", typeHeader.getType()); 
-              throw new UnsupportedOperationException("Input type is not yet supported - " + typeHeader.getType());
+              throw new UnsupportedOperationException("Input type is not recognized - " + typeHeader.getType());
         }
     }
 
@@ -355,7 +324,7 @@ public abstract class MetadataHandler
          * Add our partition columns to the response schema so the engine knows how to interpret the list of
          * partitions we are going to return.
          */
-        Schema requestSchema = ProtoUtils.fromProtoSchema(allocator, request.getSchema());
+        Schema requestSchema = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
         for (String nextPartCol : request.getPartitionColsList()) {
             Field partitionCol = requestSchema.findField(nextPartCol);
             partitionSchemaBuilder.addField(nextPartCol, partitionCol.getType());
@@ -373,7 +342,7 @@ public abstract class MetadataHandler
                 .setType("GetTableLayoutResponse")
                 .setCatalogName(request.getCatalogName())
                 .setTableName(request.getTableName())
-                .setPartitions(ProtoUtils.toProtoBlock(partitions))
+                .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
                 .build();
         }
 
@@ -384,7 +353,7 @@ public abstract class MetadataHandler
          */
         try (ConstraintEvaluator constraintEvaluator = new ConstraintEvaluator(allocator,
                 constraintSchema.build(),
-                ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()));
+                ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()));
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
             Block partitions = allocator.createBlock(partitionSchemaBuilder.build());
@@ -395,7 +364,7 @@ public abstract class MetadataHandler
                 .setType("GetTableLayoutResponse")
                 .setCatalogName(request.getCatalogName())
                 .setTableName(request.getTableName())
-                .setPartitions(ProtoUtils.toProtoBlock(partitions))
+                .setPartitions(ProtobufMessageConverter.toProtoBlock(partitions))
                 .build();
         }
     }
@@ -477,11 +446,12 @@ public abstract class MetadataHandler
      *
      * @param request The PingRequest.
      * @return A PingResponse.
+     * @throws IOException
      * @note We do not recommend modifying this function, instead you should implement doPing(...)
      */
-    public PingResponse doPing(PingRequest request)
+    public void doPing(PingRequest request, OutputStream outputStream) throws IOException
     {
-        PingResponse response = PingResponse.newBuilder()
+        PingResponse pingResponse = PingResponse.newBuilder()
             .setType("PingResponse")
             .setCatalogName(request.getCatalogName())
             .setQueryId(request.getQueryId())
@@ -495,7 +465,7 @@ public abstract class MetadataHandler
         catch (Exception ex) {
             logger.warn("doPing: encountered an exception while delegating onPing.", ex);
         }
-        return response;
+        ProtobufSerDe.writeResponse(pingResponse, outputStream);
     }
 
     /**

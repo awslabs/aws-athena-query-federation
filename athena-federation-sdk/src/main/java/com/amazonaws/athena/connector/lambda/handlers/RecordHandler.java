@@ -1,17 +1,15 @@
-package com.amazonaws.athena.connector.lambda.handlers;
-
 /*-
  * #%L
  * Amazon Athena Query Federation SDK
  * %%
- * Copyright (C) 2019 Amazon Web Services
+ * Copyright (C) 2019 - 2023 Amazon Web Services
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *      http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,7 +17,8 @@ package com.amazonaws.athena.connector.lambda.handlers;
  * limitations under the License.
  * #L%
  */
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
+package com.amazonaws.athena.connector.lambda.handlers;
+
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
@@ -30,18 +29,16 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.ConstraintEvaluato
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsRequest;
 import com.amazonaws.athena.connector.lambda.proto.records.ReadRecordsResponse;
 import com.amazonaws.athena.connector.lambda.proto.records.RemoteReadRecordsResponse;
-import com.amazonaws.athena.connector.lambda.request.FederationResponse;
-import com.amazonaws.athena.connector.lambda.request.PingRequest;
-import com.amazonaws.athena.connector.lambda.request.PingResponse;
 import com.amazonaws.athena.connector.lambda.security.CachableSecretsManager;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufSerDe;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.athena.AmazonAthenaClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.AWSSecretsManagerClientBuilder;
-import com.google.protobuf.AbstractMessage;
-import com.google.protobuf.util.JsonFormat;
+import com.google.protobuf.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,8 +46,6 @@ import java.io.OutputStream;
 import java.util.stream.Collectors;
 
 import static com.amazonaws.athena.connector.lambda.handlers.AthenaExceptionFilter.ATHENA_EXCEPTION_FILTER;
-import static com.amazonaws.athena.connector.lambda.handlers.FederationCapabilities.CAPABILITIES;
-import static com.amazonaws.athena.connector.lambda.handlers.SerDeVersion.SERDE_VERSION;
 
 /**
  * More specifically, this class is responsible for providing Athena with actual rows level data from our simulated
@@ -120,10 +115,9 @@ public abstract class RecordHandler
             OutputStream outputStream)
             throws Exception
     {
-        logger.info("doHandleRequest: request[{}]", JsonFormat.printer().print(readRecordsRequest));
-        AbstractMessage response = doReadRecords(allocator, readRecordsRequest);
-        String jsonOut = JsonFormat.printer().print(response);
-        logger.debug("ReadRecordsResponse json - {}", jsonOut);
+        logger.info("doHandleRequest: request[{}]", ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(readRecordsRequest));
+        Message response = doReadRecords(allocator, readRecordsRequest);
+        String jsonOut = ProtobufSerDe.PROTOBUF_JSON_PRINTER.print(response);
         outputStream.write(jsonOut.getBytes());
     }
 
@@ -136,18 +130,18 @@ public abstract class RecordHandler
      * 2. The Catalog, Database, and Table the read request is for.
      * 3. The filtering predicate (if any)
      * 4. The columns required for projection.
-     * @return A RecordResponse which either a ReadRecordsResponse or a RemoteReadRecordsResponse containing the row
+     * @return A Message which is either a ReadRecordsResponse or a RemoteReadRecordsResponse containing the row
      * data for the requested Split.
      */
-    public AbstractMessage doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
+    public Message doReadRecords(BlockAllocator allocator, ReadRecordsRequest request)
             throws Exception
     {
         logger.info("doReadRecords: {}:{}", request.getSchema(), request.getSplit().getSpillLocation());
         SpillConfig spillConfig = getSpillConfig(request);
         try (ConstraintEvaluator evaluator = new ConstraintEvaluator(allocator,
-                ProtoUtils.fromProtoSchema(allocator, request.getSchema()),
-                ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()));
-                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, ProtoUtils.fromProtoSchema(allocator, request.getSchema()), evaluator, configOptions);
+                ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema()),
+                ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()));
+                S3BlockSpiller spiller = new S3BlockSpiller(amazonS3, spillConfig, allocator, ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema()), evaluator, configOptions);
                 QueryStatusChecker queryStatusChecker = new QueryStatusChecker(athena, athenaInvoker, request.getQueryId())
         ) {
             readWithConstraint(allocator, spiller, request, queryStatusChecker);
@@ -156,7 +150,7 @@ public abstract class RecordHandler
                 return ReadRecordsResponse.newBuilder()
                     .setType("ReadRecordsResponse")
                     .setCatalogName(request.getCatalogName())
-                    .setRecords(ProtoUtils.toProtoBlock(spiller.getBlock()))
+                    .setRecords(ProtobufMessageConverter.toProtoBlock(spiller.getBlock()))
                     .build();
             }
             else {
@@ -164,8 +158,8 @@ public abstract class RecordHandler
                     .setType("RemoteReadRecordsResponse")
                     .setCatalogName(request.getCatalogName())
                     .setSchema(request.getSchema())
-                    .addAllRemoteBlocks(spiller.getSpillLocations().stream().map(ProtoUtils::toProtoSpillLocation).collect(Collectors.toList()))
-                    .setEncryptionKey(ProtoUtils.toProtoEncryptionKey(spillConfig.getEncryptionKey()))
+                    .addAllRemoteBlocks(spiller.getSpillLocations().stream().map(ProtobufMessageConverter::toProtoSpillLocation).collect(Collectors.toList()))
+                    .setEncryptionKey(ProtobufMessageConverter.toProtoEncryptionKey(spillConfig.getEncryptionKey()))
                     .build();
             }
         }
@@ -198,36 +192,12 @@ public abstract class RecordHandler
         }
 
         return SpillConfig.newBuilder()
-                .withSpillLocation(ProtoUtils.fromProtoSplit(request.getSplit()).getSpillLocation())
+                .withSpillLocation(ProtobufMessageConverter.fromProtoSplit(request.getSplit()).getSpillLocation())
                 .withMaxBlockBytes(maxBlockSize)
                 .withMaxInlineBlockBytes(request.getMaxInlineBlockSize())
                 .withRequestId(request.getQueryId())
-                .withEncryptionKey(ProtoUtils.fromProtoSplit(request.getSplit()).getEncryptionKey())
+                .withEncryptionKey(ProtobufMessageConverter.fromProtoSplit(request.getSplit()).getEncryptionKey())
                 .withNumSpillThreads(NUM_SPILL_THREADS)
                 .build();
-    }
-
-    private PingResponse doPing(PingRequest request)
-    {
-        PingResponse response = new PingResponse(request.getCatalogName(), request.getQueryId(), sourceType, CAPABILITIES, SERDE_VERSION);
-        try {
-            onPing(request);
-        }
-        catch (Exception ex) {
-            logger.warn("doPing: encountered an exception while delegating onPing.", ex);
-        }
-        return response;
-    }
-
-    protected void onPing(PingRequest request)
-    {
-        //NoOp
-    }
-
-    private void assertNotNull(FederationResponse response)
-    {
-        if (response == null) {
-            throw new RuntimeException("Response was null");
-        }
     }
 }

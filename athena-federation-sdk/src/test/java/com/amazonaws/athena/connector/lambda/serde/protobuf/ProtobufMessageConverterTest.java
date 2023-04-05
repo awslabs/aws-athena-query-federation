@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.athena.connector.lambda;
+package com.amazonaws.athena.connector.lambda.serde.protobuf;
 
 import static org.junit.Assert.*;
 
@@ -40,9 +40,10 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.google.protobuf.util.JsonFormat;
 
-public class ProtoUtilsTest {
+public class ProtobufMessageConverterTest {
 
     private BlockAllocator blockAllocator;
 
@@ -63,8 +64,8 @@ public class ProtoUtilsTest {
     {
  
         Block block = BlockUtils.newBlock(blockAllocator, "col1", Types.MinorType.INT.getType(), List.of(1, 2, 3));
-        com.amazonaws.athena.connector.lambda.proto.data.Block protoBlock = ProtoUtils.toProtoBlock(block);
-        Block rewritten = ProtoUtils.fromProtoBlock(blockAllocator, protoBlock);
+        com.amazonaws.athena.connector.lambda.proto.data.Block protoBlock = ProtobufMessageConverter.toProtoBlock(block);
+        Block rewritten = ProtobufMessageConverter.fromProtoBlock(blockAllocator, protoBlock);
  
         // the block equals method doesn't test allocator id
         assertEquals(block.getAllocatorId(), rewritten.getAllocatorId());
@@ -75,8 +76,8 @@ public class ProtoUtilsTest {
     public void testToAndFromProtoBlockEmpty() throws Exception
     {
         Block empty = BlockUtils.newEmptyBlock(blockAllocator, "column", Types.MinorType.INT.getType());
-        com.amazonaws.athena.connector.lambda.proto.data.Block protoBlock = ProtoUtils.toProtoBlock(empty);
-        Block rewritten = ProtoUtils.fromProtoBlock(blockAllocator, protoBlock);
+        com.amazonaws.athena.connector.lambda.proto.data.Block protoBlock = ProtobufMessageConverter.toProtoBlock(empty);
+        Block rewritten = ProtobufMessageConverter.fromProtoBlock(blockAllocator, protoBlock);
 
         assertEquals(empty.getAllocatorId(), rewritten.getAllocatorId());
         assertEquals(empty, rewritten);
@@ -90,17 +91,17 @@ public class ProtoUtilsTest {
             Marker.Bound.ABOVE,
             false
         );
-        assertEquals(marker, ProtoUtils.fromProtoMarker(blockAllocator, ProtoUtils.toProtoMarker(marker)));
+        assertEquals(marker, ProtobufMessageConverter.fromProtoMarker(blockAllocator, ProtobufMessageConverter.toProtoMarker(marker)));
 
         marker = new Marker(
             BlockUtils.newBlock(blockAllocator, "col1", Types.MinorType.VARCHAR.getType(), List.of("a")),
             Marker.Bound.EXACTLY,
             true);
-        assertEquals(marker, ProtoUtils.fromProtoMarker(blockAllocator, ProtoUtils.toProtoMarker(marker)));
+        assertEquals(marker, ProtobufMessageConverter.fromProtoMarker(blockAllocator, ProtobufMessageConverter.toProtoMarker(marker)));
 
         marker = Marker.lowerUnbounded(blockAllocator, Types.MinorType.INT.getType());
-        com.amazonaws.athena.connector.lambda.proto.domain.predicate.Marker protoMarker = ProtoUtils.toProtoMarker(marker);
-         assertEquals(marker, ProtoUtils.fromProtoMarker(blockAllocator, protoMarker));
+        com.amazonaws.athena.connector.lambda.proto.domain.predicate.Marker protoMarker = ProtobufMessageConverter.toProtoMarker(marker);
+         assertEquals(marker, ProtobufMessageConverter.fromProtoMarker(blockAllocator, protoMarker));
     }
 
     @Test
@@ -110,8 +111,8 @@ public class ProtoUtilsTest {
         Range gtFive = Range.greaterThan(blockAllocator, Types.MinorType.INT.getType(), 5);
 
         List<Range> ranges = List.of(gtFive, between);
-        List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.Range> protoRanges = ProtoUtils.toProtoRanges(ranges);
-        List<Range> backToRanges = ProtoUtils.fromProtoRanges(blockAllocator, protoRanges);
+        List<com.amazonaws.athena.connector.lambda.proto.domain.predicate.Range> protoRanges = ProtobufMessageConverter.toProtoRanges(ranges);
+        List<Range> backToRanges = ProtobufMessageConverter.fromProtoRanges(blockAllocator, protoRanges);
         assertEquals(between, backToRanges.get(1));
         assertEquals(gtFive, backToRanges.get(0));
     }
@@ -125,8 +126,8 @@ public class ProtoUtilsTest {
             true
         );
 
-        com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet protoValueSet = ProtoUtils.toProtoValueSet(valueSet);
-        ValueSet back = ProtoUtils.fromProtoValueSet(blockAllocator, protoValueSet);
+        com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet protoValueSet = ProtobufMessageConverter.toProtoValueSet(valueSet);
+        ValueSet back = ProtobufMessageConverter.fromProtoValueSet(blockAllocator, protoValueSet);
 
         assertEquals(valueSet, back);
     }
@@ -140,8 +141,8 @@ public class ProtoUtilsTest {
             false
         );
 
-        com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet protoValueSet = ProtoUtils.toProtoValueSet(valueSet);
-        ValueSet back = ProtoUtils.fromProtoValueSet(blockAllocator, protoValueSet);
+        com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet protoValueSet = ProtobufMessageConverter.toProtoValueSet(valueSet);
+        ValueSet back = ProtobufMessageConverter.fromProtoValueSet(blockAllocator, protoValueSet);
 
         assertEquals(valueSet, back);
     }
@@ -155,8 +156,8 @@ public class ProtoUtilsTest {
             true
         );
 
-        com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet protoValueSet = ProtoUtils.toProtoValueSet(valueSet);
-        ValueSet back = ProtoUtils.fromProtoValueSet(blockAllocator, protoValueSet);
+        com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet protoValueSet = ProtobufMessageConverter.toProtoValueSet(valueSet);
+        ValueSet back = ProtobufMessageConverter.fromProtoValueSet(blockAllocator, protoValueSet);
 
         assertEquals(valueSet, back);
     }
@@ -181,14 +182,14 @@ public class ProtoUtilsTest {
                 true// false - false fails currently. it translates wrong.
             )
         );
-        Map<String, com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet> protoSummaryMap = ProtoUtils.toProtoSummary(summaryMap);
-        Map<String, ValueSet> back = ProtoUtils.fromProtoSummary(blockAllocator, protoSummaryMap);
+        Map<String, com.amazonaws.athena.connector.lambda.proto.domain.predicate.ValueSet> protoSummaryMap = ProtobufMessageConverter.toProtoSummary(summaryMap);
+        Map<String, ValueSet> back = ProtobufMessageConverter.fromProtoSummary(blockAllocator, protoSummaryMap);
         
         summaryMap.entrySet().forEach(e -> assertTrue(back.containsKey(e.getKey()) && back.get(e.getKey()).equals(e.getValue())));
 
         Constraints constraints = new Constraints(summaryMap);
-        com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints protoConstraints = ProtoUtils.toProtoConstraints(constraints);
-        Constraints backConstraints = ProtoUtils.fromProtoConstraints(blockAllocator, protoConstraints);
+        com.amazonaws.athena.connector.lambda.proto.domain.predicate.Constraints protoConstraints = ProtobufMessageConverter.toProtoConstraints(constraints);
+        Constraints backConstraints = ProtobufMessageConverter.fromProtoConstraints(blockAllocator, protoConstraints);
         assertEquals(constraints, backConstraints);
 
     }

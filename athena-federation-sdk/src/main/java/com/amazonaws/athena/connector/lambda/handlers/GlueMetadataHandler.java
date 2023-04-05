@@ -21,7 +21,6 @@ package com.amazonaws.athena.connector.lambda.handlers;
  */
 
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.data.BlockAllocator;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.TableName;
@@ -35,6 +34,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.proto.security.FederatedIdentity;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.glue.AWSGlue;
 import com.amazonaws.services.glue.AWSGlueClientBuilder;
@@ -361,7 +361,7 @@ public abstract class GlueMetadataHandler
         ListTablesResponse.Builder listTablesResponseBuilder = ListTablesResponse.newBuilder()
             .setType("ListTablesResponse")
             .setCatalogName(request.getCatalogName())
-            .addAllTables(tables.stream().map(ProtoUtils::toTableName).collect(Collectors.toList()));
+            .addAllTables(tables.stream().map(ProtobufMessageConverter::toTableName).collect(Collectors.toList()));
         if (nextToken != null) {
             listTablesResponseBuilder.setNextToken(nextToken);
         }
@@ -488,7 +488,7 @@ public abstract class GlueMetadataHandler
             .setCatalogName(request.getCatalogName())
             .setTableName(request.getTableName())
             .addAllPartitionColumns(partitionCols)
-            .setSchema(ProtoUtils.toProtoSchemaBytes(schemaBuilder.build()))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schemaBuilder.build()))
             .build();
     }
 

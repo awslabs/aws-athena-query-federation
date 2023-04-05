@@ -20,7 +20,6 @@
 package com.amazonaws.athena.connectors.dynamodb;
 
 import com.amazonaws.athena.connector.credentials.CrossAccountCredentialsProvider;
-import com.amazonaws.athena.connector.lambda.ProtoUtils;
 import com.amazonaws.athena.connector.lambda.QueryStatusChecker;
 import com.amazonaws.athena.connector.lambda.ThrottlingInvoker;
 import com.amazonaws.athena.connector.lambda.data.Block;
@@ -43,6 +42,7 @@ import com.amazonaws.athena.connector.lambda.proto.metadata.ListSchemasResponse;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesRequest;
 import com.amazonaws.athena.connector.lambda.proto.metadata.ListTablesResponse;
 import com.amazonaws.athena.connector.lambda.security.EncryptionKeyFactory;
+import com.amazonaws.athena.connector.lambda.serde.protobuf.ProtobufMessageConverter;
 import com.amazonaws.athena.connectors.dynamodb.constants.DynamoDBConstants;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBIndex;
 import com.amazonaws.athena.connectors.dynamodb.model.DynamoDBTable;
@@ -231,7 +231,7 @@ public class DynamoDBMetadataHandler
             combinedTables.addAll(
                 tableResolver.listTables()
                     .stream()
-                    .map(ProtoUtils::toTableName)
+                    .map(ProtobufMessageConverter::toTableName)
                     .collect(Collectors.toList())
             );
         }
@@ -271,7 +271,7 @@ public class DynamoDBMetadataHandler
             .setType("GetTableResponse")
             .setCatalogName(request.getCatalogName())
             .setTableName(request.getTableName())
-            .setSchema(ProtoUtils.toProtoSchemaBytes(schema))
+            .setSchema(ProtobufMessageConverter.toProtoSchemaBytes(schema))
             .build();
     }
 
@@ -286,7 +286,7 @@ public class DynamoDBMetadataHandler
     public void enhancePartitionSchema(BlockAllocator allocator, SchemaBuilder partitionSchemaBuilder, GetTableLayoutRequest request)
     {
         // use the source table name from the schema if available (in case Glue table name != actual table name)
-        Schema requestSchema = ProtoUtils.fromProtoSchema(allocator, request.getSchema());
+        Schema requestSchema = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
         String tableName = getSourceTableName(requestSchema);
         if (tableName == null) {
             tableName = request.getTableName().getTableName();
@@ -300,7 +300,7 @@ public class DynamoDBMetadataHandler
         }
         // add table name so we don't have to do case insensitive resolution again
         partitionSchemaBuilder.addMetadata(TABLE_METADATA, table.getName());
-        Map<String, ValueSet> summary = ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()).getSummary();
+        Map<String, ValueSet> summary = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary();
         List<String> requestedCols = requestSchema.getFields().stream().map(Field::getName).collect(Collectors.toList());
         DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
         logger.info("using index: {}", index.getName());
@@ -361,13 +361,13 @@ public class DynamoDBMetadataHandler
     {
         // TODO consider caching this repeated work in #enhancePartitionSchema
         // use the source table name from the schema if available (in case Glue table name != actual table name)
-        Schema requestSchema = ProtoUtils.fromProtoSchema(allocator, request.getSchema());
+        Schema requestSchema = ProtobufMessageConverter.fromProtoSchema(allocator, request.getSchema());
         String tableName = getSourceTableName(requestSchema);
         if (tableName == null) {
             tableName = request.getTableName().getTableName();
         }
         DynamoDBTable table = tableResolver.getTableMetadata(tableName);
-        Map<String, ValueSet> summary = ProtoUtils.fromProtoConstraints(allocator, request.getConstraints()).getSummary();
+        Map<String, ValueSet> summary = ProtobufMessageConverter.fromProtoConstraints(allocator, request.getConstraints()).getSummary();
         List<String> requestedCols = requestSchema.getFields().stream().map(Field::getName).collect(Collectors.toList());
         DynamoDBIndex index = DDBPredicateUtils.getBestIndexForPredicates(table, requestedCols, summary);
         logger.info("using index: {}", index.getName());
@@ -434,7 +434,7 @@ public class DynamoDBMetadataHandler
     {
         int partitionContd = decodeContinuationToken(request);
         Set<Split> splits = new HashSet<>();
-        Block partitions = ProtoUtils.fromProtoBlock(allocator, request.getPartitions());
+        Block partitions = ProtobufMessageConverter.fromProtoBlock(allocator, request.getPartitions());
         Map<String, String> partitionMetadata = partitions.getSchema().getCustomMetadata();
         String partitionType = partitionMetadata.get(PARTITION_TYPE_METADATA);
         if (partitionType == null) {
@@ -472,7 +472,7 @@ public class DynamoDBMetadataHandler
                                         .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
                                         .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
                                     .build()
-                                ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                                ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
                                 .putAllProperties(s.getProperties())
                                 .build()
                             ).collect(Collectors.toList())
@@ -491,7 +491,7 @@ public class DynamoDBMetadataHandler
                                 .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
                                 .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
                             .build()
-                        ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                        ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
                         .putAllProperties(s.getProperties())
                         .build()
                     ).collect(Collectors.toList())
@@ -526,7 +526,7 @@ public class DynamoDBMetadataHandler
                                         .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
                                         .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
                                     .build()
-                                ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                                ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
                                 .putAllProperties(s.getProperties())
                                 .build()
                             ).collect(Collectors.toList())
@@ -545,7 +545,7 @@ public class DynamoDBMetadataHandler
                                         .setKey(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getKey()))
                                         .setNonce(com.google.protobuf.ByteString.copyFrom(s.getEncryptionKey().getNonce()))
                                     .build()
-                                ).setSpillLocation(ProtoUtils.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
+                                ).setSpillLocation(ProtobufMessageConverter.toProtoSpillLocation((S3SpillLocation) s.getSpillLocation()))
                                 .putAllProperties(s.getProperties())
                                 .build()
                             ).collect(Collectors.toList())
