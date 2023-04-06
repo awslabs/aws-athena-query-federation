@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 def get_new_version():
     # Get latest release version
     previous_release_version = subprocess.check_output(['''
-        gh release -R awslabs/aws-athena-query-federation list --exclude-drafts --exclude-pre-releases -L 1 |
+        gh release list --exclude-drafts --exclude-pre-releases -L 1 |
         sed 's/.*\s\+Latest\s\+v\(.*\)\s\+.*/\\1/g'
     '''], shell=True).decode("utf-8")
 
