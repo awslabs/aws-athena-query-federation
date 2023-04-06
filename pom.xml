@@ -88,17 +88,12 @@
     <modules>
         <module>athena-arrow-java-dist</module>
         <module>athena-federation-sdk</module>
-        <module>athena-federation-sdk-dsv2</module>
         <module>athena-federation-sdk-tools</module>
         <module>athena-federation-integ-test</module>
         <module>athena-cloudwatch</module>
-        <module>athena-cloudwatch-dsv2</module>
         <module>athena-cloudwatch-metrics</module>
-        <module>athena-cloudwatch-metrics-dsv2</module>
         <module>athena-dynamodb</module>
-        <module>athena-dynamodb-dsv2</module>
         <module>athena-aws-cmdb</module>
-        <module>athena-aws-cmdb-dsv2</module>
         <module>athena-docdb</module>
         <module>athena-redis</module>
         <module>athena-hbase</module>
