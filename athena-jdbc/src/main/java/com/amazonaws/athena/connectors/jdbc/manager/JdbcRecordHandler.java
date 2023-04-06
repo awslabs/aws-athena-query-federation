@@ -200,7 +200,6 @@ public abstract class JdbcRecordHandler
     protected Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
-
         final String fieldName = field.getName();
 
         if (partitionValues.containsKey(fieldName)) {
@@ -252,7 +251,14 @@ public abstract class JdbcRecordHandler
             case FLOAT8:
                 return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
                 {
-                    dst.value = resultSet.getDouble(fieldName);
+                    try {
+                        dst.value = resultSet.getDouble(fieldName);
+                    }
+                    catch (java.sql.SQLException ex) {
+                        // We need to use Double.parseDouble()
+                        // replaceAll() use to strip commas "$25,000.00"
+                        dst.value = Double.parseDouble(resultSet.getString(fieldName).replaceAll(",", "").replaceAll("\\$", ""));
+                    }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case DECIMAL:

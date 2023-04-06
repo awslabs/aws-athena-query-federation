@@ -46,6 +46,7 @@ import com.amazonaws.services.s3.model.PutObjectResult;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueRequest;
 import com.amazonaws.services.secretsmanager.model.GetSecretValueResult;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Before;
@@ -108,7 +109,6 @@ public class JdbcRecordHandlerTest
         };
         this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
     }
-
     @Test
     public void readWithConstraint()
             throws Exception
@@ -157,12 +157,12 @@ public class JdbcRecordHandlerTest
     }
     @Test
     public void makeExtractor()
-            throws SQLException
+            throws Exception
     {
-        String[] schema = {"testCol1", "testCol2"};
-        int[] columnTypes = {Types.INTEGER, Types.VARCHAR};
-        Object[][] values = {{1, "testVal1"}, {2, "testVal2"}};
-        AtomicInteger rowNumber = new AtomicInteger(-1);
+        String[] schema = {"testCol1", "testCol2", "testCol10"};
+        int[] columnTypes = {Types.INTEGER, Types.VARCHAR, Types.DOUBLE};
+        Object[][] values = {{1, "testVal1", "$1,000.50"}, {2, "testVal2", "$100.00"}};
+        AtomicInteger rowNumber = new AtomicInteger(0);
 
         ResultSet resultSet = mockResultSet(schema, columnTypes, values, rowNumber);
         Mockito.when(this.preparedStatement.executeQuery()).thenReturn(resultSet);
@@ -192,5 +192,8 @@ public class JdbcRecordHandlerTest
         Assert.assertTrue(actualDateDay instanceof DateDayExtractor);
         Assert.assertTrue(actualDateMilli instanceof DateMilliExtractor);
 
+        NullableFloat8Holder dollarValue = new NullableFloat8Holder();
+        ((Float8Extractor) actualFloat8).extract(null, dollarValue);
+        Assert.assertEquals(dollarValue.value, 1000.5, 0.0);
     }
 }
