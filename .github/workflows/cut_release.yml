@@ -29,13 +29,15 @@ jobs:
       - name: Setup previous release version environment variable
         env:
           GH_TOKEN: ${{ github.token }}
-        run: echo "PREVIOUS_RELEASE_VERSION=$(gh release -R awslabs/aws-athena-query-federation list --exclude-drafts --exclude-pre-releases -L 1 | sed 's/.*\s\+Latest\s\+v\(.*\)\s\+.*/\1/g')" >> $GITHUB_ENV
+        run: echo "PREVIOUS_RELEASE_VERSION=$(gh release list --exclude-drafts --exclude-pre-releases -L 1 | sed 's/.*\s\+Latest\s\+v\(.*\)\s\+.*/\1/g')" >> $GITHUB_ENV
 
       - name: Setup previous release version tag environment variable
         run: echo "PREVIOUS_RELEASE_TAG=v$PREVIOUS_RELEASE_VERSION" >> $GITHUB_ENV
 
       - name: Setup new release version environment variable
-        run: echo "NEW_RELEASE_VERSION=$((echo $PREVIOUS_RELEASE_VERSION | grep \"$(date +'%Y.%-U')\" || date +'%Y.%-U.0') | python3 -c 'version = input().split("."); print(f"{version[0]}.{version[1]}.{int(version[2]) + 1}")')" >> $GITHUB_ENV
+        run: |
+          NEW_RELEASE_VERSION=$((echo $PREVIOUS_RELEASE_VERSION | grep "$(date +'%Y.%-U')" || date +'%Y.%-U.0') | python3 -c 'version = input().split("."); print(f"{version[0]}.{version[1]}.{int(version[2]) + 1}")')
+          echo "NEW_RELEASE_VERSION=$NEW_RELEASE_VERSION" >> $GITHUB_ENV
 
       - name: Create branch locally on the runner
         run: git checkout -b release_${NEW_RELEASE_VERSION} origin/master
